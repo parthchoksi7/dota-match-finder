@@ -9,3 +9,22 @@
 .font-display {
   font-family: 'Barlow Condensed', sans-serif;
 }
+
+.focus-ring:focus {
+  @apply outline-none ring-2 ring-red-500 ring-offset-2 ring-offset-gray-950;
+}
+:root:not(.dark) .focus-ring:focus {
+  @apply ring-offset-gray-100;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

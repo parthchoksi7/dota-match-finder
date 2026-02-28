@@ -1,4 +1,7 @@
 import MatchCard from "./MatchCard"
+import { useState } from "react"
+
+const INITIAL_SHOW = 10
 
 function groupIntoSeries(matches) {
   const seriesMap = {}
@@ -22,7 +25,7 @@ function groupIntoSeries(matches) {
   }
 
   let series = Object.values(seriesMap)
-  series.forEach(s => s.games.sort((a, b) => a.startTime - b.startTime))
+  series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)
 
   function winsRequired(s) {
@@ -42,7 +45,7 @@ function groupIntoSeries(matches) {
   }
 
   const reversed = [...series].reverse()
-  const oldestIncompleteIndex = reversed.findIndex(s => !isComplete(s))
+  const oldestIncompleteIndex = reversed.findIndex((s) => !isComplete(s))
   if (oldestIncompleteIndex !== -1) {
     series.splice(series.length - 1 - oldestIncompleteIndex, 1)
   }
@@ -50,12 +53,14 @@ function groupIntoSeries(matches) {
   return series
 }
 
-function MatchList({ matches, onSelect, loading }) {
+function MatchList({ matches, onSelect, loading, onClearSearch }) {
+  const [showCount, setShowCount] = useState(INITIAL_SHOW)
+
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <div className="text-gray-500 text-sm uppercase tracking-widest animate-pulse">
-          Searching...
+      <div className="text-center py-12" aria-live="polite" aria-busy="true">
+        <div className="text-gray-500 dark:text-gray-500 text-sm uppercase tracking-widest animate-pulse">
+          Searching…
         </div>
       </div>
     )
@@ -63,25 +68,50 @@ function MatchList({ matches, onSelect, loading }) {
 
   if (!matches || matches.length === 0) {
     return (
-      <div className="text-center py-12 border border-gray-800">
-        <div className="text-gray-500 text-sm uppercase tracking-widest">
+      <div
+        className="text-center py-12 border border-gray-200 dark:border-gray-800 rounded"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-gray-500 dark:text-gray-500 text-sm uppercase tracking-widest">
           No matches found
-        </div>
-        <p className="text-gray-700 text-xs mt-2">Try a different team or tournament name</p>
+        </p>
+        <p className="text-gray-500 dark:text-gray-600 text-xs mt-2">Try a different team or tournament name.</p>
+        {onClearSearch && (
+          <button
+            type="button"
+            onClick={onClearSearch}
+            className="focus-ring mt-4 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+          >
+            Clear and try again
+          </button>
+        )}
       </div>
     )
   }
 
   const series = groupIntoSeries(matches)
+  const totalGames = series.reduce((acc, s) => acc + s.games.length, 0)
+  const visibleSeries = series.slice(0, showCount)
+  const hasMore = series.length > showCount
 
   return (
     <div className="w-full flex flex-col gap-3">
-      <p className="text-xs text-gray-600 uppercase tracking-widest">
-        {series.length} series
+      <p className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest" aria-live="polite">
+        {series.length} series ({totalGames} games)
       </p>
-      {series.map((s) => (
+      {visibleSeries.map((s) => (
         <MatchCard key={s.id} series={s} onSelectGame={onSelect} />
       ))}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setShowCount((n) => n + INITIAL_SHOW)}
+          className="focus-ring py-3 text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-800 rounded transition-colors"
+        >
+          Load more ({series.length - showCount} more)
+        </button>
+      )}
     </div>
   )
 }
