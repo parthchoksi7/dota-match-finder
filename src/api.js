@@ -18,6 +18,7 @@ export async function fetchProMatches() {
     startTime: m.start_time,
     twitchVodId: null,
     twitchOffset: null,
+    seriesId: m.series_id,
   }))
 }
 

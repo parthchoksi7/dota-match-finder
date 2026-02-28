@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+code = '''import { useState, useEffect } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import { fetchProMatches, findTwitchVod } from "./api"
@@ -117,3 +117,9 @@ function App() {
 }
 
 export default App
+'''
+
+with open('src/App.jsx', 'w') as f:
+    f.write(code)
+
+print('Done!')
