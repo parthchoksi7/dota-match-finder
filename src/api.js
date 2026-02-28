@@ -3,7 +3,9 @@ const OPENDOTA_BASE = 'https://api.opendota.com/api'
 export async function fetchProMatches() {
   const res = await fetch(OPENDOTA_BASE + '/promatches')
   const data = await res.json()
-  return data.map((m) => ({
+  const lastSeriesId = data[data.length - 1].series_id
+  const filtered = data.filter(m => m.series_id !== lastSeriesId)
+  return filtered.map((m) => ({
     id: String(m.match_id),
     tournament: m.league_name,
     date: new Date(m.start_time * 1000).toLocaleDateString('en-US', {
@@ -16,9 +18,10 @@ export async function fetchProMatches() {
     radiantWin: m.radiant_win,
     duration: new Date(m.duration * 1000).toISOString().substr(11, 5),
     startTime: m.start_time,
+    seriesId: m.series_id,
+    seriesType: m.series_type,
     twitchVodId: null,
     twitchOffset: null,
-    seriesId: m.series_id,
   }))
 }
 
@@ -43,14 +46,12 @@ export async function findTwitchVod(channelName, matchStartTime) {
   if (!userId) return null
   const vodRes = await fetch('https://api.twitch.tv/helix/videos?user_id=' + userId + '&type=archive&first=30', { headers })
   const vodData = await vodRes.json()
-  console.log('VODs found for', channelName, ':', vodData.data.length)
   for (const vod of vodData.data) {
     const vodStart = new Date(vod.created_at).getTime() / 1000
     const durationSeconds = parseTwitchDuration(vod.duration)
     const vodEnd = vodStart + durationSeconds
-    console.log('Checking:', vod.title, '| start:', vodStart, '| end:', vodEnd, '| match:', matchStartTime)
     if (matchStartTime >= vodStart && matchStartTime <= vodEnd) {
-      const offset = Math.floor(matchStartTime - vodStart)
+      const offset = Math.floor(matchStartTime - vodStart + 600)
       return { vodId: vod.id, offset, url: 'https://www.twitch.tv/videos/' + vod.id + '?t=' + offset + 's' }
     }
   }
