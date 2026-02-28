@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
-import { fetchProMatches, findTwitchVod } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchSummary } from "./api"
 
 function WatchButton({ url }) {
   return (
@@ -19,6 +19,8 @@ function App() {
   const [searched, setSearched] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState(null)
   const [error, setError] = useState(null)
+  const [summary, setSummary] = useState(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   useEffect(() => {
     fetchProMatches()
@@ -52,6 +54,13 @@ function App() {
     }
     setSelectedMatch({ ...match, loadingVod: false, ...vod })
   }
+  async function handleSummarize(match) {
+  setSummary(null)
+  setSummaryLoading(true)
+  const result = await fetchMatchSummary(match.id)
+  setSummary(result)
+  setSummaryLoading(false)
+}
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -96,7 +105,21 @@ function App() {
                   <WatchButton url={selectedMatch.url} />
                 )}
                 {!selectedMatch.loadingVod && !selectedMatch.url && (
-                  <span className="text-xs text-gray-600 uppercase tracking-widest">No VOD found</span>
+                <span className="text-xs text-gray-600 uppercase tracking-widest">No VOD found</span>
+              )}
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <button
+                  onClick={() => handleSummarize(selectedMatch)}
+                  disabled={summaryLoading}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 text-white text-xs font-bold uppercase tracking-widest transition-colors border border-gray-700"
+                >
+                  {summaryLoading ? "Generating summary..." : "AI Match Summary"}
+                </button>
+                {summary && (
+                  <div className="mt-4 text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                    {summary}
+                  </div>
                 )}
               </div>
             </div>

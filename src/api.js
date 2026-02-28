@@ -65,3 +65,16 @@ function parseTwitchDuration(duration) {
   const seconds = parseInt(match[3] || 0)
   return hours * 3600 + minutes * 60 + seconds
 }
+export async function fetchMatchSummary(matchId) {
+  const matchRes = await fetch(OPENDOTA_BASE + '/matches/' + matchId)
+  const matchData = await matchRes.json()
+
+  const summaryRes = await fetch('/api/summarize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchData })
+  })
+
+  const data = await summaryRes.json()
+  return data.summary
+}
