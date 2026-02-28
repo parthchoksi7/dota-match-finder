@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
-import { fetchProMatches } from "./api"
+import { fetchProMatches, findTwitchVod } from "./api"
 
 function App() {
   const [allMatches, setAllMatches] = useState([])
@@ -16,6 +16,17 @@ function App() {
       .then((data) => setAllMatches(data))
       .catch(() => setError("Failed to load matches. Try again later."))
   }, [])
+
+async function handleSelectMatch(match) {
+    setSelectedMatch({ ...match, loadingVod: true })
+    const channels = ["dota2ti", "esl_dota2", "beyond_the_summit", "pgldota2"]
+    let vod = null
+    for (const channel of channels) {
+      vod = await findTwitchVod(channel, match.startTime)
+      if (vod) break
+    }
+    setSelectedMatch({ ...match, loadingVod: false, ...vod })
+  }
 
   function handleSearch(query, searchType) {
     setLoading(true)
@@ -46,6 +57,7 @@ function App() {
         {error && (
           <div className="text-red-400 text-center">{error}</div>
         )}
+        
         {selectedMatch && (
           <div className="w-full max-w-2xl mx-auto bg-gray-800 border border-red-500 rounded-lg p-6">
             <h2 className="text-lg font-bold mb-1">
@@ -54,15 +66,29 @@ function App() {
             <p className="text-gray-400 text-sm mb-4">
               {selectedMatch.tournament} - {selectedMatch.date}
             </p>
-            <p className="text-gray-500 text-sm">
-              Twitch VOD linking coming soon. Match start time: {new Date(selectedMatch.startTime * 1000).toLocaleString()}
-            </p>
+            {selectedMatch.loadingVod && (
+              <p className="text-yellow-400 text-sm animate-pulse">Finding VOD...</p>
+            )}
+            {!selectedMatch.loadingVod && selectedMatch.url && (
+              <a
+                href={selectedMatch.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+              >
+                Watch on Twitch
+              </a>
+            )}
+            {!selectedMatch.loadingVod && !selectedMatch.url && (
+              <p className="text-gray-500 text-sm">No VOD found for this match. It may have expired or wasn't broadcast on a tracked channel.</p>
+            )}
           </div>
         )}
+
         {searched && (
           <MatchList
             matches={matches}
-            onSelect={setSelectedMatch}
+            onSelect={handleSelectMatch}
             loading={loading}
           />
         )}

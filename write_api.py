@@ -1,4 +1,5 @@
-const OPENDOTA_BASE = 'https://api.opendota.com/api'
+code = open('src/api.js', 'w')
+code.write("""const OPENDOTA_BASE = 'https://api.opendota.com/api'
 
 export async function fetchProMatches() {
   const res = await fetch(OPENDOTA_BASE + '/promatches')
@@ -57,9 +58,12 @@ export async function findTwitchVod(channelName, matchStartTime) {
 }
 
 function parseTwitchDuration(duration) {
-  const match = duration.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/)
+  const match = duration.match(/(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?/)
   const hours = parseInt(match[1] || 0)
   const minutes = parseInt(match[2] || 0)
   const seconds = parseInt(match[3] || 0)
   return hours * 3600 + minutes * 60 + seconds
 }
+""")
+code.close()
+print('Done!')
