@@ -136,3 +136,19 @@ export async function fetchMatchSummary(matchId) {
 
   return data.summary
 }
+
+let heroCache = null
+
+export async function fetchHeroes() {
+  if (heroCache) return heroCache
+  const res = await fetch('https://api.opendota.com/api/heroes')
+  const data = await res.json()
+  heroCache = {}
+  for (const h of data) {
+    heroCache[h.id] = {
+      name: h.localized_name,
+      key: h.name.replace('npc_dota_hero_', '')
+    }
+  }
+  return heroCache
+}

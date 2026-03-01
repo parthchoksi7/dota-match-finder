@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
-import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
+import MatchDrawer from "./components/MatchDrawer"
+import { fetchProMatches, findTwitchVod, fetchMatchSummary } from "./api"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 
@@ -26,20 +27,6 @@ function setSummaryInCache(matchId, text) {
     map[matchId] = text
     localStorage.setItem(SUMMARY_CACHE_KEY, JSON.stringify(map))
   } catch (_) {}
-}
-
-function WatchButton({ url, channel }) {
-  const label = channel ? `Watch on Twitch (${VOD_CHANNEL_LABELS[channel] || channel})` : "Watch on Twitch"
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="focus-ring inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 transition-colors rounded min-h-[44px] items-center"
-    >
-      {label}
-    </a>
-  )
 }
 
 function App() {
@@ -66,7 +53,6 @@ function App() {
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
   const searchInputRef = useRef(null)
-  const panelRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark")
@@ -172,28 +158,14 @@ function App() {
     }
   }, [selectedMatch?.id])
 
-  useEffect(() => {
-    if (!selectedMatch) return
-    function onKeyDown(e) {
-      if (e.key === "Escape") dismissPanel()
-    }
-    function onMouseDown(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        dismissPanel()
-      }
-    }
-    window.addEventListener("keydown", onKeyDown)
-    document.addEventListener("mousedown", onMouseDown)
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-      document.removeEventListener("mousedown", onMouseDown)
-    }
-  }, [selectedMatch])
-
   const filteredMatches =
     seriesFilter === "all"
       ? matches
       : matches.filter((m) => String(m.seriesType) === seriesFilter)
+
+  const strafeHref = "https://www.strafe.com/calendar/dota2/"
+  const liquipediaHref = "https://liquipedia.net/dota2/Liquipedia:Upcoming_and_ongoing_matches"
+  const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
@@ -203,7 +175,7 @@ function App() {
             Spectate <span className="text-red-500">Esports</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-            Pro Esports — direct VOD links
+            Pro esports — direct VOD links
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -240,14 +212,14 @@ function App() {
           >
             <div className="inline-block w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-red-500 rounded-full animate-spin" />
             <p className="text-gray-500 dark:text-gray-500 text-sm uppercase tracking-widest mt-4">
-              Loading matches…
+              Loading matches...
             </p>
           </div>
         )}
 
         {error && (
           <div
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 py-6 border border-red-900/50 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded px-4"
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 py-6 border border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded px-4"
             role="alert"
             aria-live="assertive"
             id="app-error"
@@ -260,115 +232,6 @@ function App() {
             >
               Retry
             </button>
-          </div>
-        )}
-
-        {selectedMatch && !initialLoading && (
-          <div
-            ref={panelRef}
-            className="sticky top-0 z-10 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg dark:shadow-none rounded"
-            role="region"
-            aria-label="Match details"
-          >
-            <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-              <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold">
-                Match details
-              </span>
-              <button
-                type="button"
-                onClick={dismissPanel}
-                className="focus-ring text-xs text-gray-500 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 uppercase tracking-wider py-2 px-1"
-                aria-label="Dismiss panel"
-              >
-                Dismiss ×
-              </button>
-            </div>
-            <div className="px-4 py-4">
-              <p className="font-display text-lg font-bold uppercase tracking-wide">
-                {selectedMatch.radiantTeam}
-                <span className="text-gray-500 dark:text-gray-600 mx-2">vs</span>
-                {selectedMatch.direTeam}
-              </p>
-              <p className="text-gray-500 dark:text-gray-500 text-xs uppercase tracking-widest mt-1">
-                {selectedMatch.tournament} · {selectedMatch.date} · {selectedMatch.duration}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                {selectedMatch.loadingVod && (
-                  <span className="text-xs text-amber-600 dark:text-yellow-500 uppercase tracking-widest animate-pulse" aria-live="polite">
-                    Finding VOD…
-                  </span>
-                )}
-                {!selectedMatch.loadingVod && selectedMatch.url && (
-                  <>
-                    <WatchButton url={selectedMatch.url} channel={selectedMatch.channel} />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(selectedMatch.url)
-                        setCopyFeedback("vod")
-                        setTimeout(() => setCopyFeedback(null), 2000)
-                      }}
-                      className="focus-ring px-4 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
-                    >
-                      {copyFeedback === "vod" ? "Copied!" : "Copy VOD link"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const url = `${window.location.origin}${window.location.pathname}#match-${selectedMatch.id}`
-                        navigator.clipboard?.writeText(url)
-                        setCopyFeedback("link")
-                        setTimeout(() => setCopyFeedback(null), 2000)
-                      }}
-                      className="focus-ring px-4 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
-                    >
-                      {copyFeedback === "link" ? "Copied!" : "Share match link"}
-                    </button>
-                  </>
-                )}
-                {!selectedMatch.loadingVod && !selectedMatch.url && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-600 dark:text-gray-500 uppercase tracking-widest">
-                      No VOD found
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-600 max-w-md">
-                      VOD may not be published yet or wasn’t streamed on supported channels (ESL, BTS, PGL, etc.). Check back later or search on Twitch.
-                    </p>
-                    <a
-                      href="https://www.twitch.tv/search?term=dota%202"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="focus-ring inline-block mt-2 text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider"
-                    >
-                      Search Twitch →
-                    </a>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => handleSummarize(selectedMatch)}
-                  disabled={summaryLoading}
-                  className="focus-ring px-4 py-2 min-h-[44px] bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-gray-200 dark:disabled:hover:bg-gray-800 text-gray-900 dark:text-white text-xs font-bold uppercase tracking-widest transition-colors border border-gray-300 dark:border-gray-700 rounded"
-                >
-                  {summaryLoading ? "Generating summary…" : "AI Match Summary"}
-                </button>
-                {summaryLoading && (
-                  <div className="mt-4 h-20 bg-gray-100 dark:bg-gray-800/50 rounded animate-pulse" aria-hidden="true" />
-                )}
-                {summaryError && summaryErrorMatchId === selectedMatch?.id && (
-                  <div className="mt-4 p-3 rounded border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200 text-sm">
-                    {summaryError}
-                  </div>
-                )}
-                {((summary && summaryMatchId === selectedMatch?.id) || cachedSummaryForSelected) && (
-                  <div className="mt-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {(summary && summaryMatchId === selectedMatch?.id ? summary : cachedSummaryForSelected).replace(/\*\*/g, "")}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
@@ -415,21 +278,11 @@ function App() {
                 Schedules and countdowns for pro Dota 2 matches.
               </p>
               <div className="flex flex-wrap gap-3">
-                <a
-                  href="https://www.strafe.com/calendar/dota2/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="focus-ring inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                >
-                  Strafe calendar →
+                <a href={strafeHref} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+                  Strafe calendar
                 </a>
-                <a
-                  href="https://liquipedia.net/dota2/Liquipedia:Upcoming_and_ongoing_matches"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="focus-ring inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                >
-                  Liquipedia →
+                <a href={liquipediaHref} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+                  Liquipedia
                 </a>
               </div>
             </section>
@@ -455,6 +308,31 @@ function App() {
           <span>Data updates every few minutes</span>
         </p>
       </footer>
+
+      {selectedMatch && !initialLoading && (
+        <MatchDrawer
+          match={selectedMatch}
+          onDismiss={dismissPanel}
+          summary={summaryMatchId === selectedMatch?.id ? summary : null}
+          summaryLoading={summaryLoading}
+          summaryError={summaryErrorMatchId === selectedMatch?.id ? summaryError : null}
+          cachedSummary={cachedSummaryForSelected}
+          onSummarize={handleSummarize}
+          copyFeedback={copyFeedback}
+          twitchSearchHref={twitchSearchHref}
+          onCopyVod={() => {
+            navigator.clipboard?.writeText(selectedMatch.url)
+            setCopyFeedback("vod")
+            setTimeout(() => setCopyFeedback(null), 2000)
+          }}
+          onCopyLink={() => {
+            const url = window.location.origin + window.location.pathname + "#match-" + selectedMatch.id
+            navigator.clipboard?.writeText(url)
+            setCopyFeedback("link")
+            setTimeout(() => setCopyFeedback(null), 2000)
+          }}
+        />
+      )}
     </div>
   )
 }
