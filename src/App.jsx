@@ -171,8 +171,17 @@ function App() {
     function onKeyDown(e) {
       if (e.key === "Escape") dismissPanel()
     }
+    function onMouseDown(e) {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        dismissPanel()
+      }
+    }
     window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
+    document.addEventListener("mousedown", onMouseDown)
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+      document.removeEventListener("mousedown", onMouseDown)
+    }
   }, [selectedMatch])
 
   const filteredMatches =
@@ -253,11 +262,11 @@ function App() {
             ref={panelRef}
             className="sticky top-0 z-10 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg dark:shadow-none rounded"
             role="region"
-            aria-label="Selected match"
+            aria-label="Match details"
           >
             <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
               <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold">
-                Now Watching
+                Match details
               </span>
               <button
                 type="button"
@@ -345,7 +354,7 @@ function App() {
                 )}
                 {((summary && summaryMatchId === selectedMatch?.id) || cachedSummaryForSelected) && (
                   <div className="mt-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {summary && summaryMatchId === selectedMatch?.id ? summary : cachedSummaryForSelected}
+                    {(summary && summaryMatchId === selectedMatch?.id ? summary : cachedSummaryForSelected).replace(/\*\*/g, "")}
                   </div>
                 )}
               </div>
