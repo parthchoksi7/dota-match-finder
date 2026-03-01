@@ -200,10 +200,10 @@ function App() {
       <header className="border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="font-display text-xl sm:text-2xl font-black uppercase tracking-widest text-gray-900 dark:text-white truncate">
-            Dota <span className="text-red-500">Match</span> Finder
+            Spectate <span className="text-red-500">Esports</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-            Pro matches — direct VOD links
+            Pro Esports — direct VOD links
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -448,7 +448,7 @@ function App() {
 
       <footer className="mt-auto border-t border-gray-200 dark:border-gray-800/80 px-4 sm:px-6 py-4 text-center">
         <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1">
-          <span>Built by Parth</span>
+          <span>Spectate Esports</span>
           <span className="hidden sm:inline"> · </span>
           <span>Powered by OpenDota + Twitch</span>
           <span className="hidden sm:inline"> · </span>
