@@ -43,7 +43,7 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
       const players = (matchRes.players || [])
         .map((p) => ({
           heroName: heroes[p.hero_id]?.name || `Hero ${p.hero_id}`,
-          personaname: p.personaname || "Unknown",
+          personaname: p.name || p.personaname || "Unknown",
           isRadiant: p.isRadiant ?? p.player_slot < 128,
           kills: p.kills,
           deaths: p.deaths,
