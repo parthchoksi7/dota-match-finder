@@ -2,12 +2,34 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
-import { fetchProMatches, findTwitchVod, fetchMatchSummary } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 
-const CHANNELS = ["esl_dota2", "dota2ti", "beyond_the_summit", "pgldota2"]
-const CHANNEL_LABELS = { esl_dota2: "ESL", dota2ti: "TI", beyond_the_summit: "BTS", pgldota2: "PGL" }
+const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 
-function WatchButton({ url }) {
+function getSummaryFromCache(matchId) {
+  if (typeof window === "undefined" || !matchId) return null
+  try {
+    const raw = localStorage.getItem(SUMMARY_CACHE_KEY)
+    if (!raw) return null
+    const map = JSON.parse(raw)
+    return map[matchId] ?? null
+  } catch {
+    return null
+  }
+}
+
+function setSummaryInCache(matchId, text) {
+  if (typeof window === "undefined" || !matchId || typeof text !== "string") return
+  try {
+    const raw = localStorage.getItem(SUMMARY_CACHE_KEY) || "{}"
+    const map = JSON.parse(raw)
+    map[matchId] = text
+    localStorage.setItem(SUMMARY_CACHE_KEY, JSON.stringify(map))
+  } catch (_) {}
+}
+
+function WatchButton({ url, channel }) {
+  const label = channel ? `Watch on Twitch (${VOD_CHANNEL_LABELS[channel] || channel})` : "Watch on Twitch"
   return (
     <a
       href={url}
@@ -15,7 +37,7 @@ function WatchButton({ url }) {
       rel="noopener noreferrer"
       className="focus-ring inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 transition-colors rounded min-h-[44px] items-center"
     >
-      Watch on Twitch
+      {label}
     </a>
   )
 }
@@ -29,8 +51,11 @@ function App() {
   const [selectedMatch, setSelectedMatch] = useState(null)
   const [error, setError] = useState(null)
   const [summary, setSummary] = useState(null)
+  const [summaryMatchId, setSummaryMatchId] = useState(null)
+  const [summaryError, setSummaryError] = useState(null)
+  const [summaryErrorMatchId, setSummaryErrorMatchId] = useState(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
-  const [vodChannel, setVodChannel] = useState(null)
+  const [cachedSummaryForSelected, setCachedSummaryForSelected] = useState(null)
   const [theme, setTheme] = useState(() => {
     if (typeof window !== "undefined" && window.localStorage) {
       const stored = localStorage.getItem("theme")
@@ -93,24 +118,31 @@ function App() {
   }
 
   async function handleSelectMatch(match) {
+    setSummary(null)
+    setSummaryMatchId(null)
+    setSummaryError(null)
+    setSummaryErrorMatchId(null)
+    setSummaryLoading(false)
     setSelectedMatch({ ...match, loadingVod: true })
-    setVodChannel(null)
-    let vod = null
-    for (const channel of CHANNELS) {
-      setVodChannel(channel)
-      vod = await findTwitchVod(channel, match.startTime)
-      if (vod) break
-    }
+    const vod = await findTwitchVod(match.startTime)
     setSelectedMatch({ ...match, loadingVod: false, ...vod })
-    setVodChannel(null)
   }
 
   async function handleSummarize(match) {
     setSummary(null)
+    setSummaryMatchId(null)
+    setSummaryError(null)
+    setSummaryErrorMatchId(null)
     setSummaryLoading(true)
     try {
       const result = await fetchMatchSummary(match.id)
+      setSummaryMatchId(match.id)
       setSummary(result)
+      setSummaryInCache(match.id, result)
+      if (selectedMatch?.id === match.id) setCachedSummaryForSelected(result)
+    } catch (err) {
+      setSummaryErrorMatchId(match.id)
+      setSummaryError(err?.message || "Failed to generate summary")
     } finally {
       setSummaryLoading(false)
     }
@@ -119,8 +151,20 @@ function App() {
   function dismissPanel() {
     setSelectedMatch(null)
     setSummary(null)
+    setSummaryMatchId(null)
+    setSummaryError(null)
+    setSummaryErrorMatchId(null)
+    setCachedSummaryForSelected(null)
     setTimeout(() => searchInputRef.current?.focus(), 0)
   }
+
+  useEffect(() => {
+    if (selectedMatch?.id) {
+      setCachedSummaryForSelected(getSummaryFromCache(selectedMatch.id))
+    } else {
+      setCachedSummaryForSelected(null)
+    }
+  }, [selectedMatch?.id])
 
   useEffect(() => {
     if (!selectedMatch) return
@@ -236,12 +280,12 @@ function App() {
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 {selectedMatch.loadingVod && (
                   <span className="text-xs text-amber-600 dark:text-yellow-500 uppercase tracking-widest animate-pulse" aria-live="polite">
-                    {vodChannel ? `Checking ${CHANNEL_LABELS[vodChannel] || vodChannel}…` : "Finding VOD…"}
+                    Finding VOD…
                   </span>
                 )}
                 {!selectedMatch.loadingVod && selectedMatch.url && (
                   <>
-                    <WatchButton url={selectedMatch.url} />
+                    <WatchButton url={selectedMatch.url} channel={selectedMatch.channel} />
                     <button
                       type="button"
                       onClick={() => {
@@ -294,9 +338,14 @@ function App() {
                 {summaryLoading && (
                   <div className="mt-4 h-20 bg-gray-100 dark:bg-gray-800/50 rounded animate-pulse" aria-hidden="true" />
                 )}
-                {summary && (
+                {summaryError && summaryErrorMatchId === selectedMatch?.id && (
+                  <div className="mt-4 p-3 rounded border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200 text-sm">
+                    {summaryError}
+                  </div>
+                )}
+                {((summary && summaryMatchId === selectedMatch?.id) || cachedSummaryForSelected) && (
                   <div className="mt-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {summary}
+                    {summary && summaryMatchId === selectedMatch?.id ? summary : cachedSummaryForSelected}
                   </div>
                 )}
               </div>
