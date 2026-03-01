@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 
-const POPULAR = [
-  { label: "Team Liquid", type: "team" },
-  { label: "OG", type: "team" },
-  { label: "Tundra", type: "team" },
-  { label: "DreamLeague", type: "tournament" },
-  { label: "ESL", type: "tournament" },
-]
+const POPULAR = ["Team Liquid", "OG", "Tundra", "DreamLeague", "ESL"]
 const RECENT_KEY = "dota-match-finder-recent"
 const MAX_RECENT = 5
 
@@ -15,7 +9,6 @@ function SearchBar(
   ref
 ) {
   const [query, setQuery] = useState("")
-  const [searchType, setSearchType] = useState("team")
   const [recent, setRecent] = useState([])
   const inputRef = useRef(null)
 
@@ -38,10 +31,11 @@ function SearchBar(
     }
   }, [initialLoadComplete])
 
-  function saveRecent(term, type) {
-    const entry = { term: term.trim(), type }
+  function saveRecent(term) {
+    const t = term.trim()
+    if (!t) return
     setRecent((prev) => {
-      const next = [entry, ...prev.filter((r) => !(r.term === entry.term && r.type === entry.type))].slice(0, MAX_RECENT)
+      const next = [t, ...prev.filter((r) => r !== t)].slice(0, MAX_RECENT)
       if (typeof window !== "undefined" && window.localStorage) {
         try {
           localStorage.setItem(RECENT_KEY, JSON.stringify(next))
@@ -55,23 +49,14 @@ function SearchBar(
     e.preventDefault()
     const q = query.trim()
     if (q) {
-      saveRecent(q, searchType)
-      onSearch(q, searchType)
+      saveRecent(q)
+      onSearch(q)
     }
   }
 
-  function handlePopularClick(item) {
-    setQuery(item.label)
-    setSearchType(item.type)
-    saveRecent(item.label, item.type)
-    onSearch(item.label, item.type)
-    inputRef.current?.focus()
-  }
-
-  function handleRecentClick(item) {
-    setQuery(item.term)
-    setSearchType(item.type)
-    onSearch(item.term, item.type)
+  function handleSuggestionClick(term) {
+    setQuery(term)
+    onSearch(term)
     inputRef.current?.focus()
   }
 
@@ -83,30 +68,6 @@ function SearchBar(
 
   return (
     <div className="w-full">
-      <div className="flex gap-1 mb-3">
-        <button
-          type="button"
-          onClick={() => setSearchType("team")}
-          className={`focus-ring px-4 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold uppercase tracking-widest border transition-all rounded ${
-            searchType === "team"
-              ? "bg-red-600 border-red-600 text-white"
-              : "bg-transparent border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500"
-          }`}
-        >
-          Team / Player
-        </button>
-        <button
-          type="button"
-          onClick={() => setSearchType("tournament")}
-          className={`focus-ring px-4 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold uppercase tracking-widest border transition-all rounded ${
-            searchType === "tournament"
-              ? "bg-red-600 border-red-600 text-white"
-              : "bg-transparent border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500"
-          }`}
-        >
-          Tournament
-        </button>
-      </div>
       <form onSubmit={handleSubmit} className="flex gap-2" aria-describedby={errorId || undefined}>
         <label htmlFor="search-input" className="sr-only">
           Search by team or tournament
@@ -118,7 +79,7 @@ function SearchBar(
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchType === "team" ? "e.g. Team Liquid, Tundra…" : "e.g. DreamLeague, ESL…"}
+            placeholder="Search teams or tournaments…"
             disabled={disabled}
             className="focus-ring w-full px-4 py-3 min-h-[44px] bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm placeholder-gray-500 dark:placeholder-gray-600 rounded transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             aria-invalid={undefined}
@@ -148,28 +109,28 @@ function SearchBar(
           {recent.length > 0 && (
             <>
               <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-wider">Recent:</span>
-              {recent.slice(0, 3).map((item, i) => (
+              {recent.slice(0, 3).map((term, i) => (
                 <button
-                  key={`${item.term}-${item.type}-${i}`}
+                  key={`${term}-${i}`}
                   type="button"
-                  onClick={() => handleRecentClick(item)}
+                  onClick={() => handleSuggestionClick(term)}
                   className="focus-ring px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
                 >
-                  {item.term}
+                  {term}
                 </button>
               ))}
               <span className="text-gray-400 dark:text-gray-600">·</span>
             </>
           )}
           <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-wider">Popular:</span>
-          {POPULAR.map((item) => (
+          {POPULAR.map((label) => (
             <button
-              key={`${item.label}-${item.type}`}
+              key={label}
               type="button"
-              onClick={() => handlePopularClick(item)}
+              onClick={() => handleSuggestionClick(label)}
               className="focus-ring px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             >
-              {item.label}
+              {label}
             </button>
           ))}
         </div>

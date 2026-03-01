@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
+import LatestMatches from "./components/LatestMatches"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary } from "./api"
 
 const CHANNELS = ["esl_dota2", "dota2ti", "beyond_the_summit", "pgldota2"]
@@ -66,15 +67,16 @@ function App() {
     loadMatches()
   }, [loadMatches])
 
-  function handleSearch(query, searchType) {
+  function handleSearch(query) {
     setLoading(true)
     setSelectedMatch(null)
+    const q = query.trim().toLowerCase()
     setTimeout(() => {
-      const filtered = allMatches.filter((m) =>
-        searchType === "team"
-          ? m.radiantTeam.toLowerCase().includes(query.toLowerCase()) ||
-            m.direTeam.toLowerCase().includes(query.toLowerCase())
-          : m.tournament.toLowerCase().includes(query.toLowerCase())
+      const filtered = allMatches.filter(
+        (m) =>
+          m.radiantTeam.toLowerCase().includes(q) ||
+          m.direTeam.toLowerCase().includes(q) ||
+          m.tournament.toLowerCase().includes(q)
       )
       setMatches(filtered)
       setLoading(false)
@@ -333,12 +335,44 @@ function App() {
         )}
 
         {!initialLoading && !searched && !error && (
-          <div className="border border-gray-200 dark:border-gray-800 px-6 py-12 text-center rounded">
-            <p className="font-display text-3xl sm:text-4xl font-black uppercase tracking-widest text-gray-400 dark:text-gray-800">
-              Find Any Match
-            </p>
-            <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-2">
-              Search by team or tournament to get started
+          <div className="flex flex-col gap-6">
+            <section
+              className="border border-gray-200 dark:border-gray-800 rounded p-4 sm:p-5 bg-gray-50/50 dark:bg-gray-900/30"
+              aria-labelledby="upcoming-heading"
+            >
+              <h2 id="upcoming-heading" className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold mb-2">
+                Upcoming matches
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Schedules and countdowns for pro Dota 2 matches.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="https://www.strafe.com/calendar/dota2/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="focus-ring inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                >
+                  Strafe calendar →
+                </a>
+                <a
+                  href="https://liquipedia.net/dota2/Liquipedia:Upcoming_and_ongoing_matches"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="focus-ring inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                >
+                  Liquipedia →
+                </a>
+              </div>
+            </section>
+
+            <LatestMatches
+              matches={allMatches.slice(0, 10)}
+              onSelectMatch={handleSelectMatch}
+            />
+
+            <p className="text-xs text-gray-500 dark:text-gray-600 text-center">
+              Search above to find more matches by team or tournament
             </p>
           </div>
         )}
