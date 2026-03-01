@@ -3,8 +3,10 @@ const OPENDOTA_BASE = 'https://api.opendota.com/api'
 export async function fetchProMatches() {
   const res = await fetch(OPENDOTA_BASE + '/promatches')
   const data = await res.json()
-  const lastSeriesId = data[data.length - 1].series_id
-  const filtered = data.filter(m => m.series_id !== lastSeriesId)
+  if (!Array.isArray(data) || data.length === 0) return []
+  const last = data[data.length - 1]
+  const lastSeriesId = last && last.series_id
+  const filtered = lastSeriesId != null ? data.filter(m => m.series_id !== lastSeriesId) : data
   return filtered.map((m) => ({
     id: String(m.match_id),
     tournament: m.league_name,
@@ -16,7 +18,7 @@ export async function fetchProMatches() {
     radiantScore: m.radiant_score,
     direScore: m.dire_score,
     radiantWin: m.radiant_win,
-    duration: new Date(m.duration * 1000).toISOString().substr(11, 5),
+    duration: new Date((m.duration || 0) * 1000).toISOString().slice(11, 16),
     startTime: m.start_time,
     seriesId: m.series_id,
     seriesType: m.series_type,
