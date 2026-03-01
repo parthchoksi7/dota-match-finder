@@ -64,6 +64,7 @@ function App() {
     return "dark"
   })
   const [seriesFilter, setSeriesFilter] = useState("all")
+  const [copyFeedback, setCopyFeedback] = useState(null)
   const searchInputRef = useRef(null)
   const panelRef = useRef(null)
 
@@ -149,13 +150,18 @@ function App() {
   }
 
   function dismissPanel() {
+    const scrollY = window.scrollY
     setSelectedMatch(null)
     setSummary(null)
     setSummaryMatchId(null)
     setSummaryError(null)
     setSummaryErrorMatchId(null)
     setCachedSummaryForSelected(null)
-    setTimeout(() => searchInputRef.current?.focus(), 0)
+    setCopyFeedback(null)
+    setTimeout(() => {
+      searchInputRef.current?.focus({ preventScroll: true })
+      window.scrollTo(0, scrollY)
+    }, 0)
   }
 
   useEffect(() => {
@@ -299,20 +305,24 @@ function App() {
                       type="button"
                       onClick={() => {
                         navigator.clipboard?.writeText(selectedMatch.url)
+                        setCopyFeedback("vod")
+                        setTimeout(() => setCopyFeedback(null), 2000)
                       }}
                       className="focus-ring px-4 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
                     >
-                      Copy VOD link
+                      {copyFeedback === "vod" ? "Copied!" : "Copy VOD link"}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         const url = `${window.location.origin}${window.location.pathname}#match-${selectedMatch.id}`
                         navigator.clipboard?.writeText(url)
+                        setCopyFeedback("link")
+                        setTimeout(() => setCopyFeedback(null), 2000)
                       }}
                       className="focus-ring px-4 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
                     >
-                      Share match link
+                      {copyFeedback === "link" ? "Copied!" : "Share match link"}
                     </button>
                   </>
                 )}
