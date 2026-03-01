@@ -22,15 +22,38 @@ function isTier1League(leagueName) {
   const lower = leagueName.toLowerCase()
   return TIER1_KEYWORDS.some(k => lower.includes(k))
 }
-export async function fetchProMatches() {
-  const res = await fetch(OPENDOTA_BASE + '/promatches')
-  const data = await res.json()
-  if (!Array.isArray(data) || data.length === 0) return []
-  const last = data[data.length - 1]
-  const lastSeriesId = last && last.series_id
-  const filtered = (lastSeriesId != null ? data.filter(m => m.series_id !== lastSeriesId) : data)
-  .filter(m => isTier1League(m.league_name))
-  return filtered.map((m) => ({
+export async function fetchProMatches(lastMatchId = null) {
+  const TARGET_TIER1 = 20 // fetch until we have at least 20 tier 1 matches per call
+  const MAX_PAGES = 8
+
+  let allTier1 = []
+  let cursor = lastMatchId
+  let pages = 0
+
+  while (allTier1.length < TARGET_TIER1 && pages < MAX_PAGES) {
+    const url = cursor
+      ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${cursor}`
+      : `${OPENDOTA_BASE}/promatches`
+
+    const res = await fetch(url)
+    const data = await res.json()
+
+    if (!Array.isArray(data) || data.length === 0) break
+
+    const tier1 = data.filter(m => isTier1League(m.league_name))
+    allTier1 = allTier1.concat(tier1)
+    cursor = data[data.length - 1].match_id
+    pages++
+  }
+
+  // Drop incomplete last series
+  const last = allTier1[allTier1.length - 1]
+  const lastSeriesId = last?.series_id
+  const filtered = lastSeriesId != null
+    ? allTier1.filter(m => m.series_id !== lastSeriesId)
+    : allTier1
+
+  const matches = filtered.map((m) => ({
     id: String(m.match_id),
     tournament: m.league_name,
     date: new Date(m.start_time * 1000).toLocaleDateString('en-US', {
@@ -48,6 +71,8 @@ export async function fetchProMatches() {
     twitchVodId: null,
     twitchOffset: null,
   }))
+
+  return { matches, nextMatchId: cursor }
 }
 
 async function getTwitchToken() {

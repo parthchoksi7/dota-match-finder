@@ -1,14 +1,12 @@
 import { groupIntoSeries, isSeriesComplete } from "../utils"
 import MatchCard from "./MatchCard"
 
-const LATEST_SERIES_COUNT = 5
-
 function LatestMatches({ matches, onSelectMatch }) {
   if (!matches || matches.length === 0) return null
 
   const allSeries = groupIntoSeries(matches)
   const completeSeries = allSeries.filter(isSeriesComplete)
-  const series = completeSeries.slice(0, LATEST_SERIES_COUNT)
+  const series = completeSeries
   if (series.length === 0) return null
 
   return (

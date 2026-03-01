@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+code = '''import { useState, useEffect, useCallback, useRef } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
@@ -6,6 +6,7 @@ import MatchDrawer from "./components/MatchDrawer"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary } from "./api"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
+const INITIAL_SHOW = 5
 
 function getSummaryFromCache(matchId) {
   if (typeof window === "undefined" || !matchId) return null
@@ -33,6 +34,7 @@ function App() {
   const [allMatches, setAllMatches] = useState([])
   const [nextMatchId, setNextMatchId] = useState(null)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_SHOW)
   const [matches, setMatches] = useState([])
   const [initialLoading, setInitialLoading] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -66,6 +68,7 @@ function App() {
   const loadMatches = useCallback(() => {
     setError(null)
     setInitialLoading(true)
+    setVisibleCount(INITIAL_SHOW)
     fetchProMatches()
       .then(({ matches, nextMatchId }) => {
         setAllMatches(matches)
@@ -89,6 +92,7 @@ function App() {
       const { matches: newMatches, nextMatchId: newNextId } = await fetchProMatches(nextMatchId)
       setAllMatches(prev => [...prev, ...newMatches])
       setNextMatchId(newNextId)
+      setVisibleCount(prev => prev + INITIAL_SHOW)
     } catch {
       // silently fail
     } finally {
@@ -180,6 +184,7 @@ function App() {
       ? matches
       : matches.filter((m) => String(m.seriesType) === seriesFilter)
 
+  const visibleMatches = allMatches.slice(0, visibleCount)
   const strafeHref = "https://www.strafe.com/calendar/dota2/"
   const liquipediaHref = "https://liquipedia.net/dota2/Liquipedia:Upcoming_and_ongoing_matches"
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
@@ -305,11 +310,11 @@ function App() {
             </section>
 
             <LatestMatches
-              matches={allMatches}
+              matches={visibleMatches}
               onSelectMatch={handleSelectMatch}
             />
 
-            {nextMatchId && (
+            {(visibleCount < allMatches.length || nextMatchId) && (
               <button
                 type="button"
                 onClick={handleLoadMore}
@@ -366,3 +371,9 @@ function App() {
 }
 
 export default App
+'''
+
+with open('src/App.jsx', 'w') as f:
+    f.write(code)
+
+print('Done! App.jsx updated.')
