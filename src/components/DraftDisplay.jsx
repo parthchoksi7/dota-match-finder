@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react"
 import { fetchHeroes } from "../api"
 
-const LANE_ORDER = { Safe: 1, Mid: 2, Off: 3, Jungle: 4, Support: 5, Unknown: 6 }
-const LANE_LABELS = { 1: "Safe", 2: "Mid", 3: "Off", 4: "Jungle", 5: "Support" }
+const LANE_ORDER = { Carry: 1, Mid: 2, Off: 3, "Soft Sup": 4, "Hard Sup": 5, Unknown: 6 }
+const POSITION_LABELS = { 0: "Carry", 1: "Mid", 2: "Off", 3: "Soft Sup", 4: "Hard Sup" }
+
+function getPosition(player) {
+  // player_slot: 0-4 = radiant, 128-132 = dire
+  const slot = player.player_slot < 128 ? player.player_slot : player.player_slot - 128
+  return POSITION_LABELS[slot] || "Unknown"
+}
 
 function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
   const [draft, setDraft] = useState(null)
@@ -43,7 +49,7 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
           heroName: heroes[p.hero_id]?.name || `Hero ${p.hero_id}`,
           personaname: p.personaname || "Unknown",
           isRadiant: p.isRadiant ?? p.player_slot < 128,
-          lane: LANE_LABELS[p.lane_role] || "Unknown",
+          lane: getPosition(p),
           kills: p.kills,
           deaths: p.deaths,
           assists: p.assists

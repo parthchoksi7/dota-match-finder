@@ -1,12 +1,35 @@
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
+const TIER1_KEYWORDS = [
+  'dreamleague',
+  'esl one',
+  'esl challenger',
+  'pgl wallachia',
+  'pgl',
+  'beyond the summit',
+  'weplay',
+  'starladder',
+  'the international',
+  'blast slam',
+  'blast',
+  'fissure',
+  'ewc',
+  'esports world cup',
+  'riyadh masters',
+]
 
+function isTier1League(leagueName) {
+  if (!leagueName) return false
+  const lower = leagueName.toLowerCase()
+  return TIER1_KEYWORDS.some(k => lower.includes(k))
+}
 export async function fetchProMatches() {
   const res = await fetch(OPENDOTA_BASE + '/promatches')
   const data = await res.json()
   if (!Array.isArray(data) || data.length === 0) return []
   const last = data[data.length - 1]
   const lastSeriesId = last && last.series_id
-  const filtered = lastSeriesId != null ? data.filter(m => m.series_id !== lastSeriesId) : data
+  const filtered = (lastSeriesId != null ? data.filter(m => m.series_id !== lastSeriesId) : data)
+  .filter(m => isTier1League(m.league_name))
   return filtered.map((m) => ({
     id: String(m.match_id),
     tournament: m.league_name,
