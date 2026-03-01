@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react"
+code = open('src/components/DraftDisplay.jsx').read()
+
+# Read the file and rewrite it completely without role logic
+new_code = '''import { useState, useEffect } from "react"
 import { fetchHeroes } from "../api"
 
 const LANE_ORDER = { Carry: 1, Mid: 2, Off: 3, "Soft Sup": 4, "Hard Sup": 5, Unknown: 6 }
@@ -185,3 +188,9 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
 }
 
 export default DraftDisplay
+'''
+
+with open('src/components/DraftDisplay.jsx', 'w') as f:
+    f.write(new_code)
+
+print('Done! Role labels removed from DraftDisplay.jsx')
