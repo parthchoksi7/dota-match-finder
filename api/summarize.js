@@ -1,3 +1,39 @@
+/** Allowed player fields for summary prompt (max 10 players). */
+const PLAYER_FIELDS = ['hero_id', 'personaname', 'isRadiant', 'kills', 'deaths', 'assists', 'net_worth', 'hero_damage']
+
+/**
+ * Trim match data before sending to Claude. Match level: duration, radiant_win, radiant_score, dire_score.
+ * Per player (max 10): hero_id, personaname, isRadiant, kills, deaths, assists, net_worth, hero_damage.
+ * Removes picks_bans, tower_damage, hero_healing, all item fields, and everything else.
+ */
+function trimMatchDataForSummary(matchData) {
+  if (!matchData || typeof matchData !== 'object') return matchData
+
+  const out = {
+    duration: matchData.duration,
+    radiant_win: matchData.radiant_win,
+    radiant_score: matchData.radiant_score,
+    dire_score: matchData.dire_score
+  }
+
+  if (Array.isArray(matchData.players)) {
+    out.players = matchData.players.slice(0, 10).map((p) => {
+      const trimmed = {}
+      for (const key of PLAYER_FIELDS) {
+        if (Object.prototype.hasOwnProperty.call(p, key)) {
+          trimmed[key] = p[key]
+        }
+      }
+      if (trimmed.isRadiant === undefined && p.player_slot != null) {
+        trimmed.isRadiant = p.player_slot < 128
+      }
+      return trimmed
+    })
+  }
+
+  return out
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -16,6 +52,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing matchData in request body' })
   }
 
+  const trimmed = trimMatchDataForSummary(matchData)
+
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -25,8 +63,8 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
         messages: [
           {
             role: 'user',
@@ -35,7 +73,7 @@ export default async function handler(req, res) {
 2. MVP: Identify the standout player and why based on the stats.
 3. Highlight: One exceptional moment or callout from the match.
 
-Be specific with hero names and player names. Keep the whole summary under 150 words. Match data: ${JSON.stringify(matchData)}`
+Be specific with hero names and player names. Keep the whole summary under 150 words. Match data: ${JSON.stringify(trimmed)}`
           }
         ]
       })
