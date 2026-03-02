@@ -144,12 +144,12 @@ export async function findTwitchVod(matchStartTime) {
   const results = await Promise.allSettled(
     VOD_CHANNELS.map((ch) => findVodOnChannel(ch, matchStartTime, headers))
   )
-  for (const result of results) {
-    if (result.status === 'fulfilled' && result.value != null) {
-      return result.value
-    }
-  }
-  return null
+  const hits = results
+    .filter(r => r.status === 'fulfilled' && r.value != null)
+    .map(r => r.value)
+
+  if (hits.length === 0) return { url: null, channel: null, allVods: [] }
+  return { url: hits[0].url, channel: hits[0].channel, allVods: hits }
 }
 
 function parseTwitchDuration(duration) {

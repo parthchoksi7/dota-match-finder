@@ -1,4 +1,4 @@
-import DraftDisplay from "./DraftDisplay"
+code = '''import DraftDisplay from "./DraftDisplay"
 import { VOD_CHANNEL_LABELS } from "../api"
 import { useEffect, useRef } from "react"
 
@@ -190,7 +190,7 @@ function MatchDrawer({
             )}
             {displaySummary && !summaryLoading && (
               <div className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                {displaySummary.replace(/\*\*/g, "")}
+                {displaySummary.replace(/\\*\\*/g, "")}
               </div>
             )}
           </div>
@@ -202,3 +202,9 @@ function MatchDrawer({
 }
 
 export default MatchDrawer
+'''
+
+with open('src/components/MatchDrawer.jsx', 'w') as f:
+    f.write(code)
+
+print('Done! MatchDrawer.jsx updated.')

@@ -1,4 +1,4 @@
-import DraftDisplay from "./DraftDisplay"
+code = '''import DraftDisplay from "./DraftDisplay"
 import { VOD_CHANNEL_LABELS } from "../api"
 import { useEffect, useRef } from "react"
 
@@ -14,8 +14,6 @@ function MatchDrawer({
   onCopyVod,
   onCopyLink,
   twitchSearchHref,
-  gameNumber,
-  seriesMatches,
 }) {
   const drawerRef = useRef(null)
 
@@ -32,7 +30,6 @@ function MatchDrawer({
   const displaySummary = summary || cachedSummary
   const twitchHref = twitchSearchHref || "https://www.twitch.tv/search?term=dota%202"
   const allVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])
-  const gameLabel = gameNumber && seriesMatches > 1 ? "Game " + gameNumber + " of " + seriesMatches : null
 
   return (
     <>
@@ -54,16 +51,9 @@ function MatchDrawer({
             <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
               {match.tournament}
             </p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-xs text-gray-400 dark:text-gray-600">
-                {match.date} · {match.duration}
-              </p>
-              {gameLabel && (
-                <span className="text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                  {gameLabel}
-                </span>
-              )}
-            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">
+              {match.date} · {match.duration}
+            </p>
           </div>
           <button
             type="button"
@@ -112,35 +102,31 @@ function MatchDrawer({
               </span>
             )}
             {!match.loadingVod && allVods.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {allVods.map((vod, i) => {
-                    const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || "Watch on Twitch"
-                    const href = vod.url
-                    return (
-                      <a key={i} href={href} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors">
-                        {label}
-                      </a>
-                    )
-                  })}
-                </div>
-                <div className="flex gap-4 pt-1">
-                  <button
-                    type="button"
-                    onClick={onCopyVod}
-                    className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
-                  >
-                    {copyFeedback === "vod" ? "Copied!" : "Copy VOD link"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onCopyLink}
-                    className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
-                  >
-                    {copyFeedback === "link" ? "Copied!" : "Share match"}
-                  </button>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {allVods.map((vod, i) => {
+                  const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || "Watch on Twitch"
+                  const href = vod.url
+                  return (
+                    <a key={i} href={href} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors">
+                      {label}
+                    </a>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={onCopyVod}
+                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                >
+                  {copyFeedback === "vod" ? "Copied!" : "Copy link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onCopyLink}
+                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                >
+                  {copyFeedback === "link" ? "Copied!" : "Share match"}
+                </button>
               </div>
             )}
             {!match.loadingVod && allVods.length === 0 && (
@@ -151,19 +137,10 @@ function MatchDrawer({
                 <p className="text-xs text-gray-400 dark:text-gray-600">
                   May not be published yet or was not on a tracked channel.
                 </p>
-                <div className="flex gap-4 pt-1">
-                  <a href={twitchHref} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider">
-                    Search Twitch
-                  </a>
-                  <button
-                    type="button"
-                    onClick={onCopyLink}
-                    className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
-                  >
-                    {copyFeedback === "link" ? "Copied!" : "Share match"}
-                  </button>
-                </div>
+                <a href={twitchHref} target="_blank" rel="noopener noreferrer"
+                  className="inline-block mt-1 text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider">
+                  Search Twitch
+                </a>
               </div>
             )}
           </div>
@@ -190,7 +167,7 @@ function MatchDrawer({
             )}
             {displaySummary && !summaryLoading && (
               <div className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                {displaySummary.replace(/\*\*/g, "")}
+                {displaySummary.replace(/\\*\\*/g, "")}
               </div>
             )}
           </div>
@@ -202,3 +179,9 @@ function MatchDrawer({
 }
 
 export default MatchDrawer
+'''
+
+with open('src/components/MatchDrawer.jsx', 'w') as f:
+    f.write(code)
+
+print('Done!')

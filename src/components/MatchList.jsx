@@ -1,11 +1,8 @@
 import MatchCard from "./MatchCard"
-import { useState } from "react"
 import { groupIntoSeries } from "../utils"
 
-const INITIAL_SHOW = 10
 
 function MatchList({ matches, onSelect, loading, onClearSearch }) {
-  const [showCount, setShowCount] = useState(INITIAL_SHOW)
 
   if (loading) {
     return (
@@ -43,8 +40,8 @@ function MatchList({ matches, onSelect, loading, onClearSearch }) {
 
   const series = groupIntoSeries(matches)
   const totalGames = series.reduce((acc, s) => acc + s.games.length, 0)
-  const visibleSeries = series.slice(0, showCount)
-  const hasMore = series.length > showCount
+  const visibleSeries = series
+
 
   return (
     <div className="w-full flex flex-col gap-3">
@@ -54,15 +51,7 @@ function MatchList({ matches, onSelect, loading, onClearSearch }) {
       {visibleSeries.map((s) => (
         <MatchCard key={s.id} series={s} onSelectGame={onSelect} defaultExpanded={false} />
       ))}
-      {hasMore && (
-        <button
-          type="button"
-          onClick={() => setShowCount((n) => n + INITIAL_SHOW)}
-          className="focus-ring py-3 text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-800 rounded transition-colors"
-        >
-          Load more ({series.length - showCount} more)
-        </button>
-      )}
+      
     </div>
   )
 }

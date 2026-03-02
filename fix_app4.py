@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+code = '''import { useState, useEffect, useCallback, useRef } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
@@ -415,3 +415,9 @@ function App() {
 }
 
 export default App
+'''
+
+with open('src/App.jsx', 'w') as f:
+    f.write(code)
+
+print('Done! App.jsx updated.')
