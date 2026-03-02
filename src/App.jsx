@@ -186,29 +186,29 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
-      <header className="border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display text-xl sm:text-2xl font-black uppercase tracking-widest text-gray-900 dark:text-white truncate">
-            Spectate <span className="text-red-500">Esports</span>
-          </h1>
-          <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-            Pro esports — direct VOD links
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-gray-500 dark:text-gray-700 uppercase tracking-widest hidden md:block">
-            Powered by OpenDota + Twitch
-          </div>
-          <button
-            type="button"
-            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-            className="focus-ring px-3 py-2 rounded border border-gray-300 dark:border-gray-700 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? "Light" : "Dark"}
-          </button>
-        </div>
-      </header>
+     <header className="border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+  <div className="min-w-0">
+    <h1 className="font-display text-xl sm:text-2xl font-black uppercase tracking-widest text-gray-900 dark:text-white truncate">
+      Spectate <span className="text-red-500">Esports</span>
+    </h1>
+    <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
+      Pro Dota 2 - direct VOD links
+    </p>
+  </div>
+  <div className="flex items-center gap-3">
+    <div className="text-xs text-gray-500 dark:text-gray-700 uppercase tracking-widest hidden md:block">
+      Powered by OpenDota + Twitch
+    </div>
+    <button
+      type="button"
+      onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+      className="focus-ring px-3 py-2 rounded border border-gray-300 dark:border-gray-700 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+    >
+      {theme === "dark" ? "Light" : "Dark"}
+    </button>
+  </div>
+</header>
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full">
         <SearchBar
