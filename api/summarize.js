@@ -82,19 +82,29 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'user',
-            content: `You are a professional Dota 2 analyst. Analyze this match and give a summary in exactly 4 sections:
+            content: `You are a professional Dota 2 analyst. Analyze this match and give a summary in exactly 4 sections. Do NOT use markdown, hashtags, asterisks, or any special formatting. Use plain text only.
 
-1. Draft Analysis: Analyze both teams' drafts. Which team had the better draft and why? Consider win conditions, synergies, and counters. Be decisive — pick a winner.
-2. Strategy: One sentence on each team's game plan and how they executed it.
-3. MVP: Identify the standout player and why, based on stats and impact.
-4. Highlight: One exceptional moment or stat that defined the match.
+Format your response exactly like this:
+
+DRAFT ANALYSIS
+Draft Winner: [Team Name]
+[2-3 sentences on why they had the better draft — synergies, win conditions, counters]
+
+STRATEGY
+[One sentence on each team's game plan and execution]
+
+MVP
+[Player name] — [Why they were the standout based on stats and impact]
+
+HIGHLIGHT
+[One exceptional moment or stat that defined the match]
 
 Rules:
-- Use pro player names (from the "personaname" field), not hero names alone
-- Use team names (radiant_name, dire_name) not "Radiant" or "Dire"
+- Use pro player names from the personaname field
+- Use team names (radiant_name, dire_name), never say Radiant or Dire
 - Be specific and analytical, not generic
 - Keep the whole summary under 250 words
-- Hero IDs are raw numbers — infer hero names from context if needed
+- No markdown formatting whatsoever
 
 Match data: ${JSON.stringify(trimmed)}`
           }
