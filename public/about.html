@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>About — Spectate Esports</title>
+  <meta name="description" content="Spectate Esports is a free tool for pro Dota 2 fans. Find timestamped Twitch VODs, full draft breakdowns, and AI match summaries for every Tier 1 tournament." />
+
+  <meta property="og:title" content="About — Spectate Esports" />
+  <meta property="og:description" content="Spectate Esports is a free tool for pro Dota 2 fans. Find timestamped Twitch VODs, full draft breakdowns, and AI match summaries for every Tier 1 tournament." />
+  <meta property="og:url" content="https://spectateesports.live/about.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://spectateesports.live/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="About — Spectate Esports" />
+  <meta name="twitter:image" content="https://spectateesports.live/og-image.png" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #111111;
+      --bg-hover: #1a1a1a;
+      --border: #1f1f1f;
+      --text: #ffffff;
+      --text-muted: #666666;
+      --text-secondary: #999999;
+      --red: #ef4444;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    html.light {
+      --bg: #f5f5f5;
+      --bg-card: #ffffff;
+      --bg-hover: #eeeeee;
+      --border: #e0e0e0;
+      --text: #111111;
+      --text-muted: #888888;
+      --text-secondary: #555555;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .logo span { color: var(--red); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color 0.15s;
+    }
+
+    .nav-link:hover { color: var(--text); }
+
+    .theme-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .theme-btn:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .page-label {
+      font-size: 10px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .tagline {
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section {
+      margin-bottom: 48px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+
+    .section p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .section p:last-child { margin-bottom: 0; }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 540px) {
+      .features { grid-template-columns: 1fr; }
+    }
+
+    .feature-card {
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      padding: 16px;
+      border-radius: 4px;
+    }
+
+    .feature-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .tournaments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .tournament-tag {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 2px;
+    }
+
+    .faq { margin-top: 4px; }
+
+    .faq-item {
+      border-top: 1px solid var(--border);
+      padding: 20px 0;
+    }
+
+    .faq-item:last-child { border-bottom: 1px solid var(--border); }
+
+    .faq-q {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .faq-a {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .cta {
+      margin-top: 48px;
+      padding-top: 48px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .cta-label {
+      font-size: 10px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .cta-btn {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      padding: 14px 32px;
+      background: var(--red);
+      color: white;
+      border-radius: 4px;
+      transition: opacity 0.15s;
+    }
+
+    .cta-btn:hover { opacity: 0.85; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 16px 24px;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">Spectate <span>Esports</span></a>
+    <div class="header-right">
+      <a href="/" class="nav-link">Home</a>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">Light</button>
+    </div>
+  </header>
+
+  <main>
+    <p class="page-label">About</p>
+    <h1>Built for Dota 2 Fans</h1>
+    <p class="tagline">Free · No login required · Tier 1 only</p>
+
+    <div class="section">
+      <p class="section-label">The Problem</p>
+      <p>
+        Watching pro Dota 2 matches after the fact is frustrating. Tournament streams run for 6 to 8 hours covering multiple games. Finding the specific match you want means scrubbing through hours of content, guessing timestamps, and often landing in the wrong game entirely.
+      </p>
+      <p>
+        There was no easy way to jump directly to a specific match — until now.
+      </p>
+    </div>
+
+    <div class="section">
+      <p class="section-label">What Spectate Esports Does</p>
+      <div class="features">
+        <div class="feature-card">
+          <p class="feature-title">Timestamped VODs</p>
+          <p class="feature-desc">Direct Twitch links that jump to the exact moment a match begins. No scrubbing.</p>
+        </div>
+        <div class="feature-card">
+          <p class="feature-title">Draft Breakdown</p>
+          <p class="feature-desc">Full hero picks and bans with pro player names and KDA stats for every game.</p>
+        </div>
+        <div class="feature-card">
+          <p class="feature-title">AI Match Summaries</p>
+          <p class="feature-desc">Draft analysis, strategy breakdown, MVP, and match highlights — generated by Claude.</p>
+        </div>
+        <div class="feature-card">
+          <p class="feature-title">Series Grouping</p>
+          <p class="feature-desc">Games are grouped into BO1, BO3, and BO5 series with series scores.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <p class="section-label">Tournaments Covered</p>
+      <p style="margin-bottom: 16px;">Spectate Esports filters to Tier 1 tournaments only — no amateur or regional leagues.</p>
+      <div class="tournaments">
+        <span class="tournament-tag">DreamLeague</span>
+        <span class="tournament-tag">ESL One</span>
+        <span class="tournament-tag">PGL</span>
+        <span class="tournament-tag">BLAST</span>
+        <span class="tournament-tag">WePlay</span>
+        <span class="tournament-tag">Riyadh Masters</span>
+        <span class="tournament-tag">The International</span>
+        <span class="tournament-tag">Beyond The Summit</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <p class="section-label">Frequently Asked Questions</p>
+      <div class="faq">
+        <div class="faq-item">
+          <p class="faq-q">How do I find a match VOD?</p>
+          <p class="faq-a">Search for a team name or tournament on the homepage. Click any match to open the details panel and get a direct Twitch link timestamped to that exact game.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">How far back do VODs go?</p>
+          <p class="faq-a">Twitch VODs are available for up to 60 days. Matches older than that will show no VOD found.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Why are multiple stream links shown?</p>
+          <p class="faq-a">When tournaments run concurrent matches on different sub-channels, all matching streams are shown. This is a known limitation — Twitch does not expose which stream carried which match.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">What is the AI match summary?</p>
+          <p class="faq-a">Each match has an AI-generated summary covering draft analysis with a draft winner, team strategy, MVP, and a match highlight. Generated using Claude by Anthropic.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Is Spectate Esports free?</p>
+          <p class="faq-a">Yes. Spectate Esports is completely free with no account required.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Which data sources are used?</p>
+          <p class="faq-a">Match data is sourced from the OpenDota API. VOD links are sourced from the Twitch API. AI summaries are generated by Anthropic Claude.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <p class="cta-label">Ready to watch?</p>
+      <a href="/" class="cta-btn">Find a Match</a>
+    </div>
+  </main>
+
+  <footer>
+    Spectate Esports · Powered by OpenDota + Twitch · spectateesports.live
+  </footer>
+
+  <script>
+    // Sync theme with main app
+    const stored = localStorage.getItem('theme') || 'dark'
+    if (stored === 'light') {
+      document.documentElement.classList.remove('dark')
+      document.documentElement.classList.add('light')
+      document.getElementById('theme-btn').textContent = 'Dark'
+    }
+
+    function toggleTheme() {
+      const isLight = document.documentElement.classList.contains('light')
+      if (isLight) {
+        document.documentElement.classList.remove('light')
+        document.documentElement.classList.add('dark')
+        localStorage.setItem('theme', 'dark')
+        document.getElementById('theme-btn').textContent = 'Light'
+      } else {
+        document.documentElement.classList.remove('dark')
+        document.documentElement.classList.add('light')
+        localStorage.setItem('theme', 'light')
+        document.getElementById('theme-btn').textContent = 'Dark'
+      }
+    }
+  </script>
+</body>
+</html>
