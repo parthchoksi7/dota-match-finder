@@ -165,6 +165,14 @@ export async function fetchMatchSummary(matchId) {
   const matchRes = await fetch(OPENDOTA_BASE + '/matches/' + matchId)
   const matchData = await matchRes.json()
 
+  // Replace persona names with pro names
+  if (matchData.players) {
+    matchData.players = matchData.players.map(p => ({
+      ...p,
+      personaname: p.name || p.personaname
+    }))
+  }
+
   const summaryRes = await fetch('/api/summarize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

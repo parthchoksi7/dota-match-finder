@@ -4,6 +4,8 @@ import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
+import { track } from '@vercel/analytics'
+
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 
@@ -156,21 +158,32 @@ function App() {
   }
 
   async function handleSelectMatch(match) {
-    setSummary(null)
-    setSummaryMatchId(null)
-    setSummaryError(null)
-    setSummaryErrorMatchId(null)
-    setSummaryLoading(false)
-    setSelectedMatch({ ...match, loadingVod: true })
-    const vod = await findTwitchVod(match.startTime)
-    setSelectedMatch({
-      ...match,
-      loadingVod: false,
-      url: vod?.url || null,
-      channel: vod?.channel || null,
-      allVods: vod?.allVods || []
-    })
-  }
+  // Update URL for tracking
+  window.history.replaceState(null, "", "#match-" + match.id)
+  
+  // Track the click
+  track('match_click', {
+    matchId: match.id,
+    radiantTeam: match.radiantTeam,
+    direTeam: match.direTeam,
+    tournament: match.tournament
+  })
+
+  setSummary(null)
+  setSummaryMatchId(null)
+  setSummaryError(null)
+  setSummaryErrorMatchId(null)
+  setSummaryLoading(false)
+  setSelectedMatch({ ...match, loadingVod: true })
+  const vod = await findTwitchVod(match.startTime)
+  setSelectedMatch({
+    ...match,
+    loadingVod: false,
+    url: vod?.url || null,
+    channel: vod?.channel || null,
+    allVods: vod?.allVods || []
+  })
+}
 
   async function handleSummarize(match) {
     setSummary(null)
