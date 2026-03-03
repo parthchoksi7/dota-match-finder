@@ -1,5 +1,5 @@
 /** Allowed player fields for summary prompt (max 10 players). */
-const PLAYER_FIELDS = ['hero_id', 'personaname', 'isRadiant', 'kills', 'deaths', 'assists', 'net_worth', 'hero_damage']
+const PLAYER_FIELDS = ['hero_id', 'personaname', 'name', 'isRadiant', 'kills', 'deaths', 'assists', 'net_worth', 'hero_damage', 'lane_role']
 
 /**
  * Trim match data before sending to Claude. Match level: duration, radiant_win, radiant_score, dire_score.
@@ -13,7 +13,19 @@ function trimMatchDataForSummary(matchData) {
     duration: matchData.duration,
     radiant_win: matchData.radiant_win,
     radiant_score: matchData.radiant_score,
-    dire_score: matchData.dire_score
+    dire_score: matchData.dire_score,
+    radiant_name: matchData.radiant_name,
+    dire_name: matchData.dire_name,
+  }
+
+  // Include picks and bans for draft analysis
+  if (Array.isArray(matchData.picks_bans)) {
+    out.picks_bans = matchData.picks_bans.map(pb => ({
+      is_pick: pb.is_pick,
+      hero_id: pb.hero_id,
+      team: pb.team,
+      order: pb.order
+    }))
   }
 
   if (Array.isArray(matchData.players)) {
@@ -24,6 +36,8 @@ function trimMatchDataForSummary(matchData) {
           trimmed[key] = p[key]
         }
       }
+      // Use pro name if available
+      trimmed.personaname = p.name || p.personaname
       if (trimmed.isRadiant === undefined && p.player_slot != null) {
         trimmed.isRadiant = p.player_slot < 128
       }
@@ -64,16 +78,25 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
+        max_tokens: 400,
         messages: [
           {
             role: 'user',
-            content: `You are a Dota 2 expert analyst. Give a concise match summary in 3 short sections only:
-1. Strategy: One sentence on each team's draft and game plan.
-2. MVP: Identify the standout player and why based on the stats.
-3. Highlight: One exceptional moment or callout from the match.
+            content: `You are a professional Dota 2 analyst. Analyze this match and give a summary in exactly 4 sections:
 
-Be specific with hero names and player names. Keep the whole summary under 150 words. Match data: ${JSON.stringify(trimmed)}`
+1. Draft Analysis: Analyze both teams' drafts. Which team had the better draft and why? Consider win conditions, synergies, and counters. Be decisive — pick a winner.
+2. Strategy: One sentence on each team's game plan and how they executed it.
+3. MVP: Identify the standout player and why, based on stats and impact.
+4. Highlight: One exceptional moment or stat that defined the match.
+
+Rules:
+- Use pro player names (from the "personaname" field), not hero names alone
+- Use team names (radiant_name, dire_name) not "Radiant" or "Dire"
+- Be specific and analytical, not generic
+- Keep the whole summary under 250 words
+- Hero IDs are raw numbers — infer hero names from context if needed
+
+Match data: ${JSON.stringify(trimmed)}`
           }
         ]
       })
