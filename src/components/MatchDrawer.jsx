@@ -1,6 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
 import { VOD_CHANNEL_LABELS } from "../api"
 import { useEffect, useRef } from "react"
+import { track } from "@vercel/analytics"
 
 function MatchDrawer({
   match,
@@ -119,6 +120,7 @@ function MatchDrawer({
                     const href = vod.url
                     return (
                       <a key={i} href={href} target="_blank" rel="noopener noreferrer"
+                        onClick={() => track("vod_click", { matchId: match.id, channel: vod.channel, radiantTeam: match.radiantTeam, direTeam: match.direTeam, tournament: match.tournament })}
                         className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors">
                         {label}
                       </a>
@@ -153,6 +155,7 @@ function MatchDrawer({
                 </p>
                 <div className="flex gap-4 pt-1">
                   <a href={twitchHref} target="_blank" rel="noopener noreferrer"
+                    onClick={() => track("twitch_search_click", { matchId: match.id })}
                     className="text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider">
                     Search Twitch
                   </a>

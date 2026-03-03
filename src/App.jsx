@@ -126,6 +126,7 @@ function App() {
   async function handleLoadMore() {
     if (loadingMore || !nextMatchId) return
     setLoadingMore(true)
+    track("load_more", { searchQuery: searchQuery || "homepage" })
     try {
       const { matches: newMatches, nextMatchId: newNextId } = await fetchProMatches(nextMatchId)
       setAllMatches(prev => [...prev, ...newMatches])
@@ -142,6 +143,7 @@ function App() {
     setSelectedMatch(null)
     const q = query.trim().toLowerCase()
     setSearchQuery(q)
+    track("search", { query: q })
     setTimeout(() => {
       setLoading(false)
       setSearched(true)
@@ -191,6 +193,7 @@ function App() {
     setSummaryError(null)
     setSummaryErrorMatchId(null)
     setSummaryLoading(true)
+    track("summary_click", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam, tournament: match.tournament })
     try {
       const result = await fetchMatchSummary(match.id)
       setSummaryMatchId(match.id)
@@ -413,6 +416,7 @@ function App() {
           seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
           onCopyVod={() => {
             navigator.clipboard?.writeText(selectedMatch.url)
+            track("copy_vod", { matchId: selectedMatch.id })
             setCopyFeedback("vod")
             setTimeout(() => setCopyFeedback(null), 2000)
           }}
@@ -420,6 +424,7 @@ function App() {
             const url = window.location.origin + window.location.pathname + "#match-" + selectedMatch.id
             navigator.clipboard?.writeText(url)
             window.history.replaceState(null, "", "#match-" + selectedMatch.id)
+            track("share_match", { matchId: selectedMatch.id })
             setCopyFeedback("link")
             setTimeout(() => setCopyFeedback(null), 2000)
           }}
