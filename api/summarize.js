@@ -47,7 +47,16 @@ function trimMatchDataForSummary(matchData) {
 
   return out
 }
-
+// Fetch hero names from OpenDota
+async function getHeroNames() {
+  const res = await fetch('https://api.opendota.com/api/heroes')
+  const data = await res.json()
+  const map = {}
+  for (const h of data) {
+    map[h.id] = h.localized_name
+  }
+  return map
+}
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -67,7 +76,22 @@ export default async function handler(req, res) {
   }
 
   const trimmed = trimMatchDataForSummary(matchData)
+    // Resolve hero IDs to names
+const heroes = await getHeroNames()
 
+if (Array.isArray(trimmed.players)) {
+  trimmed.players = trimmed.players.map(p => ({
+    ...p,
+    hero_name: heroes[p.hero_id] || 'Unknown Hero'
+  }))
+}
+
+if (Array.isArray(trimmed.picks_bans)) {
+  trimmed.picks_bans = trimmed.picks_bans.map(pb => ({
+    ...pb,
+    hero_name: heroes[pb.hero_id] || 'Unknown Hero'
+  }))
+}
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
