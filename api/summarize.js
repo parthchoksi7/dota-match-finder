@@ -112,7 +112,7 @@ Format your response exactly like this:
 
 DRAFT ANALYSIS
 Draft Winner: [Team Name]
-[2-3 sentences on why they had the better draft — synergies, win conditions, counters]
+[2-3 sentences analyzing ONLY the draft — hero synergies, win conditions, counters, and team composition. Do NOT mention kills, deaths, damage, gold, or anything that happened in the actual game. Judge the draft purely on paper before the game started.]
 
 STRATEGY
 [One sentence on each team's game plan and execution]
