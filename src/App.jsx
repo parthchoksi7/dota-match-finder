@@ -387,20 +387,16 @@ function App() {
       </main>
 
       <footer className="mt-auto border-t border-gray-200 dark:border-gray-800/80 px-4 sm:px-6 py-4 text-center">
-        <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1">
-          <
-          <span>Spectate Esports</span>
-          <span className="hidden sm:inline"> · </span>
-          <span>Powered by OpenDota + Twitch</span>
-          <span className="hidden sm:inline"> · </span>
-          <span>Data updates every few minutes</span>
-          <span className="hidden sm:inline"> · </span>
-          <a href="/about.html" className="hover:text-gray-400 dark:hover:text-gray-400 transition-colors">
-            About
-          </a>
-      
-        </p>
-      </footer>
+  <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1 items-center">
+    <span>Spectate Esports</span>
+    <span className="hidden sm:inline"> · </span>
+    <span>Powered by OpenDota + Twitch</span>
+    <span className="hidden sm:inline"> · </span>
+    <span>Data updates every few minutes</span>
+    <span className="hidden sm:inline"> · </span>
+    <a href="/about.html" className="hover:text-gray-300 transition-colors">About</a>
+  </p>
+</footer>
 
       {selectedMatch && !initialLoading && (
         <MatchDrawer
