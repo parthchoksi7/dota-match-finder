@@ -5,7 +5,12 @@ import LatestMatches from "./components/LatestMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 import { track } from '@vercel/analytics'
-
+function trackEvent(name, props) {
+  track(name, props)
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 
@@ -164,7 +169,7 @@ function App() {
   window.history.replaceState(null, "", "#match-" + match.id)
   
   // Track the click
-  track('match_click', {
+  trackEvent('match_click', {
     matchId: match.id,
     radiantTeam: match.radiantTeam,
     direTeam: match.direTeam,
