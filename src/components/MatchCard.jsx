@@ -2,6 +2,13 @@ import { useState } from "react"
 import { formatDuration, getSeriesLabel } from "../utils"
 import { track } from "@vercel/analytics"
 
+function trackEvent(name, props) {
+  track(name, props)
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
+
 
 function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
@@ -26,7 +33,7 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
       <button
         type="button"
         onClick={() => {
-          if (!expanded) track('series_expand', { tournament: series.tournament, radiantTeam, direTeam })
+          if (!expanded) trackEvent('series_expand', { tournament: series.tournament, radiantTeam, direTeam })
           setExpanded((e) => !e)
         }}
         className="focus-ring w-full text-left"
@@ -106,7 +113,7 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                track('game_click', { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
+                trackEvent('game_click', { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
                 onSelectGame(game)
               }}
               className="focus-ring w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer group border-b border-gray-200 dark:border-gray-800 last:border-b-0 transition-colors text-left"
