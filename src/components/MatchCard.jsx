@@ -114,6 +114,8 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
               onClick={(e) => {
                 e.stopPropagation()
                 trackEvent('game_click', { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
+                trackEvent('team_click', { team: game.radiantTeam, tournament: series.tournament })
+                trackEvent('team_click', { team: game.direTeam, tournament: series.tournament })
                 onSelectGame(game)
               }}
               className="focus-ring w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer group border-b border-gray-200 dark:border-gray-800 last:border-b-0 transition-colors text-left"
