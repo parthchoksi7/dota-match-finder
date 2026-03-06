@@ -41,7 +41,7 @@ function StreamButtons({ streams, matchLabel }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {streams.map((s, i) => (
-        
+        <a
           key={i}
           href={s.url}
           target="_blank"
