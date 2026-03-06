@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
+import UpcomingMatches from "./components/UpcomingMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import TournamentHub from "./components/TournamentHub"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
@@ -354,6 +355,13 @@ function App() {
             {/* Tournament Hub: shows ongoing tournament OR upcoming if none ongoing.
                 Hides itself entirely if no tournaments found. */}
             <TournamentHub />
+            
+            <UpcomingMatches />
+            <LatestMatches
+              matches={allMatches}
+              onSelectMatch={handleSelectMatch}
+            />
+
 
             <LatestMatches
               matches={allMatches}

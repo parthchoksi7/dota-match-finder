@@ -17,10 +17,7 @@ function TournamentHub() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [xLoaded, setXLoaded] = useState(false)
-  const [xFailed, setXFailed] = useState(false)
-  const twitterRef = useRef(null)
-  const scriptRef = useRef(null)
+
 
   useEffect(() => {
     fetchTournaments()
@@ -46,49 +43,7 @@ function TournamentHub() {
     return null
   })()
 
-  useEffect(() => {
-    if (!activeTournament?.xHandle || !twitterRef.current) return
-    setXLoaded(false)
-    setXFailed(false)
-    if (twitterRef.current) twitterRef.current.innerHTML = ''
-
-    const timeout = setTimeout(() => setXFailed(true), 5000)
-
-    function renderTimeline() {
-      window.twttr?.widgets?.createTimeline(
-        { sourceType: 'profile', screenName: activeTournament.xHandle },
-        twitterRef.current,
-        {
-          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
-          chrome: 'noheader nofooter noborders',
-          tweetLimit: 5,
-          width: '100%',
-        }
-      ).then((el) => {
-        clearTimeout(timeout)
-        if (el) setXLoaded(true)
-        else setXFailed(true)
-      }).catch(() => {
-        clearTimeout(timeout)
-        setXFailed(true)
-      })
-    }
-
-    if (window.twttr) {
-      renderTimeline()
-    } else {
-      const script = document.createElement('script')
-      script.src = 'https://platform.twitter.com/widgets.js'
-      script.async = true
-      script.charset = 'utf-8'
-      script.onload = renderTimeline
-      script.onerror = () => { clearTimeout(timeout); setXFailed(true) }
-      scriptRef.current = script
-      document.head.appendChild(script)
-    }
-
-    return () => clearTimeout(timeout)
-  }, [activeTournament?.xHandle])
+  
 
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded p-4 sm:p-5 bg-gray-50/50 dark:bg-gray-900/30 animate-pulse">
@@ -191,25 +146,7 @@ function TournamentHub() {
         </div>
       )}
 
-      {activeTournament.xHandle && !xFailed && (
-        <div className="border-t border-gray-200 dark:border-gray-800">
-          <div className="px-4 sm:px-5 pt-3 pb-1 flex items-center justify-between">
-            <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold">
-              Latest updates
-            </p>
-            {!xLoaded && (
-              <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest animate-pulse">
-                Loading feed...
-              </span>
-            )}
-          </div>
-          <div
-            ref={twitterRef}
-            className={`px-2 pb-2 transition-opacity ${xLoaded ? 'opacity-100' : 'opacity-0 h-0'}`}
-            aria-label={`Latest tweets from @${activeTournament.xHandle}`}
-          />
-        </div>
-      )}
+      
     </section>
   )
 }

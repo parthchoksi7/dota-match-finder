@@ -12,8 +12,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - **Frontend**: React + Vite + Tailwind CSS
 - **Deployment**: Vercel
 - **Backend**: Vercel serverless functions (`/api/`)
-- **Data**: OpenDota API (match data), Twitch API (VOD links), PandaScore API (tournament data)
-- **Caching**: Upstash Redis via Vercel KV (`@upstash/redis`)
+- **Data**: OpenDota API (match data), Twitch API (VOD links)
 - **AI**: Anthropic Claude Haiku via `/api/summarize.js`
 - **Analytics**: Vercel Analytics + Google Analytics 4 (GA4) with custom events
 - **Dashboard**: Looker Studio connected to GA4
@@ -25,18 +24,19 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ### Frontend
 - `src/App.jsx` — Main app, state management, search, load more, drawer
 - `src/api.js` — All API calls: OpenDota, Twitch VOD search, hero fetching, match summaries
-- `src/components/TournamentHub.jsx` — Homepage section showing ongoing/upcoming Tier 1 tournament with X embed
 - `src/components/MatchDrawer.jsx` — Slide-in drawer showing match details, VOD links, draft, AI summary
 - `src/components/DraftDisplay.jsx` — Hero picks, bans, player names, KDA
 - `src/components/MatchList.jsx` — Search results list grouped into series (no internal pagination limit)
 - `src/components/LatestMatches.jsx` — Homepage match list
+- `src/components/UpcomingMatches.jsx` — Live and upcoming matches section with stream links
 - `src/components/MatchCard.jsx` — Individual series card with expand/collapse and analytics tracking
 - `src/components/SearchBar.jsx` — Search input with popular team shortcuts
 - `src/utils.js` — Series grouping logic (`groupIntoSeries`, `isSeriesComplete`)
 
 ### Backend (Vercel Serverless)
-- `api/tournaments.js` — Fetches Tier 1 Dota 2 tournaments from PandaScore with two-tier KV caching
 - `api/summarize.js` — Generates AI match summary using Claude Haiku
+- `api/upcoming-matches.js` — Fetches upcoming Tier 1 matches from PandaScore, cached 15 min in Redis
+- `api/live-matches.js` — Fetches currently live Tier 1 matches from PandaScore, cached 2 min in Redis
 - `api/twitch-token.js` — Handles Twitch OAuth client credentials flow
 
 ### Static Pages
@@ -55,30 +55,10 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `VITE_TWITCH_CLIENT_ID` — Twitch app client ID
 - `TWITCH_CLIENT_SECRET` — Twitch app client secret (server only)
 - `ANTHROPIC_API_KEY` — Claude API key for AI summaries
-- `PANDASCORE_TOKEN` — PandaScore API token for tournament data
-- `KV_REST_API_URL` — Upstash Redis REST URL (auto-added by Vercel KV integration)
-- `KV_REST_API_TOKEN` — Upstash Redis REST token (auto-added by Vercel KV integration)
-- `KV_REST_API_READ_ONLY_TOKEN` — Upstash read-only token
-- `KV_URL` — Upstash Redis connection URL
 
 ---
 
 ## Core Features
-
-### Tournament Hub
-- Shown on homepage above Latest Results, hidden during search
-- Shows ongoing Tier 1 tournament if one exists, otherwise shows next upcoming
-- Hides entirely if no ongoing or upcoming Tier 1 tournaments found
-- Embeds official X/Twitter timeline for the tournament's handle when loaded
-- X embed hidden silently if it fails to load (e.g. localhost, ad blockers)
-- Links to Liquipedia page and official X handle
-- Data from PandaScore API with two-tier Upstash Redis caching:
-  - Tournament list (names, dates, handles): cached 30 days (`dota2:tournament_list_v2`)
-  - Tournament statuses (running/upcoming): cached 4 hours (`dota2:tournament_statuses_v2`)
-- Filtered to Tier 1 only using same `TIER1_KEYWORDS` as match filtering
-- Cache bust: hit `/api/tournaments?bust=1` to force fresh fetch
-- X handle resolved via static lookup table in `api/tournaments.js` — update manually when new tournaments added
-- `dotenv` loaded manually in serverless function for local dev compatibility
 
 ### Match Discovery
 - Fetches pro matches from OpenDota `/promatches` endpoint
@@ -175,12 +155,10 @@ Connected to GA4. Key reports:
 - Twitch VODs expire after 60 days — old matches will show "No VOD found"
 - Search only searches already-loaded matches — user must click "Load more matches" to expand search
 - GA4 custom dimensions only collect data from the date they were registered — no backfill
-- X embed doesn't load on localhost — works fine on production (spectateesports.live)
-- PandaScore occasionally returns wrong tier metadata — overridden client-side using TIER1_KEYWORDS
 
 ---
 
-## Tier 1 Tournament Keywords (in `api.js` and `api/tournaments.js`)
+## Tier 1 Tournament Keywords (in `api.js`)
 ```
 dreamleague, esl one, esl challenger, pgl wallachia, pgl, beyond the summit,
 weplay, starladder, the international, blast slam, blast, fissure, ewc,
@@ -207,7 +185,6 @@ Always change `/mnt/user-data/uploads/` paths to local paths before running.
 3. State/flow changes → `src/App.jsx`
 4. AI prompt changes → `api/summarize.js`
 5. New analytics events → add `trackEvent()` call + register custom dimension in GA4
-6. Tournament data changes → `api/tournaments.js` + update X handle lookup table
 
 ---
 
@@ -215,6 +192,7 @@ Always change `/mnt/user-data/uploads/` paths to local paths before running.
 - Hero images from Valve CDN using hero key
 - Team logos (no reliable free API — OpenDota has partial coverage)
 - Role labels (Carry/Mid/Off/Support) — needs better detection logic
+- PandaScore API as replacement for OpenDota match list (cleaner Tier 1 filtering)
 - Mobile bottom sheet optimization
+- Liquipedia integration for upcoming matches
 - Expand beyond Dota 2 to other esports (CS2, LoL, Valorant)
-- Live Twitch stream status using existing Twitch API (show which channels are live now)
