@@ -10,7 +10,6 @@ function trackEvent(name, props) {
   }
 }
 
-
 function MatchDrawer({
   match,
   onDismiss,
@@ -25,6 +24,7 @@ function MatchDrawer({
   twitchSearchHref,
   gameNumber,
   seriesMatches,
+  shareUrl,
 }) {
   const drawerRef = useRef(null)
 
@@ -127,9 +127,22 @@ function MatchDrawer({
                     const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || "Watch on Twitch"
                     const href = vod.url
                     return (
-                      <a key={i} href={href} target="_blank" rel="noopener noreferrer"
-                        onClick={() => trackEvent("vod_click", { matchId: match.id, channel: vod.channel, radiantTeam: match.radiantTeam, direTeam: match.direTeam, tournament: match.tournament })}
-                        className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors">
+                      <a
+                        key={i}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() =>
+                          trackEvent("vod_click", {
+                            matchId: match.id,
+                            channel: vod.channel,
+                            radiantTeam: match.radiantTeam,
+                            direTeam: match.direTeam,
+                            tournament: match.tournament,
+                          })
+                        }
+                        className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
+                      >
                         {label}
                       </a>
                     )
@@ -147,6 +160,7 @@ function MatchDrawer({
                     type="button"
                     onClick={onCopyLink}
                     className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
+                    title={shareUrl}
                   >
                     {copyFeedback === "link" ? "Copied!" : "Share match"}
                   </button>
@@ -162,15 +176,22 @@ function MatchDrawer({
                   May not be published yet or was not on a tracked channel.
                 </p>
                 <div className="flex gap-4 pt-1">
-                  <a href={twitchHref} target="_blank" rel="noopener noreferrer"
-                    onClick={() => trackEvent("twitch_search_click", { matchId: match.id })}
-                    className="text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider">
+                  <a
+                    href={twitchHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() =>
+                      trackEvent("twitch_search_click", { matchId: match.id })
+                    }
+                    className="text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider"
+                  >
                     Search Twitch
                   </a>
                   <button
                     type="button"
                     onClick={onCopyLink}
                     className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
+                    title={shareUrl}
                   >
                     {copyFeedback === "link" ? "Copied!" : "Share match"}
                   </button>

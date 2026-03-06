@@ -7,6 +7,7 @@ import MatchDrawer from "./components/MatchDrawer"
 import TournamentHub from "./components/TournamentHub"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 import { track } from '@vercel/analytics'
+
 function trackEvent(name, props) {
   track(name, props)
   if (typeof window !== "undefined" && window.gtag) {
@@ -36,6 +37,17 @@ function setSummaryInCache(matchId, text) {
     map[matchId] = text
     localStorage.setItem(SUMMARY_CACHE_KEY, JSON.stringify(map))
   } catch (_) {}
+}
+
+// Extract match ID from either /match/:id path or legacy #match-:id hash
+function getMatchIdFromUrl() {
+  if (typeof window === "undefined") return null
+  const pathMatch = window.location.pathname.match(/^\/match\/(\d+)/)
+  if (pathMatch) return pathMatch[1]
+  const hash = window.location.hash
+  const hashMatch = hash?.match(/^#match-(\d+)/)
+  if (hashMatch) return hashMatch[1]
+  return null
 }
 
 function App() {
@@ -92,12 +104,14 @@ function App() {
     loadMatches()
   }, [loadMatches])
 
-  // Handle share URL hash on load
+  // Handle share URL on load — supports both /match/:id and legacy #match-:id
   useEffect(() => {
     if (initialLoading) return
-    const hash = window.location.hash
-    const matchId = hash?.replace("#match-", "")
-    if (!matchId || matchId === window.location.hash) return
+    const matchId = getMatchIdFromUrl()
+    if (!matchId) return
+
+    // Track when someone lands via a shared match link
+    trackEvent("shared_match_open", { matchId, source: window.location.pathname.startsWith("/match/") ? "path" : "hash" })
 
     // Try to find in loaded matches first
     const found = allMatches.find(m => m.id === matchId)
@@ -167,32 +181,31 @@ function App() {
   }
 
   async function handleSelectMatch(match) {
-  // Update URL for tracking
-  window.history.replaceState(null, "", "#match-" + match.id)
-  
-  // Track the click
-  trackEvent('match_click', {
-    matchId: match.id,
-    radiantTeam: match.radiantTeam,
-    direTeam: match.direTeam,
-    tournament: match.tournament
-  })
+    // Update URL to shareable /match/:id path
+    window.history.replaceState(null, "", "/match/" + match.id)
 
-  setSummary(null)
-  setSummaryMatchId(null)
-  setSummaryError(null)
-  setSummaryErrorMatchId(null)
-  setSummaryLoading(false)
-  setSelectedMatch({ ...match, loadingVod: true })
-  const vod = await findTwitchVod(match.startTime)
-  setSelectedMatch({
-    ...match,
-    loadingVod: false,
-    url: vod?.url || null,
-    channel: vod?.channel || null,
-    allVods: vod?.allVods || []
-  })
-}
+    trackEvent("match_click", {
+      matchId: match.id,
+      radiantTeam: match.radiantTeam,
+      direTeam: match.direTeam,
+      tournament: match.tournament,
+    })
+
+    setSummary(null)
+    setSummaryMatchId(null)
+    setSummaryError(null)
+    setSummaryErrorMatchId(null)
+    setSummaryLoading(false)
+    setSelectedMatch({ ...match, loadingVod: true })
+    const vod = await findTwitchVod(match.startTime)
+    setSelectedMatch({
+      ...match,
+      loadingVod: false,
+      url: vod?.url || null,
+      channel: vod?.channel || null,
+      allVods: vod?.allVods || [],
+    })
+  }
 
   async function handleSummarize(match) {
     setSummary(null)
@@ -200,7 +213,12 @@ function App() {
     setSummaryError(null)
     setSummaryErrorMatchId(null)
     setSummaryLoading(true)
-    trackEvent("summary_click", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam, tournament: match.tournament })
+    trackEvent("summary_click", {
+      matchId: match.id,
+      radiantTeam: match.radiantTeam,
+      direTeam: match.direTeam,
+      tournament: match.tournament,
+    })
     try {
       const result = await fetchMatchSummary(match.id)
       setSummaryMatchId(match.id)
@@ -224,7 +242,8 @@ function App() {
     setSummaryErrorMatchId(null)
     setCachedSummaryForSelected(null)
     setCopyFeedback(null)
-    window.history.replaceState(null, "", window.location.pathname)
+    // Return to homepage cleanly
+    window.history.replaceState(null, "", "/")
     setTimeout(() => {
       searchInputRef.current?.focus({ preventScroll: true })
       window.scrollTo(0, scrollY)
@@ -240,17 +259,20 @@ function App() {
   }, [selectedMatch?.id])
 
   // Compute search results live from allMatches so load more updates results automatically
-  const searchResults = searched && searchQuery
-    ? allMatches.filter(m =>
-        m.radiantTeam.toLowerCase().includes(searchQuery) ||
-        m.direTeam.toLowerCase().includes(searchQuery) ||
-        m.tournament.toLowerCase().includes(searchQuery)
-      )
-    : allMatches
+  const searchResults =
+    searched && searchQuery
+      ? allMatches.filter(
+          m =>
+            m.radiantTeam.toLowerCase().includes(searchQuery) ||
+            m.direTeam.toLowerCase().includes(searchQuery) ||
+            m.tournament.toLowerCase().includes(searchQuery)
+        )
+      : allMatches
 
-  const filteredMatches = seriesFilter === "all"
-    ? searchResults
-    : searchResults.filter(m => String(m.seriesType) === seriesFilter)
+  const filteredMatches =
+    seriesFilter === "all"
+      ? searchResults
+      : searchResults.filter(m => String(m.seriesType) === seriesFilter)
 
   // Compute game number within series for each match
   const matchGameNumbers = {}
@@ -260,12 +282,21 @@ function App() {
     seriesMatchMap[m.seriesId].push(m.id)
   })
   Object.entries(seriesMatchMap).forEach(([seriesId, ids]) => {
-    ids.slice().reverse().forEach((id, i) => {
-      matchGameNumbers[id] = i + 1
-    })
+    ids
+      .slice()
+      .reverse()
+      .forEach((id, i) => {
+        matchGameNumbers[id] = i + 1
+      })
   })
 
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
+
+  // Build the shareable /match/:id URL for the current match
+  function getShareUrl(matchId) {
+    if (typeof window === "undefined") return ""
+    return window.location.origin + "/match/" + matchId
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
@@ -284,7 +315,11 @@ function App() {
           </div>
           <button
             type="button"
-            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            onClick={() => {
+              const newTheme = theme === "dark" ? "light" : "dark"
+              setTheme(newTheme)
+              trackEvent("theme_toggle", { theme: newTheme })
+            }}
             className="focus-ring px-3 py-2 rounded border border-gray-300 dark:border-gray-700 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
           >
@@ -305,16 +340,32 @@ function App() {
         />
 
         {initialLoading && (
-          <div className="border border-gray-200 dark:border-gray-800 px-6 py-12 text-center rounded" aria-live="polite" aria-busy="true">
+          <div
+            className="border border-gray-200 dark:border-gray-800 px-6 py-12 text-center rounded"
+            aria-live="polite"
+            aria-busy="true"
+          >
             <div className="inline-block w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-red-500 rounded-full animate-spin" />
-            <p className="text-gray-500 dark:text-gray-500 text-sm uppercase tracking-widest mt-4">Loading matches...</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm uppercase tracking-widest mt-4">
+              Loading matches...
+            </p>
           </div>
         )}
 
         {error && (
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-6 border border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded px-4" role="alert" id="app-error">
-            <span className="text-red-600 dark:text-red-400 text-xs uppercase tracking-widest">{error}</span>
-            <button type="button" onClick={loadMatches} className="focus-ring px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors">
+          <div
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 py-6 border border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded px-4"
+            role="alert"
+            id="app-error"
+          >
+            <span className="text-red-600 dark:text-red-400 text-xs uppercase tracking-widest">
+              {error}
+            </span>
+            <button
+              type="button"
+              onClick={loadMatches}
+              className="focus-ring px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
+            >
               Retry
             </button>
           </div>
@@ -324,17 +375,23 @@ function App() {
           <>
             {filteredMatches.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">Filter:</span>
-                {["all", "0", "1", "2"].map((value) => (
+                <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
+                  Filter:
+                </span>
+                {["all", "0", "1", "2"].map(value => (
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setSeriesFilter(value)}
-                    className={"focus-ring px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors " + (
-                      seriesFilter === value
+                    onClick={() => {
+                      setSeriesFilter(value)
+                      trackEvent("series_filter", { filter: value })
+                    }}
+                    className={
+                      "focus-ring px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors " +
+                      (seriesFilter === value
                         ? "bg-red-600 border-red-600 text-white"
-                        : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500"
-                    )}
+                        : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500")
+                    }
                   >
                     {value === "all" ? "All" : value === "0" ? "BO1" : value === "1" ? "BO3" : "BO5"}
                   </button>
@@ -352,21 +409,9 @@ function App() {
 
         {!initialLoading && !searched && !error && (
           <div className="flex flex-col gap-6">
-            {/* Tournament Hub: shows ongoing tournament OR upcoming if none ongoing.
-                Hides itself entirely if no tournaments found. */}
             <TournamentHub />
-            
             <UpcomingMatches />
-            <LatestMatches
-              matches={allMatches}
-              onSelectMatch={handleSelectMatch}
-            />
-
-
-            <LatestMatches
-              matches={allMatches}
-              onSelectMatch={handleSelectMatch}
-            />
+            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} />
           </div>
         )}
 
@@ -389,16 +434,18 @@ function App() {
       </main>
 
       <footer className="mt-auto border-t border-gray-200 dark:border-gray-800/80 px-4 sm:px-6 py-4 text-center">
-  <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1 items-center">
-    <span>Spectate Esports</span>
-    <span className="hidden sm:inline"> · </span>
-    <span>Powered by OpenDota + Twitch</span>
-    <span className="hidden sm:inline"> · </span>
-    <span>Data updates every few minutes</span>
-    <span className="hidden sm:inline"> · </span>
-    <a href="/about.html" className="hover:text-gray-300 transition-colors">About</a>
-  </p>
-</footer>
+        <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1 items-center">
+          <span>Spectate Esports</span>
+          <span className="hidden sm:inline"> · </span>
+          <span>Powered by OpenDota + Twitch</span>
+          <span className="hidden sm:inline"> · </span>
+          <span>Data updates every few minutes</span>
+          <span className="hidden sm:inline"> · </span>
+          <a href="/about.html" className="hover:text-gray-300 transition-colors">
+            About
+          </a>
+        </p>
+      </footer>
 
       {selectedMatch && !initialLoading && (
         <MatchDrawer
@@ -413,17 +460,27 @@ function App() {
           twitchSearchHref={twitchSearchHref}
           gameNumber={matchGameNumbers[selectedMatch?.id]}
           seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
+          shareUrl={getShareUrl(selectedMatch.id)}
           onCopyVod={() => {
             navigator.clipboard?.writeText(selectedMatch.url)
-            trackEvent("copy_vod", { matchId: selectedMatch.id })
+            trackEvent("copy_vod", {
+              matchId: selectedMatch.id,
+              radiantTeam: selectedMatch.radiantTeam,
+              direTeam: selectedMatch.direTeam,
+            })
             setCopyFeedback("vod")
             setTimeout(() => setCopyFeedback(null), 2000)
           }}
           onCopyLink={() => {
-            const url = window.location.origin + window.location.pathname + "#match-" + selectedMatch.id
+            const url = getShareUrl(selectedMatch.id)
             navigator.clipboard?.writeText(url)
-            window.history.replaceState(null, "", "#match-" + selectedMatch.id)
-            trackEvent("share_match", { matchId: selectedMatch.id })
+            window.history.replaceState(null, "", "/match/" + selectedMatch.id)
+            trackEvent("share_match", {
+              matchId: selectedMatch.id,
+              radiantTeam: selectedMatch.radiantTeam,
+              direTeam: selectedMatch.direTeam,
+              tournament: selectedMatch.tournament,
+            })
             setCopyFeedback("link")
             setTimeout(() => setCopyFeedback(null), 2000)
           }}
