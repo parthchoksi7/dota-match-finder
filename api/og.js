@@ -1,7 +1,7 @@
 import satori from 'satori'
 import sharp from 'sharp'
 
-export const config = { runtime: 'nodejs18.x' }
+export const config = { runtime: 'nodejs' }
 
 export default async function handler(req, res) {
   const matchId = new URL(req.url, 'http://localhost').searchParams.get('matchId')
