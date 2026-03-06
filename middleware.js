@@ -30,9 +30,9 @@ export default async function middleware(req) {
       const league = data.league?.name || ''
 
       const hasScore = winnerScore != null && loserScore != null
-      const scoreStr = hasScore ? `${winnerScore}–${loserScore}` : 'WIN'
+      const scoreStr = hasScore ? `${winnerScore}-${loserScore}` : 'WIN'
 
-      title = `${winner} ${scoreStr} ${loser}${league ? ` · ${league}` : ''} — Spectate Esports`
+      title = `${winner} ${scoreStr} ${loser}${league ? ` - ${league}` : ''} - Spectate Esports`
       description = `${winner} defeated ${loser} ${scoreStr}. Watch the VOD, see the draft, and get an AI match summary on Spectate Esports.`
       imageUrl = `${url.origin}/api/og?matchId=${matchId}`
     }
@@ -40,11 +40,9 @@ export default async function middleware(req) {
     // fallback to defaults
   }
 
-  // Fetch the base index.html from the origin
   const indexRes = await fetch(`${url.origin}/index.html`)
   let html = await indexRes.text()
 
-  // Inject OG tags into <head>
   const ogTags = `
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Spectate Esports" />
@@ -61,8 +59,10 @@ export default async function middleware(req) {
     <title>${escapeHtml(title)}</title>
   `
 
-  // Replace any existing <title> and inject OG tags before </head>
-  html = html.replace(/<title>[^<]*<\/title>/, '')
+  // Strip ALL existing og/twitter meta tags and title so ours take full precedence
+  html = html.replace(/<title>[^<]*<\/title>/gi, '')
+  html = html.replace(/<meta[^>]*property="og:[^>]*"[^>]*\/?>/gi, '')
+  html = html.replace(/<meta[^>]*name="twitter:[^>]*"[^>]*\/?>/gi, '')
   html = html.replace('</head>', ogTags + '</head>')
 
   return new Response(html, {
