@@ -36,16 +36,21 @@ function formatMatchTime(scheduledAt) {
   return `${dateStr} · ${timeStr} ${tzShort}`
 }
 
-function StreamButtons({ streams }) {
+function StreamButtons({ streams, matchLabel }) {
   if (!streams || streams.length === 0) return null
   return (
-    <div className="flex flex-wrap gap-1.5 mt-1.5">
+    <div className="flex flex-wrap gap-1.5">
       {streams.map((s, i) => (
-        <a
+        
           key={i}
           href={s.url}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.gtag) {
+              window.gtag("event", "stream_click", { channel: s.label, match: matchLabel })
+            }
+          }}
           className="inline-flex items-center px-2 py-0.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-semibold uppercase tracking-wider rounded transition-colors"
         >
           {s.label}
@@ -136,7 +141,7 @@ function UpcomingMatches() {
                   <span className="text-gray-400 dark:text-gray-600 font-normal mx-2">vs</span>
                   {match.teamB}
                 </p>
-                <StreamButtons streams={match.streams} />
+                <StreamButtons streams={match.streams} matchLabel={`${match.teamA} vs ${match.teamB}`}/>
               </div>
             ))}
           </div>
@@ -175,7 +180,7 @@ function UpcomingMatches() {
       <span className="text-gray-400 dark:text-gray-600 font-normal mx-2">vs</span>
       {match.teamB}
     </p>
-    <StreamButtons streams={match.streams} />
+    <StreamButtons streams={match.streams} matchLabel={`${match.teamA} vs ${match.teamB}`}/>
   </div>
 </div>
             ))}
