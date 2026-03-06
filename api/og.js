@@ -1,5 +1,4 @@
 import satori from 'satori'
-import sharp from 'sharp'
 
 export const config = { runtime: 'nodejs' }
 
@@ -223,9 +222,9 @@ export default async function handler(req, res) {
     }
   )
 
-  const png = await sharp(Buffer.from(svg)).png().toBuffer()
 
-  res.setHeader('Content-Type', 'image/png')
+
+  res.setHeader('Content-Type', 'image/svg+xml')
   res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600')
-  res.end(png)
+  res.end(svg)
 }
