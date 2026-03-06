@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 
-const POPULAR = ["Team Liquid", "OG", "Tundra", "DreamLeague", "ESL"]
+const POPULAR = ["Team Liquid", "Aurora", "Parivision", "Spirit", "Tundra", "DreamLeague", "PGL Wallachia"]
 const RECENT_KEY = "dota-match-finder-recent"
 const MAX_RECENT = 5
 
