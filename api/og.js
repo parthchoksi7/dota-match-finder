@@ -1,4 +1,5 @@
-import satori from 'satori'
+import satori from "satori"
+import { Resvg } from "@resvg/resvg-js"
 
 export const config = { runtime: 'nodejs' }
 
@@ -224,7 +225,10 @@ export default async function handler(req, res) {
 
 
 
-  res.setHeader('Content-Type', 'image/svg+xml')
+  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } })
+  const png = resvg.render().asPng()
+
+  res.setHeader("Content-Type", "image/png")
   res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600')
-  res.end(svg)
+  res.end(png)
 }
