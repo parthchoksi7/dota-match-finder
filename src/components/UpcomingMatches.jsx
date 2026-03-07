@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react"
 
 const INITIAL_SHOW = 8
-const POLL_INTERVAL = 2 * 60 * 1000 // re-fetch live matches every 2 minutes
+const POLL_INTERVAL = 2 * 60 * 1000
+
+function trackEvent(name, props) {
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
 
 function formatMatchTime(scheduledAt) {
   if (!scheduledAt) return null
@@ -39,23 +45,32 @@ function formatMatchTime(scheduledAt) {
 function StreamButtons({ streams, matchLabel }) {
   if (!streams || streams.length === 0) return null
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex gap-1.5 flex-shrink-0">
       {streams.map((s, i) => (
         <a
           key={i}
           href={s.url}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => {
-            if (typeof window !== "undefined" && window.gtag) {
-              window.gtag("event", "stream_click", { channel: s.label, match: matchLabel })
-            }
-          }}
-          className="inline-flex items-center px-2 py-0.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-semibold uppercase tracking-wider rounded transition-colors"
+          onClick={() => trackEvent("stream_click", { channel: s.label, match: matchLabel })}
+          className="inline-flex items-center px-2.5 py-1 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap"
         >
           {s.label}
         </a>
       ))}
+    </div>
+  )
+}
+
+function SectionHeader({ id, children }) {
+  return (
+    <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+      <h2
+        id={id}
+        className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold"
+      >
+        {children}
+      </h2>
     </div>
   )
 }
@@ -88,19 +103,22 @@ function UpcomingMatches() {
 
   useEffect(() => {
     Promise.all([fetchLive(), fetchUpcoming()]).finally(() => setLoading(false))
-
-    // Poll live matches every 2 minutes
     const interval = setInterval(fetchLive, POLL_INTERVAL)
     return () => clearInterval(interval)
   }, [])
 
   if (loading) return (
-    <section className="border border-gray-200 dark:border-gray-800 rounded p-4 sm:p-5 bg-gray-50/50 dark:bg-gray-900/30">
-      <div className="h-3 w-40 bg-gray-200 dark:bg-gray-800 rounded mb-4 animate-pulse" />
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-800 last:border-0">
-          <div className="h-3 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-          <div className="h-3 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+    <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
+      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+        <div className="h-2.5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+      </div>
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 last:border-0 flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+            <div className="h-2 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+            <div className="h-3 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+          </div>
+          <div className="h-6 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
         </div>
       ))}
     </section>
@@ -112,38 +130,42 @@ function UpcomingMatches() {
 
   return (
     <section
-      className="border border-gray-200 dark:border-gray-800 rounded bg-gray-50/50 dark:bg-gray-900/30 overflow-hidden"
+      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
       aria-labelledby="matches-schedule-heading"
     >
       {/* Live Matches */}
       {liveMatches.length > 0 && (
         <>
-          <div className="px-4 sm:px-5 pt-4 pb-2">
-            <h2
-              id="matches-schedule-heading"
-              className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold flex items-center gap-2"
-            >
+          <SectionHeader id="matches-schedule-heading">
+            <span className="inline-flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               Live Now
-            </h2>
-          </div>
+            </span>
+          </SectionHeader>
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
-            {liveMatches.map(match => (
-              <div key={match.id} className="px-4 sm:px-5 py-3">
-                <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 truncate mb-0.5">
-                  {match.tournament}
-                  {match.seriesLabel && (
-                    <span className="ml-1.5 text-gray-400 dark:text-gray-700">({match.seriesLabel})</span>
-                  )}
-                </p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                  {match.teamA}
-                  <span className="text-gray-400 dark:text-gray-600 font-normal mx-2">vs</span>
-                  {match.teamB}
-                </p>
-                <StreamButtons streams={match.streams} matchLabel={`${match.teamA} vs ${match.teamB}`}/>
-              </div>
-            ))}
+            {liveMatches.map(match => {
+              const label = `${match.teamA} vs ${match.teamB}`
+              return (
+                <div key={match.id} className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-medium truncate">
+                      {match.tournament}
+                      {match.seriesLabel && (
+                        <span className="ml-1.5 text-gray-400 dark:text-gray-700 normal-case tracking-normal font-normal">
+                          ({match.seriesLabel})
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">
+                      <span className="truncate">{match.teamA}</span>
+                      <span className="text-gray-400 dark:text-gray-600 font-normal mx-1.5">vs</span>
+                      <span className="truncate">{match.teamB}</span>
+                    </p>
+                  </div>
+                  <StreamButtons streams={match.streams} matchLabel={label} />
+                </div>
+              )
+            })}
           </div>
         </>
       )}
@@ -151,48 +173,60 @@ function UpcomingMatches() {
       {/* Upcoming Matches */}
       {upcomingMatches.length > 0 && (
         <>
-          <div className={`px-4 sm:px-5 pt-4 pb-2 ${liveMatches.length > 0 ? 'border-t border-gray-200 dark:border-gray-800' : ''}`}>
-            <h2
-              id={liveMatches.length === 0 ? "matches-schedule-heading" : undefined}
-              className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold"
-            >
+          <SectionHeader id={liveMatches.length === 0 ? "matches-schedule-heading" : undefined}>
+            <span className="inline-flex items-center gap-2">
               Upcoming Matches
-              <span className="ml-2 text-gray-400 dark:text-gray-600 font-normal">Next 72 hours</span>
-            </h2>
-          </div>
+              <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal">
+                Next 72 hours
+              </span>
+            </span>
+          </SectionHeader>
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
-            {visibleUpcoming.map(match => (
-              <div key={match.id} className="px-4 sm:px-5 py-2.5">
-  <div className="flex items-center justify-between mb-0.5">
-    <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 truncate">
-      {match.tournament}
-      {match.seriesLabel && (
-        <span className="ml-1.5 text-gray-400 dark:text-gray-700">({match.seriesLabel})</span>
-      )}
-    </p>
-    <p className="text-xs text-gray-500 dark:text-gray-500 tabular-nums whitespace-nowrap shrink-0 ml-3">
-      {formatMatchTime(match.scheduledAt)}
-    </p>
-  </div>
-  <div className="flex items-center justify-between gap-3">
-    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-      {match.teamA}
-      <span className="text-gray-400 dark:text-gray-600 font-normal mx-2">vs</span>
-      {match.teamB}
-    </p>
-    <StreamButtons streams={match.streams} matchLabel={`${match.teamA} vs ${match.teamB}`}/>
-  </div>
-</div>
-            ))}
+            {visibleUpcoming.map(match => {
+              const label = `${match.teamA} vs ${match.teamB}`
+              const timeStr = formatMatchTime(match.scheduledAt)
+              return (
+                <div key={match.id} className="px-4 sm:px-5 py-3.5">
+                  {/* Row 1: Tournament + time */}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-medium truncate">
+                      {match.tournament}
+                      {match.seriesLabel && (
+                        <span className="ml-1.5 text-gray-400 dark:text-gray-700 normal-case tracking-normal font-normal">
+                          ({match.seriesLabel})
+                        </span>
+                      )}
+                    </p>
+                    {timeStr && (
+                      <p className="text-xs text-gray-500 dark:text-gray-500 tabular-nums whitespace-nowrap shrink-0">
+                        {timeStr}
+                      </p>
+                    )}
+                  </div>
+                  {/* Row 2: Teams + stream buttons */}
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white min-w-0">
+                      <span>{match.teamA}</span>
+                      <span className="text-gray-400 dark:text-gray-600 font-normal mx-1.5">vs</span>
+                      <span>{match.teamB}</span>
+                    </p>
+                    <StreamButtons streams={match.streams} matchLabel={label} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
           {upcomingMatches.length > INITIAL_SHOW && (
             <div className="border-t border-gray-200 dark:border-gray-800 px-4 sm:px-5 py-3">
               <button
                 type="button"
-                onClick={() => setShowAll(v => !v)}
+                onClick={() => {
+                  setShowAll(v => !v)
+                  trackEvent("upcoming_show_more", { action: showAll ? "collapse" : "expand" })
+                }}
                 className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white uppercase tracking-widest transition-colors"
               >
-                {showAll ? "Show less" : `Show ${upcomingMatches.length - INITIAL_SHOW} more matches`}
+                {showAll ? "Show less" : `Show ${upcomingMatches.length - INITIAL_SHOW} more`}
               </button>
             </div>
           )}
