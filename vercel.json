@@ -1,6 +1,8 @@
 {
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/match/:matchId", "destination": "/" }
+    { "source": "/match/:matchId", "destination": "/" },
+    { "source": "/about", "destination": "/" },
+    { "source": "/release-notes", "destination": "/" }
   ]
 }

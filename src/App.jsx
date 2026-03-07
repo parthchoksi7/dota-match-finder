@@ -512,11 +512,11 @@ function App() {
           <span className="hidden sm:inline"> · </span>
           <span>Data updates every few minutes</span>
           <span className="hidden sm:inline"> · </span>
-          <a href="/about.html" className="hover:text-gray-300 transition-colors">
+          <a href="/about" className="hover:text-gray-300 transition-colors">
             About
           </a>
           <span className="hidden sm:inline"> · </span>
-          <a href="/release-notes.html" className="hover:text-gray-300 transition-colors">
+          <a href="/release-notes" className="hover:text-gray-300 transition-colors">
             What's New
           </a>
         </p>
