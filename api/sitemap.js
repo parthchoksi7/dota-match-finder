@@ -77,6 +77,16 @@ export default async function handler(req, res) {
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
+  <url>
+    <loc>${BASE_URL}/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/release-notes</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
 ${urls.join('\n')}
 </urlset>`
 
