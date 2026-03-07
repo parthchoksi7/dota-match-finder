@@ -9,8 +9,7 @@ function trackEvent(name, props) {
   }
 }
 
-
-function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
+function MatchCard({ series, onSelectGame, defaultExpanded = false, spoilerFree = false }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
 
   const radiantTeam = series.games[0].radiantTeam
@@ -29,7 +28,7 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
 
   return (
     <div className="border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 transition-all bg-white dark:bg-gray-950 rounded">
-      {/* Series Header + Score (clickable to expand/collapse) */}
+      {/* Series Header + Score */}
       <button
         type="button"
         onClick={() => {
@@ -49,45 +48,55 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-600 flex items-center gap-2">
             {series.date}
-            <span
-              className="inline-block transition-transform"
-              aria-hidden
-            >
+            <span className="inline-block transition-transform" aria-hidden>
               {expanded ? "▼" : "▶"}
             </span>
           </span>
         </div>
 
-        <div className="px-4 py-4 flex items-center justify-between">
-          <span
-            className={`font-display text-lg font-bold tracking-wide uppercase ${
-              radiantWins > direWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
-            }`}
-          >
+        <div className="px-4 py-4 flex items-center justify-between gap-2">
+          {/* Radiant team — no winner highlight in spoiler-free mode */}
+          <span className={`font-display text-sm sm:text-lg font-bold tracking-wide uppercase min-w-0 ${
+            !spoilerFree && radiantWins > direWins
+              ? "text-gray-900 dark:text-white"
+              : spoilerFree
+              ? "text-gray-900 dark:text-white"
+              : "text-gray-500 dark:text-gray-500"
+          }`}>
             {radiantTeam}
           </span>
-          <div className="flex items-center gap-3">
-            <span
-              className={`font-display text-3xl font-black ${
-                radiantWins > direWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
-              }`}
-            >
-              {radiantWins}
-            </span>
-            <span className="text-gray-400 dark:text-gray-700 text-lg font-bold">—</span>
-            <span
-              className={`font-display text-3xl font-black ${
-                direWins > radiantWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
-              }`}
-            >
-              {direWins}
-            </span>
+
+          {/* Score or spoiler blur */}
+          <div className="flex items-center gap-2 shrink-0 px-1">
+            {spoilerFree ? (
+              <span className="font-display text-2xl sm:text-3xl font-black text-gray-300 dark:text-gray-700 select-none whitespace-nowrap">
+                ? — ?
+              </span>
+            ) : (
+              <>
+                <span className={`font-display text-2xl sm:text-3xl font-black ${
+                  radiantWins > direWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
+                }`}>
+                  {radiantWins}
+                </span>
+                <span className="text-gray-400 dark:text-gray-700 text-lg font-bold">—</span>
+                <span className={`font-display text-2xl sm:text-3xl font-black ${
+                  direWins > radiantWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
+                }`}>
+                  {direWins}
+                </span>
+              </>
+            )}
           </div>
-          <span
-            className={`font-display text-lg font-bold tracking-wide uppercase text-right ${
-              direWins > radiantWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
-            }`}
-          >
+
+          {/* Dire team */}
+          <span className={`font-display text-sm sm:text-lg font-bold tracking-wide uppercase text-right min-w-0 ${
+            !spoilerFree && direWins > radiantWins
+              ? "text-gray-900 dark:text-white"
+              : spoilerFree
+              ? "text-gray-900 dark:text-white"
+              : "text-gray-500 dark:text-gray-500"
+          }`}>
             {direTeam}
           </span>
         </div>
@@ -120,19 +129,26 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false }) {
               }}
               className="focus-ring w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer group border-b border-gray-200 dark:border-gray-800 last:border-b-0 transition-colors text-left"
             >
-              <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider w-12">
+              <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
                 Game {i + 1}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {formatDuration(game.duration)}
               </span>
-              <span
-                className={`text-xs font-semibold ${
+
+              {/* Winner — hidden in spoiler-free mode */}
+              {spoilerFree ? (
+                <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider">
+                  Hidden
+                </span>
+              ) : (
+                <span className={`text-xs font-semibold ${
                   game.radiantWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
-              </span>
+                }`}>
+                  {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
+                </span>
+              )}
+
               <span className="text-xs text-gray-500 dark:text-gray-600 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors uppercase tracking-wider inline-flex items-center gap-1">
                 <span aria-hidden>▶</span> Watch VOD
               </span>

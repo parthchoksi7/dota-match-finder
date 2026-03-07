@@ -1,8 +1,7 @@
 import MatchCard from "./MatchCard"
 import { groupIntoSeries } from "../utils"
 
-
-function MatchList({ matches, onSelect, loading, onClearSearch }) {
+function MatchList({ matches, onSelect, loading, onClearSearch, spoilerFree = false }) {
 
   if (loading) {
     return (
@@ -40,18 +39,15 @@ function MatchList({ matches, onSelect, loading, onClearSearch }) {
 
   const series = groupIntoSeries(matches)
   const totalGames = series.reduce((acc, s) => acc + s.games.length, 0)
-  const visibleSeries = series
-
 
   return (
     <div className="w-full flex flex-col gap-3">
       <p className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest" aria-live="polite">
         {series.length} series ({totalGames} games)
       </p>
-      {visibleSeries.map((s) => (
-        <MatchCard key={s.id} series={s} onSelectGame={onSelect} defaultExpanded={false} />
+      {series.map((s) => (
+        <MatchCard key={s.id} series={s} onSelectGame={onSelect} defaultExpanded={false} spoilerFree={spoilerFree} />
       ))}
-      
     </div>
   )
 }

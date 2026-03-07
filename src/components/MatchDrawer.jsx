@@ -1,6 +1,6 @@
 import DraftDisplay from "./DraftDisplay"
 import { VOD_CHANNEL_LABELS } from "../api"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { track } from "@vercel/analytics"
 
 function trackEvent(name, props) {
@@ -25,8 +25,14 @@ function MatchDrawer({
   gameNumber,
   seriesMatches,
   shareUrl,
+  spoilerFree = false,
 }) {
   const drawerRef = useRef(null)
+  const [scoreRevealed, setScoreRevealed] = useState(false)
+
+  useEffect(() => {
+    setScoreRevealed(false)
+  }, [match?.id])
 
   useEffect(() => {
     function onKey(e) {
@@ -42,6 +48,7 @@ function MatchDrawer({
   const twitchHref = twitchSearchHref || "https://www.twitch.tv/search?term=dota%202"
   const allVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])
   const gameLabel = gameNumber && seriesMatches > 1 ? "Game " + gameNumber + " of " + seriesMatches : null
+  const hideScore = spoilerFree && !scoreRevealed
 
   return (
     <>
@@ -87,19 +94,52 @@ function MatchDrawer({
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
 
           <div className="flex items-center justify-between gap-2">
-            <span className={"font-display text-lg font-black uppercase tracking-wide truncate " + (match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500")}>
+            <span className={`font-display text-lg font-black uppercase tracking-wide truncate ${
+              !hideScore && match.radiantWin
+                ? "text-gray-900 dark:text-white"
+                : hideScore
+                ? "text-gray-900 dark:text-white"
+                : "text-gray-400 dark:text-gray-500"
+            }`}>
               {match.radiantTeam}
             </span>
+
             <div className="flex items-center gap-2 shrink-0">
-              <span className={"font-display text-3xl font-black " + (match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500")}>
-                {match.radiantScore ?? (match.radiantWin ? 1 : 0)}
-              </span>
-              <span className="text-gray-400 dark:text-gray-700 text-xl">-</span>
-              <span className={"font-display text-3xl font-black " + (!match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500")}>
-                {match.direScore ?? (!match.radiantWin ? 1 : 0)}
-              </span>
+              {hideScore ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScoreRevealed(true)
+                    trackEvent("spoiler_reveal", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam })
+                  }}
+                  className="font-display text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Reveal score
+                </button>
+              ) : (
+                <>
+                  <span className={`font-display text-3xl font-black ${
+                    match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
+                  }`}>
+                    {match.radiantScore ?? (match.radiantWin ? 1 : 0)}
+                  </span>
+                  <span className="text-gray-400 dark:text-gray-700 text-xl">-</span>
+                  <span className={`font-display text-3xl font-black ${
+                    !match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
+                  }`}>
+                    {match.direScore ?? (!match.radiantWin ? 1 : 0)}
+                  </span>
+                </>
+              )}
             </div>
-            <span className={"font-display text-lg font-black uppercase tracking-wide truncate text-right " + (!match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500")}>
+
+            <span className={`font-display text-lg font-black uppercase tracking-wide truncate text-right ${
+              !hideScore && !match.radiantWin
+                ? "text-gray-900 dark:text-white"
+                : hideScore
+                ? "text-gray-900 dark:text-white"
+                : "text-gray-400 dark:text-gray-500"
+            }`}>
               {match.direTeam}
             </span>
           </div>
@@ -125,22 +165,20 @@ function MatchDrawer({
                 <div className="flex flex-wrap gap-2">
                   {allVods.map((vod, i) => {
                     const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || "Watch on Twitch"
-                    const href = vod.url
                     return (
                       <a
                         key={i}
-                        href={href}
+                        href={vod.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={() =>
-                          trackEvent("vod_click", {
-                            matchId: match.id,
-                            channel: vod.channel,
-                            radiantTeam: match.radiantTeam,
-                            direTeam: match.direTeam,
-                            tournament: match.tournament,
-                          })
-                        }
+                        onClick={() => trackEvent("vod_click", {
+                          matchId: match.id,
+                          channel: vod.channel,
+                          radiantTeam: match.radiantTeam,
+                          direTeam: match.direTeam,
+                          tournament: match.tournament,
+                          spoilerFreeMode: spoilerFree,
+                        })}
                         className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
                       >
                         {label}
@@ -180,9 +218,7 @@ function MatchDrawer({
                     href={twitchHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() =>
-                      trackEvent("twitch_search_click", { matchId: match.id })
-                    }
+                    onClick={() => trackEvent("twitch_search_click", { matchId: match.id })}
                     className="text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider"
                   >
                     Search Twitch

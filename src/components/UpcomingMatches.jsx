@@ -42,6 +42,16 @@ function formatMatchTime(scheduledAt) {
   return `${dateStr} · ${timeStr} ${tzShort}`
 }
 
+function matchesQuery(match, query) {
+  if (!query) return true
+  const q = query.toLowerCase()
+  return (
+    match.teamA?.toLowerCase().includes(q) ||
+    match.teamB?.toLowerCase().includes(q) ||
+    match.tournament?.toLowerCase().includes(q)
+  )
+}
+
 function StreamButtons({ streams, matchLabel }) {
   if (!streams || streams.length === 0) return null
   return (
@@ -75,7 +85,7 @@ function SectionHeader({ id, children }) {
   )
 }
 
-function UpcomingMatches() {
+function UpcomingMatches({ searchQuery = "" }) {
   const [liveMatches, setLiveMatches] = useState([])
   const [upcomingMatches, setUpcomingMatches] = useState([])
   const [loading, setLoading] = useState(true)
@@ -107,6 +117,11 @@ function UpcomingMatches() {
     return () => clearInterval(interval)
   }, [])
 
+  // Reset show-all when search query changes
+  useEffect(() => {
+    setShowAll(false)
+  }, [searchQuery])
+
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
       <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
@@ -124,17 +139,21 @@ function UpcomingMatches() {
     </section>
   )
 
-  if (!liveMatches.length && !upcomingMatches.length) return null
+  const filteredLive = liveMatches.filter(m => matchesQuery(m, searchQuery))
+  const filteredUpcoming = upcomingMatches.filter(m => matchesQuery(m, searchQuery))
+  const isSearching = searchQuery.length > 0
+  const visibleUpcoming = isSearching || showAll
+    ? filteredUpcoming
+    : filteredUpcoming.slice(0, INITIAL_SHOW)
 
-  const visibleUpcoming = showAll ? upcomingMatches : upcomingMatches.slice(0, INITIAL_SHOW)
+  if (!filteredLive.length && !filteredUpcoming.length) return null
 
   return (
     <section
       className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
       aria-labelledby="matches-schedule-heading"
     >
-      {/* Live Matches */}
-      {liveMatches.length > 0 && (
+      {filteredLive.length > 0 && (
         <>
           <SectionHeader id="matches-schedule-heading">
             <span className="inline-flex items-center gap-2">
@@ -143,7 +162,7 @@ function UpcomingMatches() {
             </span>
           </SectionHeader>
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
-            {liveMatches.map(match => {
+            {filteredLive.map(match => {
               const label = `${match.teamA} vs ${match.teamB}`
               return (
                 <div key={match.id} className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
@@ -157,9 +176,9 @@ function UpcomingMatches() {
                       )}
                     </p>
                     <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      <span className="truncate">{match.teamA}</span>
+                      <span>{match.teamA}</span>
                       <span className="text-gray-400 dark:text-gray-600 font-normal mx-1.5">vs</span>
-                      <span className="truncate">{match.teamB}</span>
+                      <span>{match.teamB}</span>
                     </p>
                   </div>
                   <StreamButtons streams={match.streams} matchLabel={label} />
@@ -170,14 +189,13 @@ function UpcomingMatches() {
         </>
       )}
 
-      {/* Upcoming Matches */}
-      {upcomingMatches.length > 0 && (
+      {filteredUpcoming.length > 0 && (
         <>
-          <SectionHeader id={liveMatches.length === 0 ? "matches-schedule-heading" : undefined}>
+          <SectionHeader id={filteredLive.length === 0 ? "matches-schedule-heading" : undefined}>
             <span className="inline-flex items-center gap-2">
               Upcoming Matches
               <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal">
-                Next 72 hours
+                {isSearching ? `${filteredUpcoming.length} found` : "Next 72 hours"}
               </span>
             </span>
           </SectionHeader>
@@ -187,7 +205,6 @@ function UpcomingMatches() {
               const timeStr = formatMatchTime(match.scheduledAt)
               return (
                 <div key={match.id} className="px-4 sm:px-5 py-3.5">
-                  {/* Row 1: Tournament + time */}
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-medium truncate">
                       {match.tournament}
@@ -203,7 +220,6 @@ function UpcomingMatches() {
                       </p>
                     )}
                   </div>
-                  {/* Row 2: Teams + stream buttons */}
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-bold text-gray-900 dark:text-white min-w-0">
                       <span>{match.teamA}</span>
@@ -216,7 +232,7 @@ function UpcomingMatches() {
               )
             })}
           </div>
-          {upcomingMatches.length > INITIAL_SHOW && (
+          {!isSearching && filteredUpcoming.length > INITIAL_SHOW && (
             <div className="border-t border-gray-200 dark:border-gray-800 px-4 sm:px-5 py-3">
               <button
                 type="button"
@@ -226,7 +242,7 @@ function UpcomingMatches() {
                 }}
                 className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white uppercase tracking-widest transition-colors"
               >
-                {showAll ? "Show less" : `Show ${upcomingMatches.length - INITIAL_SHOW} more`}
+                {showAll ? "Show less" : `Show ${filteredUpcoming.length - INITIAL_SHOW} more`}
               </button>
             </div>
           )}

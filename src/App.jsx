@@ -76,6 +76,12 @@ function App() {
   })
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
+  const [spoilerFree, setSpoilerFree] = useState(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return localStorage.getItem("spoilerFree") === "true"
+    }
+    return false
+  })
   const searchInputRef = useRef(null)
 
   useEffect(() => {
@@ -309,10 +315,30 @@ function App() {
             Pro esports — direct VOD links
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="text-xs text-gray-500 dark:text-gray-700 uppercase tracking-widest hidden md:block">
             Powered by OpenDota + Twitch
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !spoilerFree
+              setSpoilerFree(next)
+              if (typeof window !== "undefined" && window.localStorage) {
+                localStorage.setItem("spoilerFree", String(next))
+              }
+              trackEvent("spoiler_free_toggle", { enabled: next })
+            }}
+            className={"focus-ring px-3 py-2 rounded border text-xs font-semibold uppercase tracking-wider transition-colors " + (
+              spoilerFree
+                ? "bg-red-600 border-red-600 text-white"
+                : "border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800"
+            )}
+            aria-label={spoilerFree ? "Disable spoiler-free mode" : "Enable spoiler-free mode"}
+            title={spoilerFree ? "Spoiler-free mode on — scores hidden" : "Enable spoiler-free mode"}
+          >
+            {spoilerFree ? "Spoilers: Off" : "Spoilers: On"}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -373,6 +399,7 @@ function App() {
 
         {!initialLoading && searched && (
           <>
+                <UpcomingMatches searchQuery={searchQuery} />
             {filteredMatches.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
@@ -403,6 +430,7 @@ function App() {
               onSelect={handleSelectMatch}
               loading={loading}
               onClearSearch={handleClearSearch}
+              spoilerFree={spoilerFree}
             />
           </>
         )}
@@ -410,8 +438,8 @@ function App() {
         {!initialLoading && !searched && !error && (
           <div className="flex flex-col gap-6">
             <TournamentHub />
-            <UpcomingMatches />
-            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} />
+            <UpcomingMatches searchQuery={searchQuery} />
+            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} spoilerFree={spoilerFree} />
           </div>
         )}
 
@@ -461,6 +489,7 @@ function App() {
           gameNumber={matchGameNumbers[selectedMatch?.id]}
           seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
           shareUrl={getShareUrl(selectedMatch.id)}
+          spoilerFree={spoilerFree}
           onCopyVod={() => {
             navigator.clipboard?.writeText(selectedMatch.url)
             trackEvent("copy_vod", {

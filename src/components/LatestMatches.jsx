@@ -1,13 +1,12 @@
 import { groupIntoSeries, isSeriesComplete } from "../utils"
 import MatchCard from "./MatchCard"
 
-function LatestMatches({ matches, onSelectMatch }) {
+function LatestMatches({ matches, onSelectMatch, spoilerFree = false }) {
   if (!matches || matches.length === 0) return null
 
   const allSeries = groupIntoSeries(matches)
   const completeSeries = allSeries.filter(isSeriesComplete)
-  const series = completeSeries
-  if (series.length === 0) return null
+  if (completeSeries.length === 0) return null
 
   return (
     <div className="w-full">
@@ -15,12 +14,13 @@ function LatestMatches({ matches, onSelectMatch }) {
         Latest results
       </h2>
       <div className="flex flex-col gap-3">
-        {series.map((s) => (
+        {completeSeries.map((s) => (
           <MatchCard
             key={s.id}
             series={s}
             onSelectGame={onSelectMatch}
             defaultExpanded={false}
+            spoilerFree={spoilerFree}
           />
         ))}
       </div>
