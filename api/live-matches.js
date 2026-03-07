@@ -31,11 +31,34 @@ function getSeriesLabel(matchType) {
   return null
 }
 
-function getTwitchStreams(leagueName, serieName) {
+const CHANNEL_LABELS = {
+  pgl_dota2: 'PGL',
+  pgl_dota2en2: 'PGL EN2',
+  esl_dota2: 'ESL',
+  esl_dota2ember: 'ESL Ember',
+  esl_dota2storm: 'ESL Storm',
+  esl_dota2earth: 'ESL Earth',
+  beyond_the_summit: 'BTS',
+  dota2ti: 'TI',
+  blast_dota2: 'BLAST',
+  weplaydota: 'WePlay',
+}
+
+function getTwitchStreams(streamsList, leagueName, serieName) {
+  // Use PandaScore streams_list if available — filters to official English streams only
+  const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
+  if (official.length > 0) {
+    return official.map(s => {
+      const channel = s.raw_url.replace('https://www.twitch.tv/', '')
+      return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
+    })
+  }
+
+  // Fallback: static mapping by tournament name
   const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
   if (lower.includes('pgl')) return [
     { label: 'PGL', url: 'https://twitch.tv/pgl_dota2' },
-    { label: 'PGL (EN2)', url: 'https://twitch.tv/pgl_dota2en2' },
+    { label: 'PGL EN2', url: 'https://twitch.tv/pgl_dota2en2' },
   ]
   if (lower.includes('esl one') || lower.includes('dreamleague')) return [
     { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
@@ -81,7 +104,7 @@ function mapMatch(m) {
     teamB,
     tournament: buildTournamentName(m),
     seriesLabel: getSeriesLabel(m.match_type),
-    streams: getTwitchStreams(leagueName, serieName),
+    streams: getTwitchStreams(m.streams_list, leagueName, serieName),
   }
 }
 

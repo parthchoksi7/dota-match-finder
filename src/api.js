@@ -92,7 +92,8 @@ const VOD_CHANNELS = [
   'esl_dota2earth',
   'dota2ti',
   'beyond_the_summit',
-  'pgldota2'
+  'pgl_dota2',
+  'pgl_dota2en2',
 ]
 
 /** Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.). */
@@ -103,7 +104,8 @@ export const VOD_CHANNEL_LABELS = {
   esl_dota2earth: 'ESL Earth',
   dota2ti: 'TI',
   beyond_the_summit: 'BTS',
-  pgldota2: 'PGL'
+  pgl_dota2: 'PGL',
+  pgl_dota2en2: 'PGL EN2',
 }
 
 async function findVodOnChannel(channelName, matchStartTime, headers) {
@@ -130,12 +132,28 @@ async function findVodOnChannel(channelName, matchStartTime, headers) {
   return null
 }
 
+const CHANNEL_GROUPS = {
+  pgl:  ['pgl_dota2', 'pgl_dota2en2'],
+  esl:  ['esl_dota2', 'esl_dota2ember', 'esl_dota2storm', 'esl_dota2earth'],
+  bts:  ['beyond_the_summit'],
+  ti:   ['dota2ti'],
+}
+
+function getChannelGroup(tournamentName) {
+  if (!tournamentName) return null
+  const lower = tournamentName.toLowerCase()
+  if (lower.includes('pgl')) return CHANNEL_GROUPS.pgl
+  if (lower.includes('esl') || lower.includes('dreamleague')) return CHANNEL_GROUPS.esl
+  if (lower.includes('beyond the summit') || lower.includes('bts')) return CHANNEL_GROUPS.bts
+  if (lower.includes('the international')) return CHANNEL_GROUPS.ti
+  return null
+}
+
 /**
  * Find the Twitch VOD for a match by searching all known channels in parallel.
- * Returns the first hit so the user is sent to the channel that actually broadcast the match
- * (e.g. ESL main vs ESL Ember/Storm/Earth for concurrent DreamLeague games).
+ * Prioritizes the channel that matches the tournament (e.g. pgldota2 for PGL matches).
  */
-export async function findTwitchVod(matchStartTime) {
+export async function findTwitchVod(matchStartTime, tournamentName) {
   const token = await getTwitchToken()
   const headers = {
     'Client-ID': import.meta.env.VITE_TWITCH_CLIENT_ID,
@@ -149,7 +167,22 @@ export async function findTwitchVod(matchStartTime) {
     .map(r => r.value)
 
   if (hits.length === 0) return { url: null, channel: null, allVods: [] }
-  return { url: hits[0].url, channel: hits[0].channel, allVods: hits }
+
+  const group = getChannelGroup(tournamentName)
+  const filtered = group ? hits.filter(h => group.includes(h.channel)) : hits
+  const finalHits = filtered.length > 0 ? filtered : hits
+
+  // Primary channel is first in the group definition
+  finalHits.sort((a, b) => {
+    const ai = group ? group.indexOf(a.channel) : -1
+    const bi = group ? group.indexOf(b.channel) : -1
+    if (ai === -1 && bi === -1) return 0
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+
+  return { url: finalHits[0].url, channel: finalHits[0].channel, allVods: finalHits }
 }
 
 function parseTwitchDuration(duration) {

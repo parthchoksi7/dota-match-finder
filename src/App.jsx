@@ -203,7 +203,7 @@ function App() {
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
     setSelectedMatch({ ...match, loadingVod: true })
-    const vod = await findTwitchVod(match.startTime)
+    const vod = await findTwitchVod(match.startTime, match.tournament)
     setSelectedMatch({
       ...match,
       loadingVod: false,
@@ -399,7 +399,7 @@ function App() {
 
         {!initialLoading && searched && (
           <>
-                <UpcomingMatches searchQuery={searchQuery} />
+            <UpcomingMatches searchQuery={searchQuery} />
             {filteredMatches.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">

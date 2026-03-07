@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { formatDuration, getSeriesLabel } from "../utils"
 import { track } from "@vercel/analytics"
-
 function trackEvent(name, props) {
   track(name, props)
   if (typeof window !== "undefined" && window.gtag) {
@@ -39,23 +38,25 @@ function MatchCard({ series, onSelectGame, defaultExpanded = false, spoilerFree 
         aria-expanded={expanded}
         aria-controls={`series-games-${series.id}`}
       >
-        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-1">
-          <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold flex items-center gap-2">
-            {series.tournament}
+        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-2">
+          <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold flex items-center gap-2 min-w-0">
+            <span className="truncate">{series.tournament}</span>
             {seriesLabel && (
-              <span className="text-gray-400 dark:text-gray-600 font-normal">({seriesLabel})</span>
+              <span className="text-gray-400 dark:text-gray-600 font-normal shrink-0">({seriesLabel})</span>
             )}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-600 flex items-center gap-2">
-            {series.date}
-            <span className="inline-block transition-transform" aria-hidden>
-              {expanded ? "▼" : "▶"}
+          <div className="flex items-center gap-2 shrink-0">
+<span className="text-xs text-gray-500 dark:text-gray-600 flex items-center gap-2">
+              {series.date}
+              <span className="inline-block transition-transform" aria-hidden>
+                {expanded ? "▼" : "▶"}
+              </span>
             </span>
-          </span>
+          </div>
         </div>
 
         <div className="px-4 py-4 flex items-center justify-between gap-2">
-          {/* Radiant team — no winner highlight in spoiler-free mode */}
+          {/* Radiant team */}
           <span className={`font-display text-sm sm:text-lg font-bold tracking-wide uppercase min-w-0 ${
             !spoilerFree && radiantWins > direWins
               ? "text-gray-900 dark:text-white"
