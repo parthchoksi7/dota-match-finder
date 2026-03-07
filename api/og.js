@@ -1,7 +1,13 @@
 import satori from "satori"
 import { Resvg } from "@resvg/resvg-js"
+import fs from "fs"
+import path from "path"
+import { fileURLToPath } from "url"
 
 export const config = { runtime: 'nodejs' }
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const fontData = fs.readFileSync(path.join(__dirname, 'fonts/inter-700.woff'))
 
 export default async function handler(req, res) {
   const matchId = new URL(req.url, 'http://localhost').searchParams.get('matchId')
@@ -45,10 +51,6 @@ export default async function handler(req, res) {
   const hasScore = winnerScore !== null && loserScore !== null
   const winnerFontSize = winner.length > 14 ? 44 : 56
   const loserFontSize = loser.length > 14 ? 44 : 56
-
-  // Fetch a font for satori to render text
-  const fontRes = await fetch('https://og-playground.vercel.app/inter-latin-ext-700-normal.woff')
-  const fontData = await fontRes.arrayBuffer()
 
   const svg = await satori(
     {
