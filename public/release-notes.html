@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Release Notes — Spectate Esports</title>
+  <meta name="description" content="What's new on Spectate Esports — a running changelog of features, improvements, and fixes." />
+
+  <meta property="og:title" content="Release Notes — Spectate Esports" />
+  <meta property="og:description" content="What's new on Spectate Esports — a running changelog of features, improvements, and fixes." />
+  <meta property="og:url" content="https://spectateesports.live/release-notes.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://spectateesports.live/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Release Notes — Spectate Esports" />
+  <meta name="twitter:image" content="https://spectateesports.live/og-image.png" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #111111;
+      --bg-hover: #1a1a1a;
+      --border: #1f1f1f;
+      --text: #ffffff;
+      --text-muted: #666666;
+      --text-secondary: #999999;
+      --red: #ef4444;
+      --green: #22c55e;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    html.light {
+      --bg: #f5f5f5;
+      --bg-card: #ffffff;
+      --bg-hover: #eeeeee;
+      --border: #e0e0e0;
+      --text: #111111;
+      --text-muted: #888888;
+      --text-secondary: #555555;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .logo span { color: var(--red); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color 0.15s;
+    }
+
+    .nav-link:hover { color: var(--text); }
+
+    .theme-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .theme-btn:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .page-label {
+      font-size: 10px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .tagline {
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Timeline */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .release {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 0 32px;
+      padding-bottom: 40px;
+    }
+
+    @media (max-width: 540px) {
+      .release {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
+
+    .release-meta {
+      padding-top: 2px;
+    }
+
+    .release-date {
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .release-tag {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 7px;
+      border-radius: 2px;
+      border: 1px solid;
+    }
+
+    .tag-new {
+      color: var(--green);
+      border-color: rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.05);
+    }
+
+    .tag-fix {
+      color: var(--text-muted);
+      border-color: var(--border);
+      background: transparent;
+    }
+
+    .tag-improvement {
+      color: #60a5fa;
+      border-color: rgba(96, 165, 250, 0.3);
+      background: rgba(96, 165, 250, 0.05);
+    }
+
+    .release-body {
+      border-left: 1px solid var(--border);
+      padding-left: 32px;
+      padding-bottom: 8px;
+    }
+
+    @media (max-width: 540px) {
+      .release-body {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+    }
+
+    .release-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .release-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    .release-desc + .release-desc {
+      margin-top: 6px;
+    }
+
+    .release-items {
+      list-style: none;
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .release-items li {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .release-items li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--text-muted);
+    }
+
+    /* separator between dates */
+    .date-separator {
+      grid-column: 1 / -1;
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 16px 24px;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">Spectate <span>Esports</span></a>
+    <div class="header-right">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/about.html" class="nav-link">About</a>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">Light</button>
+    </div>
+  </header>
+
+  <main>
+    <p class="page-label">Changelog</p>
+    <h1>Release Notes</h1>
+    <p class="tagline">What's shipped — updated as features go live</p>
+
+    <div class="timeline">
+
+      <!-- Mar 7, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 7, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Tournament Hub — Standings, Schedule & Format</p>
+          <p class="release-desc">The tournament section on the homepage now has three tabs: Overview, Standings, and Schedule.</p>
+          <ul class="release-items">
+            <li>Standings tab shows the live group stage W-L table with advancing/eliminated zone indicators.</li>
+            <li>Schedule tab shows match results by round — live matches pulse in red, finished matches show scores, upcoming matches show kickoff time.</li>
+            <li>Format badge shows the tournament format (Swiss, Double Elimination) with round count next to the tournament name.</li>
+            <li>Event Format section in Overview shows the full event pipeline — e.g. Group Stage → Playoffs — with the current stage highlighted.</li>
+            <li>Info tooltips on each format term explain what Swiss, Double Elimination, and other formats mean in plain language.</li>
+            <li>If multiple stages of the same event are running simultaneously, a stage switcher appears at the top.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 7, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">SEO Match URLs & Sitemap</p>
+          <p class="release-desc">Match pages now have keyword-rich URLs instead of numeric IDs.</p>
+          <ul class="release-items">
+            <li>URLs now follow the pattern <code>/match/team-spirit-vs-gaimin-gladiators-dreamleague-s23-{id}</code>.</li>
+            <li>Server-side meta tags (title, description, OG) are injected per match so search engines index the correct content.</li>
+            <li><code>/sitemap.xml</code> is now live — generates a full list of recent Tier 1 match URLs for Google to crawl.</li>
+            <li>Old numeric URLs (<code>/match/123456</code>) and hash links (<code>#match-123456</code>) still work — fully backwards-compatible.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 7, 2026</p>
+          <span class="release-tag tag-improvement">Improvement</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Latest Results — Tournament Dividers</p>
+          <p class="release-desc">When the Latest Results section contains matches from more than one tournament, a centered divider with the tournament name now appears between them. No divider is shown if all results are from the same event.</p>
+        </div>
+      </div>
+
+      <!-- Mar 6, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 6, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Live Match Scores & Game Chips</p>
+          <p class="release-desc">The Live Now section now shows full series context while a match is in progress.</p>
+          <ul class="release-items">
+            <li>Scoreboard layout: teams on left and right, live series score in the center (e.g. 1–1).</li>
+            <li>Current game indicator (G2, G3…) pulses in red below the score.</li>
+            <li>Completed games appear as clickable chips — click any chip to open the full match details drawer for that game.</li>
+            <li>Spoiler-free mode hides the score and winner names in chips, but still shows which game is live.</li>
+            <li>Leading team is bright; trailing team is dimmed. Dimming is disabled in spoiler-free mode.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 6, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Spoiler-Free Mode</p>
+          <p class="release-desc">Toggle "Spoilers: Off" in the header to hide all scores and match outcomes across the entire site — live matches, latest results, and match cards. Your preference is saved across sessions.</p>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 6, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Shareable Match Cards with OG Previews</p>
+          <p class="release-desc">Every match now has a unique shareable URL. Sharing a link on Twitter/X, Discord, or iMessage shows a rich preview card with teams, score, and tournament — generated server-side as a PNG.</p>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 6, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Upcoming Matches Search</p>
+          <p class="release-desc">The search bar now filters upcoming and live matches too. Search for a team or tournament to see their next scheduled matches alongside historical results.</p>
+        </div>
+      </div>
+
+      <!-- Mar 5, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 5, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Live Now & Upcoming Matches</p>
+          <p class="release-desc">The homepage now shows what's happening right now and what's coming up in the next 72 hours.</p>
+          <ul class="release-items">
+            <li>Live Now section shows currently running Tier 1 matches with Twitch stream buttons.</li>
+            <li>Upcoming Matches shows the next 72 hours of scheduled matches with local kickoff times.</li>
+            <li>Both sections auto-refresh every 2 minutes.</li>
+            <li>Stream buttons link directly to the official English broadcast channel.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 5, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Tournament Hub</p>
+          <p class="release-desc">A new section at the top of the homepage highlights the active Tier 1 tournament — name, dates, and quick links to Liquipedia and the official X account. Shows upcoming tournaments when nothing is live.</p>
+        </div>
+      </div>
+
+      <!-- Mar 3–4, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 4, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Analytics</p>
+          <p class="release-desc">Added Vercel Analytics and Google Analytics (GA4) to track usage across the site — searches, match clicks, VOD clicks, share events, AI summary requests, and more. No personal data is collected.</p>
+        </div>
+      </div>
+
+      <!-- Mar 3, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 3, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">About Page</p>
+          <p class="release-desc">Added a public About page at <code>/about.html</code> with an overview of what Spectate Esports does, the full tournament list, and an FAQ covering common questions.</p>
+        </div>
+      </div>
+
+      <!-- Mar 2, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 2, 2026</p>
+          <span class="release-tag tag-improvement">Improvement</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">AI Summary Improvements</p>
+          <p class="release-desc">The AI match summary was significantly improved.</p>
+          <ul class="release-items">
+            <li>Hero IDs are now resolved to names before sending to Claude — eliminates hero name hallucinations.</li>
+            <li>Pro player names (<code>p.name</code> from OpenDota) are used instead of Steam display names.</li>
+            <li>Output now includes a clear Draft Winner label in the DRAFT ANALYSIS section.</li>
+            <li>Draft analysis focuses only on picks and bans — match outcome is intentionally excluded to avoid bias.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Mar 1, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 1, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Match Drawer — Draft Display</p>
+          <p class="release-desc">Clicking a match opens a slide-in drawer with the full draft breakdown — hero picks and bans per team, pro player names, and KDA stats for every player in every game.</p>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 1, 2026</p>
+          <span class="release-tag tag-improvement">Improvement</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Tier 1 Filter & Series Grouping</p>
+          <p class="release-desc">Match results are now filtered to Tier 1 tournaments only — no regional or amateur leagues. Individual games are automatically grouped into BO1, BO3, or BO5 series with a series score.</p>
+        </div>
+      </div>
+
+      <!-- Feb 28, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Feb 28, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">AI Match Summary</p>
+          <p class="release-desc">Added an AI-generated match summary for every game, powered by Claude. Covers draft analysis with a draft winner, team strategy, MVP of the match, and a highlight moment. Generated on demand and cached per match.</p>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Feb 28, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Multi-Channel VOD Search</p>
+          <p class="release-desc">VOD search now checks all major Tier 1 broadcast channels in parallel — ESL Main, ESL Ember, ESL Storm, ESL Earth, PGL, BTS, WePlay, DreamLeague, and more. All matching channels are shown so you can pick the one that had your match.</p>
+        </div>
+      </div>
+
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Feb 28, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Homepage — Latest Results & Relative Time</p>
+          <p class="release-desc">The homepage now shows the most recent Tier 1 series results by default, with relative timestamps ("2h ago", "Yesterday"). No search needed to see what just happened.</p>
+        </div>
+      </div>
+
+      <!-- Feb 27, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Feb 27, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Launch — Timestamped Dota 2 VOD Finder</p>
+          <p class="release-desc">Spectate Esports launched. Search for any pro Dota 2 team or tournament and get a direct Twitch link that jumps to the exact start of that match — no scrubbing through 8 hours of tournament stream.</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    Spectate Esports · spectateesports.live
+  </footer>
+
+  <script>
+    const stored = localStorage.getItem('theme') || 'dark'
+    if (stored === 'light') {
+      document.documentElement.classList.remove('dark')
+      document.documentElement.classList.add('light')
+      document.getElementById('theme-btn').textContent = 'Dark'
+    }
+
+    function toggleTheme() {
+      const isLight = document.documentElement.classList.contains('light')
+      if (isLight) {
+        document.documentElement.classList.remove('light')
+        document.documentElement.classList.add('dark')
+        localStorage.setItem('theme', 'dark')
+        document.getElementById('theme-btn').textContent = 'Light'
+      } else {
+        document.documentElement.classList.remove('dark')
+        document.documentElement.classList.add('light')
+        localStorage.setItem('theme', 'light')
+        document.getElementById('theme-btn').textContent = 'Dark'
+      }
+    }
+  </script>
+</body>
+</html>

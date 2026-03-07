@@ -1,10 +1,78 @@
 import { useState, useEffect, useRef } from "react"
 
-const TIER1_KEYWORDS = [
-  'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
-  'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters'
-]
+const FORMAT_DESCRIPTIONS = {
+  'Swiss': {
+    short: 'Swiss',
+    desc: 'Each team plays a set number of rounds. After each round, teams with similar records are matched against each other. No team is eliminated early — everyone plays all rounds, and final standings determine who advances.',
+  },
+  'Double Elimination': {
+    short: 'Double Elimination',
+    desc: 'Two brackets: Upper and Lower. Losing in the Upper Bracket drops you to the Lower Bracket. A second loss anywhere eliminates you. The Lower Bracket winner faces the Upper Bracket winner in the Grand Final.',
+  },
+  'Single Elimination': {
+    short: 'Single Elimination',
+    desc: 'Straightforward knockout format. One loss and you\'re out. Faster, but less forgiving — a bad day ends your run.',
+  },
+  'Group Stage': {
+    short: 'Group Stage',
+    desc: 'Teams are divided into groups and play matches within their group. Top teams from each group advance to the next stage.',
+  },
+  'Bracket': {
+    short: 'Bracket',
+    desc: 'A bracket-style elimination format where teams play head-to-head matches, with losers being eliminated.',
+  },
+}
+
+function FormatTooltip({ format }) {
+  const [pos, setPos] = useState(null)
+  const btnRef = useRef(null)
+  const tooltipRef = useRef(null)
+  const info = FORMAT_DESCRIPTIONS[format]
+  if (!info) return null
+
+  function open(e) {
+    e.stopPropagation()
+    const r = btnRef.current.getBoundingClientRect()
+    setPos({ top: r.bottom + 6, left: r.left })
+  }
+
+  useEffect(() => {
+    if (!pos) return
+    function handler(e) {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target) &&
+        tooltipRef.current && !tooltipRef.current.contains(e.target)
+      ) setPos(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [pos])
+
+  return (
+    <span className="inline-flex items-center">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={open}
+        aria-label={`What is ${format}?`}
+        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 hover:border-gray-600 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-400 transition-colors leading-none font-bold"
+        style={{ fontSize: '9px' }}
+      >
+        i
+      </button>
+      {pos && (
+        <div
+          ref={tooltipRef}
+          className="fixed z-[9999] w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-xl p-3"
+          style={{ top: pos.top, left: Math.min(pos.left, window.innerWidth - 272) }}
+        >
+          <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{info.short}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{info.desc}</p>
+        </div>
+      )}
+    </span>
+  )
+}
 
 function cleanTournamentName(name) {
   return name
@@ -13,140 +81,414 @@ function cleanTournamentName(name) {
     .trim()
 }
 
+function formatScheduledTime(isoStr) {
+  if (!isoStr) return null
+  const d = new Date(isoStr)
+  const now = new Date()
+  const diffMs = d - now
+  const diffH = diffMs / 3600000
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const tzShort = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone: tz })
+    .formatToParts(d).find(p => p.type === 'timeZoneName')?.value || ''
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz })
+
+  if (diffH < 0) return 'Soon'
+  if (diffH < 1) return `In ${Math.round(diffMs / 60000)}m`
+  if (diffH < 24) return `${timeStr} ${tzShort}`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: tz }) + ` · ${timeStr} ${tzShort}`
+}
+
+function StandingsTable({ standings }) {
+  if (!standings || standings.length === 0) return (
+    <p className="text-xs text-gray-500 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
+      No standings data yet
+    </p>
+  )
+
+  const midpoint = Math.ceil(standings.length / 2)
+  const showZones = standings.length >= 4
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 dark:border-gray-800">
+            <th className="text-left py-2 px-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold w-8">#</th>
+            <th className="text-left py-2 px-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold">Team</th>
+            <th className="text-center py-2 px-2 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold w-10">W</th>
+            <th className="text-center py-2 px-2 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold w-10">L</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
+          {standings.map((s, i) => {
+              const isEliminated = showZones && i >= midpoint && s.losses > s.wins
+            return (
+              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{s.rank}</td>
+                <td className="py-2.5 px-3">
+                  <div className="flex items-center gap-2">
+                    {showZones && (
+                      <span className={`w-1 h-4 rounded-full flex-shrink-0 ${isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'}`} />
+                    )}
+                    <span className={`font-semibold ${isEliminated ? 'text-gray-400 dark:text-gray-600' : 'text-gray-900 dark:text-white'}`}>
+                      {s.team}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-2.5 px-2 text-center tabular-nums font-bold text-green-600 dark:text-green-400">{s.wins}</td>
+                <td className="py-2.5 px-2 text-center tabular-nums font-bold text-red-500 dark:text-red-400">{s.losses}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function BracketView({ bracket }) {
+  if (!bracket || bracket.length === 0) return (
+    <p className="text-xs text-gray-500 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
+      No bracket data yet
+    </p>
+  )
+
+  // Only show rounds that have at least one match with known opponents
+  const relevantRounds = bracket.filter(r =>
+    r.matches.some(m => m.teamA !== 'TBD' || m.teamB !== 'TBD')
+  )
+  const rounds = relevantRounds.length > 0 ? relevantRounds : bracket.slice(0, 1)
+
+  return (
+    <div className="flex flex-col divide-y divide-gray-100 dark:divide-gray-900">
+      {rounds.map(({ round, matches }) => (
+        <div key={round} className="py-3 px-4 sm:px-5">
+          <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
+            Round {round}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {matches.map((m, i) => {
+              const isLive = m.status === 'running'
+              const isDone = m.status === 'finished'
+              const isTbd = m.teamA === 'TBD' && m.teamB === 'TBD'
+              const scoreA = m.scoreA ?? null
+              const scoreB = m.scoreB ?? null
+              const hasScore = scoreA !== null && scoreB !== null
+              const dimA = isDone && hasScore && scoreA < scoreB
+              const dimB = isDone && hasScore && scoreB < scoreA
+
+              return (
+                <div key={m.id || i} className="flex items-center gap-2 text-sm">
+                  {/* Live indicator */}
+                  {isLive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  )}
+                  {!isLive && (
+                    <span className="w-1.5 h-1.5 flex-shrink-0" />
+                  )}
+
+                  {/* Team A */}
+                  <span className={`flex-1 text-right truncate font-semibold ${
+                    isTbd ? 'text-gray-400 dark:text-gray-700 italic' :
+                    dimA ? 'text-gray-400 dark:text-gray-600' :
+                    'text-gray-900 dark:text-white'
+                  }`}>
+                    {m.teamA}
+                  </span>
+
+                  {/* Score / vs */}
+                  <div className="w-16 flex-shrink-0 text-center">
+                    {hasScore ? (
+                      <span className="font-black tabular-nums text-gray-900 dark:text-white">
+                        <span className={dimA ? 'text-gray-400 dark:text-gray-600' : ''}>{scoreA}</span>
+                        <span className="text-gray-300 dark:text-gray-700 font-light mx-1">–</span>
+                        <span className={dimB ? 'text-gray-400 dark:text-gray-600' : ''}>{scoreB}</span>
+                      </span>
+                    ) : m.status === 'not_started' && m.scheduledAt ? (
+                      <span className="text-xs text-gray-400 dark:text-gray-600 tabular-nums">
+                        {formatScheduledTime(m.scheduledAt)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400 dark:text-gray-600">vs</span>
+                    )}
+                  </div>
+
+                  {/* Team B */}
+                  <span className={`flex-1 truncate font-semibold ${
+                    isTbd ? 'text-gray-400 dark:text-gray-700 italic' :
+                    dimB ? 'text-gray-400 dark:text-gray-600' :
+                    'text-gray-900 dark:text-white'
+                  }`}>
+                    {m.teamB}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const TABS = ['Overview', 'Standings', 'Schedule']
+
 function TournamentHub() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
+  const [activeTab, setActiveTab] = useState('Overview')
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [activeTournamentIdx, setActiveTournamentIdx] = useState(0)
 
   useEffect(() => {
-    fetchTournaments()
+    fetch('/api/tournaments')
+      .then(r => r.json())
+      .then(json => setData(json))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
-  async function fetchTournaments() {
-    try {
-      const res = await fetch('/api/tournaments')
-      if (!res.ok) throw new Error('Failed to fetch')
-      const json = await res.json()
-      setData(json)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+  const ongoing = data?.ongoing || []
+  const upcoming = data?.upcoming || []
+  const tournament = ongoing[activeTournamentIdx] || ongoing[0] || upcoming[0] || null
+  const isOngoing = ongoing.length > 0
+
+  // Fetch detail whenever the tournament changes (eagerly — needed for Overview format badge too)
+  useEffect(() => {
+    if (!tournament) return
+    if (detail?.tournamentId === tournament.id) return
+    setDetailLoading(true)
+    fetch(`/api/tournament-detail?id=${tournament.id}`)
+      .then(r => r.json())
+      .then(d => setDetail({ ...d, tournamentId: tournament.id }))
+      .catch(() => setDetail({ standings: [], bracket: [], tournamentId: tournament.id }))
+      .finally(() => setDetailLoading(false))
+  }, [tournament?.id])
+
+  // Reset tab when switching tournaments
+  function switchTournament(idx) {
+    setActiveTournamentIdx(idx)
+    setActiveTab('Overview')
+    setDetail(null)
   }
 
-  const activeTournament = (() => {
-    if (!data) return null
-    if (data.ongoing && data.ongoing.length > 0) return { ...data.ongoing[0], mode: 'ongoing' }
-    if (data.upcoming && data.upcoming.length > 0) return { ...data.upcoming[0], mode: 'upcoming' }
-    return null
-  })()
-
-  
-
   if (loading) return (
-    <section className="border border-gray-200 dark:border-gray-800 rounded p-4 sm:p-5 bg-gray-50/50 dark:bg-gray-900/30 animate-pulse">
-      <div className="h-3 w-32 bg-gray-200 dark:bg-gray-800 rounded mb-3" />
-      <div className="h-4 w-48 bg-gray-200 dark:bg-gray-800 rounded mb-2" />
-      <div className="h-3 w-36 bg-gray-200 dark:bg-gray-800 rounded" />
+    <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden animate-pulse">
+      <div className="px-4 sm:px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
+        <div className="h-3 w-28 bg-gray-200 dark:bg-gray-800 rounded mb-3" />
+        <div className="h-5 w-56 bg-gray-200 dark:bg-gray-800 rounded" />
+      </div>
     </section>
   )
 
-  if (error || !activeTournament) return null
+  if (!tournament) return null
 
-  const isOngoing = activeTournament.mode === 'ongoing'
-
-  const startDate = activeTournament.startdate
-    ? new Date(activeTournament.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const startDate = tournament.startdate
+    ? new Date(tournament.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null
-  const endDate = activeTournament.enddate
-    ? new Date(activeTournament.enddate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const endDate = tournament.enddate
+    ? new Date(tournament.enddate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
   const dateRange = startDate && endDate ? `${startDate} – ${endDate}` : endDate || startDate || null
 
   return (
     <section
-      className="border border-gray-200 dark:border-gray-800 rounded bg-gray-50/50 dark:bg-gray-900/30 overflow-hidden"
+      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
       aria-labelledby="tournament-hub-heading"
     >
-      <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
+      {/* Header */}
+      <div className="px-4 sm:px-5 py-3.5 bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-800">
         <h2
           id="tournament-hub-heading"
-          className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold mb-2"
+          className="text-sm uppercase tracking-widest text-gray-700 dark:text-gray-300 font-bold"
         >
           {isOngoing ? (
-            <span className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               Live Tournament
             </span>
           ) : 'Upcoming Tournament'}
         </h2>
+      </div>
 
-        <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
-          {cleanTournamentName(activeTournament.name)}
-        </p>
+      {/* Tournament switcher (if multiple ongoing stages) */}
+      {ongoing.length > 1 && (
+        <div className="flex gap-0 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+          {ongoing.map((t, i) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => switchTournament(i)}
+              className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors flex-shrink-0 ${
+                activeTournamentIdx === i
+                  ? 'border-b-2 border-red-500 text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white border-b-2 border-transparent'
+              }`}
+            >
+              {t.name.replace(/.*—\s*/, '') || cleanTournamentName(t.name)}
+            </button>
+          ))}
+        </div>
+      )}
 
+      {/* Tournament name + dates + format badge */}
+      <div className="px-4 sm:px-5 pt-4 pb-3">
+        <div className="flex flex-wrap items-start gap-2 mb-1">
+          <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
+            {cleanTournamentName(tournament.name)}
+          </p>
+          {detail?.format && (
+            <span className="mt-1 shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
+              {detail.format}
+              {detail.totalRounds > 0 && ` · ${detail.totalRounds}R`}
+              <FormatTooltip format={detail.format} />
+            </span>
+          )}
+        </div>
         {dateRange && (
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 uppercase tracking-widest">
+          <p className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">
             {dateRange}
           </p>
         )}
+      </div>
 
-        <div className="flex flex-wrap gap-2 mt-3">
-          <a
-            href={activeTournament.liquipediaUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+      {/* Tab bar */}
+      <div className="flex border-b border-gray-200 dark:border-gray-800">
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
+              activeTab === tab
+                ? 'border-b-2 border-red-500 text-gray-900 dark:text-white'
+                : 'border-b-2 border-transparent text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
           >
-            Liquipedia
-            <span className="text-gray-400" aria-hidden>↗</span>
-          </a>
-          {activeTournament.xHandle && activeTournament.xHandle !== 'dota2' && (
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'Overview' && (
+        <div className="px-4 sm:px-5 py-4 flex flex-col gap-4">
+          {/* Event stage pipeline (Group Stage → Playoffs → etc.) */}
+          {detail?.eventStages?.length > 1 && (
+            <div>
+              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
+                Event Format
+              </p>
+              <div className="flex items-center gap-1 flex-wrap">
+                {detail.eventStages.map((stage, i) => {
+                  const isCurrent = stage.id === tournament.id
+                  const isDone = stage.status === 'finished'
+                  return (
+                    <div key={stage.id} className="flex items-center gap-1">
+                      <div className={`flex flex-col items-center px-2.5 py-1.5 rounded border text-xs font-semibold ${
+                        isCurrent
+                          ? 'border-red-500 text-red-500 bg-red-500/5'
+                          : isDone
+                          ? 'border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-600'
+                          : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500'
+                      }`}>
+                        <span className="uppercase tracking-wider">{stage.name}</span>
+                        {stage.format && (
+                          <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
+                            {stage.format}
+                            <FormatTooltip format={stage.format} />
+                          </span>
+                        )}
+                      </div>
+                      {i < detail.eventStages.length - 1 && (
+                        <span className="text-gray-300 dark:text-gray-700 text-sm">›</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Links */}
+          <div className="flex flex-wrap gap-2">
             <a
-              href={`https://x.com/${activeTournament.xHandle}`}
+              href={tournament.liquipediaUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             >
-              @{activeTournament.xHandle}
+              Liquipedia
               <span className="text-gray-400" aria-hidden>↗</span>
             </a>
-          )}
-        </div>
-      </div>
-
-      {!isOngoing && data?.upcoming?.length > 1 && (
-        <div className="border-t border-gray-200 dark:border-gray-800 px-4 sm:px-5 py-3">
-          <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
-            Also coming up
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {data.upcoming.slice(1, 4).map((t, i) => {
-              const tStart = t.startdate
-                ? new Date(t.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                : null
-              return (
-                <a
-                  key={i}
-                  href={t.liquipediaUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
-                >
-                  <span className="truncate group-hover:underline">{cleanTournamentName(t.name)}</span>
-                  {tStart && (
-                    <span className="text-gray-400 dark:text-gray-600 shrink-0 ml-3 tabular-nums">{tStart}</span>
-                  )}
-                </a>
-              )
-            })}
+            {tournament.xHandle && tournament.xHandle !== 'dota2' && (
+              <a
+                href={`https://x.com/${tournament.xHandle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+              >
+                @{tournament.xHandle}
+                <span className="text-gray-400" aria-hidden>↗</span>
+              </a>
+            )}
           </div>
+
+          {!isOngoing && upcoming.length > 1 && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
+                Also coming up
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {upcoming.slice(1, 4).map((t, i) => {
+                  const tStart = t.startdate
+                    ? new Date(t.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : null
+                  return (
+                    <a
+                      key={i}
+                      href={t.liquipediaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+                    >
+                      <span className="truncate group-hover:underline">{cleanTournamentName(t.name)}</span>
+                      {tStart && (
+                        <span className="text-gray-400 dark:text-gray-600 shrink-0 ml-3 tabular-nums">{tStart}</span>
+                      )}
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      
+      {activeTab === 'Standings' && (
+        <div>
+          {detailLoading ? (
+            <div className="py-8 flex justify-center">
+              <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <StandingsTable standings={detail?.standings} />
+          )}
+        </div>
+      )}
+
+      {activeTab === 'Schedule' && (
+        <div>
+          {detailLoading ? (
+            <div className="py-8 flex justify-center">
+              <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <BracketView bracket={detail?.bracket} />
+          )}
+        </div>
+      )}
     </section>
   )
 }

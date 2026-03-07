@@ -39,10 +39,29 @@ function setSummaryInCache(matchId, text) {
   } catch (_) {}
 }
 
-// Extract match ID from either /match/:id path or legacy #match-:id hash
+function slugify(str) {
+  return (str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+}
+
+function getMatchSlug(match) {
+  return [
+    slugify(match.radiantTeam),
+    "vs",
+    slugify(match.direTeam),
+    slugify(match.tournament),
+    match.id,
+  ].filter(Boolean).join("-")
+}
+
+// Extract match ID from /match/<slug-ending-in-matchId> or legacy #match-:id hash
 function getMatchIdFromUrl() {
   if (typeof window === "undefined") return null
-  const pathMatch = window.location.pathname.match(/^\/match\/(\d+)/)
+  const pathMatch = window.location.pathname.match(/^\/match\/.*?(\d+)\/?$/)
   if (pathMatch) return pathMatch[1]
   const hash = window.location.hash
   const hashMatch = hash?.match(/^#match-(\d+)/)
@@ -187,8 +206,8 @@ function App() {
   }
 
   async function handleSelectMatch(match) {
-    // Update URL to shareable /match/:id path
-    window.history.replaceState(null, "", "/match/" + match.id)
+    // Update URL to shareable slug URL for SEO
+    window.history.replaceState(null, "", "/match/" + getMatchSlug(match))
 
     trackEvent("match_click", {
       matchId: match.id,
@@ -322,10 +341,10 @@ function App() {
 
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
-  // Build the shareable /match/:id URL for the current match
-  function getShareUrl(matchId) {
+  // Build the shareable slug URL for SEO and sharing
+  function getShareUrl(match) {
     if (typeof window === "undefined") return ""
-    return window.location.origin + "/match/" + matchId
+    return window.location.origin + "/match/" + getMatchSlug(match)
   }
 
   return (
@@ -496,6 +515,10 @@ function App() {
           <a href="/about.html" className="hover:text-gray-300 transition-colors">
             About
           </a>
+          <span className="hidden sm:inline"> · </span>
+          <a href="/release-notes.html" className="hover:text-gray-300 transition-colors">
+            What's New
+          </a>
         </p>
       </footer>
 
@@ -512,7 +535,7 @@ function App() {
           twitchSearchHref={twitchSearchHref}
           gameNumber={matchGameNumbers[selectedMatch?.id]}
           seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
-          shareUrl={getShareUrl(selectedMatch.id)}
+          shareUrl={getShareUrl(selectedMatch)}
           spoilerFree={spoilerFree}
           onCopyVod={() => {
             navigator.clipboard?.writeText(selectedMatch.url)
@@ -525,9 +548,9 @@ function App() {
             setTimeout(() => setCopyFeedback(null), 2000)
           }}
           onCopyLink={() => {
-            const url = getShareUrl(selectedMatch.id)
+            const url = getShareUrl(selectedMatch)
             navigator.clipboard?.writeText(url)
-            window.history.replaceState(null, "", "/match/" + selectedMatch.id)
+            window.history.replaceState(null, "", "/match/" + getMatchSlug(selectedMatch))
             trackEvent("share_match", {
               matchId: selectedMatch.id,
               radiantTeam: selectedMatch.radiantTeam,

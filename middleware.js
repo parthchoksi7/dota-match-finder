@@ -4,9 +4,12 @@ export const config = {
 
 export default async function middleware(req) {
   const url = new URL(req.url)
-  const matchId = url.pathname.replace('/match/', '').split('/')[0]
+  // Extract matchId from end of path — handles both /match/123456 and /match/team-a-vs-team-b-tournament-123456
+  const pathPart = url.pathname.replace('/match/', '').split('/')[0]
+  const matchIdMatch = pathPart.match(/(\d+)$/)
+  const matchId = matchIdMatch ? matchIdMatch[1] : null
 
-  if (!matchId || !/^\d+$/.test(matchId)) {
+  if (!matchId) {
     return new Response(null, { status: 302, headers: { Location: '/' } })
   }
 
