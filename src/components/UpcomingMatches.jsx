@@ -74,10 +74,10 @@ function StreamButtons({ streams, matchLabel }) {
 
 function SectionHeader({ id, children }) {
   return (
-    <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+    <div className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
       <h2
         id={id}
-        className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold"
+        className="text-sm uppercase tracking-widest text-gray-700 dark:text-gray-300 font-bold"
       >
         {children}
       </h2>
@@ -85,7 +85,7 @@ function SectionHeader({ id, children }) {
   )
 }
 
-function UpcomingMatches({ searchQuery = "" }) {
+function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = false }) {
   const [liveMatches, setLiveMatches] = useState([])
   const [upcomingMatches, setUpcomingMatches] = useState([])
   const [loading, setLoading] = useState(true)
@@ -124,8 +124,8 @@ function UpcomingMatches({ searchQuery = "" }) {
 
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
-      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
-        <div className="h-2.5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+      <div className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
+        <div className="h-3.5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
       </div>
       {[...Array(4)].map((_, i) => (
         <div key={i} className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 last:border-0 flex items-center justify-between gap-4">
@@ -149,12 +149,9 @@ function UpcomingMatches({ searchQuery = "" }) {
   if (!filteredLive.length && !filteredUpcoming.length) return null
 
   return (
-    <section
-      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
-      aria-labelledby="matches-schedule-heading"
-    >
+    <div className="flex flex-col gap-4" aria-labelledby="matches-schedule-heading">
       {filteredLive.length > 0 && (
-        <>
+        <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
           <SectionHeader id="matches-schedule-heading">
             <span className="inline-flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -164,37 +161,103 @@ function UpcomingMatches({ searchQuery = "" }) {
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {filteredLive.map(match => {
               const label = `${match.teamA} vs ${match.teamB}`
+              const hasScore = match.seriesScore && match.seriesScore !== "0-0"
+              const completedGames = (match.games || []).filter(g => g.status === "finished")
               return (
-                <div key={match.id} className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
-                  <div className="flex flex-col gap-1 min-w-0 flex-1">
-                    <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-medium truncate">
-                      {match.tournament}
+                <div key={match.id} className="px-4 sm:px-5 py-4 flex flex-col gap-2">
+                  {/* Row 1: Tournament + series badge + stream button */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-medium truncate">
+                        {match.tournament}
+                      </p>
                       {match.seriesLabel && (
-                        <span className="ml-1.5 text-gray-400 dark:text-gray-700 normal-case tracking-normal font-normal">
-                          ({match.seriesLabel})
+                        <span className="shrink-0 text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
+                          {match.seriesLabel}
                         </span>
                       )}
-                    </p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      <span>{match.teamA}</span>
-                      <span className="text-gray-400 dark:text-gray-600 font-normal mx-1.5">vs</span>
-                      <span>{match.teamB}</span>
-                    </p>
+                    </div>
+                    <StreamButtons streams={match.streams} matchLabel={label} />
                   </div>
-                  <StreamButtons streams={match.streams} matchLabel={label} />
+
+                  {/* Row 2: Scoreboard — TeamA [score] TeamB */}
+                  {(() => {
+                    const scoreA = hasScore ? Number(match.seriesScore.split("-")[0]) : 0
+                    const scoreB = hasScore ? Number(match.seriesScore.split("-")[1]) : 0
+                    const dimA = !spoilerFree && hasScore && scoreA < scoreB
+                    const dimB = !spoilerFree && hasScore && scoreB < scoreA
+                    return (
+                      <div className="flex items-center gap-2">
+                        <p className={`flex-1 text-sm font-bold text-right truncate ${dimA ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}>
+                          {match.teamA}
+                        </p>
+                        <div className="shrink-0 flex flex-col items-center w-16">
+                          {hasScore && !spoilerFree ? (
+                            <span className="text-base font-black tabular-nums text-gray-900 dark:text-white leading-none">
+                              {scoreA}
+                              <span className="text-gray-300 dark:text-gray-700 font-light mx-1">—</span>
+                              {scoreB}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-normal text-gray-400 dark:text-gray-600">vs</span>
+                          )}
+                          {match.currentGame && (
+                            <span className="inline-flex items-center gap-1 mt-0.5 text-xs text-red-500 dark:text-red-400">
+                              <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                              G{match.currentGame}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`flex-1 text-sm font-bold truncate ${dimB ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}>
+                          {match.teamB}
+                        </p>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Row 3: Completed game chips */}
+                  {completedGames.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-0.5">
+                      {completedGames.map(g => (
+                        g.matchId ? (
+                          <button
+                            key={g.position}
+                            type="button"
+                            onClick={() => {
+                              onSelectMatchId?.(g.matchId)
+                              trackEvent("live_game_details_click", { matchId: g.matchId, game: g.position })
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white transition-colors"
+                          >
+                            <span className="text-gray-400 dark:text-gray-700">G{g.position}</span>
+                            {g.winnerName && !spoilerFree && <span className="font-semibold">{g.winnerName}</span>}
+                            <span className="text-gray-300 dark:text-gray-700">›</span>
+                          </button>
+                        ) : (
+                          <span
+                            key={g.position}
+                            className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-600"
+                          >
+                            <span>G{g.position}</span>
+                            {g.winnerName && !spoilerFree && <span>{g.winnerName}</span>}
+                          </span>
+                        )
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
-        </>
+        </section>
       )}
 
       {filteredUpcoming.length > 0 && (
-        <>
+        <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
           <SectionHeader id={filteredLive.length === 0 ? "matches-schedule-heading" : undefined}>
             <span className="inline-flex items-center gap-2">
               Upcoming Matches
-              <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal">
+              <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
                 {isSearching ? `${filteredUpcoming.length} found` : "Next 72 hours"}
               </span>
             </span>
@@ -246,9 +309,9 @@ function UpcomingMatches({ searchQuery = "" }) {
               </button>
             </div>
           )}
-        </>
+        </section>
       )}
-    </section>
+    </div>
   )
 }
 

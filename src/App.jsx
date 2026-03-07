@@ -239,6 +239,30 @@ function App() {
     }
   }
 
+  async function handleSelectMatchId(matchId) {
+    try {
+      const data = await fetch(`https://api.opendota.com/api/matches/${matchId}`).then(r => r.json())
+      if (!data || !data.match_id) return
+      const match = {
+        id: String(data.match_id),
+        tournament: data.league?.name || "Match " + data.match_id,
+        date: new Date(data.start_time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        radiantTeam: data.radiant_name || "Radiant",
+        direTeam: data.dire_name || "Dire",
+        radiantScore: data.radiant_score,
+        direScore: data.dire_score,
+        radiantWin: data.radiant_win,
+        duration: new Date((data.duration || 0) * 1000).toISOString().slice(11, 16),
+        startTime: data.start_time,
+        seriesId: data.series_id,
+        seriesType: data.series_type,
+      }
+      handleSelectMatch(match)
+    } catch {
+      // silently fail
+    }
+  }
+
   function dismissPanel() {
     const scrollY = window.scrollY
     setSelectedMatch(null)
@@ -399,7 +423,7 @@ function App() {
 
         {!initialLoading && searched && (
           <>
-            <UpcomingMatches searchQuery={searchQuery} />
+            <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
             {filteredMatches.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
@@ -438,7 +462,7 @@ function App() {
         {!initialLoading && !searched && !error && (
           <div className="flex flex-col gap-6">
             <TournamentHub />
-            <UpcomingMatches searchQuery={searchQuery} />
+            <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
             <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} spoilerFree={spoilerFree} />
           </div>
         )}

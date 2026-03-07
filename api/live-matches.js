@@ -91,6 +91,44 @@ function buildTournamentName(m) {
     .trim()
 }
 
+function getSeriesScore(m) {
+  const opponents = m.opponents || []
+  const results = m.results || []
+  if (!results.length || opponents.length < 2) return null
+
+  const teamAId = opponents[0]?.opponent?.id
+  const teamBId = opponents[1]?.opponent?.id
+  const scoreA = results.find(r => r.team_id === teamAId)?.score ?? 0
+  const scoreB = results.find(r => r.team_id === teamBId)?.score ?? 0
+  return `${scoreA}-${scoreB}`
+}
+
+function getCurrentGame(m) {
+  const games = m.games || []
+  const running = games.find(g => g.status === 'running')
+  return running ? running.position : null
+}
+
+function mapGames(m) {
+  const opponents = m.opponents || []
+  const games = m.games || []
+  return games
+    .filter(g => g.position != null)
+    .sort((a, b) => a.position - b.position)
+    .map(g => {
+      const winnerId = g.winner?.id
+      const winnerOpponent = winnerId
+        ? opponents.find(o => o.opponent?.id === winnerId)
+        : null
+      return {
+        position: g.position,
+        status: g.status,
+        winnerName: winnerOpponent?.opponent?.name || null,
+        matchId: g.external_identifier || null,
+      }
+    })
+}
+
 function mapMatch(m) {
   const opponents = m.opponents || []
   const teamA = opponents[0]?.opponent?.name || 'TBD'
@@ -104,6 +142,9 @@ function mapMatch(m) {
     teamB,
     tournament: buildTournamentName(m),
     seriesLabel: getSeriesLabel(m.match_type),
+    seriesScore: getSeriesScore(m),
+    currentGame: getCurrentGame(m),
+    games: mapGames(m),
     streams: getTwitchStreams(m.streams_list, leagueName, serieName),
   }
 }
