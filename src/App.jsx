@@ -357,7 +357,7 @@ function App() {
               Spectate <span className="text-red-500">Esports</span>
             </h1>
             <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-              Pro Dota 2 replays. Timestamped to the draft.
+              Pro Dota 2 replays.<br className="sm:hidden" /> Timestamped to the draft.
             </p>
           </div>
         </div>
