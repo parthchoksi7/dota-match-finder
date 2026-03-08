@@ -31,7 +31,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/LatestMatches.jsx` - Homepage latest results with styled header and tournament change dividers
 - `src/components/UpcomingMatches.jsx` - Live Now + Upcoming Matches sections (separate bordered boxes, polls every 2 min)
 - `src/components/MatchCard.jsx` - Individual series card with expand/collapse
-- `src/components/SearchBar.jsx` - Search input with popular team shortcuts
+- `src/components/SearchBar.jsx` - Search input (no suggestions)
+- `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule tabs, format badge, event stage pipeline, bracket view
 - `src/components/WatchBadge.jsx` - Watchability badge component
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
@@ -154,7 +155,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ### Static Pages (React)
 - About page at `/about` - served by `src/pages/AboutPage.jsx` via Vercel rewrite + path routing in `main.jsx`
 - Release Notes at `/release-notes` - served by `src/pages/ReleaseNotesPage.jsx` via same pattern
-- Both pages are self-contained with own header, theme toggle (synced to localStorage), and footer
+- Both pages use `SiteHeader` (shared component) — identical header across all pages
 - Old `.html` files in `public/` are superseded but not deleted
 
 ---
@@ -208,6 +209,5 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 - Hero images from Valve CDN using hero key
 - Team logos (no reliable free API - OpenDota has partial coverage)
 - Role labels (Carry/Mid/Off/Support) - needs better detection logic
-- Make popular teams in SearchBar data-driven from GA4 team_click events
 - Mobile bottom sheet optimization
 - Expand beyond Dota 2 to other esports (CS2, LoL, Valorant)

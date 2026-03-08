@@ -6,6 +6,7 @@ import UpcomingMatches from "./components/UpcomingMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import TournamentHub from "./components/TournamentHub"
 import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
+import SiteHeader from "./components/SiteHeader"
 import { track } from '@vercel/analytics'
 
 function trackEvent(name, props) {
@@ -86,13 +87,6 @@ function App() {
   const [summaryErrorMatchId, setSummaryErrorMatchId] = useState(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [cachedSummaryForSelected, setCachedSummaryForSelected] = useState(null)
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      const stored = localStorage.getItem("theme")
-      if (stored === "light" || stored === "dark") return stored
-    }
-    return "dark"
-  })
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
   const [spoilerFree, setSpoilerFree] = useState(() => {
@@ -102,13 +96,6 @@ function App() {
     return false
   })
   const searchInputRef = useRef(null)
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    if (typeof window !== "undefined" && window.localStorage) {
-      localStorage.setItem("theme", theme)
-    }
-  }, [theme])
 
   const loadMatches = useCallback(() => {
     setError(null)
@@ -349,59 +336,17 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
-      <header className="border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <img src="/favicon.png" alt="Spectate Esports" className="h-12 w-12 flex-shrink-0" />
-          <div className="min-w-0">
-            <h1 className="font-display text-xl sm:text-2xl font-black uppercase tracking-widest text-gray-900 dark:text-white truncate leading-none">
-              Spectate <span className="text-red-500">Esports</span>
-            </h1>
-            <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-              Pro Dota 2 replays.<br className="sm:hidden" /> Timestamped to the draft.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 sm:gap-5">
-          <a href="/about" className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
-          <a href="/release-notes" className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
-          <a href="https://x.com/SpectateDota2" target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors" aria-label="Spectate Esports on X">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg>
-          </a>
-          <div className="hidden sm:block w-px h-4 bg-gray-300 dark:bg-gray-700" />
-          <button
-            type="button"
-            onClick={() => {
-              const next = !spoilerFree
-              setSpoilerFree(next)
-              if (typeof window !== "undefined" && window.localStorage) {
-                localStorage.setItem("spoilerFree", String(next))
-              }
-              trackEvent("spoiler_free_toggle", { enabled: next })
-            }}
-            className={"focus-ring px-3 py-2 rounded border text-xs font-semibold uppercase tracking-wider transition-colors " + (
-              spoilerFree
-                ? "bg-red-600 border-red-600 text-white"
-                : "border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800"
-            )}
-            aria-label={spoilerFree ? "Disable spoiler-free mode" : "Enable spoiler-free mode"}
-            title={spoilerFree ? "Spoiler-free mode on — scores hidden" : "Enable spoiler-free mode"}
-          >
-            {spoilerFree ? "Spoilers: Off" : "Spoilers: On"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const newTheme = theme === "dark" ? "light" : "dark"
-              setTheme(newTheme)
-              trackEvent("theme_toggle", { theme: newTheme })
-            }}
-            className="focus-ring px-3 py-2 rounded border border-gray-300 dark:border-gray-700 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? "Light" : "Dark"}
-          </button>
-        </div>
-      </header>
+      <SiteHeader
+        spoilerFree={spoilerFree}
+        onSpoilerToggle={() => {
+          const next = !spoilerFree
+          setSpoilerFree(next)
+          if (typeof window !== "undefined" && window.localStorage) {
+            localStorage.setItem("spoilerFree", String(next))
+          }
+          trackEvent("spoiler_free_toggle", { enabled: next })
+        }}
+      />
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full">
         <SearchBar

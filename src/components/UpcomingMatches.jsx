@@ -283,7 +283,7 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <p className="text-sm font-bold text-gray-900 dark:text-white min-w-0">
                       <span>{match.teamA}</span>
                       <span className="text-gray-400 dark:text-gray-600 font-normal mx-1.5">vs</span>

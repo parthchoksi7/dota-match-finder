@@ -411,29 +411,6 @@ function TournamentHub() {
             </div>
           )}
 
-          {/* Links */}
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={tournament.liquipediaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-            >
-              Liquipedia
-              <span className="text-gray-400" aria-hidden>↗</span>
-            </a>
-            {tournament.xHandle && tournament.xHandle !== 'dota2' && (
-              <a
-                href={`https://x.com/${tournament.xHandle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-              >
-                @{tournament.xHandle}
-                <span className="text-gray-400" aria-hidden>↗</span>
-              </a>
-            )}
-          </div>
 
           {!isOngoing && upcoming.length > 1 && (
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
@@ -446,18 +423,15 @@ function TournamentHub() {
                     ? new Date(t.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     : null
                   return (
-                    <a
+                    <div
                       key={i}
-                      href={t.liquipediaUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+                      className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400"
                     >
-                      <span className="truncate group-hover:underline">{cleanTournamentName(t.name)}</span>
+                      <span className="truncate">{cleanTournamentName(t.name)}</span>
                       {tStart && (
                         <span className="text-gray-400 dark:text-gray-600 shrink-0 ml-3 tabular-nums">{tStart}</span>
                       )}
-                    </a>
+                    </div>
                   )
                 })}
               </div>

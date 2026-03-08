@@ -1,15 +1,10 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 
-const POPULAR = ["Team Liquid", "Aurora", "Parivision", "Spirit", "Tundra", "DreamLeague", "PGL Wallachia"]
-const RECENT_KEY = "dota-match-finder-recent"
-const MAX_RECENT = 5
-
 function SearchBar(
   { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId },
   ref
 ) {
   const [query, setQuery] = useState("")
-  const [recent, setRecent] = useState([])
   const inputRef = useRef(null)
 
   useImperativeHandle(ref, () => ({
@@ -17,47 +12,15 @@ function SearchBar(
   }))
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      try {
-        const raw = localStorage.getItem(RECENT_KEY)
-        if (raw) setRecent(JSON.parse(raw))
-      } catch (_) {}
-    }
-  }, [])
-
-  useEffect(() => {
     if (initialLoadComplete) {
       inputRef.current?.focus()
     }
   }, [initialLoadComplete])
 
-  function saveRecent(term) {
-    const t = term.trim()
-    if (!t) return
-    setRecent((prev) => {
-      const next = [t, ...prev.filter((r) => r !== t)].slice(0, MAX_RECENT)
-      if (typeof window !== "undefined" && window.localStorage) {
-        try {
-          localStorage.setItem(RECENT_KEY, JSON.stringify(next))
-        } catch (_) {}
-      }
-      return next
-    })
-  }
-
   function handleSubmit(e) {
     e.preventDefault()
     const q = query.trim()
-    if (q) {
-      saveRecent(q)
-      onSearch(q)
-    }
-  }
-
-  function handleSuggestionClick(term) {
-    setQuery(term)
-    onSearch(term)
-    inputRef.current?.focus()
+    if (q) onSearch(q)
   }
 
   function handleClear() {
@@ -103,38 +66,6 @@ function SearchBar(
           {loading ? "Searching…" : "Search"}
         </button>
       </form>
-
-      {(recent.length > 0 || POPULAR.length > 0) && (
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
-          {recent.length > 0 && (
-            <>
-              <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-wider">Recent:</span>
-              {recent.slice(0, 3).map((term, i) => (
-                <button
-                  key={`${term}-${i}`}
-                  type="button"
-                  onClick={() => handleSuggestionClick(term)}
-                  className="focus-ring px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                >
-                  {term}
-                </button>
-              ))}
-              <span className="text-gray-400 dark:text-gray-600">·</span>
-            </>
-          )}
-          <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-wider">Popular:</span>
-          {POPULAR.map((label) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => handleSuggestionClick(label)}
-              className="focus-ring px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

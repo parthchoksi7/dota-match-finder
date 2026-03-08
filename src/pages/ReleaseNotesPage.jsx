@@ -1,6 +1,20 @@
-import { useState, useEffect } from "react"
+import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
+  {
+    date: "Mar 7, 2026",
+    tag: "improvement",
+    title: "Header & UI Cleanup",
+    desc: "Simplified the site header and removed low-value UI elements.",
+    items: [
+      "Spoiler toggle and theme toggle now show as icons instead of text labels.",
+      "About, What's New, and X links are now visible on mobile in the header.",
+      "All pages (About, What's New, homepage) share the same header component.",
+      "Removed Popular team shortcuts from the search bar.",
+      "Removed Liquipedia and X account links from the Tournament Hub.",
+      "Upcoming matches on mobile now stack team names above stream buttons to prevent layout overflow.",
+    ],
+  },
   {
     date: "Mar 7, 2026",
     tag: "improvement",
@@ -159,31 +173,9 @@ const TAG_STYLES = {
 const TAG_LABELS = { new: "New", improvement: "Improvement", fix: "Fix" }
 
 function ReleaseNotesPage() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark")
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    localStorage.setItem("theme", theme)
-  }, [theme])
-
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col font-mono">
-      <header className="border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <a href="/" className="text-lg sm:text-xl font-black uppercase tracking-widest">
-          Spectate <span className="text-red-500">Esports</span>
-        </a>
-        <div className="flex items-center gap-4">
-          <a href="/" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Home</a>
-          <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
-          <button
-            type="button"
-            onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
-            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-700 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-          >
-            {theme === "dark" ? "Light" : "Dark"}
-          </button>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full">
         <p className="text-xs uppercase tracking-[5px] text-red-500 mb-3">Changelog</p>

@@ -1,31 +1,9 @@
-import { useState, useEffect } from "react"
+import SiteHeader from "../components/SiteHeader"
 
 function AboutPage() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark")
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    localStorage.setItem("theme", theme)
-  }, [theme])
-
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col font-mono">
-      <header className="border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <a href="/" className="text-lg sm:text-xl font-black uppercase tracking-widest">
-          Spectate <span className="text-red-500">Esports</span>
-        </a>
-        <div className="flex items-center gap-4">
-          <a href="/" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Home</a>
-          <a href="/release-notes" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
-          <button
-            type="button"
-            onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
-            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-700 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-          >
-            {theme === "dark" ? "Light" : "Dark"}
-          </button>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full">
         <p className="text-xs uppercase tracking-[5px] text-red-500 mb-3">About</p>
