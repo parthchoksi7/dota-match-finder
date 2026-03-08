@@ -361,7 +361,10 @@ function App() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4 sm:gap-5">
+          <a href="/about" className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
+          <a href="/release-notes" className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
+          <div className="hidden sm:block w-px h-4 bg-gray-300 dark:bg-gray-700" />
           <button
             type="button"
             onClick={() => {
