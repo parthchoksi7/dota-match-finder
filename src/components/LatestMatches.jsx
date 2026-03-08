@@ -19,7 +19,7 @@ function getDayKey(unixSeconds) {
   return d.toDateString()
 }
 
-function LatestMatches({ matches, onSelectMatch, spoilerFree = false }) {
+function LatestMatches({ matches, onSelectMatch, onDraftPosts, spoilerFree = false }) {
   if (!matches || matches.length === 0) return null
 
   const allSeries = groupIntoSeries(matches)
@@ -52,6 +52,7 @@ function LatestMatches({ matches, onSelectMatch, spoilerFree = false }) {
               <MatchCard
                 series={s}
                 onSelectGame={onSelectMatch}
+                onDraftPosts={onDraftPosts}
                 defaultExpanded={false}
                 spoilerFree={spoilerFree}
               />

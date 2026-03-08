@@ -4,9 +4,11 @@ import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
 import UpcomingMatches from "./components/UpcomingMatches"
 import MatchDrawer from "./components/MatchDrawer"
+import XPostsModal from "./components/XPostsModal"
 import TournamentHub from "./components/TournamentHub"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
+import { formatDuration } from "./utils"
 import { track } from '@vercel/analytics'
 
 function trackEvent(name, props) {
@@ -89,6 +91,12 @@ function App() {
   const [cachedSummaryForSelected, setCachedSummaryForSelected] = useState(null)
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
+  const [xPostsOpen, setXPostsOpen] = useState(false)
+  const [xPostsSeries, setXPostsSeries] = useState(null)
+  const [xPosts, setXPosts] = useState(null)
+  const [xPostsLoading, setXPostsLoading] = useState(false)
+  const [xPostsError, setXPostsError] = useState(null)
+
   const [spoilerFree, setSpoilerFree] = useState(() => {
     if (typeof window !== "undefined" && window.localStorage) {
       return localStorage.getItem("spoilerFree") === "true"
@@ -271,6 +279,69 @@ function App() {
     }
   }
 
+  async function handleDraftPosts(series) {
+    setXPostsSeries(series)
+    setXPosts(null)
+    setXPostsError(null)
+    setXPostsLoading(true)
+    setXPostsOpen(true)
+
+    try {
+      const gameIds = series.games.map(g => g.id)
+      const streamMap = await fetchMatchStreams(gameIds)
+
+      const vodResults = await Promise.all(
+        series.games.map(game =>
+          findTwitchVod(game.startTime, game.tournament, streamMap[game.id] || null).catch(() => null)
+        )
+      )
+
+      const radiantTeam = series.games[0].radiantTeam
+      const direTeam = series.games[0].direTeam
+      const radiantWins = series.games.filter(g =>
+        (g.radiantWin && g.radiantTeam === radiantTeam) || (!g.radiantWin && g.direTeam === radiantTeam)
+      ).length
+      const direWins = series.games.filter(g =>
+        (g.radiantWin && g.radiantTeam === direTeam) || (!g.radiantWin && g.direTeam === direTeam)
+      ).length
+      const seriesWinner = radiantWins >= direWins ? radiantTeam : direTeam
+
+      const games = series.games.map((game, i) => ({
+        gameNumber: i + 1,
+        winner: game.radiantWin ? game.radiantTeam : game.direTeam,
+        loser: game.radiantWin ? game.direTeam : game.radiantTeam,
+        duration: formatDuration(game.duration),
+        vodUrl: vodResults[i]?.url || null,
+      }))
+
+      const res = await fetch('/api/draft-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team1: radiantTeam,
+          team2: direTeam,
+          tournament: series.tournament,
+          seriesType: series.seriesType,
+          seriesScore: `${radiantWins}-${direWins}`,
+          seriesWinner,
+          games,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || 'Failed to generate posts')
+      }
+
+      const data = await res.json()
+      setXPosts(data.posts)
+    } catch (err) {
+      setXPostsError(err?.message || 'Failed to generate posts')
+    } finally {
+      setXPostsLoading(false)
+    }
+  }
+
   function dismissPanel() {
     const scrollY = window.scrollY
     setSelectedMatch(null)
@@ -424,6 +495,7 @@ function App() {
             <MatchList
               matches={filteredMatches}
               onSelect={handleSelectMatch}
+              onDraftPosts={handleDraftPosts}
               loading={loading}
               onClearSearch={handleClearSearch}
               spoilerFree={spoilerFree}
@@ -435,7 +507,7 @@ function App() {
           <div className="flex flex-col gap-6">
             <TournamentHub />
             <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
-            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} spoilerFree={spoilerFree} />
+            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} onDraftPosts={handleDraftPosts} spoilerFree={spoilerFree} />
           </div>
         )}
 
@@ -474,6 +546,15 @@ function App() {
           </a>
         </p>
       </footer>
+
+      <XPostsModal
+        open={xPostsOpen}
+        onClose={() => setXPostsOpen(false)}
+        series={xPostsSeries}
+        posts={xPosts}
+        loading={xPostsLoading}
+        error={xPostsError}
+      />
 
       {selectedMatch && !initialLoading && (
         <MatchDrawer
