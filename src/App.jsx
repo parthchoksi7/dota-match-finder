@@ -5,7 +5,7 @@ import LatestMatches from "./components/LatestMatches"
 import UpcomingMatches from "./components/UpcomingMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import TournamentHub from "./components/TournamentHub"
-import { fetchProMatches, findTwitchVod, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import { track } from '@vercel/analytics'
 
@@ -209,7 +209,9 @@ function App() {
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
     setSelectedMatch({ ...match, loadingVod: true })
-    const vod = await findTwitchVod(match.startTime, match.tournament)
+    const streamMap = await fetchMatchStreams([match.id])
+    const preferredChannel = streamMap[match.id] || null
+    const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
     setSelectedMatch({
       ...match,
       loadingVod: false,

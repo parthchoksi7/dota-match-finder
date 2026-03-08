@@ -193,6 +193,24 @@ export default async function handler(req, res) {
       console.warn('KV cache write failed:', err?.message)
     }
 
+    // Store matchId → channel for single-stream matches so the drawer can
+    // show the exact VOD channel instead of guessing from multiple streams.
+    const STREAM_TTL = 60 * 60 * 24 * 7 // 7 days
+    const streamWrites = []
+    for (const match of matches) {
+      if (match.streams.length === 1) {
+        const channel = match.streams[0].url.replace('https://www.twitch.tv/', '')
+        for (const game of match.games) {
+          if (game.matchId && game.status === 'finished') {
+            streamWrites.push(kv.set(`stream:match:${game.matchId}`, channel, { ex: STREAM_TTL }))
+          }
+        }
+      }
+    }
+    if (streamWrites.length > 0) {
+      Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
+    }
+
     return res.status(200).json(payload)
 
   } catch (err) {
