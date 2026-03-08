@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Mar 8, 2026",
     tag: "improvement",
+    title: "Latest Results — date dividers",
+    desc: "Matches in the Latest Results section are now grouped by date with dividers showing Today, Yesterday, or the date (e.g. Mar 7). Replaces the previous tournament-change dividers.",
+  },
+  {
+    date: "Mar 8, 2026",
+    tag: "improvement",
     title: "Upcoming Matches — collapsed by default",
     desc: "Upcoming matches now show 2 matches by default with a 'Show N more' button to expand. Removes visual clutter on the homepage. The 'Next 72 hours' label has also been removed.",
   },

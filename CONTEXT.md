@@ -150,7 +150,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Latest Results UI
 - Styled section header (matches Live Now / Upcoming header style)
-- Tournament change dividers: center-aligned label between two horizontal lines, shown only when tournament changes between consecutive series
+- Date dividers: "Today", "Yesterday", or "Mar 7" labels between groups of matches from different days
 
 ### Static Pages (React)
 - About page at `/about` - served by `src/pages/AboutPage.jsx` via Vercel rewrite + path routing in `main.jsx`
