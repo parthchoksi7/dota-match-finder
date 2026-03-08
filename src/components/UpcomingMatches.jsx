@@ -305,7 +305,7 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
                   setShowAll(v => !v)
                   trackEvent("upcoming_show_more", { action: showAll ? "collapse" : "expand" })
                 }}
-                className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white uppercase tracking-widest transition-colors"
+                className="focus-ring w-full py-3 text-sm font-semibold uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-800 rounded transition-colors"
               >
                 {showAll ? "Show less" : `Show ${filteredUpcoming.length - INITIAL_SHOW} more`}
               </button>
