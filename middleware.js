@@ -35,7 +35,7 @@ export default async function middleware(req) {
       const hasScore = winnerScore != null && loserScore != null
       const scoreStr = hasScore ? `${winnerScore}-${loserScore}` : 'WIN'
 
-      title = `${winner} ${scoreStr} ${loser}${league ? ` - ${league}` : ''} - Spectate Esports`
+      title = `${winner} ${scoreStr} ${loser} — Spectate Esports`
       description = `${winner} defeated ${loser} ${scoreStr}. Watch the VOD, see the draft, and get an AI match summary on Spectate Esports.`
       imageUrl = `${url.origin}/api/og?matchId=${matchId}`
     }

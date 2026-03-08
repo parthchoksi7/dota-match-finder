@@ -211,7 +211,7 @@ export default async function handler(req, res) {
               style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 52px 32px' },
               children: [
                 { type: 'span', props: { style: { fontSize: '12px', color: '#374151', letterSpacing: '0.2em', textTransform: 'uppercase' }, children: 'spectateesports.live' } },
-                { type: 'span', props: { style: { fontSize: '12px', color: '#374151', letterSpacing: '0.2em', textTransform: 'uppercase' }, children: 'PRO DOTA 2 MATCHES + VOD LINKS' } }
+                { type: 'span', props: { style: { fontSize: '13px', color: '#ef4444', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }, children: 'Watch VOD + Draft →' } }
               ]
             }
           },
