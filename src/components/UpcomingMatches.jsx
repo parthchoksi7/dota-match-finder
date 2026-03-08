@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 
-const INITIAL_SHOW = 8
+const INITIAL_SHOW = 2
 const POLL_INTERVAL = 2 * 60 * 1000
 
 function trackEvent(name, props) {
@@ -257,9 +257,11 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
           <SectionHeader id={filteredLive.length === 0 ? "matches-schedule-heading" : undefined}>
             <span className="inline-flex items-center gap-2">
               Upcoming Matches
-              <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
-                {isSearching ? `${filteredUpcoming.length} found` : "Next 72 hours"}
-              </span>
+              {isSearching && (
+                <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
+                  {filteredUpcoming.length} found
+                </span>
+              )}
             </span>
           </SectionHeader>
           <div className="divide-y divide-gray-200 dark:divide-gray-800">

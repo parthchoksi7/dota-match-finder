@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 8, 2026",
+    tag: "improvement",
+    title: "Upcoming Matches — collapsed by default",
+    desc: "Upcoming matches now show 2 matches by default with a 'Show N more' button to expand. Removes visual clutter on the homepage. The 'Next 72 hours' label has also been removed.",
+  },
+  {
     date: "Mar 7, 2026",
     tag: "improvement",
     title: "Match Drawer — Watch CTA moved above draft",

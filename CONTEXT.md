@@ -98,7 +98,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/upcoming-matches.js` fetches next 72h of scheduled matches
 - Displayed with scheduled time in user's local timezone
 - Searchable by team or tournament name (shared search bar with live section)
-- Shows first 8, "Show N more" button to expand
+- Shows first 2 by default, "Show N more" button to expand all
 - Stream buttons (Twitch) shown when available
 
 ### Tournament Hub (PandaScore)
