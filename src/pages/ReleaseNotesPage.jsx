@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Mar 7, 2026",
     tag: "improvement",
+    title: "Match Drawer — Watch CTA moved above draft",
+    desc: "The Watch section (Twitch VOD buttons, Copy VOD, Share match) now appears above the draft breakdown instead of below it. Makes it easier to find on mobile without scrolling past the full draft.",
+  },
+  {
+    date: "Mar 7, 2026",
+    tag: "improvement",
     title: "Header & UI Cleanup",
     desc: "Simplified the site header and removed low-value UI elements.",
     items: [

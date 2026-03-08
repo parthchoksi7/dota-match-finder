@@ -144,13 +144,6 @@ function MatchDrawer({
             </span>
           </div>
 
-          <DraftDisplay
-            matchId={match.id}
-            radiantTeam={match.radiantTeam}
-            direTeam={match.direTeam}
-            autoLoad={true}
-          />
-
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
               Watch
@@ -235,6 +228,13 @@ function MatchDrawer({
               </div>
             )}
           </div>
+
+          <DraftDisplay
+            matchId={match.id}
+            radiantTeam={match.radiantTeam}
+            direTeam={match.direTeam}
+            autoLoad={true}
+          />
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
