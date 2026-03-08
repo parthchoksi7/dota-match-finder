@@ -3,14 +3,37 @@ import { Resvg } from "@resvg/resvg-js"
 import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
+import { Redis } from '@upstash/redis'
+import * as dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 export const config = { runtime: 'nodejs' }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const fontData = fs.readFileSync(path.join(__dirname, 'fonts/inter-700.woff'))
 
+const kv = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+})
+
+const OG_TTL = 30 * 24 * 60 * 60 // 30 days
+
 export default async function handler(req, res) {
   const matchId = new URL(req.url, 'http://localhost').searchParams.get('matchId')
+
+  // Serve from KV cache if available
+  if (matchId) {
+    try {
+      const cached = await kv.get(`dota2:og_png:v1:${matchId}`)
+      if (cached) {
+        const png = Buffer.from(cached, 'base64')
+        res.setHeader('Content-Type', 'image/png')
+        res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000')
+        return res.end(png)
+      }
+    } catch (_) {}
+  }
 
   let radiantTeam = 'Spectate Esports'
   let direTeam = 'Pro Dota 2 Matches'
@@ -230,7 +253,13 @@ export default async function handler(req, res) {
   const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } })
   const png = resvg.render().asPng()
 
+  if (matchId) {
+    try {
+      await kv.set(`dota2:og_png:v1:${matchId}`, png.toString('base64'), { ex: OG_TTL })
+    } catch (_) {}
+  }
+
   res.setHeader("Content-Type", "image/png")
-  res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600')
+  res.setHeader('Cache-Control', 'public, max-age=2592000, s-maxage=2592000')
   res.end(png)
 }
