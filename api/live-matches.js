@@ -195,7 +195,7 @@ export default async function handler(req, res) {
 
     // Store matchId → channel for single-stream matches so the drawer can
     // show the exact VOD channel instead of guessing from multiple streams.
-    const STREAM_TTL = 60 * 60 * 24 * 7 // 7 days
+    const STREAM_TTL = 60 * 60 * 24 * 14 // 14 days
     const streamWrites = []
     for (const match of matches) {
       if (match.streams.length === 1) {
