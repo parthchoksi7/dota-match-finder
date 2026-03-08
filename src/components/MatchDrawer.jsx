@@ -164,9 +164,9 @@ function MatchDrawer({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded bg-gray-900 dark:bg-gray-800 border border-gray-700 px-3 py-2 text-xs text-gray-300 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded bg-gray-900 dark:bg-gray-800 border border-gray-700 px-3 py-2 text-xs text-gray-300 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900 dark:border-b-gray-800" />
                     Multiple channels were live at the same time. We can&apos;t tell which one has this specific match — try each one.
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800" />
                   </div>
                 </div>
               )}
