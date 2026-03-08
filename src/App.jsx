@@ -91,6 +91,8 @@ function App() {
   const [cachedSummaryForSelected, setCachedSummaryForSelected] = useState(null)
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
+  const isOwner = typeof window !== "undefined" && localStorage.getItem("spectate-owner") === "true"
+
   const [xPostsOpen, setXPostsOpen] = useState(false)
   const [xPostsSeries, setXPostsSeries] = useState(null)
   const [xPosts, setXPosts] = useState(null)
@@ -495,7 +497,7 @@ function App() {
             <MatchList
               matches={filteredMatches}
               onSelect={handleSelectMatch}
-              onDraftPosts={handleDraftPosts}
+              onDraftPosts={isOwner ? handleDraftPosts : undefined}
               loading={loading}
               onClearSearch={handleClearSearch}
               spoilerFree={spoilerFree}
@@ -507,7 +509,7 @@ function App() {
           <div className="flex flex-col gap-6">
             <TournamentHub />
             <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
-            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} onDraftPosts={handleDraftPosts} spoilerFree={spoilerFree} />
+            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} onDraftPosts={isOwner ? handleDraftPosts : undefined} spoilerFree={spoilerFree} />
           </div>
         )}
 
