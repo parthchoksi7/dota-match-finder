@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : 'BO3'
 
   const gamesText = games.map(g =>
-    `Game ${g.gameNumber}: ${g.winner} won (${g.duration})${g.vodUrl ? ` — VOD: ${g.vodUrl}` : ' — no VOD available'}`
+    `Game ${g.gameNumber}: ${g.winner} won (${g.duration}) — Replay: ${g.spectateUrl}`
   ).join('\n')
 
   const prompt = `You write X/Twitter posts for Dota 2 esports results. Generate one post per game for this series.
@@ -29,9 +29,9 @@ Rules:
 - Write exactly ${games.length} post${games.length > 1 ? 's' : ''}, one per game
 - Each post must sound noticeably different from the others — vary the structure, tone, angle, and opening
 - Natural and human — like someone who follows the Dota 2 pro scene, not a press release
-- Under 220 characters each (the VOD link will be appended separately and counts toward the limit)
+- Under 200 characters each excluding the link (the replay link must appear at the end of every post)
 - Mention which team won Game N and include a brief natural observation about the result
-- End each post with the VOD link if one is available, or omit the link if not
+- Always end with the exact replay link provided — do not modify or shorten it
 - No hashtags. No forced enthusiasm. Vary whether or not you use emojis across posts
 - ${games.length > 1 ? 'Think about the narrative arc: opener, momentum shift, decider — each game has a different weight' : 'Keep it punchy since it\'s a single game'}
 - Never start two posts the same way
