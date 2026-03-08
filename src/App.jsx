@@ -313,7 +313,7 @@ function App() {
         winner: game.radiantWin ? game.radiantTeam : game.direTeam,
         loser: game.radiantWin ? game.direTeam : game.radiantTeam,
         duration: formatDuration(game.duration),
-        vodUrl: vodResults[i]?.url || null,
+        spectateUrl: window.location.origin + "/match/" + getMatchSlug(game),
       }))
 
       const res = await fetch('/api/draft-posts', {
