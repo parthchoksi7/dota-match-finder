@@ -150,15 +150,40 @@ function getChannelGroup(tournamentName) {
 }
 
 /**
- * Find the Twitch VOD for a match by searching all known channels in parallel.
- * Prioritizes the channel that matches the tournament (e.g. pgldota2 for PGL matches).
+ * Look up which Twitch channel(s) streamed the given match IDs.
+ * Returns a map of matchId → channel name for matches we have a definitive record for.
  */
-export async function findTwitchVod(matchStartTime, tournamentName) {
+export async function fetchMatchStreams(matchIds) {
+  if (!matchIds || matchIds.length === 0) return {}
+  try {
+    const res = await fetch(`/api/match-streams?ids=${matchIds.join(',')}`)
+    if (!res.ok) return {}
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Find the Twitch VOD for a match by searching all known channels in parallel.
+ * If preferredChannel is provided (from our stream mapping), only that channel
+ * is searched — giving a single, definitive result with no ambiguity.
+ * Falls back to the full group-based search if the preferred channel has no VOD.
+ */
+export async function findTwitchVod(matchStartTime, tournamentName, preferredChannel = null) {
   const token = await getTwitchToken()
   const headers = {
     'Client-ID': import.meta.env.VITE_TWITCH_CLIENT_ID,
     'Authorization': 'Bearer ' + token
   }
+
+  // If we know exactly which channel had this match, search only that one.
+  if (preferredChannel) {
+    const vod = await findVodOnChannel(preferredChannel, matchStartTime, headers)
+    if (vod) return { url: vod.url, channel: vod.channel, allVods: [vod] }
+    // VOD not found on preferred channel (may not be published yet) — fall through
+  }
+
   const results = await Promise.allSettled(
     VOD_CHANNELS.map((ch) => findVodOnChannel(ch, matchStartTime, headers))
   )
