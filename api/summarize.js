@@ -112,7 +112,7 @@ Format your response exactly like this:
 
 DRAFT ANALYSIS
 Draft Winner: [Team Name]
-[2-3 sentences analyzing ONLY the draft — hero synergies, win conditions, counters, and team composition. Do NOT mention kills, deaths, damage, gold, or anything that happened in the actual game. Judge the draft purely on paper before the game started. Make sure the game outcome does not factor into this analysis. If the draft was very even, say so.]
+[2-3 sentences using ONLY the draft data above — analyze hero synergies, win conditions, counters, and team composition. Do NOT reference kills, deaths, damage, gold, game duration, or who actually won. Judge the draft purely on hero picks and the players/teams assigned to them, as if the game had not been played yet. If the draft was very even, say so.]
 
 STRATEGY
 [One sentence on each team's game plan and execution]
@@ -130,7 +130,14 @@ Rules:
 - Keep the whole summary under 250 words
 - No markdown formatting whatsoever
 
-Match data: ${JSON.stringify(trimmed)}`
+Draft data (picks and bans only — use this for DRAFT ANALYSIS): ${JSON.stringify({
+  radiant_name: trimmed.radiant_name,
+  dire_name: trimmed.dire_name,
+  picks_bans: trimmed.picks_bans,
+  players: (trimmed.players || []).map(p => ({ personaname: p.personaname, hero_name: p.hero_name, isRadiant: p.isRadiant, lane_role: p.lane_role }))
+})}
+
+Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringify(trimmed)}`
           }
         ]
       })
