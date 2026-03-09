@@ -123,9 +123,12 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Searches multiple Twitch channels simultaneously using `Promise.allSettled`
 - Returns ALL matching channels (not just first hit) - shown as multiple watch buttons
 - Channels tracked: ESL Main, ESL Ember, ESL Storm, ESL Earth, BTS, PGL, WePlay, DreamLeague, and more
-- When only one stream was live during the match, `api/live-matches.js` writes `stream:match:{matchId}` → channel to KV (14-day TTL)
-- `api/match-streams.js` is called on drawer open to look up the exact channel — if found, only that channel is shown; otherwise falls back to multi-stream list
-- When multiple streams were live, an inline note explains the ambiguity (replaced the old icon tooltip)
+- **Stream mapping (timestamp-based)**: while a match is live with exactly 1 tracked English stream, `api/live-matches.js` writes `stream:ts:{roundedBeginAt}` → channel to KV (14-day TTL). Key is `begin_at` unix timestamp rounded to 5 min.
+- PandaScore's `external_identifier` (OpenDota match ID) is never populated, so matching is done by timestamp instead
+- `api/match-streams.js` supports `?ts=` param: tries rounded ±1 bucket (±5 min) to absorb drift between PandaScore `begin_at` and OpenDota `start_time`
+- On drawer open, `fetchMatchStreams(matchId, startTime)` is called; `streamMap[startTime]` is used as `preferredChannel` if found
+- When `preferredChannel` is set, only that channel is searched (single result); otherwise falls back to full group search
+- When multiple streams were live, an inline note explains the ambiguity
 
 ### Draft Display
 - Fetches full match data from OpenDota `/matches/{id}`

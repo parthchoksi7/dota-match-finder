@@ -2,6 +2,17 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 9, 2026",
+    tag: "improvement",
+    title: "VOD Linking — smarter stream resolution",
+    desc: "The match drawer now shows only the correct VOD channel for matches that were live on a single stream, instead of showing multiple options and asking you to guess.",
+    items: [
+      "While a match is live, the streaming channel is recorded in a fast key-value store keyed by game start time.",
+      "When you open a completed match, the drawer looks up the recorded channel and searches only that one.",
+      "Falls back to showing all available channels when a match was simulcast on multiple streams.",
+    ],
+  },
+  {
     date: "Mar 8, 2026",
     tag: "improvement",
     title: "Latest Results — date dividers",
