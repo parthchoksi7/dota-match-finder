@@ -188,11 +188,6 @@ export default async function handler(req, res) {
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
     const data = await response.json()
-    for (const m of data || []) {
-      const teams = (m.opponents || []).map(o => o.opponent?.name).join(' vs ')
-      const streams = (m.streams_list || []).filter(s => s.official && s.language === 'en').map(s => s.raw_url)
-      console.log(`[PandaScore streams] ${teams}:`, streams)
-    }
     const matches = (data || [])
       .filter(m => isTier1(m.league?.name, m.serie?.full_name))
       .filter(m => m.opponents?.length === 2)
