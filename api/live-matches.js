@@ -48,18 +48,10 @@ function getTwitchStreams(streamsList, leagueName, serieName) {
   // Use PandaScore streams_list if available — filters to official English streams only
   const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
   if (official.length > 0) {
-    const streams = official.map(s => {
-      const channel = s.raw_url.replace('https://www.twitch.tv/', '').replace(/\/$/, '')
-      return { label: CHANNEL_LABELS[channel] || channel, url: `https://www.twitch.tv/${channel}` }
+    return official.map(s => {
+      const channel = s.raw_url.replace('https://www.twitch.tv/', '')
+      return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
     })
-    // PGL runs concurrent matches on pgl_dota2 and pgl_dota2en2.
-    // PandaScore only registers the primary channel, so always include EN2 alongside it.
-    const hasPgl = streams.some(s => s.url.includes('/pgl_dota2'))
-    const hasEn2 = streams.some(s => s.url.includes('/pgl_dota2en2'))
-    if (hasPgl && !hasEn2) {
-      streams.push({ label: 'PGL EN2', url: 'https://www.twitch.tv/pgl_dota2en2' })
-    }
-    return streams
   }
 
   // Fallback: static mapping by tournament name
