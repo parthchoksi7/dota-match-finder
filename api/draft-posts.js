@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Service unavailable' })
   }
 
-  const { team1, team2, tournament, seriesType, seriesScore, seriesWinner, games } = req.body || {}
+  const { team1, team2, tournament, seriesType, seriesScore, seriesWinner, games, seriesLink } = req.body || {}
   if (!team1 || !team2 || !Array.isArray(games) || games.length === 0) {
     return res.status(400).json({ error: 'Missing required fields' })
   }
@@ -18,14 +18,16 @@ export default async function handler(req, res) {
     `Game ${g.gameNumber}: ${g.winner} won (${g.duration}) — Replay: ${g.spectateUrl}`
   ).join('\n')
 
-  const prompt = `You write X/Twitter posts for Dota 2 esports results. Generate one post per game for this series.
+  const summaryLinkLine = seriesLink ? `\nSeries link: ${seriesLink}` : ''
+
+  const prompt = `You write X/Twitter posts for Dota 2 esports results. Generate one post per game for this series, plus one series summary post.
 
 Series: ${team1} vs ${team2} — ${tournament} (${seriesLabel})
 Final result: ${seriesWinner} won ${seriesScore}
 Games:
-${gamesText}
+${gamesText}${summaryLinkLine}
 
-Rules:
+Rules for per-game posts:
 - Write exactly ${games.length} post${games.length > 1 ? 's' : ''}, one per game
 - Each post must sound noticeably different from the others — vary the structure, tone, angle, and opening
 - Natural and human — like someone who follows the Dota 2 pro scene, not a press release
@@ -36,8 +38,15 @@ Rules:
 - ${games.length > 1 ? 'Think about the narrative arc: opener, momentum shift, decider — each game has a different weight' : 'Keep it punchy since it\'s a single game'}
 - Never start two posts the same way
 
-Return ONLY a valid JSON array, no explanation, no markdown:
-[{"game": 1, "post": "..."}, ...]`
+Rules for the series summary post:
+- Summarizes the full series outcome in one punchy post
+- Mention both teams, the final score (${seriesScore}), and the series format (${seriesLabel})
+- Natural and human, not a press release — this is the main series tweet
+- Under 220 characters excluding the link${seriesLink ? '\n- End with the series link: ' + seriesLink : ''}
+- No hashtags. Vary tone from the per-game posts
+
+Return ONLY a valid JSON object, no explanation, no markdown:
+{"summary": "...", "posts": [{"game": 1, "post": "..."}, ...]}`
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -49,7 +58,7 @@ Return ONLY a valid JSON array, no explanation, no markdown:
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
+        max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -68,9 +77,13 @@ Return ONLY a valid JSON array, no explanation, no markdown:
 
     // Parse JSON from response (strip any accidental markdown fences)
     const jsonStr = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-    const posts = JSON.parse(jsonStr)
+    const parsed = JSON.parse(jsonStr)
 
-    return res.status(200).json({ posts })
+    // Support both new format {summary, posts} and legacy array format
+    const posts = Array.isArray(parsed) ? parsed : parsed.posts
+    const summaryPost = Array.isArray(parsed) ? null : (parsed.summary || null)
+
+    return res.status(200).json({ posts, summaryPost })
   } catch (err) {
     console.error('draft-posts error:', err?.message || err)
     return res.status(500).json({ error: 'Failed to generate posts', message: err?.message })
