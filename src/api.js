@@ -46,12 +46,25 @@ export async function fetchProMatches(lastMatchId = null) {
     pages++
   }
 
-  // Drop incomplete last series (only for real named series, not standalone series_id=0 matches)
+  // Drop the last series only if it is genuinely incomplete (could be cut off by pagination).
+  // Never drop series_id=0 (standalone BO1s) and never drop a series that already has a winner.
   const last = allTier1[allTier1.length - 1]
   const lastSeriesId = last?.series_id
-  const filtered = lastSeriesId != null && lastSeriesId !== 0
-    ? allTier1.filter(m => m.series_id !== lastSeriesId)
-    : allTier1
+  let filtered = allTier1
+  if (lastSeriesId != null && lastSeriesId !== 0) {
+    const lastSeriesGames = allTier1.filter(m => m.series_id === lastSeriesId)
+    const seriesType = lastSeriesGames[0]?.series_type
+    const winsNeeded = seriesType === 2 ? 3 : seriesType === 0 ? 1 : 2
+    const teamWins = {}
+    for (const m of lastSeriesGames) {
+      const winner = m.radiant_win ? 'radiant' : 'dire'
+      teamWins[winner] = (teamWins[winner] || 0) + 1
+    }
+    const maxWins = Math.max(0, ...Object.values(teamWins))
+    if (maxWins < winsNeeded) {
+      filtered = allTier1.filter(m => m.series_id !== lastSeriesId)
+    }
+  }
 
   const matches = filtered.map((m) => ({
     id: String(m.match_id),
