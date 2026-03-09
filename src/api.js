@@ -46,10 +46,10 @@ export async function fetchProMatches(lastMatchId = null) {
     pages++
   }
 
-  // Drop incomplete last series
+  // Drop incomplete last series (only for real named series, not standalone series_id=0 matches)
   const last = allTier1[allTier1.length - 1]
   const lastSeriesId = last?.series_id
-  const filtered = lastSeriesId != null
+  const filtered = lastSeriesId != null && lastSeriesId !== 0
     ? allTier1.filter(m => m.series_id !== lastSeriesId)
     : allTier1
 
