@@ -96,6 +96,8 @@ function App() {
   const [xPostsOpen, setXPostsOpen] = useState(false)
   const [xPostsSeries, setXPostsSeries] = useState(null)
   const [xPosts, setXPosts] = useState(null)
+  const [xPostsSummaryPost, setXPostsSummaryPost] = useState(null)
+  const [xPostsSeriesImageUrl, setXPostsSeriesImageUrl] = useState(null)
   const [xPostsLoading, setXPostsLoading] = useState(false)
   const [xPostsError, setXPostsError] = useState(null)
 
@@ -284,6 +286,8 @@ function App() {
   async function handleDraftPosts(series) {
     setXPostsSeries(series)
     setXPosts(null)
+    setXPostsSummaryPost(null)
+    setXPostsSeriesImageUrl(null)
     setXPostsError(null)
     setXPostsLoading(true)
     setXPostsOpen(true)
@@ -313,8 +317,21 @@ function App() {
         winner: game.radiantWin ? game.radiantTeam : game.direTeam,
         loser: game.radiantWin ? game.direTeam : game.radiantTeam,
         duration: formatDuration(game.duration),
-        spectateUrl: window.location.origin + "/match/" + getMatchSlug(game),
+        spectateUrl: window.location.origin + "/match/" + getMatchSlug(game) +
+          `?utm_source=twitter&utm_medium=social&utm_campaign=game-recap&utm_content=game-${i + 1}`,
       }))
+
+      const seriesLink = window.location.origin + "/match/" + getMatchSlug(series.games[0]) +
+        "?utm_source=twitter&utm_medium=social&utm_campaign=series-recap"
+
+      const seriesImageUrl = "/api/og-series?" + new URLSearchParams({
+        team1: radiantTeam,
+        team2: direTeam,
+        winner: seriesWinner,
+        score: `${Math.max(radiantWins, direWins)}-${Math.min(radiantWins, direWins)}`,
+        tournament: series.tournament || '',
+        seriesType: String(series.seriesType),
+      })
 
       const res = await fetch('/api/draft-posts', {
         method: 'POST',
@@ -327,6 +344,7 @@ function App() {
           seriesScore: `${radiantWins}-${direWins}`,
           seriesWinner,
           games,
+          seriesLink,
         }),
       })
 
@@ -337,6 +355,8 @@ function App() {
 
       const data = await res.json()
       setXPosts(data.posts)
+      setXPostsSummaryPost(data.summaryPost || null)
+      setXPostsSeriesImageUrl(seriesImageUrl)
     } catch (err) {
       setXPostsError(err?.message || 'Failed to generate posts')
     } finally {
@@ -554,6 +574,8 @@ function App() {
         onClose={() => setXPostsOpen(false)}
         series={xPostsSeries}
         posts={xPosts}
+        summaryPost={xPostsSummaryPost}
+        seriesImageUrl={xPostsSeriesImageUrl}
         loading={xPostsLoading}
         error={xPostsError}
       />

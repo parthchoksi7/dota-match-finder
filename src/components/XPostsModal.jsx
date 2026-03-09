@@ -25,7 +25,7 @@ function CopyButton({ text }) {
   )
 }
 
-function XPostsModal({ open, onClose, series, posts, loading, error }) {
+function XPostsModal({ open, onClose, series, posts, summaryPost, seriesImageUrl, loading, error }) {
   const overlayRef = useRef(null)
   const closeButtonRef = useRef(null)
 
@@ -101,6 +101,41 @@ function XPostsModal({ open, onClose, series, posts, loading, error }) {
             </div>
           )}
 
+          {!loading && !error && summaryPost && (
+            <div className="border border-red-200 dark:border-red-900/50 rounded p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-red-500 dark:text-red-400">
+                  Series Summary
+                </span>
+                <CopyButton text={summaryPost} />
+              </div>
+              <p className="text-sm text-gray-900 dark:text-white leading-relaxed whitespace-pre-wrap">
+                {summaryPost}
+              </p>
+              {seriesImageUrl && (
+                <div className="pt-1 space-y-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider font-semibold">
+                    Series image — save and attach to post
+                  </p>
+                  <a
+                    href={seriesImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="block rounded overflow-hidden border border-gray-200 dark:border-gray-700 hover:opacity-90 transition-opacity"
+                  >
+                    <img
+                      src={seriesImageUrl}
+                      alt="Series result"
+                      className="w-full"
+                      loading="lazy"
+                    />
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
           {!loading && !error && posts && posts.map((item) => (
             <div
               key={item.game}
@@ -123,7 +158,7 @@ function XPostsModal({ open, onClose, series, posts, loading, error }) {
         {!loading && !error && posts && (
           <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 shrink-0">
             <p className="text-xs text-gray-400 dark:text-gray-600 text-center">
-              Copy each post and paste directly to X
+              Copy each post and paste directly to X{seriesImageUrl ? ' · tap image to download' : ''}
             </p>
           </div>
         )}
