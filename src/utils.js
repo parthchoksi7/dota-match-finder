@@ -38,7 +38,11 @@ export function groupIntoSeries(matches) {
   const seriesMap = {}
   for (const match of matches) {
     const teams = [match.radiantTeam, match.direTeam].sort().join("|")
-    const key = teams + "__" + match.tournament + "__" + match.date
+    // Use seriesId as primary key when available so games in a series that
+    // spans midnight aren't split into separate date-keyed buckets.
+    const key = match.seriesId != null
+      ? String(match.seriesId)
+      : teams + "__" + match.tournament + "__" + match.date
     if (!seriesMap[key]) {
       seriesMap[key] = {
         id: key,
