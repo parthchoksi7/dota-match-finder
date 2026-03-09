@@ -211,7 +211,7 @@ export default async function handler(req, res) {
       }
     }
     if (streamWrites.length > 0) {
-      Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
+      await Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
     }
 
     return res.status(200).json(payload)
