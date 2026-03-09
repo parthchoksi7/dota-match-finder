@@ -166,10 +166,13 @@ function getChannelGroup(tournamentName) {
  * Look up which Twitch channel(s) streamed the given match IDs.
  * Returns a map of matchId → channel name for matches we have a definitive record for.
  */
-export async function fetchMatchStreams(matchIds) {
-  if (!matchIds || matchIds.length === 0) return {}
+export async function fetchMatchStreams(matchIds, startTime = null) {
+  if ((!matchIds || matchIds.length === 0) && !startTime) return {}
   try {
-    const res = await fetch(`/api/match-streams?ids=${matchIds.join(',')}`)
+    const params = new URLSearchParams()
+    if (matchIds && matchIds.length > 0) params.set('ids', matchIds.join(','))
+    if (startTime) params.set('ts', String(startTime))
+    const res = await fetch(`/api/match-streams?${params}`)
     if (!res.ok) return {}
     return await res.json()
   } catch {

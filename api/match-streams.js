@@ -17,22 +17,37 @@ const kv = new Redis({
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
 
-  const { ids } = req.query
-  if (!ids) return res.status(400).json({ error: 'ids required' })
+  const { ids, ts } = req.query
+  if (!ids && !ts) return res.status(400).json({ error: 'ids or ts required' })
 
-  const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
-  if (matchIds.length === 0) return res.status(200).json({})
+  const result = {}
 
   try {
-    const keys = matchIds.map(id => `stream:match:${id}`)
-    const values = await kv.mget(...keys)
-    const result = {}
-    matchIds.forEach((id, i) => {
-      if (values[i]) result[id] = values[i]
-    })
-    return res.status(200).json(result)
+    if (ids) {
+      const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
+      if (matchIds.length > 0) {
+        const keys = matchIds.map(id => `stream:match:${id}`)
+        const values = await kv.mget(...keys)
+        matchIds.forEach((id, i) => { if (values[i]) result[id] = values[i] })
+      }
+    }
+
+    if (ts) {
+      // Look up by game start timestamp (rounded to 5 min to handle PandaScore vs OpenDota drift).
+      // Try the rounded bucket and the one before/after to absorb edge-of-window mismatches.
+      const rawTs = parseInt(ts, 10)
+      if (!isNaN(rawTs)) {
+        const rounded = Math.floor(rawTs / 300) * 300
+        const candidates = [rounded - 300, rounded, rounded + 300]
+        const tsKeys = candidates.map(t => `stream:ts:${t}`)
+        const tsValues = await kv.mget(...tsKeys)
+        const hit = tsValues.find(v => v != null)
+        if (hit) result[ts] = hit
+      }
+    }
   } catch (err) {
     console.warn('match-streams KV read failed:', err?.message)
-    return res.status(200).json({}) // graceful degradation
   }
+
+  return res.status(200).json(result)
 }

@@ -35,6 +35,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule tabs, format badge, event stage pipeline, bracket view
 - `src/components/WatchBadge.jsx` - Watchability badge component
+- `src/components/XPostsModal.jsx` - Modal for drafting X/Twitter posts per game in a completed series (owner-only feature)
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
 - `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`)
@@ -49,6 +50,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
 - `api/tournaments.js` - Tournament data endpoint
+- `api/draft-posts.js` - Generates AI-drafted X/Twitter posts (one per game) for a completed series using Claude Haiku
+- `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
 ### Config
 - `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`
@@ -120,7 +123,9 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Searches multiple Twitch channels simultaneously using `Promise.allSettled`
 - Returns ALL matching channels (not just first hit) - shown as multiple watch buttons
 - Channels tracked: ESL Main, ESL Ember, ESL Storm, ESL Earth, BTS, PGL, WePlay, DreamLeague, and more
-- Known limitation: cannot determine which concurrent stream has which match - user picks from all options
+- When only one stream was live during the match, `api/live-matches.js` writes `stream:match:{matchId}` → channel to KV (14-day TTL)
+- `api/match-streams.js` is called on drawer open to look up the exact channel — if found, only that channel is shown; otherwise falls back to multi-stream list
+- When multiple streams were live, an inline note explains the ambiguity (replaced the old icon tooltip)
 
 ### Draft Display
 - Fetches full match data from OpenDota `/matches/{id}`
@@ -135,6 +140,15 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Output format: DRAFT ANALYSIS (with Draft Winner) / STRATEGY / MVP / HIGHLIGHT
 - Plain text only, no markdown
 - Cached in localStorage by match ID
+
+### Draft X Posts (Owner-Only)
+- Available on completed series cards for authenticated owners (gated by `spectate_owner=1` in localStorage)
+- "Draft X posts" button on `MatchCard` opens `XPostsModal`
+- `App.jsx` calls `/api/draft-posts` with series metadata and game replay URLs
+- `api/draft-posts.js` uses Claude Haiku to generate one human-sounding post per game (under 200 chars + link)
+- Posts vary in tone/structure across games (opener, momentum shift, decider narrative)
+- Each post ends with the Spectate match URL as the CTA/replay link
+- `XPostsModal` shows posts per game with a one-click Copy button; closes on Escape or backdrop click
 
 ### Share Links & OG Cards
 - Clicking a match updates URL to slug path `/match/teamA-vs-teamB-tournament-{id}`
@@ -162,7 +176,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ## Known Issues / Limitations
 - Role detection (Carry/Mid/Off/Support) is removed - OpenDota `lane_role` field is unreliable
-- VOD channel selection is best-effort - multiple streams shown when concurrent matches exist
+- VOD channel selection is best-effort when multiple streams were live simultaneously; resolved automatically for single-stream matches via KV mapping
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`

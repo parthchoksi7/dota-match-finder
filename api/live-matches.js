@@ -125,6 +125,7 @@ function mapGames(m) {
         status: g.status,
         winnerName: winnerOpponent?.opponent?.name || null,
         matchId: g.external_identifier || null,
+        beginAt: g.begin_at || null,
       }
     })
 }
@@ -193,16 +194,18 @@ export default async function handler(req, res) {
       console.warn('KV cache write failed:', err?.message)
     }
 
-    // Store matchId → channel for single-stream matches so the drawer can
-    // show the exact VOD channel instead of guessing from multiple streams.
+    // Store game start timestamp → channel for single-stream matches.
+    // Keyed by begin_at rounded to 5 min so OpenDota's start_time (close but not identical) can look it up.
     const STREAM_TTL = 60 * 60 * 24 * 14 // 14 days
     const streamWrites = []
     for (const match of matches) {
       if (match.streams.length === 1) {
         const channel = match.streams[0].url.replace('https://www.twitch.tv/', '')
         for (const game of match.games) {
-          if (game.matchId && game.status === 'finished') {
-            streamWrites.push(kv.set(`stream:match:${game.matchId}`, channel, { ex: STREAM_TTL }))
+          if (game.beginAt && game.status !== 'not_started') {
+            const ts = Math.floor(new Date(game.beginAt).getTime() / 1000)
+            const roundedTs = Math.floor(ts / 300) * 300
+            streamWrites.push(kv.set(`stream:ts:${roundedTs}`, channel, { ex: STREAM_TTL }))
           }
         }
       }

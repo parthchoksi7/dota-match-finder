@@ -219,8 +219,8 @@ function App() {
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
     setSelectedMatch({ ...match, loadingVod: true })
-    const streamMap = await fetchMatchStreams([match.id])
-    const preferredChannel = streamMap[match.id] || null
+    const streamMap = await fetchMatchStreams([match.id], match.startTime)
+    const preferredChannel = streamMap[match.id] || streamMap[String(match.startTime)] || null
     const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
     setSelectedMatch({
       ...match,
