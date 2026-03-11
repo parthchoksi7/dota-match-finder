@@ -255,11 +255,8 @@ function MatchCard({ match }) {
           {isLive && i === 0 && (
             <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0 mr-0.5" />
           )}
-          <span className={`flex-1 truncate text-xs font-semibold leading-tight ${
-            row.name === 'TBD' ? 'text-gray-400 dark:text-gray-600 italic' :
-            'text-gray-900 dark:text-white'
-          }`}>
-            {row.name}
+          <span className="flex-1 truncate text-xs font-semibold leading-tight text-gray-900 dark:text-white">
+            {row.name === 'TBD' ? '' : row.name}
           </span>
           {hasScore && (
             <span className={`text-xs font-bold tabular-nums flex-shrink-0 ml-1 ${
@@ -376,12 +373,7 @@ function HorizontalBracket({ bracket }) {
   const main       = sorted(bracket.filter(r => r.section === 'main'))
   const grandFinal = bracket.filter(r => r.section === 'grand_final')
 
-  // Drop fully-TBD matches; drop rounds that become empty after filtering
-  const filterTbd = (rounds) => rounds
-    .map(r => ({ ...r, matches: r.matches.filter(m => m.teamA !== 'TBD' || m.teamB !== 'TBD') }))
-    .filter(r => r.matches.length > 0)
-
-  const notEmpty = (rounds) => filterTbd(rounds.filter(r => r.matches.length > 0))
+  const notEmpty = (rounds) => rounds.filter(r => r.matches.length > 0)
 
   const isDE = upper.length > 0 && lower.length > 0
 
