@@ -376,7 +376,12 @@ function HorizontalBracket({ bracket }) {
   const main       = sorted(bracket.filter(r => r.section === 'main'))
   const grandFinal = bracket.filter(r => r.section === 'grand_final')
 
-  const notEmpty = (rounds) => rounds.filter(r => r.matches.length > 0)
+  // Drop fully-TBD matches; drop rounds that become empty after filtering
+  const filterTbd = (rounds) => rounds
+    .map(r => ({ ...r, matches: r.matches.filter(m => m.teamA !== 'TBD' || m.teamB !== 'TBD') }))
+    .filter(r => r.matches.length > 0)
+
+  const notEmpty = (rounds) => filterTbd(rounds.filter(r => r.matches.length > 0))
 
   const isDE = upper.length > 0 && lower.length > 0
 
