@@ -48,7 +48,17 @@ function parseBracketPosition(name) {
     .replace(/^lb\s+/i, '')
     .trim()
 
-  return { section, round, label: shortLabel || n || 'Round' }
+  let label = shortLabel || n || 'Round'
+  if (lower.includes('quarterfinal') || lower.includes('quarter-final') || lower.includes('quarter final')) {
+    label = 'Quarterfinal'
+  } else if (lower.includes('semifinal') || lower.includes('semi-final') || lower.includes('semi final')) {
+    label = 'Semifinal'
+  } else if (lower.includes('final') && !lower.includes('semi') && !lower.includes('quarter')) {
+    label = 'Final'
+  } else if (numMatch) {
+    label = `Round ${numMatch[1]}`
+  }
+  return { section, round, label }
 }
 
 /**
