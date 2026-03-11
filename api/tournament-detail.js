@@ -10,9 +10,37 @@ const kv = new Redis({
 const BASE = 'https://api.pandascore.co'
 const TTL = 60 * 3 // 3 minutes — bracket/standings change during live matches
 
-function parseRound(name) {
-  const m = (name || '').match(/Round\s+(\d+)/i)
-  return m ? parseInt(m[1]) : 999
+function parseBracketPosition(name) {
+  const n = (name || '').trim()
+  const lower = n.toLowerCase()
+
+  // Grand Final
+  if (lower.includes('grand final')) {
+    return { section: 'grand_final', round: 99, label: n || 'Grand Final' }
+  }
+
+  // Detect bracket section
+  let section = 'main'
+  if (lower.includes('upper bracket') || lower.startsWith('ub ')) {
+    section = 'upper'
+  } else if (lower.includes('lower bracket') || lower.startsWith('lb ')) {
+    section = 'lower'
+  }
+
+  // Detect round ordering within section (higher = later in tournament)
+  let round = 1
+  const numMatch = n.match(/Round\s+(\d+)/i)
+  if (numMatch) {
+    round = parseInt(numMatch[1])
+  } else if (lower.includes('quarterfinal') || lower.includes('quarter-final') || lower.includes('quarter final')) {
+    round = 10
+  } else if (lower.includes('semifinal') || lower.includes('semi-final') || lower.includes('semi final')) {
+    round = 20
+  } else if (lower.includes('final') && !lower.includes('semi') && !lower.includes('quarter')) {
+    round = 30
+  }
+
+  return { section, round, label: n || 'Round' }
 }
 
 /**
@@ -104,22 +132,28 @@ export default async function handler(req, res) {
       bracketsRes.ok ? bracketsRes.json() : [],
     ])
 
-    // Group bracket matches by round
+    // Group bracket matches by section + round
     const roundMap = {}
     for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
-      const round = parseRound(m.name)
-      if (!roundMap[round]) roundMap[round] = []
-      roundMap[round].push(normalizeMatch(m))
+      const { section, round, label } = parseBracketPosition(m.name)
+      const key = `${section}__${round}`
+      if (!roundMap[key]) roundMap[key] = { section, round, label, matches: [] }
+      roundMap[key].matches.push(normalizeMatch(m))
     }
-    const bracket = Object.entries(roundMap)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([round, matches]) => ({ round: Number(round), matches }))
+    // Sort: upper first, lower second, main third, grand_final last; within section by round
+    const SECTION_ORDER = { upper: 0, lower: 1, main: 2, grand_final: 3 }
+    const bracket = Object.values(roundMap)
+      .sort((a, b) =>
+        (SECTION_ORDER[a.section] - SECTION_ORDER[b.section]) || (a.round - b.round)
+      )
 
-    // Count rounds for format inference
+    // Count rounds for format inference (only main/upper rounds)
     const roundCounts = {}
     for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
-      const r = parseRound(m.name)
-      roundCounts[r] = (roundCounts[r] || 0) + 1
+      const { section, round } = parseBracketPosition(m.name)
+      if (section === 'main' || section === 'upper') {
+        roundCounts[round] = (roundCounts[round] || 0) + 1
+      }
     }
 
     // Fetch sibling stages from the same serie to show full event structure
