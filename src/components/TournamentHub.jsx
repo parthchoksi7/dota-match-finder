@@ -406,6 +406,12 @@ function HorizontalBracket({ bracket }) {
 
 const TABS = ['Overview', 'Standings', 'Schedule']
 
+// Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
+function stageShortName(name) {
+  const m = (name || '').match(/[—–]\s*(.+)$/)
+  return m ? m[1].trim() : name
+}
+
 function TournamentHub() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -413,6 +419,11 @@ function TournamentHub() {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [activeTournamentIdx, setActiveTournamentIdx] = useState(0)
+
+  // Stage switching: each stage in the same event has its own detail
+  const [stageCache, setStageCache] = useState({})   // { [stageId]: detail }
+  const [activeStageId, setActiveStageId] = useState(null)
+  const [stageLoading, setStageLoading] = useState(false)
 
   useEffect(() => {
     fetch('/api/tournaments')
@@ -427,24 +438,54 @@ function TournamentHub() {
   const tournament = ongoing[activeTournamentIdx] || ongoing[0] || upcoming[0] || null
   const isOngoing = ongoing.length > 0
 
-  // Fetch detail whenever the tournament changes (eagerly — needed for Overview format badge too)
+  // Fetch detail for the main tournament (also seeds the stage cache)
   useEffect(() => {
     if (!tournament) return
     if (detail?.tournamentId === tournament.id) return
     setDetailLoading(true)
     fetch(`/api/tournament-detail?id=${tournament.id}`)
       .then(r => r.json())
-      .then(d => setDetail({ ...d, tournamentId: tournament.id }))
+      .then(d => {
+        const enriched = { ...d, tournamentId: tournament.id }
+        setDetail(enriched)
+        setStageCache(prev => ({ ...prev, [tournament.id]: enriched }))
+      })
       .catch(() => setDetail({ standings: [], bracket: [], tournamentId: tournament.id }))
       .finally(() => setDetailLoading(false))
   }, [tournament?.id])
 
-  // Reset tab when switching tournaments
+  // When eventStages load, auto-select the active stage (running → latest finished)
+  useEffect(() => {
+    if (!detail?.eventStages?.length || activeStageId !== null) return
+    const stages = detail.eventStages
+    const running = stages.find(s => s.status === 'running')
+    const def = running || stages[stages.length - 1]
+    setActiveStageId(def?.id ?? null)
+  }, [detail?.eventStages])
+
+  // Fetch a stage's detail on demand when it's not yet cached
+  useEffect(() => {
+    if (!activeStageId || stageCache[activeStageId]) return
+    setStageLoading(true)
+    fetch(`/api/tournament-detail?id=${activeStageId}`)
+      .then(r => r.json())
+      .then(d => setStageCache(prev => ({ ...prev, [activeStageId]: { ...d, tournamentId: activeStageId } })))
+      .catch(() => setStageCache(prev => ({ ...prev, [activeStageId]: { standings: [], bracket: [], tournamentId: activeStageId } })))
+      .finally(() => setStageLoading(false))
+  }, [activeStageId])
+
+  // Reset everything when switching between concurrent tournaments
   function switchTournament(idx) {
     setActiveTournamentIdx(idx)
     setActiveTab('Overview')
     setDetail(null)
+    setStageCache({})
+    setActiveStageId(null)
   }
+
+  // The detail used for Standings + Schedule (active stage, falling back to main)
+  const effectiveDetail = (activeStageId && stageCache[activeStageId]) || detail
+  const isStageLoading = detailLoading || (!!activeStageId && !stageCache[activeStageId] && stageLoading)
 
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden animate-pulse">
@@ -511,11 +552,11 @@ function TournamentHub() {
           <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
             {cleanTournamentName(tournament.name)}
           </p>
-          {detail?.format && (
+          {effectiveDetail?.format && (
             <span className="mt-1 shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
-              {detail.format}
-              {detail.totalRounds > 0 && !['Double Elimination', 'Single Elimination', 'Bracket'].includes(detail.format) && ` · ${detail.totalRounds}R`}
-              <FormatTooltip format={detail.format} />
+              {effectiveDetail.format}
+              {effectiveDetail.totalRounds > 0 && !['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail.format) && ` · ${effectiveDetail.totalRounds}R`}
+              <FormatTooltip format={effectiveDetail.format} />
             </span>
           )}
         </div>
@@ -543,6 +584,34 @@ function TournamentHub() {
           </button>
         ))}
       </div>
+
+      {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
+      {detail?.eventStages?.length > 1 && (
+        <div className="flex items-center gap-1 px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-900">
+          <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
+          {detail.eventStages.map(stage => {
+            const isActive = stage.id === activeStageId
+            const isCurrent = stage.status === 'running'
+            return (
+              <button
+                key={stage.id}
+                type="button"
+                onClick={() => setActiveStageId(stage.id)}
+                className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-colors ${
+                  isActive
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {stageShortName(stage.name)}
+                {isCurrent && !isActive && (
+                  <span className="ml-1 inline-block w-1 h-1 rounded-full bg-red-500 align-middle" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Tab content */}
       {activeTab === 'Overview' && (
@@ -615,25 +684,25 @@ function TournamentHub() {
 
       {activeTab === 'Standings' && (
         <div>
-          {detailLoading ? (
+          {isStageLoading ? (
             <div className="py-8 flex justify-center">
               <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
             </div>
           ) : (
-            <StandingsTable standings={detail?.standings} />
+            <StandingsTable standings={effectiveDetail?.standings} />
           )}
         </div>
       )}
 
       {activeTab === 'Schedule' && (
         <div>
-          {detailLoading ? (
+          {isStageLoading ? (
             <div className="py-8 flex justify-center">
               <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
             </div>
-          ) : (['Double Elimination', 'Single Elimination', 'Bracket'].includes(detail?.format))
-            ? <HorizontalBracket bracket={detail?.bracket} />
-            : <BracketView bracket={detail?.bracket} />
+          ) : (['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail?.format))
+            ? <HorizontalBracket bracket={effectiveDetail?.bracket} />
+            : <BracketView bracket={effectiveDetail?.bracket} />
           }
         </div>
       )}
