@@ -242,7 +242,7 @@ function MatchCard({ match }) {
   return (
     <div className={`w-full h-full rounded border flex flex-col overflow-hidden ${
       isLive  ? 'border-red-500/50 bg-red-500/5' :
-      isTbd   ? 'border-gray-200 dark:border-gray-800 opacity-35' :
+      isTbd   ? 'border-gray-200 dark:border-gray-800 opacity-60' :
                 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950'
     }`}>
       {rows.map((row, i) => (
