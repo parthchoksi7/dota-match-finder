@@ -40,7 +40,15 @@ function parseBracketPosition(name) {
     round = 30
   }
 
-  return { section, round, label: n || 'Round' }
+  // Strip section prefix from label so column headers show "Quarterfinal" not "Upper Bracket Quarterfinal"
+  const shortLabel = n
+    .replace(/^upper\s+bracket\s*/i, '')
+    .replace(/^lower\s+bracket\s*/i, '')
+    .replace(/^ub\s+/i, '')
+    .replace(/^lb\s+/i, '')
+    .trim()
+
+  return { section, round, label: shortLabel || n || 'Round' }
 }
 
 /**
