@@ -7,9 +7,9 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_LIST_KEY = 'dota2:tournament_list_v2'
-const KV_STATUS_KEY = 'dota2:tournament_statuses_v2'
-const LIST_TTL = 60 * 60 * 24 * 30  // 30 days
+const KV_LIST_KEY = 'dota2:tournament_list_v3'
+const KV_STATUS_KEY = 'dota2:tournament_statuses_v3'
+const LIST_TTL = 60 * 60 * 6        // 6 hours — catches stage transitions (Group → Playoffs)
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
@@ -120,12 +120,33 @@ async function fetchTournamentStatuses(token) {
   ])
 
   const statuses = {}
+  // Track full tournament objects for newly-discovered running stages
+  const newRunning = []
+
   for (const t of (running || [])) {
-    if (isTier1(t.league?.name, t.serie?.full_name)) statuses[t.id] = 'running'
+    if (isTier1(t.league?.name, t.serie?.full_name)) {
+      statuses[t.id] = 'running'
+      newRunning.push(t)
+    }
   }
   for (const t of (upcoming || [])) {
     if (isTier1(t.league?.name, t.serie?.full_name)) statuses[t.id] = 'upcoming'
   }
+
+  // Merge any newly-running tournaments into the list cache so stage transitions
+  // (e.g. Group Stage → Playoffs) are picked up without waiting for list TTL to expire
+  try {
+    const listCached = await kv.get(KV_LIST_KEY)
+    if (listCached && Array.isArray(listCached.ongoing)) {
+      const existingIds = new Set(listCached.ongoing.map(t => t.id))
+      const added = newRunning.filter(t => !existingIds.has(t.id)).map(t => mapTournament(t, 'running'))
+      if (added.length > 0) {
+        console.log(`Tournament statuses: merging ${added.length} new running stage(s) into list cache`)
+        const updated = { ...listCached, ongoing: [...listCached.ongoing, ...added] }
+        await kv.set(KV_LIST_KEY, updated, { ex: LIST_TTL })
+      }
+    }
+  } catch {}
 
   await kv.set(KV_STATUS_KEY, statuses, { ex: STATUS_TTL })
   return statuses
