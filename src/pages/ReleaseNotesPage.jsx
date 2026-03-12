@@ -3,6 +3,17 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 12, 2026",
+    tag: "fix",
+    title: "Tournament Hub - Heroes Table and Overview Polish",
+    desc: "Two visual fixes to the Tournament Hub.",
+    items: [
+      "Heroes table: text no longer gets clipped on mobile. Switched to a fixed-width column layout so the table always fits without needing to scroll.",
+      "Overview tab: format badge (e.g. Swiss - 5R) and tournament dates now appear at the top of the Overview tab, so there is always something useful to read even between rounds.",
+      "Heroes tab: fixed missing draft data for Group Stage tournaments by fetching game-level records directly from PandaScore instead of embedded match data.",
+    ],
+  },
+  {
+    date: "Mar 12, 2026",
     tag: "improvement",
     title: "Tournament Hub - Improved Overview Tab",
     desc: "The Overview tab for ongoing tournaments now shows genuinely useful at-a-glance info instead of duplicating the stage picker.",
