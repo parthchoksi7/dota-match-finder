@@ -129,6 +129,25 @@ Before deploying to production:
 
 ---
 
+## Owner-Only Features
+
+These features are intentionally hidden from public documentation. They are gated by a localStorage key and only accessible to the site owner.
+
+### Draft X Posts
+
+- Enabled by setting `spectate_owner=1` in localStorage (browser console: `localStorage.setItem('spectate_owner', '1')`)
+- When enabled, a "Draft X posts" button appears on completed series cards in `MatchCard`
+- Button opens `XPostsModal` (src/components/XPostsModal.jsx)
+- `App.jsx` calls `/api/draft-posts` with series metadata and game replay URLs
+- `api/draft-posts.js` uses Claude Haiku to generate one post per game (under 200 chars + link)
+- Posts vary in tone across games (opener, momentum shift, decider narrative)
+- Each post ends with the Spectate match URL as the CTA/replay link
+- `XPostsModal` shows posts per game with a one-click Copy button; closes on Escape or backdrop click
+
+Do NOT document this feature in CONTEXT.md, About page, or Release Notes - it is intentionally owner-only.
+
+---
+
 ## Notes for Claude Code
 
 - This is a beginner-friendly project - explain technical decisions
