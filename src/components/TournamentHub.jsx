@@ -218,6 +218,53 @@ function BracketView({ bracket }) {
   )
 }
 
+// ── Overview match row (lightweight, no round headers) ─────────────────────
+
+function OverviewMatchRow({ match }) {
+  const isLive = match.status === 'running'
+  const isDone = match.status === 'finished'
+  const scoreA = match.scoreA ?? null
+  const scoreB = match.scoreB ?? null
+  const hasScore = scoreA !== null && scoreB !== null
+  const isTbd = match.teamA === 'TBD' && match.teamB === 'TBD'
+  const dimA = isDone && hasScore && scoreA < scoreB
+  const dimB = isDone && hasScore && scoreB < scoreA
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      {isLive
+        ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+        : <span className="w-1.5 h-1.5 flex-shrink-0" />
+      }
+      <span className={`flex-1 text-right truncate font-semibold ${
+        isTbd ? 'text-gray-400 dark:text-gray-700 italic' :
+        dimA ? 'text-gray-400 dark:text-gray-600' :
+        'text-gray-900 dark:text-white'
+      }`}>{match.teamA}</span>
+      <div className="w-16 flex-shrink-0 text-center">
+        {hasScore ? (
+          <span className="font-black tabular-nums text-gray-900 dark:text-white">
+            <span className={dimA ? 'text-gray-400 dark:text-gray-600' : ''}>{scoreA}</span>
+            <span className="text-gray-300 dark:text-gray-700 font-light mx-1">–</span>
+            <span className={dimB ? 'text-gray-400 dark:text-gray-600' : ''}>{scoreB}</span>
+          </span>
+        ) : match.scheduledAt ? (
+          <span className="text-xs text-gray-400 dark:text-gray-600 tabular-nums">
+            {formatScheduledTime(match.scheduledAt)}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400 dark:text-gray-600">vs</span>
+        )}
+      </div>
+      <span className={`flex-1 truncate font-semibold ${
+        isTbd ? 'text-gray-400 dark:text-gray-700 italic' :
+        dimB ? 'text-gray-400 dark:text-gray-600' :
+        'text-gray-900 dark:text-white'
+      }`}>{match.teamB}</span>
+    </div>
+  )
+}
+
 // ── Horizontal bracket tree ────────────────────────────────────────────────
 
 const CARD_H = 66    // px — height of each match card (two team rows)
@@ -520,6 +567,26 @@ function TournamentHub() {
     : null
   const dateRange = startDate && endDate ? `${startDate} – ${endDate}` : endDate || startDate || null
 
+  // Derived data for the Overview tab
+  const allBracketMatches = (effectiveDetail?.bracket || []).flatMap(r => r.matches)
+  const liveMatches = allBracketMatches.filter(m => m.status === 'running')
+  const upcomingMatches = allBracketMatches
+    .filter(m => m.status === 'not_started' && !(m.teamA === 'TBD' && m.teamB === 'TBD'))
+    .sort((a, b) => {
+      if (!a.scheduledAt && !b.scheduledAt) return 0
+      if (!a.scheduledAt) return 1
+      if (!b.scheduledAt) return -1
+      return new Date(a.scheduledAt) - new Date(b.scheduledAt)
+    })
+    .slice(0, 3)
+  const currentRound = (() => {
+    if (!effectiveDetail?.bracket?.length) return null
+    const active = effectiveDetail.bracket.filter(r =>
+      r.matches.some(m => m.status === 'running' || m.status === 'finished')
+    )
+    return active.length ? Math.max(...active.map(r => r.round)) : null
+  })()
+
   return (
     <section
       className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
@@ -630,43 +697,97 @@ function TournamentHub() {
       {/* Tab content */}
       {activeTab === 'Overview' && (
         <div className="px-4 sm:px-5 py-4 flex flex-col gap-4">
-          {/* Event stage pipeline (Group Stage → Playoffs → etc.) */}
-          {detail?.eventStages?.length > 1 && (
-            <div>
-              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
-                Event Format
-              </p>
-              <div className="flex items-center gap-1 flex-wrap">
-                {detail.eventStages.map((stage, i) => {
-                  const isCurrent = stage.id === tournament.id
-                  const isDone = stage.status === 'finished'
-                  return (
-                    <div key={stage.id} className="flex items-center gap-1">
-                      <div className={`flex flex-col items-center px-2.5 py-1.5 rounded border text-xs font-semibold ${
-                        isCurrent
-                          ? 'border-red-500 text-red-500 bg-red-500/5'
-                          : isDone
-                          ? 'border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-600'
-                          : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500'
-                      }`}>
-                        <span className="uppercase tracking-wider">{stage.name}</span>
-                        {stage.format && (
-                          <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
-                            {stage.format}
-                            <FormatTooltip format={stage.format} />
-                          </span>
-                        )}
-                      </div>
-                      {i < detail.eventStages.length - 1 && (
-                        <span className="text-gray-300 dark:text-gray-700 text-sm">›</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          {isOngoing && (
+            <>
+              {/* Progress row: format · round · team count */}
+              {effectiveDetail?.format && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">
+                  <span className="inline-flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
+                    {effectiveDetail.format}
+                    <FormatTooltip format={effectiveDetail.format} />
+                  </span>
+                  {['Swiss', 'Group Stage'].includes(effectiveDetail.format) && currentRound && effectiveDetail.totalRounds > 0 && (
+                    <>
+                      <span className="text-gray-300 dark:text-gray-700">·</span>
+                      <span>Round {currentRound} of {effectiveDetail.totalRounds}</span>
+                    </>
+                  )}
+                  {effectiveDetail.teamCount > 0 && (
+                    <>
+                      <span className="text-gray-300 dark:text-gray-700">·</span>
+                      <span>{effectiveDetail.teamCount} teams</span>
+                    </>
+                  )}
+                </div>
+              )}
 
+              {/* Live Now */}
+              {liveMatches.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    Live Now
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {liveMatches.map((m, i) => <OverviewMatchRow key={m.id || i} match={m} />)}
+                  </div>
+                </div>
+              )}
+
+              {/* Up Next */}
+              {upcomingMatches.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
+                    Up Next
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {upcomingMatches.map((m, i) => <OverviewMatchRow key={m.id || i} match={m} />)}
+                  </div>
+                </div>
+              )}
+
+              {/* No matches state */}
+              {liveMatches.length === 0 && upcomingMatches.length === 0 && effectiveDetail && (
+                <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-1">
+                  No matches currently scheduled
+                </p>
+              )}
+
+              {/* Standings Snapshot — top 6 teams */}
+              {effectiveDetail?.standings?.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
+                    Standings
+                  </p>
+                  <div>
+                    {effectiveDetail.standings.slice(0, 6).map((s, i) => {
+                      const showZones = effectiveDetail.standings.length >= 4
+                      const midpoint = Math.ceil(effectiveDetail.standings.length / 2)
+                      const isEliminated = showZones && i >= midpoint && s.losses > s.wins
+                      return (
+                        <div key={i} className="flex items-center gap-2 py-1.5 text-xs border-b border-gray-100 dark:border-gray-900 last:border-0">
+                          <span className="w-5 tabular-nums text-gray-400 dark:text-gray-600 text-right flex-shrink-0">{s.rank}</span>
+                          {showZones && (
+                            <span className={`w-1 h-4 rounded-full flex-shrink-0 ${isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'}`} />
+                          )}
+                          <span className={`flex-1 font-semibold truncate ${isEliminated ? 'text-gray-400 dark:text-gray-600' : 'text-gray-900 dark:text-white'}`}>
+                            {s.team}
+                          </span>
+                          <span className="font-bold tabular-nums text-green-600 dark:text-green-400 w-6 text-center">{s.wins}</span>
+                          <span className="font-bold tabular-nums text-red-500 dark:text-red-400 w-6 text-center">{s.losses}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {effectiveDetail.standings.length > 6 && (
+                    <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 uppercase tracking-widest">
+                      +{effectiveDetail.standings.length - 6} more — see Standings tab
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
           {!isOngoing && upcoming.length > 1 && (
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
