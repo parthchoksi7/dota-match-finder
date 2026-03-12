@@ -82,6 +82,17 @@ const RELEASES = [
   {
     date: "Mar 8, 2026",
     tag: "improvement",
+    title: "VOD Links — Exact Channel Matching",
+    desc: "VOD links now resolve to the correct stream channel instead of showing multiple options when possible.",
+    items: [
+      "While a match is live, the broadcast channel is stored against each game's OpenDota match ID.",
+      "When you open a completed match, the stored channel is looked up first and Twitch is searched on that channel only.",
+      "Falls back to the existing multi-channel search when no mapping is found (e.g. for older matches).",
+    ],
+  },
+  {
+    date: "Mar 8, 2026",
+    tag: "improvement",
     title: "Latest Results — date dividers",
     desc: "Matches in the Latest Results section are now grouped by date with dividers showing Today, Yesterday, or the date (e.g. Mar 7). Replaces the previous tournament-change dividers.",
   },
