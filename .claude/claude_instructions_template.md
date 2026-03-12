@@ -129,6 +129,15 @@ Before deploying to production:
 
 ---
 
+## Owner-Only Features
+
+Some features are gated behind a localStorage flag and are only visible to the site owner. These features must NEVER appear in public-facing documentation (About page, Release Notes). Document them only in CONTEXT.md and this instructions file.
+
+Current owner-only features:
+- **Draft X Posts** (`api/draft-posts.js`, `api/og-series.js`, `src/components/XPostsModal.jsx`): generates per-game X/Twitter posts and a series summary image for completed series. Gated by a `dota-xposts-owner` localStorage flag. Hidden in spoiler-free mode.
+
+---
+
 ## Notes for Claude Code
 
 - This is a beginner-friendly project - explain technical decisions

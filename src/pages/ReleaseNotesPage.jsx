@@ -53,17 +53,6 @@ const RELEASES = [
   },
   {
     date: "Mar 9, 2026",
-    tag: "new",
-    title: "X Posts — Series Summary Image",
-    desc: "The X posts modal now includes a series summary section at the top with an AI-generated recap and a downloadable result image.",
-    items: [
-      "Series summary post covers the full series outcome in one post.",
-      "Result image shows winner, series score, tournament, and format — click to download.",
-      "All per-game VOD links and the series link include UTM tags for tracking (utm_source=twitter).",
-    ],
-  },
-  {
-    date: "Mar 9, 2026",
     tag: "fix",
     title: "AI Summary — Cleaner Draft Analysis",
     desc: "Fixed an issue where the AI summary would mix up draft data with game outcome data. Picks and bans are now isolated from game results before being sent to Claude, preventing hallucinated hero attributions.",
@@ -77,18 +66,6 @@ const RELEASES = [
       "Series that span midnight no longer split into two separate series.",
       "Matches with no series ID (series_id=0) are now grouped individually instead of being merged.",
       "The last series is only dropped from display if it is genuinely incomplete — not just because it loaded last.",
-    ],
-  },
-  {
-    date: "Mar 8, 2026",
-    tag: "new",
-    title: "Draft X Posts",
-    desc: "A new X/Twitter icon button appears on completed series cards. Click it to generate ready-to-post content for every game in the series.",
-    items: [
-      "Generates one post per game with varied tone and structure (opener, momentum shift, decider).",
-      "Each post is under 220 characters so a VOD link fits within X's 280-character limit.",
-      "Posts use natural voice — no hashtags, no generic filler.",
-      "Hidden in spoiler-free mode.",
     ],
   },
   {
