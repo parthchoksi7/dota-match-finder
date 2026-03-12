@@ -52,49 +52,31 @@ export default async function handler(req, res) {
 
     // Finished matches only
     const finished = bracketMatches.filter(m => m.status === 'finished')
-    const gameIds = finished.flatMap(m => (m.games || []).map(g => g.id)).filter(Boolean)
+    if (!finished.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    if (isDebug && !gameIds.length) {
-      return res.status(200).json({
-        debug: true,
-        step: 'gameIds',
-        totalMatches: bracketMatches.length,
-        finishedMatches: finished.length,
-        sampleFinishedMatch: finished[0] ?? null,
-      })
-    }
-    if (!gameIds.length) return res.status(200).json({ heroes: [], gameCount: 0 })
-
-    // Fetch full game records in batches of 50 — embedded games inside bracket matches
-    // omit picks_bans, but the games list endpoint includes it when fetched by ID.
-    const BATCH = 50
+    // Fetch games per match — /dota2/matches/{id}/games includes picks_bans.
+    // /dota2/games list endpoint does not exist on PandaScore.
+    const matchIds = finished.map(m => m.id)
+    const CONCURRENCY = 10
     const allGames = []
-    let gamesDebugError = null
-    for (let i = 0; i < gameIds.length; i += BATCH) {
-      const batch = gameIds.slice(i, i + BATCH)
-      const gamesRes = await fetch(
-        `${BASE}/dota2/games?filter[id]=${batch.join(',')}&per_page=50`,
-        { headers }
-      )
-      if (!gamesRes.ok) {
-        if (isDebug && !gamesDebugError) gamesDebugError = { status: gamesRes.status, body: await gamesRes.text() }
-        continue
-      }
-      const games = await gamesRes.json()
-      if (Array.isArray(games)) allGames.push(...games)
+    for (let i = 0; i < matchIds.length; i += CONCURRENCY) {
+      const batch = matchIds.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(async mid => {
+        const r = await fetch(`${BASE}/dota2/matches/${mid}/games`, { headers })
+        if (!r.ok) return []
+        const g = await r.json()
+        return Array.isArray(g) ? g : []
+      }))
+      allGames.push(...results.flat())
     }
 
     if (isDebug) {
       return res.status(200).json({
         debug: true,
         step: 'games',
-        totalMatches: bracketMatches.length,
         finishedMatches: finished.length,
-        gameIdCount: gameIds.length,
-        sampleGameIds: gameIds.slice(0, 5),
         gamesFetched: allGames.length,
         gamesWithPicksBans: allGames.filter(g => g.picks_bans?.length).length,
-        gamesError: gamesDebugError,
         sampleGame: allGames[0] ?? null,
       })
     }
