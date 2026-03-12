@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v2:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v3:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -36,9 +36,9 @@ export default async function handler(req, res) {
 
   try {
     // Step 1: fetch finished matches for this tournament to get match IDs.
-    // /dota2/games does NOT support filter[tournament_id], but /dota2/matches does.
+    // Use the nested tournament endpoint — filter[tournament_id] is not supported on /dota2/matches.
     const matchesRes = await fetch(
-      `${BASE}/dota2/matches?filter[tournament_id]=${id}&filter[status]=finished&per_page=100&sort=-begin_at`,
+      `${BASE}/dota2/tournaments/${id}/matches?filter[status]=finished&per_page=100&sort=-begin_at`,
       { headers }
     )
     if (!matchesRes.ok) {
