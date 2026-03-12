@@ -57,6 +57,23 @@ export default async function handler(req, res) {
     // Fetch games per match — /dota2/matches/{id}/games includes picks_bans.
     // /dota2/games list endpoint does not exist on PandaScore.
     const matchIds = finished.map(m => m.id)
+
+    // In debug mode, probe a single match to diagnose before running all 33 calls
+    if (isDebug) {
+      const probeId = matchIds[0]
+      const probeR = await fetch(`${BASE}/dota2/matches/${probeId}/games`, { headers })
+      const probeBody = await probeR.text()
+      return res.status(200).json({
+        debug: true,
+        step: 'probe',
+        sampleMatchId: probeId,
+        sampleMatchKeys: Object.keys(finished[0]),
+        probeUrl: `${BASE}/dota2/matches/${probeId}/games`,
+        probeStatus: probeR.status,
+        probeBody: probeBody.slice(0, 500),
+      })
+    }
+
     const CONCURRENCY = 10
     const allGames = []
     for (let i = 0; i < matchIds.length; i += CONCURRENCY) {
@@ -68,17 +85,6 @@ export default async function handler(req, res) {
         return Array.isArray(g) ? g : []
       }))
       allGames.push(...results.flat())
-    }
-
-    if (isDebug) {
-      return res.status(200).json({
-        debug: true,
-        step: 'games',
-        finishedMatches: finished.length,
-        gamesFetched: allGames.length,
-        gamesWithPicksBans: allGames.filter(g => g.picks_bans?.length).length,
-        sampleGame: allGames[0] ?? null,
-      })
     }
 
     const heroStats = {}
