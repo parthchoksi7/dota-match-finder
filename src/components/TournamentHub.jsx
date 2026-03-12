@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef } from "react"
+import { track } from '@vercel/analytics'
+
+function logEvent(name, props) {
+  track(name, props)
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
 
 const FORMAT_DESCRIPTIONS = {
   'Swiss': {
@@ -448,7 +456,7 @@ function HorizontalBracket({ bracket }) {
   )
 }
 
-const TABS = ['Overview', 'Standings', 'Schedule']
+const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes']
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
 function stageShortName(name) {
@@ -637,12 +645,12 @@ function TournamentHub() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b border-gray-200 dark:border-gray-800">
+      <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
         {TABS.map(tab => (
           <button
             key={tab}
             type="button"
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); logEvent('tournament_tab_click', { tab }) }}
             className={`px-4 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
               activeTab === tab
                 ? 'border-b-2 border-red-500 text-gray-900 dark:text-white'
@@ -870,7 +878,7 @@ function TournamentHub() {
                     return (
                       <tr key={hero.name} className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40">
                         <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
-                        <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate">{hero.name}</td>
+                        <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate max-w-0">{hero.name}</td>
                         <td className="py-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
                         <td className={`py-2 text-center tabular-nums font-semibold ${
                           isHighWin ? 'text-green-600 dark:text-green-500'
