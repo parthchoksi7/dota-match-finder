@@ -3,8 +3,21 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 12, 2026",
+    tag: "improvement",
+    title: "Tournament Hub - Improved Overview Tab",
+    desc: "The Overview tab for ongoing tournaments now shows genuinely useful at-a-glance info instead of duplicating the stage picker.",
+    items: [
+      "Progress row shows the tournament format, current round (e.g. Round 3 of 5 for Swiss), and team count.",
+      "Live Now section lists all currently running matches with a pulsing red dot indicator.",
+      "Up Next section shows the next 3 scheduled non-TBD matches with times.",
+      "Standings snapshot shows the top 6 teams with green/red zone bars indicating advancing vs eliminated positions.",
+      "All sections update automatically when switching stages via the stage picker.",
+    ],
+  },
+  {
+    date: "Mar 12, 2026",
     tag: "new",
-    title: "Tournament Hub — Hero Pick/Ban Stats",
+    title: "Tournament Hub - Hero Pick/Ban Stats",
     desc: "A new Heroes tab in the Tournament Hub shows which heroes are being picked and banned across all completed games of the active tournament.",
     items: [
       "Table shows each hero's pick count, win percentage, ban count, and total contested (picks + bans).",

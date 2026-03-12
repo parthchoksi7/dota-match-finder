@@ -781,7 +781,7 @@ function TournamentHub() {
                   </div>
                   {effectiveDetail.standings.length > 6 && (
                     <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 uppercase tracking-widest">
-                      +{effectiveDetail.standings.length - 6} more — see Standings tab
+                      +{effectiveDetail.standings.length - 6} more - see Standings tab
                     </p>
                   )}
                 </div>

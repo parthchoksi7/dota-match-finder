@@ -116,7 +116,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
 - TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
-  - **Overview**: format badge (e.g. "Swiss - 5R"), event stage pipeline (Group Stage -> Playoffs), `FormatTooltip` explaining each format
+  - **Overview** (ongoing): progress row (format + current round + team count), Live Now section (running matches with pulsing red dot), Up Next section (next 3 non-TBD scheduled matches), and a standings snapshot showing top 6 teams with green/red zone bars. All sections update when switching stages.
+  - **Overview** (upcoming): shows other upcoming tournaments (Also coming up list).
   - **Standings**: W-L table with advancing/eliminated zone indicators
   - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
   - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click.
