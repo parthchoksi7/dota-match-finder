@@ -533,16 +533,15 @@ function TournamentHub() {
 
   useEffect(() => {
     if (activeTab !== 'Heroes' || !tournament) return
-    const fetchId = activeStageId || tournament.id
-    if (heroStats?.fetchedForId === fetchId) return
+    if (heroStats?.fetchedForId === tournament.id) return
     setHeroStatsLoading(true)
     const serieName = encodeURIComponent(tournament.serie || tournament.league || '')
-    fetch(`/api/tournament-heroes?id=${fetchId}&name=${serieName}`)
+    fetch(`/api/tournament-heroes?id=${tournament.id}&name=${serieName}`)
       .then(r => r.json())
-      .then(d => setHeroStats({ ...d, fetchedForId: fetchId }))
-      .catch(() => setHeroStats({ heroes: [], gameCount: 0, fetchedForId: fetchId }))
+      .then(d => setHeroStats({ ...d, fetchedForId: tournament.id }))
+      .catch(() => setHeroStats({ heroes: [], gameCount: 0, fetchedForId: tournament.id }))
       .finally(() => setHeroStatsLoading(false))
-  }, [activeTab, tournament?.id, activeStageId])
+  }, [activeTab, tournament?.id])
 
   // Reset everything when switching between concurrent tournaments
   function switchTournament(idx) {
