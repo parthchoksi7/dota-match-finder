@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v5:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v6:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -35,9 +35,9 @@ export default async function handler(req, res) {
   const isDebug = req.query?.debug === '1'
 
   try {
-    // Use /tournaments/{id}/brackets — the same endpoint that powers the Schedule tab.
-    // This works for both elimination and group stage (Swiss) formats.
-    // No dedicated /matches sub-endpoint exists on PandaScore for tournaments.
+    // /tournaments/{id}/brackets returns match objects that already include an
+    // embedded `games` array. Sub-endpoints like /dota2/matches/{id}/games are
+    // behind a higher-tier plan (403). Use the embedded games directly.
     const bracketsRes = await fetch(`${BASE}/tournaments/${id}/brackets`, { headers })
     if (!bracketsRes.ok) {
       if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', status: bracketsRes.status })
@@ -46,45 +46,25 @@ export default async function handler(req, res) {
 
     const bracketMatches = await bracketsRes.json()
     if (!Array.isArray(bracketMatches) || !bracketMatches.length) {
-      if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', matchCount: 0, raw: bracketMatches })
+      if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', matchCount: 0 })
       return res.status(200).json({ heroes: [], gameCount: 0 })
     }
 
-    // Finished matches only
     const finished = bracketMatches.filter(m => m.status === 'finished')
-    if (!finished.length) return res.status(200).json({ heroes: [], gameCount: 0 })
+    const allGames = finished.flatMap(m => m.games || [])
 
-    // Fetch games per match — /dota2/matches/{id}/games includes picks_bans.
-    // /dota2/games list endpoint does not exist on PandaScore.
-    const matchIds = finished.map(m => m.id)
-
-    // In debug mode, probe a single match to diagnose before running all 33 calls
     if (isDebug) {
-      const probeId = matchIds[0]
-      const probeR = await fetch(`${BASE}/dota2/matches/${probeId}/games`, { headers })
-      const probeBody = await probeR.text()
+      const withPicksBans = allGames.filter(g => g.picks_bans?.length)
       return res.status(200).json({
         debug: true,
-        step: 'probe',
-        sampleMatchId: probeId,
-        sampleMatchKeys: Object.keys(finished[0]),
-        probeUrl: `${BASE}/dota2/matches/${probeId}/games`,
-        probeStatus: probeR.status,
-        probeBody: probeBody.slice(0, 500),
+        step: 'done',
+        totalMatches: bracketMatches.length,
+        finishedMatches: finished.length,
+        totalGames: allGames.length,
+        gamesWithPicksBans: withPicksBans.length,
+        sampleGameKeys: allGames[0] ? Object.keys(allGames[0]) : [],
+        samplePicksBans: withPicksBans[0]?.picks_bans?.slice(0, 2) ?? null,
       })
-    }
-
-    const CONCURRENCY = 10
-    const allGames = []
-    for (let i = 0; i < matchIds.length; i += CONCURRENCY) {
-      const batch = matchIds.slice(i, i + CONCURRENCY)
-      const results = await Promise.all(batch.map(async mid => {
-        const r = await fetch(`${BASE}/dota2/matches/${mid}/games`, { headers })
-        if (!r.ok) return []
-        const g = await r.json()
-        return Array.isArray(g) ? g : []
-      }))
-      allGames.push(...results.flat())
     }
 
     const heroStats = {}
