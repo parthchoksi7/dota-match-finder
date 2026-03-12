@@ -69,13 +69,17 @@ export default async function handler(req, res) {
     // omit picks_bans, but the games list endpoint includes it when fetched by ID.
     const BATCH = 50
     const allGames = []
+    let gamesDebugError = null
     for (let i = 0; i < gameIds.length; i += BATCH) {
       const batch = gameIds.slice(i, i + BATCH)
       const gamesRes = await fetch(
         `${BASE}/dota2/games?filter[id]=${batch.join(',')}&per_page=50`,
         { headers }
       )
-      if (!gamesRes.ok) continue
+      if (!gamesRes.ok) {
+        if (isDebug && !gamesDebugError) gamesDebugError = { status: gamesRes.status, body: await gamesRes.text() }
+        continue
+      }
       const games = await gamesRes.json()
       if (Array.isArray(games)) allGames.push(...games)
     }
@@ -87,8 +91,10 @@ export default async function handler(req, res) {
         totalMatches: bracketMatches.length,
         finishedMatches: finished.length,
         gameIdCount: gameIds.length,
+        sampleGameIds: gameIds.slice(0, 5),
         gamesFetched: allGames.length,
         gamesWithPicksBans: allGames.filter(g => g.picks_bans?.length).length,
+        gamesError: gamesDebugError,
         sampleGame: allGames[0] ?? null,
       })
     }
