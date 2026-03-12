@@ -870,7 +870,7 @@ function TournamentHub() {
                     return (
                       <tr key={hero.name} className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40">
                         <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
-                        <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate">{hero.name}</td>
+                        <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate max-w-0">{hero.name}</td>
                         <td className="py-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
                         <td className={`py-2 text-center tabular-nums font-semibold ${
                           isHighWin ? 'text-green-600 dark:text-green-500'
