@@ -637,7 +637,7 @@ function TournamentHub() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b border-gray-200 dark:border-gray-800">
+      <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
         {TABS.map(tab => (
           <button
             key={tab}
