@@ -2,6 +2,56 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 12, 2026",
+    tag: "new",
+    title: "Tournament Hub — Hero Pick/Ban Stats",
+    desc: "A new Heroes tab in the Tournament Hub shows which heroes are being picked and banned across all completed games of the active tournament.",
+    items: [
+      "Table shows each hero's pick count, win percentage, ban count, and total contested (picks + bans).",
+      "Sorted by most contested — the heroes dominating the draft are at the top.",
+      "Win% is color-coded: green for 60%+ win rate, red for 40% or below.",
+      "Shows game count so you know how large the sample is.",
+      "Loads lazily when you click the tab. Respects stage switching (Group Stage vs Playoffs).",
+    ],
+  },
+  {
+    date: "Mar 12, 2026",
+    tag: "fix",
+    title: "Tournament Bracket — Round Labels Always Visible",
+    desc: "Bracket column headers now always show their round label (Round 1, Quarterfinal, Semifinal, Final) even when all matches in that round are still TBD. Previously, future rounds showed blank headers.",
+  },
+  {
+    date: "Mar 12, 2026",
+    tag: "improvement",
+    title: "Tournament Bracket — Cleaner Round Names",
+    desc: "Bracket column headers now use clean, canonical names regardless of how PandaScore labels the stage internally. Names like 'Semifinal 2' or 'Upper Bracket Quarterfinal 1' are now shown as just 'Semifinal' or 'Quarterfinal'.",
+  },
+  {
+    date: "Mar 11, 2026",
+    tag: "new",
+    title: "Tournament Hub — Visual Bracket Tree",
+    desc: "Playoff brackets now render as a left-to-right bracket tree instead of a flat match list.",
+    items: [
+      "Rounds are shown as columns with SVG connector lines flowing between matches.",
+      "Double Elimination shows Upper Bracket and Lower Bracket as separate horizontal sections, with Grand Final below.",
+      "Swiss and Group Stage formats still use the flat round-by-round view.",
+      "Match cards show team names, scores, live pulse indicators, and TBD slots for upcoming matches.",
+    ],
+  },
+  {
+    date: "Mar 11, 2026",
+    tag: "new",
+    title: "Tournament Hub — Stage Switcher",
+    desc: "When an event has multiple stages (e.g. Group Stage and Playoffs), a stage switcher now appears in the Tournament Hub so you can browse each stage independently.",
+    items: [
+      "Defaults to whichever stage is currently live, or the latest finished stage.",
+      "Standings and bracket update to reflect the selected stage.",
+      "Format badge (Swiss, Double Elimination) also updates per stage.",
+      "A red dot on inactive stage pills marks the live stage.",
+      "Each stage's data is fetched once and cached — switching between stages is instant.",
+    ],
+  },
+  {
     date: "Mar 9, 2026",
     tag: "improvement",
     title: "VOD Linking — smarter stream resolution",
@@ -10,6 +60,34 @@ const RELEASES = [
       "While a match is live, the streaming channel is recorded in a fast key-value store keyed by game start time.",
       "When you open a completed match, the drawer looks up the recorded channel and searches only that one.",
       "Falls back to showing all available channels when a match was simulcast on multiple streams.",
+    ],
+  },
+  {
+    date: "Mar 9, 2026",
+    tag: "fix",
+    title: "AI Summary — Cleaner Draft Analysis",
+    desc: "Fixed an issue where the AI summary would mix up draft data with game outcome data. Picks and bans are now isolated from game results before being sent to Claude, preventing hallucinated hero attributions.",
+  },
+  {
+    date: "Mar 9, 2026",
+    tag: "fix",
+    title: "Series Grouping — Reliability Fixes",
+    desc: "Fixed three edge cases that caused series to split incorrectly or show phantom results.",
+    items: [
+      "Series that span midnight no longer split into two separate series.",
+      "Matches with no series ID (series_id=0) are now grouped individually instead of being merged.",
+      "The last series is only dropped from display if it is genuinely incomplete — not just because it loaded last.",
+    ],
+  },
+  {
+    date: "Mar 8, 2026",
+    tag: "improvement",
+    title: "VOD Links — Exact Channel Matching",
+    desc: "VOD links now resolve to the correct stream channel instead of showing multiple options when possible.",
+    items: [
+      "While a match is live, the broadcast channel is stored against each game's OpenDota match ID.",
+      "When you open a completed match, the stored channel is looked up first and Twitch is searched on that channel only.",
+      "Falls back to the existing multi-channel search when no mapping is found (e.g. for older matches).",
     ],
   },
   {

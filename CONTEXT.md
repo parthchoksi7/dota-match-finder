@@ -33,7 +33,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/MatchCard.jsx` - Individual series card with expand/collapse
 - `src/components/SearchBar.jsx` - Search input (no suggestions)
 - `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage
-- `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule tabs, format badge, event stage pipeline, bracket view
+- `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher
+- `src/components/XPostsModal.jsx` - Modal for displaying AI-generated X/Twitter posts per game in a series, plus series summary and downloadable result image
 - `src/components/WatchBadge.jsx` - Watchability badge component
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
@@ -45,6 +46,10 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/live-matches.js` - Fetches live Dota 2 matches from PandaScore; cached in KV for 2 min
 - `api/upcoming-matches.js` - Fetches upcoming matches (next 72h) from PandaScore; cached in KV
 - `api/tournament-detail.js` - Fetches tournament standings, bracket, and sibling stages from PandaScore; cached in KV for 3 min
+- `api/tournament-heroes.js` - Aggregates hero pick/ban stats across all finished tournament games; fetches from PandaScore `/dota2/matches?filter[tournament_id]={id}&filter[status]=finished`; cached in KV for 5 min under `dota2:tournament_heroes_v1:{id}`
+- `api/draft-posts.js` - Generates per-game X/Twitter posts using Claude Haiku; varied tone per game (opener/momentum/decider); posts kept under 220 chars to fit a VOD URL
+- `api/og-series.js` - Renders a 1200x630 series result image (winner, score, tournament, format) using satori + resvg; used in X posts modal as a downloadable PNG
+- `api/match-streams.js` - KV lookup endpoint that returns the stored stream channel for a batch of OpenDota match IDs; used to resolve exact VOD channel before Twitch search
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
@@ -110,12 +115,14 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Also fetches sibling stages via `?filter[serie_id]={id}` to show the full event pipeline
 - Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
-- TournamentHub UI has 3 tabs: Overview | Standings | Schedule
+- TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
   - **Overview**: format badge (e.g. "Swiss - 5R"), event stage pipeline (Group Stage -> Playoffs), `FormatTooltip` explaining each format
   - **Standings**: W-L table with advancing/eliminated zone indicators
-  - **Schedule**: matches grouped by round; live matches pulse, finished show scores, upcoming show kickoff time
+  - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
+  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
 - Multi-stage switcher appears when multiple stages of the same event are running simultaneously
+- Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
 
 ### VOD Linking
 - Searches multiple Twitch channels simultaneously using `Promise.allSettled`
@@ -137,10 +144,20 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ### AI Summary
 - Sends trimmed match data to `/api/summarize` -> Claude Haiku
 - Hero IDs resolved to names before sending to prevent hallucinations
+- Draft data (picks/bans) is isolated from game results before sending to prevent the AI mixing up hero attributions with outcomes
 - Pro player names used (`p.name` field from OpenDota)
 - Output format: DRAFT ANALYSIS (with Draft Winner) / STRATEGY / MVP / HIGHLIGHT
 - Plain text only, no markdown
 - Cached in localStorage by match ID
+
+### X Posts
+- "Draft X Posts" button appears on completed series cards (owner-only, gated by localStorage flag)
+- Calls `api/draft-posts.js` (Claude Haiku) to generate one post per game with varied tone: opener, momentum shift, decider
+- Each post is kept under 220 chars so a VOD URL fits within X's 280-char limit; no hashtags
+- `XPostsModal` shows posts with individual copy buttons plus a series summary section at the top
+- Series summary includes an AI-generated recap post and a downloadable 1200x630 result image from `api/og-series.js`
+- All VOD links include UTM tags (`utm_source=twitter, utm_medium=social, utm_campaign=game-recap, utm_content=game-N`)
+- Series link uses `utm_campaign=series-recap`
 
 ### Share Links & OG Cards
 - Clicking a match updates URL to slug path `/match/teamA-vs-teamB-tournament-{id}`
@@ -206,6 +223,7 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 - Live matches: `https://spectateesports.live/api/live-matches?bust=1`
 - Upcoming matches: `https://spectateesports.live/api/upcoming-matches?bust=1`
 - Tournament detail: `https://spectateesports.live/api/tournament-detail?id={id}&bust=1`
+- Tournament heroes: `https://spectateesports.live/api/tournament-heroes?id={id}&bust=1`
 
 ---
 
