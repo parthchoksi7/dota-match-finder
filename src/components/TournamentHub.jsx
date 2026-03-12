@@ -857,16 +857,16 @@ function TournamentHub() {
               <p className="text-xs text-gray-400 dark:text-gray-600 mb-3 uppercase tracking-widest">
                 {heroStats.gameCount} game{heroStats.gameCount !== 1 ? 's' : ''} · sorted by picks + bans
               </p>
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="overflow-x-auto">
                 <table className="w-full text-xs min-w-[340px]">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-800">
-                      <th className="text-left py-2 px-4 sm:px-0 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 w-6">#</th>
+                      <th className="text-left py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 w-6">#</th>
                       <th className="text-left py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Hero</th>
                       <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Picks</th>
                       <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Win%</th>
                       <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Bans</th>
-                      <th className="text-center py-2 pr-4 sm:pr-0 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">P+B</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">P+B</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -879,7 +879,7 @@ function TournamentHub() {
                           key={hero.name}
                           className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40"
                         >
-                          <td className="py-2 px-4 sm:px-0 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
+                          <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
                           <td className="py-2 px-2 font-semibold text-gray-900 dark:text-white">{hero.name}</td>
                           <td className="py-2 px-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
                           <td className={`py-2 px-2 text-center tabular-nums font-semibold ${
@@ -890,7 +890,7 @@ function TournamentHub() {
                             {winPct !== null ? `${winPct}%` : '—'}
                           </td>
                           <td className="py-2 px-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
-                          <td className="py-2 pr-4 sm:pr-0 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
+                          <td className="py-2 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
                         </tr>
                       )
                     })}

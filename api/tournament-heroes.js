@@ -33,42 +33,41 @@ export default async function handler(req, res) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   try {
-    // Fetch all finished matches for this tournament (includes games with picks_bans)
-    const matchesRes = await fetch(
-      `${BASE}/dota2/matches?filter[tournament_id]=${id}&filter[status]=finished&per_page=100&sort=-begin_at`,
+    // Fetch games directly — picks_bans is reliably populated at the game level,
+    // whereas embedded game objects inside /matches often have picks_bans omitted.
+    const gamesRes = await fetch(
+      `${BASE}/dota2/games?filter[tournament_id]=${id}&filter[status]=finished&per_page=100&sort=-begin_at`,
       { headers }
     )
 
-    if (!matchesRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
+    if (!gamesRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    const matches = await matchesRes.json()
-    if (!Array.isArray(matches)) return res.status(200).json({ heroes: [], gameCount: 0 })
+    const games = await gamesRes.json()
+    if (!Array.isArray(games)) return res.status(200).json({ heroes: [], gameCount: 0 })
 
     const heroStats = {} // { heroName: { picks, wins, bans } }
     let gameCount = 0
 
-    for (const match of matches) {
-      for (const game of (match.games || [])) {
-        const picksBans = game.picks_bans
-        if (!picksBans?.length) continue
-        gameCount++
+    for (const game of games) {
+      const picksBans = game.picks_bans
+      if (!picksBans?.length) continue
+      gameCount++
 
-        const winnerTeamId = game.winner?.id
+      const winnerTeamId = game.winner?.id
 
-        for (const pb of picksBans) {
-          const heroName = pb.hero?.localized_name || pb.hero?.name
-          if (!heroName) continue
+      for (const pb of picksBans) {
+        const heroName = pb.hero?.localized_name || pb.hero?.name
+        if (!heroName) continue
 
-          if (!heroStats[heroName]) heroStats[heroName] = { picks: 0, wins: 0, bans: 0 }
+        if (!heroStats[heroName]) heroStats[heroName] = { picks: 0, wins: 0, bans: 0 }
 
-          if (pb.is_pick) {
-            heroStats[heroName].picks++
-            if (winnerTeamId && pb.team?.id === winnerTeamId) {
-              heroStats[heroName].wins++
-            }
-          } else {
-            heroStats[heroName].bans++
+        if (pb.is_pick) {
+          heroStats[heroName].picks++
+          if (winnerTeamId && pb.team?.id === winnerTeamId) {
+            heroStats[heroName].wins++
           }
+        } else {
+          heroStats[heroName].bans++
         }
       }
     }
