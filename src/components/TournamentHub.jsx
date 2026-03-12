@@ -448,7 +448,7 @@ function HorizontalBracket({ bracket }) {
   )
 }
 
-const TABS = ['Overview', 'Standings', 'Schedule']
+const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes']
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
 function stageShortName(name) {

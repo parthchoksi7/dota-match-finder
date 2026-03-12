@@ -8,12 +8,13 @@ const kv = new Redis({
 })
 
 const OPENDOTA = 'https://api.opendota.com/api'
-const TTL = 60 * 5           // 5 min for hero stats
-const LEAGUES_TTL = 60 * 60 * 24  // 24 h for league list (rarely changes)
-const HEROES_TTL = 60 * 60 * 24   // 24 h for hero name map
+const PANDASCORE_BASE = 'https://api.pandascore.co'
+const TTL = 60 * 5
+const LEAGUES_TTL = 60 * 60 * 24
+const HEROES_TTL = 60 * 60 * 24
 
 // Find the OpenDota league whose name best matches the given search string.
-// Uses token overlap so "PGL Wallachia Season 7" matches "PGL Wallachia S7 2026".
+// Uses token overlap so "PGL Wallachia Season 7" matches "PGL Wallachia 2026 Season 7".
 function findLeague(leagues, search) {
   if (!search || !leagues?.length) return null
   const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
@@ -24,7 +25,6 @@ function findLeague(leagues, search) {
   for (const league of leagues) {
     const lt = tokens(league.name || '')
     const overlap = lt.filter(t => searchTokens.has(t)).length
-    // require at least 2 matching tokens and prefer higher overlap
     if (overlap >= 2 && overlap > bestScore) {
       best = league
       bestScore = overlap
@@ -33,13 +33,10 @@ function findLeague(leagues, search) {
   return best
 }
 
-const PANDASCORE_BASE = 'https://api.pandascore.co'
-
 export default async function handler(req, res) {
   const { id } = req.query
   if (!id) return res.status(400).json({ error: 'Missing id' })
 
-  // Accept an explicit name override, or look it up from PandaScore
   let name = req.query.name || null
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
@@ -55,8 +52,6 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  const isDebug = req.query?.debug === '1'
-
   try {
     // If name wasn't passed by the frontend, look it up from PandaScore
     if (!name) {
@@ -67,19 +62,15 @@ export default async function handler(req, res) {
         })
         if (tRes.ok) {
           const t = await tRes.json()
-          // Prefer the serie's full_name (e.g. "PGL Wallachia Season 7") over the
-          // stage name (e.g. "Group Stage") for a more specific OpenDota match.
           name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
         }
       }
     }
-    // Fetch leagues list + hero map from KV cache or OpenDota
+
+    // Fetch leagues list + hero map in parallel (both long-cached in KV)
     const [leagues, heroMap] = await Promise.all([
       (async () => {
-        try {
-          const c = await kv.get('opendota:leagues_v1')
-          if (c) return c
-        } catch {}
+        try { const c = await kv.get('opendota:leagues_v1'); if (c) return c } catch {}
         const r = await fetch(`${OPENDOTA}/leagues`)
         if (!r.ok) return []
         const data = await r.json()
@@ -87,10 +78,7 @@ export default async function handler(req, res) {
         return data
       })(),
       (async () => {
-        try {
-          const c = await kv.get('opendota:hero_map_v1')
-          if (c) return c
-        } catch {}
+        try { const c = await kv.get('opendota:hero_map_v1'); if (c) return c } catch {}
         const r = await fetch(`${OPENDOTA}/heroes`)
         if (!r.ok) return {}
         const heroes = await r.json()
@@ -102,29 +90,13 @@ export default async function handler(req, res) {
     ])
 
     const league = findLeague(leagues, name)
-    if (isDebug && !league) {
-      // Show top candidates sorted by token overlap to help diagnose matching failures
-      const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
-      const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => t.length > 1 && !STOP.has(t))
-      const searchTokens = new Set(tokens(name || ''))
-      const scored = (leagues || [])
-        .map(l => ({ name: l.name, id: l.leagueid, score: tokens(l.name || '').filter(t => searchTokens.has(t)).length }))
-        .filter(l => l.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10)
-      return res.status(200).json({ debug: true, step: 'league', searchedName: name, searchTokens: [...searchTokens], leagueCount: leagues?.length, topCandidates: scored })
-    }
     if (!league) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    // Fetch all matches for this league (returns [{match_id, radiant_win, ...}])
+    // Fetch match list for the league
     const matchListRes = await fetch(`${OPENDOTA}/leagues/${league.leagueid}/matches`)
     if (!matchListRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
     const matchList = await matchListRes.json()
     if (!Array.isArray(matchList) || !matchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
-
-    if (isDebug) {
-      return res.status(200).json({ debug: true, step: 'matches', league, matchCount: matchList.length, sampleMatch: matchList[0] })
-    }
 
     // Fetch full match details in batches of 10 for picks_bans
     const CONCURRENCY = 10
