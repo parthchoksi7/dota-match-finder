@@ -699,27 +699,25 @@ function TournamentHub() {
         <div className="px-4 sm:px-5 py-4 flex flex-col gap-4">
           {isOngoing && (
             <>
-              {/* Progress row: format · round · team count */}
-              {effectiveDetail?.format && (
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">
-                  <span className="inline-flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
+              {/* Format badge + date range + round/team count */}
+              <div className="flex flex-wrap items-center gap-2">
+                {effectiveDetail?.format && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
                     {effectiveDetail.format}
+                    {effectiveDetail.totalRounds > 0 && !['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail.format) && ` · ${effectiveDetail.totalRounds}R`}
                     <FormatTooltip format={effectiveDetail.format} />
                   </span>
-                  {['Swiss', 'Group Stage'].includes(effectiveDetail.format) && currentRound && effectiveDetail.totalRounds > 0 && (
-                    <>
-                      <span className="text-gray-300 dark:text-gray-700">·</span>
-                      <span>Round {currentRound} of {effectiveDetail.totalRounds}</span>
-                    </>
-                  )}
-                  {effectiveDetail.teamCount > 0 && (
-                    <>
-                      <span className="text-gray-300 dark:text-gray-700">·</span>
-                      <span>{effectiveDetail.teamCount} teams</span>
-                    </>
-                  )}
-                </div>
-              )}
+                )}
+                {dateRange && (
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">{dateRange}</span>
+                )}
+                {['Swiss', 'Group Stage'].includes(effectiveDetail?.format) && currentRound && effectiveDetail?.totalRounds > 0 && (
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">Round {currentRound} of {effectiveDetail.totalRounds}</span>
+                )}
+                {effectiveDetail?.teamCount > 0 && (
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">{effectiveDetail.teamCount} teams</span>
+                )}
+              </div>
 
               {/* Live Now */}
               {liveMatches.length > 0 && (
@@ -857,15 +855,23 @@ function TournamentHub() {
               <p className="text-xs text-gray-400 dark:text-gray-600 mb-3 uppercase tracking-widest">
                 {heroStats.gameCount} game{heroStats.gameCount !== 1 ? 's' : ''} · sorted by picks + bans
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs min-w-[340px]">
+              <div>
+                <table className="w-full text-xs table-fixed">
+                  <colgroup>
+                    <col className="w-6" />
+                    <col />{/* hero name — takes remaining space */}
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-800">
-                      <th className="text-left py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 w-6">#</th>
-                      <th className="text-left py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Hero</th>
-                      <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Picks</th>
-                      <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Win%</th>
-                      <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Bans</th>
+                      <th className="text-left py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">#</th>
+                      <th className="text-left py-2 pr-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Hero</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Picks</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Win%</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Bans</th>
                       <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">P+B</th>
                     </tr>
                   </thead>
@@ -880,16 +886,16 @@ function TournamentHub() {
                           className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40"
                         >
                           <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
-                          <td className="py-2 px-2 font-semibold text-gray-900 dark:text-white">{hero.name}</td>
-                          <td className="py-2 px-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
-                          <td className={`py-2 px-2 text-center tabular-nums font-semibold ${
+                          <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate">{hero.name}</td>
+                          <td className="py-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
+                          <td className={`py-2 text-center tabular-nums font-semibold ${
                             isHighWin ? 'text-green-600 dark:text-green-500'
                             : isLowWin ? 'text-red-500 dark:text-red-400'
                             : 'text-gray-500 dark:text-gray-500'
                           }`}>
-                            {winPct !== null ? `${winPct}%` : '—'}
+                            {winPct !== null ? `${winPct}%` : '-'}
                           </td>
-                          <td className="py-2 px-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
+                          <td className="py-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
                           <td className="py-2 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
                         </tr>
                       )
