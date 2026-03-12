@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef } from "react"
+import { track } from '@vercel/analytics'
+
+function logEvent(name, props) {
+  track(name, props)
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
 
 const FORMAT_DESCRIPTIONS = {
   'Swiss': {
@@ -642,7 +650,7 @@ function TournamentHub() {
           <button
             key={tab}
             type="button"
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); logEvent('tournament_tab_click', { tab }) }}
             className={`px-4 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
               activeTab === tab
                 ? 'border-b-2 border-red-500 text-gray-900 dark:text-white'
