@@ -35,25 +35,34 @@ export default async function handler(req, res) {
   const isDebug = req.query?.debug === '1'
 
   try {
-    // Step 1: fetch finished matches for this tournament to get match IDs.
-    // Use the nested tournament endpoint — filter[tournament_id] is not supported on /dota2/matches.
+    // Step 1: fetch the tournament to get its slug (needed for nested endpoints)
+    const tRes = await fetch(`${BASE}/tournaments/${id}`, { headers })
+    if (!tRes.ok) {
+      if (isDebug) return res.status(200).json({ debug: true, step: 'tournament', status: tRes.status })
+      return res.status(200).json({ heroes: [], gameCount: 0 })
+    }
+    const tournament = await tRes.json()
+    const slug = tournament.slug
+    if (isDebug && !slug) return res.status(200).json({ debug: true, step: 'tournament', noSlug: true, keys: Object.keys(tournament) })
+
+    // Step 2: fetch finished matches via slug-based endpoint
     const matchesRes = await fetch(
-      `${BASE}/tournaments/${id}/matches?filter[status]=finished&per_page=100&sort=-begin_at`,
+      `${BASE}/dota2/tournaments/${slug}/matches?filter[status]=finished&per_page=100&sort=-begin_at`,
       { headers }
     )
     if (!matchesRes.ok) {
       const text = await matchesRes.text()
-      if (isDebug) return res.status(200).json({ debug: true, step: 'matches', status: matchesRes.status, body: text })
+      if (isDebug) return res.status(200).json({ debug: true, step: 'matches', slug, status: matchesRes.status, body: text })
       return res.status(200).json({ heroes: [], gameCount: 0 })
     }
 
     const matches = await matchesRes.json()
     if (isDebug && (!Array.isArray(matches) || !matches.length)) {
-      return res.status(200).json({ debug: true, step: 'matches', matchCount: Array.isArray(matches) ? 0 : -1, raw: matches })
+      return res.status(200).json({ debug: true, step: 'matches', slug, matchCount: Array.isArray(matches) ? 0 : -1, raw: matches })
     }
     if (!Array.isArray(matches) || !matches.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    // Step 2: collect game IDs embedded in the match objects, then fetch the
+    // Step 3: collect game IDs embedded in the match objects, then fetch the
     // full game records. The embedded games inside /matches omit picks_bans,
     // but fetching the game directly via filter[id] includes the full data.
     const gameIds = matches.flatMap(m => (m.games || []).map(g => g.id)).filter(Boolean)
