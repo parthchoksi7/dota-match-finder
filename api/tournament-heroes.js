@@ -9,7 +9,7 @@ const kv = new Redis({
 
 const OPENDOTA = 'https://api.opendota.com/api'
 const PANDASCORE_BASE = 'https://api.pandascore.co'
-const TTL = 60 * 5
+const TTL = 60 * 60 * 3
 const LEAGUES_TTL = 60 * 60 * 24
 const HEROES_TTL = 60 * 60 * 24
 
