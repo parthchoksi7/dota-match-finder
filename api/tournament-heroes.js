@@ -7,19 +7,39 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const BASE = 'https://api.pandascore.co'
-const TTL = 60 * 5 // 5 minutes
+const OPENDOTA = 'https://api.opendota.com/api'
+const TTL = 60 * 5           // 5 min for hero stats
+const LEAGUES_TTL = 60 * 60 * 24  // 24 h for league list (rarely changes)
+const HEROES_TTL = 60 * 60 * 24   // 24 h for hero name map
+
+// Find the OpenDota league whose name best matches the given search string.
+// Uses token overlap so "PGL Wallachia Season 7" matches "PGL Wallachia S7 2026".
+function findLeague(leagues, search) {
+  if (!search || !leagues?.length) return null
+  const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
+  const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => t.length > 1 && !STOP.has(t))
+  const searchTokens = new Set(tokens(search))
+
+  let best = null, bestScore = 0
+  for (const league of leagues) {
+    const lt = tokens(league.name || '')
+    const overlap = lt.filter(t => searchTokens.has(t)).length
+    // require at least 2 matching tokens and prefer higher overlap
+    if (overlap >= 2 && overlap > bestScore) {
+      best = league
+      bestScore = overlap
+    }
+  }
+  return best
+}
 
 export default async function handler(req, res) {
-  const { id } = req.query
+  const { id, name } = req.query
   if (!id) return res.status(400).json({ error: 'Missing id' })
-
-  const token = process.env.PANDASCORE_TOKEN
-  if (!token) return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v6:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v7:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -30,64 +50,83 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-
   const isDebug = req.query?.debug === '1'
 
   try {
-    // /tournaments/{id}/brackets returns match objects that already include an
-    // embedded `games` array. Sub-endpoints like /dota2/matches/{id}/games are
-    // behind a higher-tier plan (403). Use the embedded games directly.
-    const bracketsRes = await fetch(`${BASE}/tournaments/${id}/brackets`, { headers })
-    if (!bracketsRes.ok) {
-      if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', status: bracketsRes.status })
-      return res.status(200).json({ heroes: [], gameCount: 0 })
-    }
+    // Fetch leagues list + hero map from KV cache or OpenDota
+    const [leagues, heroMap] = await Promise.all([
+      (async () => {
+        try {
+          const c = await kv.get('opendota:leagues_v1')
+          if (c) return c
+        } catch {}
+        const r = await fetch(`${OPENDOTA}/leagues`)
+        if (!r.ok) return []
+        const data = await r.json()
+        kv.set('opendota:leagues_v1', data, { ex: LEAGUES_TTL }).catch(() => {})
+        return data
+      })(),
+      (async () => {
+        try {
+          const c = await kv.get('opendota:hero_map_v1')
+          if (c) return c
+        } catch {}
+        const r = await fetch(`${OPENDOTA}/heroes`)
+        if (!r.ok) return {}
+        const heroes = await r.json()
+        const map = {}
+        for (const h of (heroes || [])) map[h.id] = h.localized_name || h.name
+        kv.set('opendota:hero_map_v1', map, { ex: HEROES_TTL }).catch(() => {})
+        return map
+      })(),
+    ])
 
-    const bracketMatches = await bracketsRes.json()
-    if (!Array.isArray(bracketMatches) || !bracketMatches.length) {
-      if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', matchCount: 0 })
-      return res.status(200).json({ heroes: [], gameCount: 0 })
+    const league = findLeague(leagues, name)
+    if (isDebug && !league) {
+      return res.status(200).json({ debug: true, step: 'league', name, leagueCount: leagues?.length, sample: leagues?.slice(0, 5) })
     }
+    if (!league) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    const finished = bracketMatches.filter(m => m.status === 'finished')
-    const allGames = finished.flatMap(m => m.games || [])
+    // Fetch all matches for this league (returns [{match_id, radiant_win, ...}])
+    const matchListRes = await fetch(`${OPENDOTA}/leagues/${league.leagueid}/matches`)
+    if (!matchListRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
+    const matchList = await matchListRes.json()
+    if (!Array.isArray(matchList) || !matchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
     if (isDebug) {
-      const withPicksBans = allGames.filter(g => g.picks_bans?.length)
-      return res.status(200).json({
-        debug: true,
-        step: 'done',
-        totalMatches: bracketMatches.length,
-        finishedMatches: finished.length,
-        totalGames: allGames.length,
-        gamesWithPicksBans: withPicksBans.length,
-        sampleGameKeys: allGames[0] ? Object.keys(allGames[0]) : [],
-        samplePicksBans: withPicksBans[0]?.picks_bans?.slice(0, 2) ?? null,
-      })
+      return res.status(200).json({ debug: true, step: 'matches', league, matchCount: matchList.length, sampleMatch: matchList[0] })
+    }
+
+    // Fetch full match details in batches of 10 for picks_bans
+    const CONCURRENCY = 10
+    const allMatches = []
+    for (let i = 0; i < Math.min(matchList.length, 200); i += CONCURRENCY) {
+      const batch = matchList.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(async m => {
+        const r = await fetch(`${OPENDOTA}/matches/${m.match_id}`)
+        if (!r.ok) return null
+        return r.json()
+      }))
+      allMatches.push(...results.filter(Boolean))
     }
 
     const heroStats = {}
     let gameCount = 0
 
-    for (const game of allGames) {
-      const picksBans = game.picks_bans
-      if (!picksBans?.length) continue
+    for (const match of allMatches) {
+      if (!match.picks_bans?.length) continue
       gameCount++
+      const radiantWin = match.radiant_win
 
-      const winnerTeamId = game.winner?.id
-
-      for (const pb of picksBans) {
-        const heroName = pb.hero?.localized_name || pb.hero?.name
+      for (const pb of match.picks_bans) {
+        const heroName = heroMap[pb.hero_id]
         if (!heroName) continue
-
         if (!heroStats[heroName]) heroStats[heroName] = { picks: 0, wins: 0, bans: 0 }
 
         if (pb.is_pick) {
           heroStats[heroName].picks++
-          if (winnerTeamId && pb.team?.id === winnerTeamId) {
-            heroStats[heroName].wins++
-          }
+          const won = (pb.team === 0 && radiantWin) || (pb.team === 1 && !radiantWin)
+          if (won) heroStats[heroName].wins++
         } else {
           heroStats[heroName].bans++
         }
@@ -105,7 +144,7 @@ export default async function handler(req, res) {
       .sort((a, b) => b.contested - a.contested || b.picks - a.picks)
       .slice(0, 25)
 
-    const payload = { heroes, gameCount }
+    const payload = { heroes, gameCount, league: league.name }
     kv.set(KV_KEY, payload, { ex: TTL }).catch(() => {})
 
     return res.status(200).json(payload)
