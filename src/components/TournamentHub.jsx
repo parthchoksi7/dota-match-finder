@@ -627,25 +627,11 @@ function TournamentHub() {
         </div>
       )}
 
-      {/* Tournament name + dates + format badge */}
+      {/* Tournament name */}
       <div className="px-4 sm:px-5 pt-4 pb-3">
-        <div className="flex flex-wrap items-start gap-2 mb-1">
-          <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
-            {cleanTournamentName(tournament.name)}
-          </p>
-          {effectiveDetail?.format && (
-            <span className="mt-1 shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
-              {effectiveDetail.format}
-              {effectiveDetail.totalRounds > 0 && !['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail.format) && ` · ${effectiveDetail.totalRounds}R`}
-              <FormatTooltip format={effectiveDetail.format} />
-            </span>
-          )}
-        </div>
-        {dateRange && (
-          <p className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">
-            {dateRange}
-          </p>
-        )}
+        <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
+          {cleanTournamentName(tournament.name)}
+        </p>
       </div>
 
       {/* Tab bar */}
