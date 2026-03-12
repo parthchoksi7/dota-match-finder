@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v1:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v2:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -33,22 +33,41 @@ export default async function handler(req, res) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   try {
-    // Fetch games directly — picks_bans is reliably populated at the game level,
-    // whereas embedded game objects inside /matches often have picks_bans omitted.
-    const gamesRes = await fetch(
-      `${BASE}/dota2/games?filter[tournament_id]=${id}&filter[status]=finished&per_page=100&sort=-begin_at`,
+    // Step 1: fetch finished matches for this tournament to get match IDs.
+    // /dota2/games does NOT support filter[tournament_id], but /dota2/matches does.
+    const matchesRes = await fetch(
+      `${BASE}/dota2/matches?filter[tournament_id]=${id}&filter[status]=finished&per_page=100&sort=-begin_at`,
       { headers }
     )
+    if (!matchesRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    if (!gamesRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
+    const matches = await matchesRes.json()
+    if (!Array.isArray(matches) || !matches.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    const games = await gamesRes.json()
-    if (!Array.isArray(games)) return res.status(200).json({ heroes: [], gameCount: 0 })
+    // Step 2: collect game IDs embedded in the match objects, then fetch the
+    // full game records. The embedded games inside /matches omit picks_bans,
+    // but fetching the game directly via filter[id] includes the full data.
+    const gameIds = matches.flatMap(m => (m.games || []).map(g => g.id)).filter(Boolean)
+    if (!gameIds.length) return res.status(200).json({ heroes: [], gameCount: 0 })
+
+    // Batch into groups of 50 to avoid overly long URLs
+    const BATCH = 50
+    const allGames = []
+    for (let i = 0; i < gameIds.length; i += BATCH) {
+      const batch = gameIds.slice(i, i + BATCH)
+      const gamesRes = await fetch(
+        `${BASE}/dota2/games?filter[id]=${batch.join(',')}&per_page=50`,
+        { headers }
+      )
+      if (!gamesRes.ok) continue
+      const games = await gamesRes.json()
+      if (Array.isArray(games)) allGames.push(...games)
+    }
 
     const heroStats = {} // { heroName: { picks, wins, bans } }
     let gameCount = 0
 
-    for (const game of games) {
+    for (const game of allGames) {
       const picksBans = game.picks_bans
       if (!picksBans?.length) continue
       gameCount++
