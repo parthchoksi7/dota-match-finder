@@ -2,6 +2,31 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 12, 2026",
+    tag: "new",
+    title: "Tournament Hub — Hero Pick/Ban Stats",
+    desc: "A new Heroes tab in the Tournament Hub shows which heroes are being picked and banned across all completed games of the active tournament.",
+    items: [
+      "Table shows each hero's pick count, win percentage, ban count, and total contested (picks + bans).",
+      "Sorted by most contested — the heroes dominating the draft are at the top.",
+      "Win% is color-coded: green for 60%+ win rate, red for 40% or below.",
+      "Shows game count so you know how large the sample is.",
+      "Loads lazily when you click the tab. Respects stage switching (Group Stage vs Playoffs).",
+    ],
+  },
+  {
+    date: "Mar 12, 2026",
+    tag: "fix",
+    title: "Tournament Bracket — Round Labels Always Visible",
+    desc: "Bracket column headers now always show their round label (Round 1, Quarterfinal, Semifinal, Final) even when all matches in that round are still TBD. Previously, future rounds showed blank headers.",
+  },
+  {
+    date: "Mar 12, 2026",
+    tag: "improvement",
+    title: "Tournament Bracket — Cleaner Round Names",
+    desc: "Bracket column headers now use clean, canonical names regardless of how PandaScore labels the stage internally. Names like 'Semifinal 2' or 'Upper Bracket Quarterfinal 1' are now shown as just 'Semifinal' or 'Quarterfinal'.",
+  },
+  {
     date: "Mar 8, 2026",
     tag: "improvement",
     title: "Latest Results — date dividers",

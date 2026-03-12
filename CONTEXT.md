@@ -45,6 +45,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/live-matches.js` - Fetches live Dota 2 matches from PandaScore; cached in KV for 2 min
 - `api/upcoming-matches.js` - Fetches upcoming matches (next 72h) from PandaScore; cached in KV
 - `api/tournament-detail.js` - Fetches tournament standings, bracket, and sibling stages from PandaScore; cached in KV for 3 min
+- `api/tournament-heroes.js` - Aggregates hero pick/ban stats across all finished tournament games; fetches from PandaScore `/dota2/matches?filter[tournament_id]={id}&filter[status]=finished`; cached in KV for 5 min under `dota2:tournament_heroes_v1:{id}`
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
@@ -109,12 +110,14 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Also fetches sibling stages via `?filter[serie_id]={id}` to show the full event pipeline
 - Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
-- TournamentHub UI has 3 tabs: Overview | Standings | Schedule
+- TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
   - **Overview**: format badge (e.g. "Swiss - 5R"), event stage pipeline (Group Stage -> Playoffs), `FormatTooltip` explaining each format
   - **Standings**: W-L table with advancing/eliminated zone indicators
-  - **Schedule**: matches grouped by round; live matches pulse, finished show scores, upcoming show kickoff time
+  - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
+  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
 - Multi-stage switcher appears when multiple stages of the same event are running simultaneously
+- Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
 
 ### VOD Linking
 - Searches multiple Twitch channels simultaneously using `Promise.allSettled`
@@ -200,6 +203,7 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 - Live matches: `https://spectateesports.live/api/live-matches?bust=1`
 - Upcoming matches: `https://spectateesports.live/api/upcoming-matches?bust=1`
 - Tournament detail: `https://spectateesports.live/api/tournament-detail?id={id}&bust=1`
+- Tournament heroes: `https://spectateesports.live/api/tournament-heroes?id={id}&bust=1`
 
 ---
 
