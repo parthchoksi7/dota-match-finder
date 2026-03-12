@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v4:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v5:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -35,43 +35,38 @@ export default async function handler(req, res) {
   const isDebug = req.query?.debug === '1'
 
   try {
-    // Step 1: fetch the tournament to get its slug (needed for nested endpoints)
-    const tRes = await fetch(`${BASE}/tournaments/${id}`, { headers })
-    if (!tRes.ok) {
-      if (isDebug) return res.status(200).json({ debug: true, step: 'tournament', id, status: tRes.status })
-      return res.status(200).json({ heroes: [], gameCount: 0 })
-    }
-    const tournament = await tRes.json()
-    const slug = tournament.slug
-    if (isDebug && !slug) return res.status(200).json({ debug: true, step: 'tournament', noSlug: true, keys: Object.keys(tournament) })
-
-    // Step 2: fetch finished matches via slug-based endpoint
-    const matchesRes = await fetch(
-      `${BASE}/dota2/tournaments/${slug}/matches?filter[status]=finished&per_page=100&sort=-begin_at`,
-      { headers }
-    )
-    if (!matchesRes.ok) {
-      const text = await matchesRes.text()
-      if (isDebug) return res.status(200).json({ debug: true, step: 'matches', slug, status: matchesRes.status, body: text })
+    // Use /tournaments/{id}/brackets — the same endpoint that powers the Schedule tab.
+    // This works for both elimination and group stage (Swiss) formats.
+    // No dedicated /matches sub-endpoint exists on PandaScore for tournaments.
+    const bracketsRes = await fetch(`${BASE}/tournaments/${id}/brackets`, { headers })
+    if (!bracketsRes.ok) {
+      if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', status: bracketsRes.status })
       return res.status(200).json({ heroes: [], gameCount: 0 })
     }
 
-    const matches = await matchesRes.json()
-    if (isDebug && (!Array.isArray(matches) || !matches.length)) {
-      return res.status(200).json({ debug: true, step: 'matches', slug, matchCount: Array.isArray(matches) ? 0 : -1, raw: matches })
+    const bracketMatches = await bracketsRes.json()
+    if (!Array.isArray(bracketMatches) || !bracketMatches.length) {
+      if (isDebug) return res.status(200).json({ debug: true, step: 'brackets', matchCount: 0, raw: bracketMatches })
+      return res.status(200).json({ heroes: [], gameCount: 0 })
     }
-    if (!Array.isArray(matches) || !matches.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    // Step 3: collect game IDs embedded in the match objects, then fetch the
-    // full game records. The embedded games inside /matches omit picks_bans,
-    // but fetching the game directly via filter[id] includes the full data.
-    const gameIds = matches.flatMap(m => (m.games || []).map(g => g.id)).filter(Boolean)
+    // Finished matches only
+    const finished = bracketMatches.filter(m => m.status === 'finished')
+    const gameIds = finished.flatMap(m => (m.games || []).map(g => g.id)).filter(Boolean)
+
     if (isDebug && !gameIds.length) {
-      return res.status(200).json({ debug: true, step: 'gameIds', matchCount: matches.length, sampleMatch: matches[0] })
+      return res.status(200).json({
+        debug: true,
+        step: 'gameIds',
+        totalMatches: bracketMatches.length,
+        finishedMatches: finished.length,
+        sampleFinishedMatch: finished[0] ?? null,
+      })
     }
     if (!gameIds.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    // Batch into groups of 50 to avoid overly long URLs
+    // Fetch full game records in batches of 50 — embedded games inside bracket matches
+    // omit picks_bans, but the games list endpoint includes it when fetched by ID.
     const BATCH = 50
     const allGames = []
     for (let i = 0; i < gameIds.length; i += BATCH) {
@@ -89,7 +84,8 @@ export default async function handler(req, res) {
       return res.status(200).json({
         debug: true,
         step: 'games',
-        matchCount: matches.length,
+        totalMatches: bracketMatches.length,
+        finishedMatches: finished.length,
         gameIdCount: gameIds.length,
         gamesFetched: allGames.length,
         gamesWithPicksBans: allGames.filter(g => g.picks_bans?.length).length,
@@ -97,7 +93,7 @@ export default async function handler(req, res) {
       })
     }
 
-    const heroStats = {} // { heroName: { picks, wins, bans } }
+    const heroStats = {}
     let gameCount = 0
 
     for (const game of allGames) {
