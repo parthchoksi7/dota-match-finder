@@ -143,7 +143,6 @@ export default async function handler(req, res) {
         contested: s.picks + s.bans,
       }))
       .sort((a, b) => b.contested - a.contested || b.picks - a.picks)
-      .slice(0, 25)
 
     const payload = { heroes, gameCount, league: league.name }
     kv.set(KV_KEY, payload, { ex: TTL }).catch(() => {})

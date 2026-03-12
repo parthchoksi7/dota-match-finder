@@ -530,6 +530,7 @@ function TournamentHub() {
   // Hero pick/ban stats (via OpenDota)
   const [heroStats, setHeroStats] = useState(null)
   const [heroStatsLoading, setHeroStatsLoading] = useState(false)
+  const [showAllHeroes, setShowAllHeroes] = useState(false)
 
   useEffect(() => {
     if (activeTab !== 'Heroes' || !tournament) return
@@ -551,6 +552,7 @@ function TournamentHub() {
     setStageCache({})
     setActiveStageId(null)
     setHeroStats(null)
+    setShowAllHeroes(false)
   }
 
   // The detail used for Standings + Schedule (active stage, falling back to main)
@@ -870,7 +872,7 @@ function TournamentHub() {
                   </tr>
                 </thead>
                 <tbody>
-                  {heroStats.heroes.map((hero, i) => {
+                  {(showAllHeroes ? heroStats.heroes : heroStats.heroes.slice(0, 25)).map((hero, i) => {
                     const winPct = hero.picks > 0 ? Math.round((hero.wins / hero.picks) * 100) : null
                     const isHighWin = winPct !== null && winPct >= 60
                     const isLowWin = winPct !== null && winPct <= 40
@@ -893,6 +895,15 @@ function TournamentHub() {
                   })}
                 </tbody>
               </table>
+              {heroStats.heroes.length > 25 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllHeroes(v => !v)}
+                  className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  {showAllHeroes ? 'Show less' : `Show all ${heroStats.heroes.length} heroes`}
+                </button>
+              )}
             </div>
           )}
         </div>
