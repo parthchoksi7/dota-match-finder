@@ -854,7 +854,7 @@ function TournamentHub() {
               {heroStats.heroes.length > 25 && (
                 <button
                   type="button"
-                  onClick={() => setShowAllHeroes(v => !v)}
+                  onClick={() => { const next = !showAllHeroes; setShowAllHeroes(next); logEvent('heroes_show_more', { expanded: next }) }}
                   className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   {showAllHeroes ? 'Show less' : `Show all ${heroStats.heroes.length} heroes`}
