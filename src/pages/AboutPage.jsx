@@ -33,7 +33,7 @@ function AboutPage() {
               { title: "Spoiler-Free Mode", desc: "Hide scores and match results until you're ready to reveal them. Toggle on/off anytime." },
               { title: "Shareable Match Cards", desc: "Every match has a unique link with a rich preview card. Share a specific game directly." },
               { title: "Live Match Scores", desc: "See live series scores, current game, and completed game results while matches are in progress." },
-              { title: "Tournament Hub", desc: "Group stage standings, round schedule, and format info (Swiss, Double Elimination) for the active tournament." },
+              { title: "Tournament Hub", desc: "Live Overview with live matches, upcoming matches, and a standings snapshot. Plus full standings, schedule, stage switcher, and bracket tree for ongoing tournaments." },
               { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
