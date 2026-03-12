@@ -35,7 +35,6 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule tabs, format badge, event stage pipeline, bracket view
 - `src/components/WatchBadge.jsx` - Watchability badge component
-- `src/components/XPostsModal.jsx` - Modal for drafting X/Twitter posts per game in a completed series (owner-only feature)
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
 - `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`)
@@ -50,7 +49,6 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
 - `api/tournaments.js` - Tournament data endpoint
-- `api/draft-posts.js` - Generates AI-drafted X/Twitter posts (one per game) for a completed series using Claude Haiku
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
 ### Config
@@ -143,15 +141,6 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Output format: DRAFT ANALYSIS (with Draft Winner) / STRATEGY / MVP / HIGHLIGHT
 - Plain text only, no markdown
 - Cached in localStorage by match ID
-
-### Draft X Posts (Owner-Only)
-- Available on completed series cards for authenticated owners (gated by `spectate_owner=1` in localStorage)
-- "Draft X posts" button on `MatchCard` opens `XPostsModal`
-- `App.jsx` calls `/api/draft-posts` with series metadata and game replay URLs
-- `api/draft-posts.js` uses Claude Haiku to generate one human-sounding post per game (under 200 chars + link)
-- Posts vary in tone/structure across games (opener, momentum shift, decider narrative)
-- Each post ends with the Spectate match URL as the CTA/replay link
-- `XPostsModal` shows posts per game with a one-click Copy button; closes on Escape or backdrop click
 
 ### Share Links & OG Cards
 - Clicking a match updates URL to slug path `/match/teamA-vs-teamB-tournament-{id}`
