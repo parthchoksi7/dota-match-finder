@@ -116,11 +116,11 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
 - TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
-  - **Overview** (ongoing): progress row (format + current round + team count), Live Now section (running matches with pulsing red dot), Up Next section (next 3 non-TBD scheduled matches), and a standings snapshot showing top 6 teams with green/red zone bars. All sections update when switching stages.
+  - **Overview** (ongoing): format badge + date range + round/team count at the top (always visible), then Live Now (running matches with pulsing dot), Up Next (next 3 non-TBD scheduled matches), and a standings snapshot showing top 6 teams with green/red zone bars. All sections update when switching stages.
   - **Overview** (upcoming): shows other upcoming tournaments (Also coming up list).
   - **Standings**: W-L table with advancing/eliminated zone indicators
   - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
-  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click.
+  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click. Uses `/dota2/games?filter[tournament_id]={id}` (game-level endpoint) rather than embedded game objects inside `/matches`, which ensures picks_bans is populated for all formats including Swiss group stages. Table uses `table-fixed` layout with truncated hero names to avoid horizontal overflow clipping.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
 - Multi-stage switcher appears when multiple stages of the same event are running simultaneously
 - Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
