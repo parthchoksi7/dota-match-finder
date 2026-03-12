@@ -3,6 +3,18 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 12, 2026",
+    tag: "improvement",
+    title: "Tournament Hub - Cleaner Tab Navigation",
+    desc: "Removed visual clutter from the Overview and Heroes tabs.",
+    items: [
+      "Stage switcher (Group Stage / Playoffs) is now hidden on the Overview and Heroes tabs, where switching stages has no effect on the content shown.",
+      "Up Next and Standings snapshot removed from Overview - these live on their dedicated tabs.",
+      "Overview now focuses on what matters most: the Live Now section showing currently running matches.",
+      "Heroes tab: shows top 25 heroes by default with a 'Show all N heroes' button to expand. The API no longer caps at 25 - all drafted heroes are available.",
+    ],
+  },
+  {
+    date: "Mar 12, 2026",
     tag: "fix",
     title: "Tournament Hub - Heroes Table and Overview Polish",
     desc: "Two visual fixes to the Tournament Hub.",

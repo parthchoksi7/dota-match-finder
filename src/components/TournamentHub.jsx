@@ -664,7 +664,7 @@ function TournamentHub() {
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
-      {detail?.eventStages?.length > 1 && (
+      {detail?.eventStages?.length > 1 && activeTab !== 'Overview' && activeTab !== 'Heroes' && (
         <div className="flex items-center gap-1 px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-900">
           <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
           {detail.eventStages.map(stage => {
@@ -729,58 +729,14 @@ function TournamentHub() {
                 </div>
               )}
 
-              {/* Up Next */}
-              {upcomingMatches.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
-                    Up Next
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {upcomingMatches.map((m, i) => <OverviewMatchRow key={m.id || i} match={m} />)}
-                  </div>
-                </div>
-              )}
-
               {/* No matches state */}
-              {liveMatches.length === 0 && upcomingMatches.length === 0 && effectiveDetail && (
+              {liveMatches.length === 0 && effectiveDetail && (
                 <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-1">
                   No matches currently scheduled
                 </p>
               )}
 
-              {/* Standings Snapshot — top 6 teams */}
-              {effectiveDetail?.standings?.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
-                    Standings
-                  </p>
-                  <div>
-                    {effectiveDetail.standings.slice(0, 6).map((s, i) => {
-                      const showZones = effectiveDetail.standings.length >= 4
-                      const midpoint = Math.ceil(effectiveDetail.standings.length / 2)
-                      const isEliminated = showZones && i >= midpoint && s.losses > s.wins
-                      return (
-                        <div key={i} className="flex items-center gap-2 py-1.5 text-xs border-b border-gray-100 dark:border-gray-900 last:border-0">
-                          <span className="w-5 tabular-nums text-gray-400 dark:text-gray-600 text-right flex-shrink-0">{s.rank}</span>
-                          {showZones && (
-                            <span className={`w-1 h-4 rounded-full flex-shrink-0 ${isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'}`} />
-                          )}
-                          <span className={`flex-1 font-semibold truncate ${isEliminated ? 'text-gray-400 dark:text-gray-600' : 'text-gray-900 dark:text-white'}`}>
-                            {s.team}
-                          </span>
-                          <span className="font-bold tabular-nums text-green-600 dark:text-green-400 w-6 text-center">{s.wins}</span>
-                          <span className="font-bold tabular-nums text-red-500 dark:text-red-400 w-6 text-center">{s.losses}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {effectiveDetail.standings.length > 6 && (
-                    <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 uppercase tracking-widest">
-                      +{effectiveDetail.standings.length - 6} more - see Standings tab
-                    </p>
-                  )}
-                </div>
-              )}
+
             </>
           )}
 
@@ -898,7 +854,7 @@ function TournamentHub() {
               {heroStats.heroes.length > 25 && (
                 <button
                   type="button"
-                  onClick={() => setShowAllHeroes(v => !v)}
+                  onClick={() => { const next = !showAllHeroes; setShowAllHeroes(next); logEvent('heroes_show_more', { expanded: next }) }}
                   className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   {showAllHeroes ? 'Show less' : `Show all ${heroStats.heroes.length} heroes`}

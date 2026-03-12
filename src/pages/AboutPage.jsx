@@ -33,8 +33,8 @@ function AboutPage() {
               { title: "Spoiler-Free Mode", desc: "Hide scores and match results until you're ready to reveal them. Toggle on/off anytime." },
               { title: "Shareable Match Cards", desc: "Every match has a unique link with a rich preview card. Share a specific game directly." },
               { title: "Live Match Scores", desc: "See live series scores, current game, and completed game results while matches are in progress." },
-              { title: "Tournament Hub", desc: "Live Overview with live matches, upcoming matches, and a standings snapshot. Plus full standings, schedule, stage switcher, and bracket tree for ongoing tournaments." },
-              { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts." },
+              { title: "Tournament Hub", desc: "Live Overview showing running matches with a pulsing indicator. Full standings, schedule, and bracket tree for ongoing tournaments. Stage switcher for multi-stage events." },
+              { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts. Shows top 25 by default with a button to reveal all." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-gray-900 dark:text-white mb-1.5">{f.title}</p>

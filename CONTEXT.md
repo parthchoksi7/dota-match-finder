@@ -116,13 +116,13 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
 - TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
-  - **Overview** (ongoing): format badge + date range + round/team count at the top (always visible), then Live Now (running matches with pulsing dot), Up Next (next 3 non-TBD scheduled matches), and a standings snapshot showing top 6 teams with green/red zone bars. All sections update when switching stages.
+  - **Overview** (ongoing): format badge + date range + round/team count at the top (always visible), then Live Now (running matches with pulsing dot). Stage switcher and Up Next / Standings snapshot are intentionally hidden on the Overview tab to reduce noise.
   - **Overview** (upcoming): shows other upcoming tournaments (Also coming up list).
   - **Standings**: W-L table with advancing/eliminated zone indicators
   - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
-  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click via OpenDota API (see `api/tournament-heroes.js`). Table uses `table-fixed` layout with truncated hero names and `overflow-x-auto` on the tab bar to avoid horizontal overflow clipping on mobile.
+  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click via OpenDota API (see `api/tournament-heroes.js`). Shows top 25 heroes by default; a "Show all N heroes" button below the table expands to reveal all. Stage switcher is hidden on this tab (hero stats are tournament-wide, not stage-specific). Table uses `table-fixed` layout with truncated hero names and `overflow-x-auto` on the tab bar to avoid horizontal overflow clipping on mobile.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
-- Multi-stage switcher appears when multiple stages of the same event are running simultaneously
+- Multi-stage switcher appears when multiple stages of the same event are running simultaneously; hidden on Overview and Heroes tabs where stage context is irrelevant
 - Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
 
 ### VOD Linking
