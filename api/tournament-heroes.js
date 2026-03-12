@@ -33,9 +33,14 @@ function findLeague(leagues, search) {
   return best
 }
 
+const PANDASCORE_BASE = 'https://api.pandascore.co'
+
 export default async function handler(req, res) {
-  const { id, name } = req.query
+  const { id } = req.query
   if (!id) return res.status(400).json({ error: 'Missing id' })
+
+  // Accept an explicit name override, or look it up from PandaScore
+  let name = req.query.name || null
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
@@ -53,6 +58,21 @@ export default async function handler(req, res) {
   const isDebug = req.query?.debug === '1'
 
   try {
+    // If name wasn't passed by the frontend, look it up from PandaScore
+    if (!name) {
+      const token = process.env.PANDASCORE_TOKEN
+      if (token) {
+        const tRes = await fetch(`${PANDASCORE_BASE}/tournaments/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        })
+        if (tRes.ok) {
+          const t = await tRes.json()
+          // Prefer the serie's full_name (e.g. "PGL Wallachia Season 7") over the
+          // stage name (e.g. "Group Stage") for a more specific OpenDota match.
+          name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+        }
+      }
+    }
     // Fetch leagues list + hero map from KV cache or OpenDota
     const [leagues, heroMap] = await Promise.all([
       (async () => {
