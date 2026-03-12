@@ -83,7 +83,16 @@ export default async function handler(req, res) {
 
     const league = findLeague(leagues, name)
     if (isDebug && !league) {
-      return res.status(200).json({ debug: true, step: 'league', name, leagueCount: leagues?.length, sample: leagues?.slice(0, 5) })
+      // Show top candidates sorted by token overlap to help diagnose matching failures
+      const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
+      const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => t.length > 1 && !STOP.has(t))
+      const searchTokens = new Set(tokens(name || ''))
+      const scored = (leagues || [])
+        .map(l => ({ name: l.name, id: l.leagueid, score: tokens(l.name || '').filter(t => searchTokens.has(t)).length }))
+        .filter(l => l.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10)
+      return res.status(200).json({ debug: true, step: 'league', searchedName: name, searchTokens: [...searchTokens], leagueCount: leagues?.length, topCandidates: scored })
     }
     if (!league) return res.status(200).json({ heroes: [], gameCount: 0 })
 
