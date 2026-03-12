@@ -32,6 +32,8 @@ export default async function handler(req, res) {
 
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
+  const isDebug = req.query?.debug === '1'
+
   try {
     // Step 1: fetch finished matches for this tournament to get match IDs.
     // /dota2/games does NOT support filter[tournament_id], but /dota2/matches does.
@@ -39,15 +41,25 @@ export default async function handler(req, res) {
       `${BASE}/dota2/matches?filter[tournament_id]=${id}&filter[status]=finished&per_page=100&sort=-begin_at`,
       { headers }
     )
-    if (!matchesRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
+    if (!matchesRes.ok) {
+      const text = await matchesRes.text()
+      if (isDebug) return res.status(200).json({ debug: true, step: 'matches', status: matchesRes.status, body: text })
+      return res.status(200).json({ heroes: [], gameCount: 0 })
+    }
 
     const matches = await matchesRes.json()
+    if (isDebug && (!Array.isArray(matches) || !matches.length)) {
+      return res.status(200).json({ debug: true, step: 'matches', matchCount: Array.isArray(matches) ? 0 : -1, raw: matches })
+    }
     if (!Array.isArray(matches) || !matches.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
     // Step 2: collect game IDs embedded in the match objects, then fetch the
     // full game records. The embedded games inside /matches omit picks_bans,
     // but fetching the game directly via filter[id] includes the full data.
     const gameIds = matches.flatMap(m => (m.games || []).map(g => g.id)).filter(Boolean)
+    if (isDebug && !gameIds.length) {
+      return res.status(200).json({ debug: true, step: 'gameIds', matchCount: matches.length, sampleMatch: matches[0] })
+    }
     if (!gameIds.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
     // Batch into groups of 50 to avoid overly long URLs
@@ -62,6 +74,18 @@ export default async function handler(req, res) {
       if (!gamesRes.ok) continue
       const games = await gamesRes.json()
       if (Array.isArray(games)) allGames.push(...games)
+    }
+
+    if (isDebug) {
+      return res.status(200).json({
+        debug: true,
+        step: 'games',
+        matchCount: matches.length,
+        gameIdCount: gameIds.length,
+        gamesFetched: allGames.length,
+        gamesWithPicksBans: allGames.filter(g => g.picks_bans?.length).length,
+        sampleGame: allGames[0] ?? null,
+      })
     }
 
     const heroStats = {} // { heroName: { picks, wins, bans } }
