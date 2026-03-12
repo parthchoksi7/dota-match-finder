@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     // Step 1: fetch the tournament to get its slug (needed for nested endpoints)
     const tRes = await fetch(`${BASE}/tournaments/${id}`, { headers })
     if (!tRes.ok) {
-      if (isDebug) return res.status(200).json({ debug: true, step: 'tournament', status: tRes.status })
+      if (isDebug) return res.status(200).json({ debug: true, step: 'tournament', id, status: tRes.status })
       return res.status(200).json({ heroes: [], gameCount: 0 })
     }
     const tournament = await tRes.json()
