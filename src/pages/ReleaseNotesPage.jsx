@@ -9,7 +9,7 @@ const RELEASES = [
     items: [
       "Heroes table: text no longer gets clipped on mobile. Switched to a fixed-width column layout so the table always fits without needing to scroll.",
       "Overview tab: format badge (e.g. Swiss - 5R) and tournament dates now appear at the top of the Overview tab, so there is always something useful to read even between rounds.",
-      "Heroes tab: fixed missing draft data for Group Stage tournaments by fetching game-level records directly from PandaScore instead of embedded match data.",
+      "Heroes tab: fixed \"No draft data yet\" showing for all stages. PandaScore's /dota2/games endpoint does not support filtering by tournament ID, and embedded games inside /matches omit picks_bans. The fix fetches matches first (which do support tournament filtering), then retrieves the full game records by ID so picks_bans data is always present.",
     ],
   },
   {

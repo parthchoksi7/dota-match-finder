@@ -46,7 +46,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/live-matches.js` - Fetches live Dota 2 matches from PandaScore; cached in KV for 2 min
 - `api/upcoming-matches.js` - Fetches upcoming matches (next 72h) from PandaScore; cached in KV
 - `api/tournament-detail.js` - Fetches tournament standings, bracket, and sibling stages from PandaScore; cached in KV for 3 min
-- `api/tournament-heroes.js` - Aggregates hero pick/ban stats across all finished tournament games; fetches from PandaScore `/dota2/matches?filter[tournament_id]={id}&filter[status]=finished`; cached in KV for 5 min under `dota2:tournament_heroes_v1:{id}`
+- `api/tournament-heroes.js` - Aggregates hero pick/ban stats across all finished tournament games. Two-step fetch: (1) `/dota2/matches?filter[tournament_id]={id}&filter[status]=finished` to get match IDs, (2) `/dota2/games?filter[id]={gameIds}` in batches of 50 to get full game records including picks_bans (embedded games inside /matches omit picks_bans). Cached in KV for 5 min under `dota2:tournament_heroes_v2:{id}`.
 - `api/draft-posts.js` - Generates per-game X/Twitter posts using Claude Haiku; varied tone per game (opener/momentum/decider); posts kept under 220 chars to fit a VOD URL
 - `api/og-series.js` - Renders a 1200x630 series result image (winner, score, tournament, format) using satori + resvg; used in X posts modal as a downloadable PNG
 - `api/match-streams.js` - KV lookup endpoint that returns the stored stream channel for a batch of OpenDota match IDs; used to resolve exact VOD channel before Twitch search
@@ -120,7 +120,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
   - **Overview** (upcoming): shows other upcoming tournaments (Also coming up list).
   - **Standings**: W-L table with advancing/eliminated zone indicators
   - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
-  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click. Uses `/dota2/games?filter[tournament_id]={id}` (game-level endpoint) rather than embedded game objects inside `/matches`, which ensures picks_bans is populated for all formats including Swiss group stages. Table uses `table-fixed` layout with truncated hero names to avoid horizontal overflow clipping.
+  - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click. Two-step fetch: matches via `filter[tournament_id]`, then full game records via `filter[id]` (PandaScore does not support `filter[tournament_id]` on `/dota2/games`, and embedded games inside /matches omit picks_bans). Table uses `table-fixed` layout with truncated hero names to avoid horizontal overflow clipping.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
 - Multi-stage switcher appears when multiple stages of the same event are running simultaneously
 - Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
