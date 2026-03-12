@@ -401,7 +401,7 @@ function HorizontalBracket({ bracket }) {
   )
 }
 
-const TABS = ['Overview', 'Standings', 'Schedule']
+const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes']
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
 function stageShortName(name) {
@@ -471,6 +471,22 @@ function TournamentHub() {
       .finally(() => setStageLoading(false))
   }, [activeStageId])
 
+  // Hero pick/ban stats
+  const [heroStats, setHeroStats] = useState(null)
+  const [heroStatsLoading, setHeroStatsLoading] = useState(false)
+
+  useEffect(() => {
+    if (activeTab !== 'Heroes' || !tournament) return
+    const fetchId = activeStageId || tournament.id
+    if (heroStats?.fetchedForId === fetchId) return
+    setHeroStatsLoading(true)
+    fetch(`/api/tournament-heroes?id=${fetchId}`)
+      .then(r => r.json())
+      .then(d => setHeroStats({ ...d, fetchedForId: fetchId }))
+      .catch(() => setHeroStats({ heroes: [], gameCount: 0, fetchedForId: fetchId }))
+      .finally(() => setHeroStatsLoading(false))
+  }, [activeTab, tournament?.id, activeStageId])
+
   // Reset everything when switching between concurrent tournaments
   function switchTournament(idx) {
     setActiveTournamentIdx(idx)
@@ -478,6 +494,7 @@ function TournamentHub() {
     setDetail(null)
     setStageCache({})
     setActiveStageId(null)
+    setHeroStats(null)
   }
 
   // The detail used for Standings + Schedule (active stage, falling back to main)
@@ -701,6 +718,66 @@ function TournamentHub() {
             ? <HorizontalBracket bracket={effectiveDetail?.bracket} />
             : <BracketView bracket={effectiveDetail?.bracket} />
           }
+        </div>
+      )}
+
+      {activeTab === 'Heroes' && (
+        <div className="px-4 sm:px-5 py-4">
+          {heroStatsLoading ? (
+            <div className="py-8 flex justify-center">
+              <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
+            </div>
+          ) : !heroStats?.heroes?.length ? (
+            <p className="py-6 text-center text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+              No draft data yet
+            </p>
+          ) : (
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-600 mb-3 uppercase tracking-widest">
+                {heroStats.gameCount} game{heroStats.gameCount !== 1 ? 's' : ''} · sorted by picks + bans
+              </p>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-xs min-w-[340px]">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-800">
+                      <th className="text-left py-2 px-4 sm:px-0 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 w-6">#</th>
+                      <th className="text-left py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Hero</th>
+                      <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Picks</th>
+                      <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Win%</th>
+                      <th className="text-center py-2 px-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Bans</th>
+                      <th className="text-center py-2 pr-4 sm:pr-0 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">P+B</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {heroStats.heroes.map((hero, i) => {
+                      const winPct = hero.picks > 0 ? Math.round((hero.wins / hero.picks) * 100) : null
+                      const isHighWin = winPct !== null && winPct >= 60
+                      const isLowWin = winPct !== null && winPct <= 40
+                      return (
+                        <tr
+                          key={hero.name}
+                          className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40"
+                        >
+                          <td className="py-2 px-4 sm:px-0 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
+                          <td className="py-2 px-2 font-semibold text-gray-900 dark:text-white">{hero.name}</td>
+                          <td className="py-2 px-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
+                          <td className={`py-2 px-2 text-center tabular-nums font-semibold ${
+                            isHighWin ? 'text-green-600 dark:text-green-500'
+                            : isLowWin ? 'text-red-500 dark:text-red-400'
+                            : 'text-gray-500 dark:text-gray-500'
+                          }`}>
+                            {winPct !== null ? `${winPct}%` : '—'}
+                          </td>
+                          <td className="py-2 px-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
+                          <td className="py-2 pr-4 sm:pr-0 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
