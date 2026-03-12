@@ -300,7 +300,7 @@ function BracketSection({ label, rounds }) {
             style={{ left: rIdx * (CARD_W + H_GAP), top: 0, width: CARD_W, height: LABEL_H }}
           >
             <span className="text-xs text-gray-400 dark:text-gray-600 truncate block px-1">
-              {round.matches.every(m => m.teamA === 'TBD' && m.teamB === 'TBD') ? '' : round.label}
+              {round.label}
             </span>
           </div>
         ))}
