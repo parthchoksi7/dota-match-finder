@@ -40,6 +40,10 @@ function parseBracketPosition(name) {
     round = 30
   }
 
+  // Extract match position within this round (e.g. "Round 1 Match 3" → 3)
+  const matchPosMatch = n.match(/Match\s+(\d+)/i)
+  const matchPosition = matchPosMatch ? parseInt(matchPosMatch[1]) : null
+
   // Strip section prefix from label so column headers show "Quarterfinal" not "Upper Bracket Quarterfinal"
   const shortLabel = n
     .replace(/^upper\s+bracket\s*/i, '')
@@ -58,7 +62,7 @@ function parseBracketPosition(name) {
   } else if (numMatch) {
     label = `Round ${numMatch[1]}`
   }
-  return { section, round, label }
+  return { section, round, label, matchPosition }
 }
 
 /**
@@ -95,7 +99,7 @@ function inferFormat(tournament, roundCounts) {
   return null // unknown
 }
 
-function normalizeMatch(m) {
+function normalizeMatch(m, matchPosition = null) {
   const opA = m.opponents?.[0]?.opponent
   const opB = m.opponents?.[1]?.opponent
   const resA = opA ? (m.results || []).find(r => r.team_id === opA.id)?.score ?? null : null
@@ -111,6 +115,7 @@ function normalizeMatch(m) {
     winnerName: winnerId === opA?.id ? opA?.name : winnerId === opB?.id ? opB?.name : null,
     scheduledAt: m.scheduled_at || m.begin_at || null,
     numberOfGames: m.number_of_games,
+    matchPosition,
   }
 }
 
@@ -153,10 +158,18 @@ export default async function handler(req, res) {
     // Group bracket matches by section + round
     const roundMap = {}
     for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
-      const { section, round, label } = parseBracketPosition(m.name)
+      const { section, round, label, matchPosition } = parseBracketPosition(m.name)
       const key = `${section}__${round}`
       if (!roundMap[key]) roundMap[key] = { section, round, label, matches: [] }
-      roundMap[key].matches.push(normalizeMatch(m))
+      roundMap[key].matches.push(normalizeMatch(m, matchPosition))
+    }
+    // Sort matches within each round by their position so SVG connector indices are correct
+    for (const r of Object.values(roundMap)) {
+      r.matches.sort((a, b) => {
+        if (a.matchPosition !== null && b.matchPosition !== null)
+          return a.matchPosition - b.matchPosition
+        return a.id - b.id
+      })
     }
     // Sort: upper first, lower second, main third, grand_final last; within section by round
     const SECTION_ORDER = { upper: 0, lower: 1, main: 2, grand_final: 3 }
