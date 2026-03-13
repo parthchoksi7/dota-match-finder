@@ -15,22 +15,17 @@ function MatchList({ matches, onSelect, onDraftPosts, loading, onClearSearch, sp
 
   if (!matches || matches.length === 0) {
     return (
-      <div
-        className="text-center py-12 border border-gray-200 dark:border-gray-800 rounded"
-        role="status"
-        aria-live="polite"
-      >
-        <p className="text-gray-500 dark:text-gray-500 text-sm uppercase tracking-widest">
-          No matches found
+      <div role="status" aria-live="polite" className="py-8 text-center">
+        <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+          Nothing matched.
         </p>
-        <p className="text-gray-500 dark:text-gray-600 text-xs mt-2">Try a different team or tournament name.</p>
         {onClearSearch && (
           <button
             type="button"
             onClick={onClearSearch}
-            className="focus-ring mt-4 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+            className="focus-ring mt-4 px-4 py-1.5 border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider hover:border-gray-400 dark:hover:border-gray-600 rounded transition-colors"
           >
-            Clear and try again
+            Clear search
           </button>
         )}
       </div>
