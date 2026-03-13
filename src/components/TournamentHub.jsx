@@ -716,27 +716,6 @@ function TournamentHub() {
                 )}
               </div>
 
-              {/* Live Now */}
-              {liveMatches.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    Live Now
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {liveMatches.map((m, i) => <OverviewMatchRow key={m.id || i} match={m} />)}
-                  </div>
-                </div>
-              )}
-
-              {/* No matches state */}
-              {liveMatches.length === 0 && effectiveDetail && (
-                <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-1">
-                  No matches currently scheduled
-                </p>
-              )}
-
-
             </>
           )}
 
