@@ -51,6 +51,7 @@ Recommendations for Dota Match Finder, as if managing the product. Ordered by im
 - **Focus states**: All interactive elements (search input, buttons, card rows, Dismiss, AI Summary) should have visible focus rings for keyboard users (e.g. `focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-950`).
 - **Buttons**: Align disabled states: e.g. `disabled:opacity-60 disabled:cursor-not-allowed` on Search and AI Summary so it’s obvious they’re not clickable.
 - **Borders**: You use `border-gray-800` widely; consider a single border color variable or Tailwind theme so future tweaks are one place.
+- **Letter-spacing in tables**: Use `tracking-wide` (not `tracking-widest`) for `text-xs` column headers inside fixed-width columns. `tracking-widest` adds ~3 px per character gap which pushes short labels like "Picks" or "Win%" beyond a `w-10` (40 px) column boundary and causes visible overlap with adjacent cells.
 
 ---
 
