@@ -668,13 +668,13 @@ function TournamentHub() {
 
       {/* Tab bar — segmented control */}
       <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
-        <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+        <div className="flex w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
           {TABS.map(tab => (
             <button
               key={tab}
               type="button"
               onClick={() => { setActiveTab(tab); logEvent('tournament_tab_click', { tab }) }}
-              className={`px-3 py-1 text-xs font-semibold uppercase tracking-widest rounded transition-colors ${
+              className={`flex-1 py-1 text-xs font-semibold uppercase tracking-wide rounded transition-colors text-center whitespace-nowrap ${
                 activeTab === tab
                   ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                   : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -842,12 +842,12 @@ function TournamentHub() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-800">
-                    <th className="text-left py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">#</th>
-                    <th className="text-left py-2 pr-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Hero</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Picks</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Win%</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Bans</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">P+B</th>
+                    <th className="text-left py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">#</th>
+                    <th className="text-left py-2 pr-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Hero</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Picks</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Win%</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Bans</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">P+B</th>
                   </tr>
                 </thead>
                 <tbody>
