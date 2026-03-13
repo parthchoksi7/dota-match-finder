@@ -89,6 +89,18 @@ function cleanTournamentName(name) {
     .trim()
 }
 
+function getLeagueLabel(name) {
+  if (/dreamleague/i.test(name)) return 'DreamLeague'
+  if (/\besl\b/i.test(name)) return 'ESL'
+  if (/\bpgl\b/i.test(name)) return 'PGL'
+  if (/blast/i.test(name)) return 'BLAST'
+  if (/weplay/i.test(name)) return 'WePlay'
+  if (/riyadh/i.test(name)) return 'Riyadh Masters'
+  if (/the international/i.test(name)) return 'The International'
+  if (/beyond the summit|bts/i.test(name)) return 'Beyond The Summit'
+  return null
+}
+
 function formatScheduledTime(isoStr) {
   if (!isoStr) return null
   const d = new Date(isoStr)
@@ -296,7 +308,7 @@ function MatchCard({ match }) {
 
   return (
     <div className={`w-full h-full rounded border flex flex-col overflow-hidden ${
-      isLive  ? 'border-red-500/50 bg-red-500/5' :
+      isLive  ? 'border-red-500/80 bg-red-500/5' :
       isTbd   ? 'border-gray-200 dark:border-gray-800 opacity-60' :
                 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950'
     }`}>
@@ -348,17 +360,21 @@ function BracketSection({ label, rounds }) {
       <div className="relative" style={{ width: totalW, height: totalH + LABEL_H + 4 }}>
 
         {/* Round column labels */}
-        {rounds.map((round, rIdx) => (
-          <div
-            key={rIdx}
-            className="absolute text-center overflow-hidden"
-            style={{ left: rIdx * (CARD_W + H_GAP), top: 0, width: CARD_W, height: LABEL_H }}
-          >
-            <span className="text-xs text-gray-400 dark:text-gray-600 truncate block px-1">
-              {round.label}
-            </span>
-          </div>
-        ))}
+        {rounds.map((round, rIdx) => {
+          const hasLive = round.matches.some(m => m.status === 'running')
+          return (
+            <div
+              key={rIdx}
+              className="absolute text-center overflow-hidden"
+              style={{ left: rIdx * (CARD_W + H_GAP), top: 0, width: CARD_W, height: LABEL_H }}
+            >
+              <span className={`text-xs truncate flex items-center justify-center gap-1 px-1 ${hasLive ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}`}>
+                {hasLive && <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />}
+                {round.label}
+              </span>
+            </div>
+          )
+        })}
 
         {/* SVG connector lines */}
         <svg
@@ -640,6 +656,11 @@ function TournamentHub() {
 
       {/* Tournament name */}
       <div className="px-4 sm:px-5 pt-4 pb-3">
+        {getLeagueLabel(tournament.name) && (
+          <p className="text-xs uppercase tracking-[4px] text-red-500 mb-1">
+            {getLeagueLabel(tournament.name)}
+          </p>
+        )}
         <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
           {cleanTournamentName(tournament.name)}
         </p>
