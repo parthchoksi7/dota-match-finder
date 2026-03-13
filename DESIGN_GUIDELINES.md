@@ -103,9 +103,20 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 - Spoiler-free mode: both teams get the winner style (font-black, primary color) since no result is shown
 
 ### Tabs (navigation inside panels)
-- Active: red bottom border (`border-b-2 border-red-500`), primary text color
-- Inactive: no border, tertiary text color, hover secondary text
-- Never use background fills on tabs — underline only
+
+Two distinct tab patterns exist - use the right one for the context:
+
+**Segmented control** (section tabs within a component, e.g. TournamentHub Overview/Standings/Schedule/Heroes):
+- Container: `inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5` inside a padded row with bottom border
+- Active: `bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded`
+- Inactive: `text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300`
+- No red indicator - the filled background IS the active indicator
+- Use when: switching between views within a contained component
+
+**Underline tabs** (tournament/event switcher, full-width navigation rows):
+- Active: `border-b-2 border-red-500 text-gray-900 dark:text-white`
+- Inactive: `border-b-2 border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white`
+- Use when: switching between top-level items (e.g. multiple active tournaments)
 
 ### Loading states
 - **Inline spinners:** `w-4 h-4 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin`

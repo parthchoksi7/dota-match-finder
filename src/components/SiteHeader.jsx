@@ -20,18 +20,14 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
           <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-widest text-gray-900 dark:text-white truncate leading-none">
             Spectate <span className="text-red-500">Esports</span>
           </p>
-          <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-            Pro Dota 2 replays.<br className="sm:hidden" /> Timestamped to the draft.
+          <p className="hidden sm:block text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest mt-0.5">
+            Pro Dota 2 replays. Timestamped to the draft.
           </p>
         </div>
       </a>
-      <div className="flex items-center gap-4 sm:gap-5">
+      <div className="flex items-center gap-3 sm:gap-4">
         <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
         <a href="/release-notes" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
-        <a href="https://x.com/SpectateDota2" target="_blank" rel="noopener noreferrer" className="flex items-center text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors" aria-label="Spectate Esports on X">
-          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg>
-        </a>
-        <div className="w-px h-4 bg-gray-300 dark:bg-gray-700" />
         {showSpoiler && (
           <button
             type="button"
