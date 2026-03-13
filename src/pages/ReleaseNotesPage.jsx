@@ -2,6 +2,20 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 13, 2026",
+    tag: "improvement",
+    title: "Match Card - Cleaner Visual Hierarchy",
+    desc: "Match cards now make it faster to scan results at a glance.",
+    items: [
+      "Winner team name is now bold-black, matching the visual weight of the winning score - name and result read as a unified pair.",
+      "Team names are slightly larger (text-base/text-xl) so they don't feel secondary to the score.",
+      "Losing team name uses a lighter gray so the contrast between winner and loser is clearer without color alone carrying all the weight.",
+      "Score separator reduced in size and weight - it is structural spacing, not content.",
+      "Game duration in expanded rows uses tabular-nums to prevent layout shift as numbers change.",
+      "Secondary text in light mode bumped from gray-500 to gray-600 for better readability.",
+    ],
+  },
+  {
     date: "Mar 12, 2026",
     tag: "improvement",
     title: "Tournament Hub - Cleaner Tab Navigation",
