@@ -228,6 +228,23 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 
 ---
 
+## Design System
+
+A `DESIGN_GUIDELINES.md` file lives at the repo root. Claude should read it before making any UI change. It covers:
+- Typography scale (Barlow Condensed for display, Barlow for body; 3 levels only)
+- Color palette and token usage (red = accent/CTA only, purple = watch actions only)
+- Spacing scale and component patterns (cards, buttons, tabs, loading states, empty states)
+- Motion rules (drawer slide-in is the signature animation; no competing animations)
+- Information hierarchy within components (What -> Result -> Context -> Actions)
+
+### MatchCard visual hierarchy (updated Mar 13, 2026)
+- Winner team name: `font-black` matching winning score weight; size `text-base sm:text-xl`
+- Loser team name: `font-bold` with `text-gray-400 dark:text-gray-500` (muted but readable)
+- Score separator: de-emphasized to `text-base font-medium text-gray-300 dark:text-gray-700`
+- Duration in game rows: `tabular-nums text-gray-600 dark:text-gray-400`
+
+---
+
 ## Backlog / Future Ideas
 
 ### Other Ideas
