@@ -138,6 +138,15 @@ Two distinct tab patterns exist - use the right one for the context:
 ### Live indicators
 - Pulsing red dot: `inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse`
 - Only used for genuinely live/running states — never as decoration
+- In bracket round column labels: swap label to `text-red-500` and prepend a `w-1 h-1` pulse dot when any match in that round is `status === 'running'`
+- Live bracket match card: `border-red-500/80 bg-red-500/5` — do NOT animate-pulse the card itself (fades text content)
+
+### Tournament identity
+- League organizer label: `text-xs uppercase tracking-[4px] text-red-500 mb-1` above the tournament display name
+- Use `getLeagueLabel(name)` helper (in TournamentHub.jsx) to extract organizer from tournament name
+- Recognized leagues: DreamLeague, ESL, PGL, BLAST, WePlay, Riyadh Masters, The International, Beyond The Summit
+- If no match, no label is shown (don't show a generic fallback)
+- This follows the same eyebrow label pattern used in AboutPage section headers
 
 ---
 

@@ -4,6 +4,17 @@ const RELEASES = [
   {
     date: "Mar 13, 2026",
     tag: "improvement",
+    title: "Tournament Identity and Bracket Live States",
+    desc: "The Tournament Hub now shows which league is running the event, and the bracket makes live rounds easier to spot.",
+    items: [
+      "League organizer label (DreamLeague, ESL, PGL, BLAST, etc.) now appears above the tournament name in red small caps - the same eyebrow label style used elsewhere in the app.",
+      "Bracket: round column labels turn red with a pulsing dot when any match in that round is currently live.",
+      "Bracket: live match card border increased to 80% opacity for clearer contrast against finished and upcoming matches.",
+    ],
+  },
+  {
+    date: "Mar 13, 2026",
+    tag: "improvement",
     title: "Header and Tournament Hub Navigation",
     desc: "Cleaner header and a proper segmented control for the Tournament Hub tabs.",
     items: [
