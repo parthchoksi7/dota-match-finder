@@ -57,12 +57,12 @@ function MatchCard({ series, onSelectGame, onDraftPosts, defaultExpanded = false
 
         <div className="px-4 py-4 flex items-center justify-between gap-2">
           {/* Radiant team */}
-          <span className={`font-display text-sm sm:text-lg font-bold tracking-wide uppercase min-w-0 ${
+          <span className={`font-display text-base sm:text-xl tracking-wide uppercase min-w-0 ${
             !spoilerFree && radiantWins > direWins
-              ? "text-gray-900 dark:text-white"
+              ? "font-black text-gray-900 dark:text-white"
               : spoilerFree
-              ? "text-gray-900 dark:text-white"
-              : "text-gray-500 dark:text-gray-500"
+              ? "font-black text-gray-900 dark:text-white"
+              : "font-bold text-gray-400 dark:text-gray-500"
           }`}>
             {radiantTeam}
           </span>
@@ -80,7 +80,7 @@ function MatchCard({ series, onSelectGame, onDraftPosts, defaultExpanded = false
                 }`}>
                   {radiantWins}
                 </span>
-                <span className="text-gray-400 dark:text-gray-700 text-lg font-bold">—</span>
+                <span className="text-gray-300 dark:text-gray-700 text-base font-medium">—</span>
                 <span className={`font-display text-2xl sm:text-3xl font-black ${
                   direWins > radiantWins ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"
                 }`}>
@@ -91,12 +91,12 @@ function MatchCard({ series, onSelectGame, onDraftPosts, defaultExpanded = false
           </div>
 
           {/* Dire team */}
-          <span className={`font-display text-sm sm:text-lg font-bold tracking-wide uppercase text-right min-w-0 ${
+          <span className={`font-display text-base sm:text-xl tracking-wide uppercase text-right min-w-0 ${
             !spoilerFree && direWins > radiantWins
-              ? "text-gray-900 dark:text-white"
+              ? "font-black text-gray-900 dark:text-white"
               : spoilerFree
-              ? "text-gray-900 dark:text-white"
-              : "text-gray-500 dark:text-gray-500"
+              ? "font-black text-gray-900 dark:text-white"
+              : "font-bold text-gray-400 dark:text-gray-500"
           }`}>
             {direTeam}
           </span>
@@ -133,7 +133,7 @@ function MatchCard({ series, onSelectGame, onDraftPosts, defaultExpanded = false
               <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
                 Game {i + 1}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
                 {formatDuration(game.duration)}
               </span>
 
@@ -150,7 +150,7 @@ function MatchCard({ series, onSelectGame, onDraftPosts, defaultExpanded = false
                 </span>
               )}
 
-              <span className="text-xs text-gray-500 dark:text-gray-600 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors uppercase tracking-wider inline-flex items-center gap-1">
+              <span className="text-xs text-gray-600 dark:text-gray-600 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors uppercase tracking-wider inline-flex items-center gap-1">
                 <span aria-hidden>▶</span> Watch VOD
               </span>
             </button>
