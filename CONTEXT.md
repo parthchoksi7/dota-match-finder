@@ -243,6 +243,19 @@ A `DESIGN_GUIDELINES.md` file lives at the repo root. Claude should read it befo
 - Score separator: de-emphasized to `text-base font-medium text-gray-300 dark:text-gray-700`
 - Duration in game rows: `tabular-nums text-gray-600 dark:text-gray-400`
 
+### SiteHeader (updated Mar 13, 2026)
+- X social icon removed from header (social follow is not a header-level action)
+- Decorative vertical divider removed
+- Tagline hidden on mobile (`hidden sm:block`) to reduce header height on small screens
+- Nav link gap tightened to `gap-3 sm:gap-4`
+
+### TournamentHub navigation (updated Mar 13, 2026)
+- Tab bar (Overview/Standings/Schedule/Heroes) converted to segmented control: `inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5` container, active tab gets `bg-white dark:bg-gray-800` fill
+- Tournament switcher (multi-tournament underline row) unchanged - uses underline pattern
+- League organizer label: `getLeagueLabel(name)` helper extracts organizer from tournament name, shown as `text-xs uppercase tracking-[4px] text-red-500` eyebrow above tournament display name. Recognized: DreamLeague, ESL, PGL, BLAST, WePlay, Riyadh Masters, The International, Beyond The Summit
+- Bracket round column labels turn `text-red-500` with a pulse dot when any match in that round is `status === 'running'`
+- Live match card border: `border-red-500/80` (was /50)
+
 ---
 
 ## Backlog / Future Ideas
