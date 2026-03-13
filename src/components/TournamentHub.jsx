@@ -693,76 +693,20 @@ function TournamentHub() {
 
       {/* Tab content */}
       {activeTab === 'Overview' && (
-        <div className="px-4 sm:px-5 py-4 flex flex-col gap-4">
-          {isOngoing && (
-            <>
-              {/* Format badge + date range + round/team count */}
-              <div className="flex flex-wrap items-center gap-2">
-                {effectiveDetail?.format && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
-                    {effectiveDetail.format}
-                    {effectiveDetail.totalRounds > 0 && !['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail.format) && ` · ${effectiveDetail.totalRounds}R`}
-                    <FormatTooltip format={effectiveDetail.format} />
-                  </span>
-                )}
-                {dateRange && (
-                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">{dateRange}</span>
-                )}
-                {['Swiss', 'Group Stage'].includes(effectiveDetail?.format) && currentRound && effectiveDetail?.totalRounds > 0 && (
-                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">Round {currentRound} of {effectiveDetail.totalRounds}</span>
-                )}
-                {effectiveDetail?.teamCount > 0 && (
-                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">{effectiveDetail.teamCount} teams</span>
-                )}
-              </div>
-
-              {/* Live Now */}
-              {liveMatches.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    Live Now
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {liveMatches.map((m, i) => <OverviewMatchRow key={m.id || i} match={m} />)}
+        <div className="px-4 sm:px-5 py-4">
+          {detail?.eventStages?.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {detail.eventStages.map(stage => {
+                const start = stage.beginAt ? new Date(stage.beginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+                const end = stage.endAt ? new Date(stage.endAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+                const dateStr = start && end ? `${start} – ${end}` : start || end || null
+                return (
+                  <div key={stage.id} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{stageShortName(stage.name)}</span>
+                    {dateStr && <span className="text-gray-400 dark:text-gray-600 tabular-nums">{dateStr}</span>}
                   </div>
-                </div>
-              )}
-
-              {/* No matches state */}
-              {liveMatches.length === 0 && effectiveDetail && (
-                <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-1">
-                  No matches currently scheduled
-                </p>
-              )}
-
-
-            </>
-          )}
-
-          {!isOngoing && upcoming.length > 1 && (
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
-                Also coming up
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {upcoming.slice(1, 4).map((t, i) => {
-                  const tStart = t.startdate
-                    ? new Date(t.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    : null
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400"
-                    >
-                      <span className="truncate">{cleanTournamentName(t.name)}</span>
-                      {tStart && (
-                        <span className="text-gray-400 dark:text-gray-600 shrink-0 ml-3 tabular-nums">{tStart}</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                )
+              })}
             </div>
           )}
         </div>
