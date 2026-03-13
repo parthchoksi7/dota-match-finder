@@ -4,6 +4,19 @@ const RELEASES = [
   {
     date: "Mar 13, 2026",
     tag: "improvement",
+    title: "Empty States and Loading Skeletons",
+    desc: "Empty states are more direct, and loading tabs in the Tournament Hub show content-shaped skeletons instead of a spinner.",
+    items: [
+      "Search empty state: removed the bordered box and softened copy to 'Nothing matched.' - one line, no apology.",
+      "Tournament Hub - Standings tab: loading now shows a table skeleton mirroring the rank, team, W, L layout.",
+      "Tournament Hub - Schedule tab: loading shows a row-list skeleton matching the match row shape.",
+      "Tournament Hub - Heroes tab: loading shows a table skeleton with hero icon placeholder and stat column bars.",
+      "Empty state copy tightened across Tournament Hub: 'No standings yet.', 'No bracket yet.', 'No picks yet.'",
+    ],
+  },
+  {
+    date: "Mar 13, 2026",
+    tag: "improvement",
     title: "Match Card - Cleaner Visual Hierarchy",
     desc: "Match cards now make it faster to scan results at a glance.",
     items: [

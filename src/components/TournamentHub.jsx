@@ -108,8 +108,8 @@ function formatScheduledTime(isoStr) {
 
 function StandingsTable({ standings }) {
   if (!standings || standings.length === 0) return (
-    <p className="text-xs text-gray-500 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
-      No standings data yet
+    <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
+      No standings yet.
     </p>
   )
 
@@ -157,8 +157,8 @@ function StandingsTable({ standings }) {
 // Flat round list — used for Swiss / Group Stage formats
 function BracketView({ bracket }) {
   if (!bracket || bracket.length === 0) return (
-    <p className="text-xs text-gray-500 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
-      No bracket data yet
+    <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
+      No bracket yet.
     </p>
   )
 
@@ -417,8 +417,8 @@ function BracketSection({ label, rounds }) {
 
 function HorizontalBracket({ bracket }) {
   if (!bracket || bracket.length === 0) return (
-    <p className="text-xs text-gray-500 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
-      No bracket data yet
+    <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
+      No bracket yet.
     </p>
   )
 
@@ -715,8 +715,27 @@ function TournamentHub() {
       {activeTab === 'Standings' && (
         <div>
           {isStageLoading ? (
-            <div className="py-8 flex justify-center">
-              <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-800">
+                    <th className="py-2 px-3 w-8"><div className="h-2 w-3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" /></th>
+                    <th className="py-2 px-3"><div className="h-2 w-10 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" /></th>
+                    <th className="py-2 px-2 w-10"><div className="h-2 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></th>
+                    <th className="py-2 px-2 w-10"><div className="h-2 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
+                  {[42, 58, 50, 66, 38, 54].map((w, i) => (
+                    <tr key={i}>
+                      <td className="py-2.5 px-3"><div className="h-2 w-3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" /></td>
+                      <td className="py-2.5 px-3"><div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${w}%` }} /></td>
+                      <td className="py-2.5 px-2"><div className="h-2.5 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                      <td className="py-2.5 px-2"><div className="h-2.5 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <StandingsTable standings={effectiveDetail?.standings} />
@@ -727,8 +746,14 @@ function TournamentHub() {
       {activeTab === 'Schedule' && (
         <div>
           {isStageLoading ? (
-            <div className="py-8 flex justify-center">
-              <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
+            <div className="divide-y divide-gray-100 dark:divide-gray-900">
+              {[48, 64, 40, 56, 52].map((w, i) => (
+                <div key={i} className="px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="h-2 w-14 bg-gray-200 dark:bg-gray-800 rounded animate-pulse shrink-0" />
+                  <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse flex-1 max-w-xs" style={{ width: `${w}%` }} />
+                  <div className="h-5 w-14 bg-gray-200 dark:bg-gray-800 rounded animate-pulse shrink-0" />
+                </div>
+              ))}
             </div>
           ) : (['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail?.format))
             ? <HorizontalBracket bracket={effectiveDetail?.bracket} />
@@ -740,12 +765,43 @@ function TournamentHub() {
       {activeTab === 'Heroes' && (
         <div className="px-4 sm:px-5 py-4">
           {heroStatsLoading ? (
-            <div className="py-8 flex justify-center">
-              <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin" />
+            <div>
+              <div className="h-2 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mb-3" />
+              <table className="w-full text-xs table-fixed">
+                <colgroup>
+                  <col className="w-6" />
+                  <col />
+                  <col className="w-10" />
+                  <col className="w-10" />
+                  <col className="w-10" />
+                  <col className="w-10" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-800">
+                    {[null, 28, 20, 20, 20, 20].map((w, i) => (
+                      <th key={i} className="py-2 text-left">
+                        {w && <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: w }} />}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
+                  {[70, 55, 80, 60, 45, 75, 50, 65].map((w, i) => (
+                    <tr key={i}>
+                      <td className="py-2"><div className="h-4 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" /></td>
+                      <td className="py-2"><div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${w}%` }} /></td>
+                      <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                      <td className="py-2"><div className="h-2 w-7 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                      <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                      <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : !heroStats?.heroes?.length ? (
             <p className="py-6 text-center text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-              No draft data yet
+              No picks yet.
             </p>
           ) : (
             <div>
