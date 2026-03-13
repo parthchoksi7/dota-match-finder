@@ -8,7 +8,7 @@ defensible against these principles.
 ## Philosophy
 
 **Minimal esports.** The product exists to surface information fast, without ego.
-Every element earns its place or gets cut. When in doubt, remove — don't add.
+Every element earns its place or gets cut. When in doubt, remove. Don't add.
 
 ---
 
@@ -94,6 +94,14 @@ Every element earns its place or gets cut. When in doubt, remove — don't add.
 - All buttons: `font-semibold text-sm rounded px-3 py-1.5` (small) or `px-4 py-2` (default)
 - Disabled: `disabled:opacity-50 disabled:cursor-not-allowed`
 
+### Match cards — winner/loser state
+- **Winner** team name: `font-display font-black text-base sm:text-xl uppercase tracking-wide text-gray-900 dark:text-white`
+- **Loser** team name: same size but `font-bold text-gray-400 dark:text-gray-500` — still readable, clearly secondary
+- **Winner** score digit: `font-display font-black text-2xl sm:text-3xl text-gray-900 dark:text-white`
+- **Loser** score digit: same size, `text-gray-500 dark:text-gray-500`
+- Score separator "—": `text-base font-medium text-gray-300 dark:text-gray-700` — structural glue, not content
+- Spoiler-free mode: both teams get the winner style (font-black, primary color) since no result is shown
+
 ### Tabs (navigation inside panels)
 - Active: red bottom border (`border-b-2 border-red-500`), primary text color
 - Inactive: no border, tertiary text color, hover secondary text
@@ -103,12 +111,18 @@ Every element earns its place or gets cut. When in doubt, remove — don't add.
 - **Inline spinners:** `w-4 h-4 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin`
 - **Skeleton loaders:** Use `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` blocks that mirror the actual content shape
 - Prefer skeleton loaders over spinners for anything that occupies a list or table layout
+- Skeleton column widths should vary naturally (e.g. `42% 58% 50% 66%`) so rows don't look identical
+- Table skeletons: preserve the exact `<colgroup>` / `<col>` structure of the real table so column alignment matches on load
+- Header cells in skeletons: thin bars (`h-2`) at ~50-70% of the column width
+- Data cells: slightly taller bars (`h-2.5`) for name/value columns, shorter (`h-2`) for narrow stat columns
 
 ### Empty states
 - Always include: a single line of dry, direct copy explaining the state
-- Optional: one action (retry, clear search) — never more than one
-- Tone: confident, not apologetic. "Nothing scheduled yet." not "Sorry, no matches found."
-- Style: `text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-4`
+- Optional: one action (retry, clear search) - never more than one
+- Tone: confident, not apologetic. "Nothing matched." not "Sorry, no matches found."
+- Style: `text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center`
+- Wrapper padding: `py-8` for full-section empty states, `py-4` for inline/compact states
+- Action button: ghost variant (`border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600`), `mt-4` below the copy line
 
 ### Live indicators
 - Pulsing red dot: `inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse`

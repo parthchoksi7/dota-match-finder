@@ -4,6 +4,18 @@ Claude should follow these guidelines for ALL tasks in this project:
 
 ---
 
+## Design Guidelines (UI/UX changes)
+
+Before making any UI or visual change:
+
+1. **Read `DESIGN_GUIDELINES.md`** at the repo root before touching any component
+2. **Check every decision** against the principles there (color tokens, spacing scale, typography hierarchy, component patterns, motion rules)
+3. **After making UI changes**, review `DESIGN_GUIDELINES.md` and update it if the change introduces a new pattern, overrides an existing one, or reveals a gap. Keep it current so it reflects the actual codebase.
+
+This applies to: className edits, new components, loading/empty/error states, animations, and copy changes.
+
+---
+
 ## Required Updates for Any New Feature or Interaction
 
 ### 1. About Page
