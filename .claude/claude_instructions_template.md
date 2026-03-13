@@ -14,6 +14,8 @@ Before making any UI or visual change:
 
 This applies to: className edits, new components, loading/empty/error states, animations, and copy changes.
 
+4. **Check tab/label overflow on mobile** - any row of tabs, pills, or segmented controls must use `flex w-full` with `flex-1` on each item (not `inline-flex`) so labels never clip on narrow screens. Also avoid `tracking-widest` on tab labels; use `tracking-wide` at most. Verify mentally at ~320px width before committing.
+
 ---
 
 ## Required Updates for Any New Feature or Interaction
