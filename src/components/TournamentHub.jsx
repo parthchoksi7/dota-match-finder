@@ -645,22 +645,24 @@ function TournamentHub() {
         </p>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
-        {TABS.map(tab => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => { setActiveTab(tab); logEvent('tournament_tab_click', { tab }) }}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
-              activeTab === tab
-                ? 'border-b-2 border-red-500 text-gray-900 dark:text-white'
-                : 'border-b-2 border-transparent text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* Tab bar — segmented control */}
+      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+        <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+          {TABS.map(tab => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => { setActiveTab(tab); logEvent('tournament_tab_click', { tab }) }}
+              className={`px-3 py-1 text-xs font-semibold uppercase tracking-widest rounded transition-colors ${
+                activeTab === tab
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}

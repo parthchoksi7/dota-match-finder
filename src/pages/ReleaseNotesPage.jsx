@@ -4,6 +4,17 @@ const RELEASES = [
   {
     date: "Mar 13, 2026",
     tag: "improvement",
+    title: "Header and Tournament Hub Navigation",
+    desc: "Cleaner header and a proper segmented control for the Tournament Hub tabs.",
+    items: [
+      "Header: removed the X social icon and decorative divider - both were noise, not navigation.",
+      "Header: tagline is now hidden on mobile where space is tight.",
+      "Tournament Hub tabs (Overview, Standings, Schedule, Heroes) are now a segmented control - a contained pill with a filled background for the active tab, instead of a full-width underline bar.",
+    ],
+  },
+  {
+    date: "Mar 13, 2026",
+    tag: "improvement",
     title: "Empty States and Loading Skeletons",
     desc: "Empty states are more direct, and loading tabs in the Tournament Hub show content-shaped skeletons instead of a spinner.",
     items: [
