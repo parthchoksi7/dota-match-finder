@@ -842,12 +842,12 @@ function TournamentHub() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-800">
-                    <th className="text-left py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">#</th>
-                    <th className="text-left py-2 pr-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Hero</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Picks</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Win%</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">Bans</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500">P+B</th>
+                    <th className="text-left py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">#</th>
+                    <th className="text-left py-2 pr-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Hero</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Picks</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Win%</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Bans</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">P+B</th>
                   </tr>
                 </thead>
                 <tbody>
