@@ -33,7 +33,7 @@ function AboutPage() {
               { title: "Spoiler-Free Mode", desc: "Hide scores and match results until you're ready to reveal them. Toggle on/off anytime." },
               { title: "Shareable Match Cards", desc: "Every match has a unique link with a rich preview card. Share a specific game directly." },
               { title: "Live Match Scores", desc: "See live series scores, current game, and completed game results while matches are in progress." },
-              { title: "Tournament Hub", desc: "Live Overview showing running matches with a pulsing indicator. Full standings, schedule, and bracket tree for ongoing tournaments. League organizer label, active round highlighting, and stage switcher for multi-stage events." },
+              { title: "Tournament Hub", desc: "Live Overview showing running matches with a pulsing indicator. Full standings, schedule, and bracket tree for ongoing tournaments. League organizer label, active round highlighting, and stage switcher for multi-stage events. Standings tab is always present - bracket stages show a clear message with a shortcut to group stage standings." },
               { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts. Shows top 25 by default with a button to reveal all." },
               { title: "My Teams", desc: "Follow your favorite teams with one click. A dedicated section on the homepage shows only their recent matches. Saved in your browser - no account needed." },
             ].map(f => (

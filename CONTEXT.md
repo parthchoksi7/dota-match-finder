@@ -118,7 +118,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
   - **Overview** (ongoing): format badge + date range + round/team count at the top (always visible), then Live Now (running matches with pulsing dot). Stage switcher and Up Next / Standings snapshot are intentionally hidden on the Overview tab to reduce noise.
   - **Overview** (upcoming): shows other upcoming tournaments (Also coming up list).
-  - **Standings**: W-L table with advancing/eliminated zone indicators
+  - **Standings**: W-L table with advancing/eliminated zone indicators. Always visible in the tab bar regardless of stage format. When the active stage is a bracket/elimination format, shows "No standings for bracket stages." with a shortcut to switch to the group stage (if one exists).
   - **Schedule**: bracket view; round column headers always show canonical labels (Round 1, Quarterfinal, Semifinal, Final) regardless of whether matches are TBD
   - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click via OpenDota API (see `api/tournament-heroes.js`). Shows top 25 heroes by default; a "Show all N heroes" button below the table expands to reveal all. Stage switcher is hidden on this tab (hero stats are tournament-wide, not stage-specific). Table uses `table-fixed` layout with truncated hero names and `overflow-x-auto` on the tab bar to avoid horizontal overflow clipping on mobile.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers

@@ -577,12 +577,6 @@ function TournamentHub() {
   const isStageLoading = detailLoading || (!!activeStageId && !stageCache[activeStageId] && stageLoading)
 
   const isPlayoffStage = !!effectiveDetail?.format && PLAYOFF_FORMATS.has(effectiveDetail.format)
-  const visibleTabs = TABS.filter(t => t !== 'Standings' || !isPlayoffStage)
-
-  // If we're on Standings and switch to a playoff stage, jump to Schedule
-  useEffect(() => {
-    if (isPlayoffStage && activeTab === 'Standings') setActiveTab('Schedule')
-  }, [isPlayoffStage])
 
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden animate-pulse">
@@ -678,7 +672,7 @@ function TournamentHub() {
       {/* Tab bar — segmented control */}
       <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
-          {visibleTabs.map(tab => (
+          {TABS.map(tab => (
             <button
               key={tab}
               type="button"
@@ -769,6 +763,22 @@ function TournamentHub() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : isPlayoffStage ? (
+            <div className="px-4 sm:px-5 py-8 text-center">
+              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No standings for bracket stages.</p>
+              {detail?.eventStages?.some(s => !PLAYOFF_FORMATS.has(s.format) && s.id !== activeStageId) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const groupStage = detail.eventStages.find(s => !PLAYOFF_FORMATS.has(s.format))
+                    if (groupStage) setActiveStageId(groupStage.id)
+                  }}
+                  className="mt-4 px-3 py-1.5 text-xs font-semibold rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 uppercase tracking-wide"
+                >
+                  View group stage
+                </button>
+              )}
             </div>
           ) : (
             <StandingsTable standings={effectiveDetail?.standings} />
