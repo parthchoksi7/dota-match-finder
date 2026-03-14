@@ -94,6 +94,7 @@ function App() {
   const [cachedSummaryForSelected, setCachedSummaryForSelected] = useState(null)
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
+  const [expandedSeriesId, setExpandedSeriesId] = useState(null)
   const isOwner = typeof window !== "undefined" && localStorage.getItem("spectate-owner") === "true"
 
   const [xPostsOpen, setXPostsOpen] = useState(false)
@@ -240,6 +241,7 @@ function App() {
       tournament: match.tournament,
     })
 
+    if (match.seriesId) setExpandedSeriesId(String(match.seriesId))
     setSummary(null)
     setSummaryMatchId(null)
     setSummaryError(null)
@@ -453,6 +455,7 @@ function App() {
 
   function dismissPanel() {
     const scrollY = window.scrollY
+    const targetSeriesId = expandedSeriesId
     setSelectedMatch(null)
     setSummary(null)
     setSummaryMatchId(null)
@@ -463,6 +466,13 @@ function App() {
     // Return to homepage cleanly
     window.history.replaceState(null, "", "/")
     setTimeout(() => {
+      if (targetSeriesId) {
+        const el = document.querySelector(`[data-series-id="${targetSeriesId}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" })
+          return
+        }
+      }
       searchInputRef.current?.focus({ preventScroll: true })
       window.scrollTo(0, scrollY)
     }, 0)
@@ -611,6 +621,7 @@ function App() {
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
+              expandedSeriesId={expandedSeriesId}
             />
           </>
         )}
@@ -628,6 +639,7 @@ function App() {
               onManageTeams={() => setManageTeamsOpen(true)}
               onToggleFollow={handleToggleFollow}
               spoilerFree={spoilerFree}
+              expandedSeriesId={expandedSeriesId}
             />
             <LatestMatches
               matches={allMatches}
@@ -637,6 +649,7 @@ function App() {
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
+              expandedSeriesId={expandedSeriesId}
             />
           </div>
         )}
