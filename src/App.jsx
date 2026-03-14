@@ -419,10 +419,11 @@ function App() {
         ? new Date(series.games[0].startTime * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
         : undefined
 
-      const res = await fetch('/api/reddit-posts', {
+      const res = await fetch('/api/draft-posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type: 'reddit',
           team1: radiantTeam,
           team2: direTeam,
           tournament: series.tournament,
