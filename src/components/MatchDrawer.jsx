@@ -241,6 +241,7 @@ function MatchDrawer({
             radiantTeam={match.radiantTeam}
             direTeam={match.direTeam}
             autoLoad={true}
+            spoilerFree={spoilerFree}
           />
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
