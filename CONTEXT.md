@@ -186,7 +186,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - In latest results: hides game outcomes in `MatchCard`
 
 ### Latest Results UI
-- Styled section header (matches Live Now / Upcoming header style)
+- Floating section label above the card (no internal header bar); gray left-border accent (`border-gray-400`)
 - Date dividers: "Today", "Yesterday", or "Mar 7" labels between groups of matches from different days
 
 ### Static Pages (React)
@@ -261,6 +261,11 @@ A `DESIGN_GUIDELINES.md` file lives at the repo root. Claude should read it befo
 - Decorative vertical divider removed
 - Tagline hidden on mobile (`hidden sm:block`) to reduce header height on small screens
 - Nav link gap tightened to `gap-3 sm:gap-4`
+
+### Homepage section labels (updated Mar 14, 2026)
+- All 5 homepage sections (Live Tournament, Live Now, Upcoming Matches, My Teams, Latest Results) use floating `<h2>` labels rendered above the card border, replacing the previous internal gray header bars
+- Each label has a `border-l-2` left-accent stripe: `border-red-500` for live, `border-blue-500` for upcoming, `border-amber-500` for My Teams, `border-gray-400` for Latest Results
+- Documented in `DESIGN_GUIDELINES.md` under "Section labels"
 
 ### TournamentHub navigation (updated Mar 13, 2026)
 - Tab bar (Overview/Standings/Schedule/Heroes) converted to segmented control: `inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5` container, active tab gets `bg-white dark:bg-gray-800` fill
