@@ -72,18 +72,6 @@ function StreamButtons({ streams, matchLabel }) {
   )
 }
 
-function SectionHeader({ id, children }) {
-  return (
-    <div className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
-      <h2
-        id={id}
-        className="text-sm uppercase tracking-widest text-gray-700 dark:text-gray-300 font-bold"
-      >
-        {children}
-      </h2>
-    </div>
-  )
-}
 
 function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = false }) {
   const [liveMatches, setLiveMatches] = useState([])
@@ -123,20 +111,22 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
   }, [searchQuery])
 
   if (loading) return (
-    <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
-      <div className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
-        <div className="h-3.5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+    <div>
+      <div className="flex items-center mb-2">
+        <div className="h-2.5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
       </div>
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 last:border-0 flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-            <div className="h-2 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-            <div className="h-3 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+      <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="px-4 sm:px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 last:border-0 flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              <div className="h-2 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+              <div className="h-3 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+            </div>
+            <div className="h-6 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
           </div>
-          <div className="h-6 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-        </div>
-      ))}
-    </section>
+        ))}
+      </section>
+    </div>
   )
 
   const filteredLive = liveMatches.filter(m => matchesQuery(m, searchQuery))
@@ -151,13 +141,16 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
   return (
     <div className="flex flex-col gap-4" aria-labelledby="matches-schedule-heading">
       {filteredLive.length > 0 && (
-        <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
-          <SectionHeader id="matches-schedule-heading">
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              Live Now
-            </span>
-          </SectionHeader>
+        <div>
+          <div className="flex items-center mb-2">
+            <h2 id="matches-schedule-heading" className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-red-500">
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                Live Now
+              </span>
+            </h2>
+          </div>
+          <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {filteredLive.map(match => {
               const label = `${match.teamA} vs ${match.teamB}`
@@ -249,21 +242,28 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
               )
             })}
           </div>
-        </section>
+          </section>
+        </div>
       )}
 
       {filteredUpcoming.length > 0 && (
-        <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
-          <SectionHeader id={filteredLive.length === 0 ? "matches-schedule-heading" : undefined}>
-            <span className="inline-flex items-center gap-2">
-              Upcoming Matches
-              {isSearching && (
-                <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
-                  {filteredUpcoming.length} found
-                </span>
-              )}
-            </span>
-          </SectionHeader>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h2
+              id={filteredLive.length === 0 ? "matches-schedule-heading" : undefined}
+              className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-blue-500"
+            >
+              <span className="inline-flex items-center gap-2">
+                Upcoming Matches
+                {isSearching && (
+                  <span className="text-gray-400 dark:text-gray-600 font-normal normal-case tracking-normal text-xs">
+                    {filteredUpcoming.length} found
+                  </span>
+                )}
+              </span>
+            </h2>
+          </div>
+          <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
           <div className="divide-y divide-gray-200 dark:divide-gray-800">
             {visibleUpcoming.map(match => {
               const label = `${match.teamA} vs ${match.teamB}`
@@ -311,7 +311,8 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
               </button>
             </div>
           )}
-        </section>
+          </section>
+        </div>
       )}
     </div>
   )

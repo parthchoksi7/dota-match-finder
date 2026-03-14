@@ -28,12 +28,10 @@ function LatestMatches({ matches, onSelectMatch, onDraftPosts, spoilerFree = fal
 
   return (
     <div className="w-full">
-      <div className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden mb-3">
-        <div className="px-4 sm:px-5 py-3.5 bg-gray-50 dark:bg-gray-900/60">
-          <h2 className="text-sm uppercase tracking-widest text-gray-700 dark:text-gray-300 font-bold">
-            Latest results
-          </h2>
-        </div>
+      <div className="flex items-center mb-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-gray-400 dark:border-gray-600">
+          Latest results
+        </h2>
       </div>
       <div className="flex flex-col gap-3">
         {completeSeries.map((s, i) => {

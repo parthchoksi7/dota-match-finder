@@ -3,6 +3,18 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 14, 2026",
+    tag: "improvement",
+    title: "Clearer Section Layout on the Homepage",
+    desc: "Each homepage section now has a floating label above its card, with a colored left-border accent for faster at-a-glance navigation.",
+    items: [
+      "Section labels (Live Tournament, Live Now, Upcoming Matches, My Teams, Latest Results) now appear above their cards instead of inside a gray header bar.",
+      "Each section has a distinct left-border accent stripe: red for live content, blue for upcoming, amber for My Teams, gray for Latest Results.",
+      "The Manage button (My Teams) and match count (search results) remain visible in the label row.",
+      "Loading skeleton updated to match the new layout.",
+    ],
+  },
+  {
+    date: "Mar 14, 2026",
     tag: "new",
     title: "My Teams - Follow Your Favorite Teams",
     desc: "Follow teams with one click and see their matches prioritized at the top of the homepage. No account required.",

@@ -53,22 +53,20 @@ function MyTeamsSection({
 
   return (
     <div className="w-full">
-      <div className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden mb-3">
-        <div className="px-4 sm:px-5 py-3.5 bg-gray-50 dark:bg-gray-900/60 flex justify-between items-center">
-          <h2 className="text-sm uppercase tracking-widest text-gray-700 dark:text-gray-300 font-bold">
-            My Teams
-          </h2>
-          <button
-            type="button"
-            onClick={() => {
-              trackEvent("manage_teams_open", {})
-              onManageTeams()
-            }}
-            className="focus-ring text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            Manage
-          </button>
-        </div>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-amber-500">
+          My Teams
+        </h2>
+        <button
+          type="button"
+          onClick={() => {
+            trackEvent("manage_teams_open", {})
+            onManageTeams()
+          }}
+          className="focus-ring text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          Manage
+        </button>
       </div>
 
       {completeSeries.length === 0 ? (
