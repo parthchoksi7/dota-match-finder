@@ -151,6 +151,19 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Plain text only, no markdown
 - Cached in localStorage by match ID
 
+### My Teams Follow System
+- Users can follow/unfollow teams by clicking the star icon next to any team name on a match card
+- Followed teams are stored in `localStorage` under the key `followedTeams` as a JSON array of team name strings
+- `getFollowedTeams()` and `setFollowedTeams()` helpers in `src/utils.js` handle read/write with silent failure (e.g. incognito mode)
+- `MyTeamsSection` component (`src/components/MyTeamsSection.jsx`) renders above `LatestMatches` on the homepage, filtered to completed series involving followed teams
+- `ManageTeamsModal` (`src/components/ManageTeamsModal.jsx`) opens from the "Manage" link in the My Teams section header; lists followed teams with unfollow X buttons
+- The modal shows a notice: followed teams are browser-only and will not persist across incognito, other browsers, or other devices
+- No backend, no auth, no server state - entirely localStorage-based
+- Spoiler-free mode is respected in the My Teams section the same way as the main list
+- GA4 events: `follow_team`, `unfollow_team` (team_name param), `my_teams_section_view` (once per page load), `my_teams_vod_click` (match_id, team_name), `manage_teams_open`
+- Star buttons are rendered only when `followedTeams` and `onToggleFollow` props are provided to MatchCard; silently absent otherwise
+- MatchCard header uses `div[role="button"]` with keyboard handlers instead of `<button>` to allow nested `<button>` elements (the star follow buttons); the keydown handler guards against child button keypresses via `e.target !== e.currentTarget`
+
 ### X Posts
 - "Draft X Posts" button appears on completed series cards (owner-only, gated by localStorage flag)
 - Calls `api/draft-posts.js` (Claude Haiku) to generate one post per game with varied tone: opener, momentum shift, decider

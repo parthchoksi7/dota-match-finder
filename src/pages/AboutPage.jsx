@@ -35,6 +35,7 @@ function AboutPage() {
               { title: "Live Match Scores", desc: "See live series scores, current game, and completed game results while matches are in progress." },
               { title: "Tournament Hub", desc: "Live Overview showing running matches with a pulsing indicator. Full standings, schedule, and bracket tree for ongoing tournaments. League organizer label, active round highlighting, and stage switcher for multi-stage events. Standings tab is always present - bracket stages show a clear message with a shortcut to group stage standings." },
               { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts. Shows top 25 by default with a button to reveal all." },
+              { title: "My Teams", desc: "Follow your favorite teams with one click. A dedicated section on the homepage shows only their recent matches. Saved in your browser - no account needed." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-gray-900 dark:text-white mb-1.5">{f.title}</p>
@@ -65,6 +66,7 @@ function AboutPage() {
               { q: "Can I share a specific match?", a: "Yes. Click the share button in any match drawer to copy a direct link. The link includes a preview card showing teams, score, and tournament." },
               { q: "What is spoiler-free mode?", a: "Toggle \"Spoilers: Off\" in the header to hide all scores and match results. Your preference is saved across sessions." },
               { q: "Is Spectate Esports free?", a: "Yes. Spectate Esports is completely free with no account required." },
+              { q: "How does My Teams work?", a: "Click the star next to any team name to follow them. A My Teams section appears at the top of the homepage showing only their recent matches. Your followed teams are saved in your browser's storage - no login required. They will not carry over to other browsers, incognito mode, or other devices." },
               { q: "Which data sources are used?", a: "Match data from OpenDota API. Live and upcoming matches from PandaScore. VOD links from the Twitch API. AI summaries from Anthropic Claude." },
             ].map(({ q, a }) => (
               <div key={q} className="py-5">

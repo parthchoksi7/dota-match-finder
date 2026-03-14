@@ -6,9 +6,11 @@ import UpcomingMatches from "./components/UpcomingMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
 import TournamentHub from "./components/TournamentHub"
+import MyTeamsSection from "./components/MyTeamsSection"
+import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
-import { formatDuration } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams } from "./utils"
 import { track } from '@vercel/analytics'
 
 function trackEvent(name, props) {
@@ -107,6 +109,18 @@ function App() {
     }
     return false
   })
+
+  const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
+  const [manageTeamsOpen, setManageTeamsOpen] = useState(false)
+
+  function handleToggleFollow(teamName) {
+    setFollowedTeamsState(prev => {
+      const isFollowed = prev.includes(teamName)
+      const next = isFollowed ? prev.filter(t => t !== teamName) : [...prev, teamName]
+      setFollowedTeams(next)
+      return next
+    })
+  }
   const searchInputRef = useRef(null)
 
   const loadMatches = useCallback(() => {
@@ -521,6 +535,8 @@ function App() {
               loading={loading}
               onClearSearch={handleClearSearch}
               spoilerFree={spoilerFree}
+              followedTeams={followedTeams}
+              onToggleFollow={handleToggleFollow}
             />
           </>
         )}
@@ -529,7 +545,23 @@ function App() {
           <div className="flex flex-col gap-6">
             <TournamentHub />
             <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
-            <LatestMatches matches={allMatches} onSelectMatch={handleSelectMatch} onDraftPosts={isOwner ? handleDraftPosts : undefined} spoilerFree={spoilerFree} />
+            <MyTeamsSection
+              matches={allMatches}
+              followedTeams={followedTeams}
+              onSelectMatch={handleSelectMatch}
+              onDraftPosts={isOwner ? handleDraftPosts : undefined}
+              onManageTeams={() => setManageTeamsOpen(true)}
+              onToggleFollow={handleToggleFollow}
+              spoilerFree={spoilerFree}
+            />
+            <LatestMatches
+              matches={allMatches}
+              onSelectMatch={handleSelectMatch}
+              onDraftPosts={isOwner ? handleDraftPosts : undefined}
+              spoilerFree={spoilerFree}
+              followedTeams={followedTeams}
+              onToggleFollow={handleToggleFollow}
+            />
           </div>
         )}
 
@@ -568,6 +600,13 @@ function App() {
           </a>
         </p>
       </footer>
+
+      <ManageTeamsModal
+        open={manageTeamsOpen}
+        followedTeams={followedTeams}
+        onToggleFollow={handleToggleFollow}
+        onClose={() => setManageTeamsOpen(false)}
+      />
 
       <XPostsModal
         open={xPostsOpen}

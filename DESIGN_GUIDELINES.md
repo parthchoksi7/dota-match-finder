@@ -50,10 +50,12 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 | Win | green-600 | green-500 | Positive outcomes |
 | Loss | red-600 | red-500 | Negative outcomes |
 | Watch / VOD | purple-700 | purple-600 | Watch actions only |
+| Follow (active) | yellow-400 | yellow-400 | Followed/favorited team star only |
 
 ### Rules
 - **Red is reserved** for: active tab indicators, live pulse dots, primary CTAs, and loss states. Never use red for decorative purposes.
 - **Purple is reserved** for watch/VOD actions only. Don't repurpose it.
+- **Yellow-400 is reserved** for the follow/star active state only. Don't repurpose it.
 - Light mode must use gray-900 (not gray-700) for primary text — never sacrifice contrast for softness
 - No gradients. No shadows except on the match drawer overlay.
 - Borders are always 1px, never 2px+, unless it's an active indicator underline
@@ -99,8 +101,17 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 - **Loser** team name: same size but `font-bold text-gray-400 dark:text-gray-500` — still readable, clearly secondary
 - **Winner** score digit: `font-display font-black text-2xl sm:text-3xl text-gray-900 dark:text-white`
 - **Loser** score digit: same size, `text-gray-500 dark:text-gray-500`
-- Score separator "—": `text-base font-medium text-gray-300 dark:text-gray-700` — structural glue, not content
+- Score separator "-": `text-base font-medium text-gray-300 dark:text-gray-700` - structural glue, not content
 - Spoiler-free mode: both teams get the winner style (font-black, primary color) since no result is shown
+
+### Follow / star button
+- Size: `w-3.5 h-3.5` SVG star icon, button wrapper `p-0.5 rounded`
+- Unfollowed: `text-gray-300 dark:text-gray-700`, hover: `hover:text-yellow-400 dark:hover:text-yellow-400`
+- Followed: `text-yellow-400` (filled star)
+- Transition: `transition-colors`
+- Placement: inline after the team name, `flex-shrink-0` so it never pushes the name
+- Must use `e.stopPropagation()` when nested inside a clickable card header to prevent card expand
+- Only rendered when `onToggleFollow` prop is provided - absent by default on cards that don't need it
 
 ### Tabs (navigation inside panels)
 

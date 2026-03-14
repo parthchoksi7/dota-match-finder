@@ -1,7 +1,7 @@
 import MatchCard from "./MatchCard"
 import { groupIntoSeries } from "../utils"
 
-function MatchList({ matches, onSelect, onDraftPosts, loading, onClearSearch, spoilerFree = false }) {
+function MatchList({ matches, onSelect, onDraftPosts, loading, onClearSearch, spoilerFree = false, followedTeams, onToggleFollow }) {
 
   if (loading) {
     return (
@@ -41,7 +41,7 @@ function MatchList({ matches, onSelect, onDraftPosts, loading, onClearSearch, sp
         {series.length} series ({totalGames} games)
       </p>
       {series.map((s) => (
-        <MatchCard key={s.id} series={s} onSelectGame={onSelect} onDraftPosts={onDraftPosts} defaultExpanded={false} spoilerFree={spoilerFree} />
+        <MatchCard key={s.id} series={s} onSelectGame={onSelect} onDraftPosts={onDraftPosts} defaultExpanded={false} spoilerFree={spoilerFree} followedTeams={followedTeams} onToggleFollow={onToggleFollow} />
       ))}
     </div>
   )
