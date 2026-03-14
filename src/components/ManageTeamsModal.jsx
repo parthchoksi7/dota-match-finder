@@ -35,7 +35,7 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-2xl">
+      <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
           <h2
             id="manage-teams-title"
