@@ -3,7 +3,7 @@ import { fetchHeroes } from "../api"
 
 const LANE_ORDER = { Carry: 1, Mid: 2, Off: 3, "Soft Sup": 4, "Hard Sup": 5, Unknown: 6 }
 
-function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
+function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoilerFree = false }) {
   const [draft, setDraft] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -109,9 +109,11 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
                     <span className="font-semibold text-xs text-gray-900 dark:text-white truncate">
                       {p.heroName}
                     </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-                      {p.kills}/{p.deaths}/{p.assists}
-                    </span>
+                    {!spoilerFree && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
+                        {p.kills}/{p.deaths}/{p.assists}
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                     {p.personaname}
@@ -135,9 +137,11 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false }) {
                     <span className="font-semibold text-xs text-gray-900 dark:text-white truncate">
                       {p.heroName}
                     </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-                      {p.kills}/{p.deaths}/{p.assists}
-                    </span>
+                    {!spoilerFree && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
+                        {p.kills}/{p.deaths}/{p.assists}
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                     {p.personaname}

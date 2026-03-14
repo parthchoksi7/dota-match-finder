@@ -19,6 +19,7 @@ function MyTeamsSection({
   onManageTeams,
   onToggleFollow,
   spoilerFree = false,
+  expandedSeriesId,
 }) {
   const sectionViewFired = useRef(false)
 
@@ -87,6 +88,7 @@ function MyTeamsSection({
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}
               onToggleFollow={onToggleFollow}
+              expandedSeriesId={expandedSeriesId}
             />
           ))}
         </div>

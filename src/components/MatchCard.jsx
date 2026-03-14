@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { formatDuration, getSeriesLabel } from "../utils"
 import { track } from "@vercel/analytics"
 
@@ -32,8 +32,13 @@ function MatchCard({
   spoilerFree = false,
   followedTeams,
   onToggleFollow,
+  expandedSeriesId = null,
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+
+  useEffect(() => {
+    if (series.id === expandedSeriesId) setExpanded(true)
+  }, [series.id, expandedSeriesId])
 
   const radiantTeam = series.games[0].radiantTeam
   const direTeam = series.games[0].direTeam
@@ -67,7 +72,15 @@ function MatchCard({
   }
 
   return (
-    <div className="border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 transition-all bg-white dark:bg-gray-950 rounded">
+    <div
+      data-series-id={series.id}
+      className={
+        "transition-all bg-white dark:bg-gray-950 rounded border " +
+        (series.id === expandedSeriesId
+          ? "border-blue-500 dark:border-blue-500 ring-1 ring-blue-500/30"
+          : "border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600")
+      }
+    >
 
       {/* Card header -- uses div[role="button"] so nested follow <button> elements are valid HTML */}
       <div
