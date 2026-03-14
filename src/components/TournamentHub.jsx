@@ -473,6 +473,7 @@ function HorizontalBracket({ bracket }) {
 }
 
 const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes']
+const PLAYOFF_FORMATS = new Set(['Double Elimination', 'Single Elimination', 'Bracket'])
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
 function stageShortName(name) {
@@ -575,6 +576,14 @@ function TournamentHub() {
   const effectiveDetail = (activeStageId && stageCache[activeStageId]) || detail
   const isStageLoading = detailLoading || (!!activeStageId && !stageCache[activeStageId] && stageLoading)
 
+  const isPlayoffStage = !!effectiveDetail?.format && PLAYOFF_FORMATS.has(effectiveDetail.format)
+  const visibleTabs = TABS.filter(t => t !== 'Standings' || !isPlayoffStage)
+
+  // If we're on Standings and switch to a playoff stage, jump to Schedule
+  useEffect(() => {
+    if (isPlayoffStage && activeTab === 'Standings') setActiveTab('Schedule')
+  }, [isPlayoffStage])
+
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden animate-pulse">
       <div className="px-4 sm:px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
@@ -669,7 +678,7 @@ function TournamentHub() {
       {/* Tab bar — segmented control */}
       <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab}
               type="button"
