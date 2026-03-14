@@ -160,6 +160,20 @@ These features are intentionally hidden from public documentation. They are gate
 - `XPostsModal` shows posts per game with a one-click Copy button; closes on Escape or backdrop click
 - Hidden in spoiler-free mode
 
+### Draft Reddit Posts
+
+- Enabled by the same `spectate-owner` localStorage flag
+- A "Draft Reddit" button (Reddit alien icon) appears next to the "Draft X posts" button on completed series cards
+- Button opens `RedditPostsModal` (src/components/RedditPostsModal.jsx)
+- `App.jsx` calls `/api/reddit-posts` with series metadata; no VOD fetching needed
+- `api/reddit-posts.js` uses Claude Haiku in a single call to generate two posts:
+  - **VOD Roundup Post** - fully spoiler-free; suitable for r/DotaVods or r/Dota2; includes title and body separately so they can be pasted into Reddit's post form
+  - **Match Thread Comment** - can reference the result; 2-4 sentences; suitable for dropping in a post-match discussion thread
+- All links use `?spoilers=off` so recipients land in spoiler-free mode automatically
+- `?spoilers=off` URL param also works as a standalone entry point - enables spoiler-free mode on load and persists it to localStorage
+- `RedditPostsModal` shows amber-accented VOD Roundup section with separate "Copy title" and "Copy post" buttons, plus a standard gray Match Thread Comment section
+- Hidden in spoiler-free mode (same as X posts)
+
 ---
 
 ## Notes for Claude Code
