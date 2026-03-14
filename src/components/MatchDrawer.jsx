@@ -47,7 +47,7 @@ function MatchDrawer({
   const displaySummary = summary || cachedSummary
   const twitchHref = twitchSearchHref || "https://www.twitch.tv/search?term=dota%202"
   const allVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])
-  const gameLabel = gameNumber && seriesMatches > 1 ? "Game " + gameNumber + " of " + seriesMatches : null
+  const gameLabel = gameNumber && seriesMatches > 1 ? (spoilerFree ? "Game " + gameNumber : "Game " + gameNumber + " of " + seriesMatches) : null
   const hideScore = spoilerFree && !scoreRevealed
 
   return (
