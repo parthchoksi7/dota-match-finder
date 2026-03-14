@@ -393,7 +393,7 @@ function BracketSection({ label, rounds }) {
 
             return round.matches.map((_, mIdx) => {
               const y1          = mIdx * curSlotH + curSlotH / 2
-              const nextMIdx    = Math.floor(mIdx / 2)
+              const nextMIdx    = Math.floor(mIdx * nextRound.matches.length / round.matches.length)
               const y2          = nextMIdx * nextSlotH + nextSlotH / 2
               return (
                 <path
@@ -724,9 +724,10 @@ function TournamentHub() {
                 const end = stage.endAt ? new Date(stage.endAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
                 const dateStr = start && end ? `${start} – ${end}` : start || end || null
                 return (
-                  <div key={stage.id} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">{stageShortName(stage.name)}</span>
-                    {dateStr && <span className="text-gray-400 dark:text-gray-600 tabular-nums">{dateStr}</span>}
+                  <div key={stage.id} className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{stageShortName(stage.name)}</span>
+                    <span className="flex-1 border-b border-dashed border-gray-200 dark:border-gray-700" />
+                    {dateStr && <span className="text-gray-400 dark:text-gray-600 tabular-nums whitespace-nowrap">{dateStr}</span>}
                   </div>
                 )
               })}
