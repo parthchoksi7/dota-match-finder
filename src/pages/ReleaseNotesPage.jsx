@@ -2,6 +2,20 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 14, 2026",
+    tag: "new",
+    title: "My Teams - Follow Your Favorite Teams",
+    desc: "Follow teams with one click and see their matches prioritized at the top of the homepage. No account required.",
+    items: [
+      "Star icon on every match card lets you follow or unfollow a team instantly.",
+      "My Teams section appears above Latest Results when you have followed teams, showing only their completed series.",
+      "If your followed teams have no recent matches, a short message is shown instead.",
+      "Manage button opens a modal to review and remove followed teams.",
+      "Works with Spoiler-Free mode - My Teams matches hide scores and results just like the main list.",
+      "Followed teams are saved in your browser. They will not appear in incognito mode, other browsers, or on other devices.",
+    ],
+  },
+  {
     date: "Mar 13, 2026",
     tag: "improvement",
     title: "Tournament Identity and Bracket Live States",

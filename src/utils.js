@@ -95,6 +95,35 @@ function winsRequiredForSeries(seriesType) {
   return 2
 }
 
+// ── My Teams localStorage helpers ─────────────────────────────────────────
+
+const FOLLOWED_TEAMS_KEY = "followedTeams"
+
+/**
+ * Read followed team names from localStorage.
+ * Returns an empty array if localStorage is unavailable or data is malformed.
+ */
+export function getFollowedTeams() {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = localStorage.getItem(FOLLOWED_TEAMS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Persist an array of followed team names to localStorage.
+ * Fails silently if localStorage is unavailable (e.g. incognito).
+ */
+export function setFollowedTeams(teams) {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(FOLLOWED_TEAMS_KEY, JSON.stringify(teams))
+  } catch {}
+}
+
 /** True if the series has a winner (max wins >= required). */
 export function isSeriesComplete(series) {
   if (!series || !series.games || !series.games.length) return false

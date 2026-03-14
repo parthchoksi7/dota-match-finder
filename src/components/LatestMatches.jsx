@@ -19,7 +19,7 @@ function getDayKey(unixSeconds) {
   return d.toDateString()
 }
 
-function LatestMatches({ matches, onSelectMatch, onDraftPosts, spoilerFree = false }) {
+function LatestMatches({ matches, onSelectMatch, onDraftPosts, spoilerFree = false, followedTeams, onToggleFollow }) {
   if (!matches || matches.length === 0) return null
 
   const allSeries = groupIntoSeries(matches)
@@ -55,6 +55,8 @@ function LatestMatches({ matches, onSelectMatch, onDraftPosts, spoilerFree = fal
                 onDraftPosts={onDraftPosts}
                 defaultExpanded={false}
                 spoilerFree={spoilerFree}
+                followedTeams={followedTeams}
+                onToggleFollow={onToggleFollow}
               />
             </Fragment>
           )
