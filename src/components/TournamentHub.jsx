@@ -618,24 +618,24 @@ function TournamentHub() {
   })()
 
   return (
-    <section
-      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
-      aria-labelledby="tournament-hub-heading"
-    >
-      {/* Header */}
-      <div className="px-4 sm:px-5 py-3.5 bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-800">
+    <div>
+      <div className="flex items-center mb-2">
         <h2
           id="tournament-hub-heading"
-          className="text-sm uppercase tracking-widest text-gray-700 dark:text-gray-300 font-bold"
+          className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : "border-blue-500"}`}
         >
           {isOngoing ? (
             <span className="inline-flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               Live Tournament
             </span>
-          ) : 'Upcoming Tournament'}
+          ) : "Upcoming Tournament"}
         </h2>
       </div>
+      <section
+      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
+      aria-labelledby="tournament-hub-heading"
+      >
 
       {/* Tournament switcher (if multiple ongoing stages) */}
       {ongoing.length > 1 && (
@@ -909,6 +909,7 @@ function TournamentHub() {
       )}
 
     </section>
+    </div>
   )
 }
 

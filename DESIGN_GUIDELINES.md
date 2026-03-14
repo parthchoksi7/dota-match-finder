@@ -146,6 +146,33 @@ Two distinct tab patterns exist - use the right one for the context:
 - Wrapper padding: `py-8` for full-section empty states, `py-4` for inline/compact states
 - Action button: ghost variant (`border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600`), `mt-4` below the copy line
 
+### Section labels
+
+Homepage sections use **floating labels** — a small `<h2>` rendered *above* the card border, not inside a header bar. This creates clear visual separation between sections while keeping the card surface clean.
+
+**Markup pattern:**
+```jsx
+<div className="flex items-center [justify-between] mb-2">
+  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-[color]">
+    Section Title
+  </h2>
+  {/* optional right-slot: Manage button, match count, etc. */}
+</div>
+```
+
+**Left-accent color by section** (`border-l-2` is the one approved 2px exception alongside the active underline tab):
+| Section | Accent | Token |
+|---|---|---|
+| Live Tournament / Live Now | `border-red-500` | Red = live (matches live indicator color) |
+| Upcoming Tournament / Upcoming Matches | `border-blue-500` | Blue = scheduled/future |
+| My Teams | `border-amber-500` | Amber = personal content |
+| Latest Results | `border-gray-400 dark:border-gray-600` | Gray = historical/neutral |
+
+- Label text is always tertiary style: `text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`
+- `mb-2` gap between label and the card below
+- Live sections keep the pulsing red dot inline in the label text
+- `justify-between` when a right-slot is needed (Manage button, result count)
+
 ### Live indicators
 - Pulsing red dot: `inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse`
 - Only used for genuinely live/running states — never as decoration
