@@ -33,11 +33,12 @@ export default async function handler(req, res) {
 
   try {
     // Fetch recent pro matches — grab enough to filter down to ~100 Tier 1
-    const pages = await Promise.all([
-      fetch('https://api.opendota.com/api/proMatches').then(r => r.json()),
-      fetch('https://api.opendota.com/api/proMatches?less_than_match_id=' + encodeURIComponent('last')).then(r => r.json()).catch(() => []),
-    ])
-    const raw = pages.flat().filter(Boolean)
+    const page1 = await fetch('https://api.opendota.com/api/proMatches').then(r => r.json())
+    const lastId = Array.isArray(page1) && page1.length ? page1[page1.length - 1].match_id : null
+    const page2 = lastId
+      ? await fetch(`https://api.opendota.com/api/proMatches?less_than_match_id=${lastId}`).then(r => r.json()).catch(() => [])
+      : []
+    const raw = [...(Array.isArray(page1) ? page1 : []), ...(Array.isArray(page2) ? page2 : [])].filter(Boolean)
 
     const matches = raw
       .filter(m => isTier1(m.league_name))
