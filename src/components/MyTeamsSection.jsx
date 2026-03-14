@@ -15,6 +15,7 @@ function MyTeamsSection({
   followedTeams,
   onSelectMatch,
   onDraftPosts,
+  onDraftRedditPosts,
   onManageTeams,
   onToggleFollow,
   spoilerFree = false,
@@ -81,6 +82,7 @@ function MyTeamsSection({
               series={s}
               onSelectGame={handleSelectGame}
               onDraftPosts={onDraftPosts}
+              onDraftRedditPosts={onDraftRedditPosts}
               defaultExpanded={false}
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}

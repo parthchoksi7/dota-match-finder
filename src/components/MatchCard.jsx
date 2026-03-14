@@ -27,6 +27,7 @@ function MatchCard({
   series,
   onSelectGame,
   onDraftPosts,
+  onDraftRedditPosts,
   defaultExpanded = false,
   spoilerFree = false,
   followedTeams,
@@ -240,26 +241,45 @@ function MatchCard({
             </button>
           ))}
 
-          {/* Draft X posts button -- only when series is complete and not in spoiler-free mode */}
-          {!spoilerFree && onDraftPosts && (() => {
+          {/* Owner action buttons -- only when series is complete and not in spoiler-free mode */}
+          {!spoilerFree && (onDraftPosts || onDraftRedditPosts) && (() => {
             const winsNeeded = series.seriesType === 0 ? 1 : series.seriesType === 2 ? 3 : 2
             const isComplete = radiantWins >= winsNeeded || direWins >= winsNeeded
             return isComplete ? (
-              <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex justify-end">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    trackEvent("draft_x_posts", { tournament: series.tournament, radiantTeam, direTeam, games: series.games.length })
-                    onDraftPosts(series)
-                  }}
-                  className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white rounded transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                  Draft X posts
-                </button>
+              <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-2">
+                {onDraftPosts && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      trackEvent("draft_x_posts", { tournament: series.tournament, radiantTeam, direTeam, games: series.games.length })
+                      onDraftPosts(series)
+                    }}
+                    className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white rounded transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                    Draft X posts
+                  </button>
+                )}
+                {onDraftRedditPosts && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      trackEvent("draft_reddit_posts", { tournament: series.tournament, radiantTeam, direTeam, games: series.games.length })
+                      onDraftRedditPosts(series)
+                    }}
+                    className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white rounded transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
+                      <circle cx="10" cy="10" r="10" fill="currentColor" className="text-orange-500" />
+                      <path fill="white" d="M16.67 10a1.46 1.46 0 0 0-2.47-1 7.12 7.12 0 0 0-3.85-1.23l.65-3.08 2.13.45a1 1 0 1 0 .24-.97l-2.38-.5a.25.25 0 0 0-.3.19l-.73 3.44a7.14 7.14 0 0 0-3.89 1.23 1.46 1.46 0 1 0-1.61 2.39 2.87 2.87 0 0 0 0 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 0 0 0-.44 1.46 1.46 0 0 0 .46-1.92zM7.27 11a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm5.58 2.71a3.58 3.58 0 0 1-2.85.86 3.58 3.58 0 0 1-2.85-.86.25.25 0 0 1 .35-.35 3.08 3.08 0 0 0 2.5.71 3.08 3.08 0 0 0 2.5-.71.25.25 0 0 1 .35.35zm-.13-1.71a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"/>
+                    </svg>
+                    Draft Reddit
+                  </button>
+                )}
               </div>
             ) : null
           })()}

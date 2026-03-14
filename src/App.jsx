@@ -5,6 +5,7 @@ import LatestMatches from "./components/LatestMatches"
 import UpcomingMatches from "./components/UpcomingMatches"
 import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
+import RedditPostsModal from "./components/RedditPostsModal"
 import TournamentHub from "./components/TournamentHub"
 import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
@@ -103,11 +104,21 @@ function App() {
   const [xPostsLoading, setXPostsLoading] = useState(false)
   const [xPostsError, setXPostsError] = useState(null)
 
+  const [redditPostsOpen, setRedditPostsOpen] = useState(false)
+  const [redditPostsSeries, setRedditPostsSeries] = useState(null)
+  const [redditMatchPost, setRedditMatchPost] = useState(null)
+  const [redditDayComment, setRedditDayComment] = useState(null)
+  const [redditPostsLoading, setRedditPostsLoading] = useState(false)
+  const [redditPostsError, setRedditPostsError] = useState(null)
+
   const [spoilerFree, setSpoilerFree] = useState(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      return localStorage.getItem("spoilerFree") === "true"
+    if (typeof window === "undefined") return false
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('spoilers') === 'off') {
+      try { localStorage.setItem('spoilerFree', 'true') } catch {}
+      return true
     }
-    return false
+    return localStorage.getItem("spoilerFree") === "true"
   })
 
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
@@ -378,6 +389,67 @@ function App() {
     }
   }
 
+  async function handleDraftRedditPosts(series) {
+    setRedditPostsSeries(series)
+    setRedditMatchPost(null)
+    setRedditDayComment(null)
+    setRedditPostsError(null)
+    setRedditPostsLoading(true)
+    setRedditPostsOpen(true)
+
+    try {
+      const radiantTeam = series.games[0].radiantTeam
+      const direTeam = series.games[0].direTeam
+      const radiantWins = series.games.filter(g =>
+        (g.radiantWin && g.radiantTeam === radiantTeam) || (!g.radiantWin && g.direTeam === radiantTeam)
+      ).length
+      const direWins = series.games.filter(g =>
+        (g.radiantWin && g.radiantTeam === direTeam) || (!g.radiantWin && g.direTeam === direTeam)
+      ).length
+      const seriesWinner = radiantWins >= direWins ? radiantTeam : direTeam
+
+      const games = series.games.map((game, i) => ({
+        gameNumber: i + 1,
+        spectateUrl: window.location.origin + "/match/" + getMatchSlug(game) + "?spoilers=off",
+      }))
+
+      const seriesLink = window.location.origin + "/match/" + getMatchSlug(series.games[0]) + "?spoilers=off"
+
+      const date = series.games[0]?.startTime
+        ? new Date(series.games[0].startTime * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : undefined
+
+      const res = await fetch('/api/reddit-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team1: radiantTeam,
+          team2: direTeam,
+          tournament: series.tournament,
+          seriesType: series.seriesType,
+          seriesScore: `${radiantWins}-${direWins}`,
+          seriesWinner,
+          games,
+          seriesLink,
+          date,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || 'Failed to generate posts')
+      }
+
+      const data = await res.json()
+      setRedditMatchPost(data.matchPost || null)
+      setRedditDayComment(data.dayComment || null)
+    } catch (err) {
+      setRedditPostsError(err?.message || 'Failed to generate posts')
+    } finally {
+      setRedditPostsLoading(false)
+    }
+  }
+
   function dismissPanel() {
     const scrollY = window.scrollY
     setSelectedMatch(null)
@@ -532,6 +604,7 @@ function App() {
               matches={filteredMatches}
               onSelect={handleSelectMatch}
               onDraftPosts={isOwner ? handleDraftPosts : undefined}
+              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
               loading={loading}
               onClearSearch={handleClearSearch}
               spoilerFree={spoilerFree}
@@ -550,6 +623,7 @@ function App() {
               followedTeams={followedTeams}
               onSelectMatch={handleSelectMatch}
               onDraftPosts={isOwner ? handleDraftPosts : undefined}
+              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
               onManageTeams={() => setManageTeamsOpen(true)}
               onToggleFollow={handleToggleFollow}
               spoilerFree={spoilerFree}
@@ -558,6 +632,7 @@ function App() {
               matches={allMatches}
               onSelectMatch={handleSelectMatch}
               onDraftPosts={isOwner ? handleDraftPosts : undefined}
+              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
@@ -617,6 +692,16 @@ function App() {
         seriesImageUrl={xPostsSeriesImageUrl}
         loading={xPostsLoading}
         error={xPostsError}
+      />
+
+      <RedditPostsModal
+        open={redditPostsOpen}
+        onClose={() => setRedditPostsOpen(false)}
+        series={redditPostsSeries}
+        matchPost={redditMatchPost}
+        dayComment={redditDayComment}
+        loading={redditPostsLoading}
+        error={redditPostsError}
       />
 
       {selectedMatch && !initialLoading && (
