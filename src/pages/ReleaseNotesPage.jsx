@@ -2,6 +2,17 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 14, 2026",
+    tag: "fix",
+    title: "Consistent Standings Tab Across Tournament Stages",
+    desc: "The Standings tab no longer disappears and reappears when switching between group stage and playoffs.",
+    items: [
+      "Previously, the Standings tab was hidden entirely for bracket/elimination formats, causing it to abruptly appear when switching back to group stage.",
+      "The tab bar now always shows all four tabs (Overview, Standings, Schedule, Heroes) regardless of the active stage format.",
+      "When viewing a bracket stage, the Standings tab shows a clear message: 'No standings for bracket stages.' with an optional shortcut to switch to the group stage standings.",
+    ],
+  },
+  {
     date: "Mar 13, 2026",
     tag: "improvement",
     title: "Tournament Identity and Bracket Live States",

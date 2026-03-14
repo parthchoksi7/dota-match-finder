@@ -766,7 +766,7 @@ function TournamentHub() {
             </div>
           ) : isPlayoffStage ? (
             <div className="px-4 sm:px-5 py-8 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-500">Standings are not available for elimination brackets.</p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No standings for bracket stages.</p>
               {detail?.eventStages?.some(s => !PLAYOFF_FORMATS.has(s.format) && s.id !== activeStageId) && (
                 <button
                   type="button"
@@ -774,9 +774,9 @@ function TournamentHub() {
                     const groupStage = detail.eventStages.find(s => !PLAYOFF_FORMATS.has(s.format))
                     if (groupStage) setActiveStageId(groupStage.id)
                   }}
-                  className="mt-3 text-xs font-semibold text-red-500 hover:text-red-400 uppercase tracking-wide"
+                  className="mt-4 px-3 py-1.5 text-xs font-semibold rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 uppercase tracking-wide"
                 >
-                  View Group Stage standings
+                  View group stage
                 </button>
               )}
             </div>
