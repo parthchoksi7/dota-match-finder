@@ -163,7 +163,8 @@ async function fetchSeriesRosters(tournamentId, headers) {
   try {
     const res = await fetch(`${BASE}/tournaments/${tournamentId}/rosters`, { headers })
     if (!res.ok) return []
-    return (await res.json()) || []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
   } catch { return [] }
 }
 
@@ -171,7 +172,8 @@ async function fetchSeriesStandings(tournamentId, headers) {
   try {
     const res = await fetch(`${BASE}/tournaments/${tournamentId}/standings`, { headers })
     if (!res.ok) return []
-    return (await res.json()) || []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
   } catch { return [] }
 }
 
@@ -203,12 +205,13 @@ async function handleSeriesDetail(req, res, token) {
     fetch(`${BASE}/dota2/series/upcoming?filter[id]=${seriesId}`, { headers }),
     fetch(`${BASE}/dota2/series/past?filter[id]=${seriesId}`, { headers }),
   ])
+  const toArr = async (r) => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
   const [runData, upData, pastData] = await Promise.all([
-    runR.ok ? runR.json() : [],
-    upR.ok ? upR.json() : [],
-    pastR.ok ? pastR.json() : [],
+    runR.ok ? toArr(runR) : Promise.resolve([]),
+    upR.ok ? toArr(upR) : Promise.resolve([]),
+    pastR.ok ? toArr(pastR) : Promise.resolve([]),
   ])
-  const serie = [...(runData || []), ...(upData || []), ...(pastData || [])][0]
+  const serie = [...runData, ...upData, ...pastData][0]
   if (!serie) return res.status(404).json({ error: 'Tournament not found' })
   const tournaments = serie.tournaments || []
 

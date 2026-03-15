@@ -188,9 +188,12 @@ export default function TournamentDetail() {
     }
 
     fetch(`/api/tournament-detail?id=${seriesId}&series=1`)
-      .then(r => {
+      .then(async r => {
         if (r.status === 404) throw new Error('not_found')
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}))
+          throw new Error(`HTTP ${r.status}: ${body.message || body.error || ''}`)
+        }
         return r.json()
       })
       .then(d => {
