@@ -96,7 +96,7 @@ function MatchCard({
         <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-2">
           <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold flex items-center gap-2 min-w-0">
             <span className="truncate">{series.tournament}</span>
-            {seriesLabel && (
+            {seriesLabel && !spoilerFree && (
               <span className="text-gray-400 dark:text-gray-600 font-normal shrink-0">({seriesLabel})</span>
             )}
           </span>
@@ -203,7 +203,7 @@ function MatchCard({
         {!expanded && (
           <div className="px-4 pb-3 pt-0">
             <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider">
-              {series.games.length} game{series.games.length !== 1 ? "s" : ""} - click to expand
+              {spoilerFree ? "Click to expand" : `${series.games.length} game${series.games.length !== 1 ? "s" : ""} - click to expand`}
             </span>
           </div>
         )}
