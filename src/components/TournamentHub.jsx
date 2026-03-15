@@ -230,8 +230,10 @@ function TournamentHub() {
 
   const ongoing = data?.ongoing || []
   const upcoming = data?.upcoming || []
-  const tournament = ongoing[activeTournamentIdx] || ongoing[0] || upcoming[0] || null
+  const completed = data?.completed || []
+  const tournament = ongoing[activeTournamentIdx] || ongoing[0] || upcoming[0] || completed[0] || null
   const isOngoing = ongoing.length > 0
+  const isCompleted = !isOngoing && upcoming.length === 0 && !!tournament
 
   // Fetch detail for the main tournament (also seeds the stage cache)
   useEffect(() => {
@@ -348,14 +350,14 @@ function TournamentHub() {
       <div className="flex items-center mb-2">
         <h2
           id="tournament-hub-heading"
-          className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : "border-blue-500"}`}
+          className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-gray-400 dark:border-gray-700" : "border-blue-500"}`}
         >
           {isOngoing ? (
             <span className="inline-flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               Live Tournament
             </span>
-          ) : "Upcoming Tournament"}
+          ) : isCompleted ? "Recently Completed" : "Upcoming Tournament"}
         </h2>
       </div>
       <section

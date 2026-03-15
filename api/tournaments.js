@@ -7,7 +7,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_LIST_KEY = 'dota2:tournament_list_v3'
+const KV_LIST_KEY = 'dota2:tournament_list_v4'
 const KV_STATUS_KEY = 'dota2:tournament_statuses_v3'
 const LIST_TTL = 60 * 60 * 6        // 6 hours — catches stage transitions (Group → Playoffs)
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
@@ -87,20 +87,26 @@ async function fetchTournamentList(token) {
   console.log('Tournament list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  const [runningRes, upcomingRes] = await Promise.all([
+  const [runningRes, upcomingRes, pastRes] = await Promise.all([
     fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, { headers }),
     fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=10`, { headers }),
   ])
 
   if (!runningRes.ok || !upcomingRes.ok) {
     throw new Error(`PandaScore error: ${runningRes.status} / ${upcomingRes.status}`)
   }
 
-  const [running, upcoming] = await Promise.all([runningRes.json(), upcomingRes.json()])
+  const [running, upcoming, past] = await Promise.all([
+    runningRes.json(),
+    upcomingRes.json(),
+    pastRes.ok ? pastRes.json() : Promise.resolve([]),
+  ])
 
   const list = {
     ongoing: (running || []).filter(t => isTier1(t.league?.name, t.serie?.full_name)).map(t => mapTournament(t, 'running')),
     upcoming: (upcoming || []).filter(t => isTier1(t.league?.name, t.serie?.full_name)).slice(0, 5).map(t => mapTournament(t, 'upcoming')),
+    completed: (past || []).filter(t => isTier1(t.league?.name, t.serie?.full_name)).slice(0, 3).map(t => mapTournament(t, 'completed')),
     fetchedAt: new Date().toISOString(),
   }
 
@@ -367,6 +373,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ongoing,
       upcoming,
+      completed: list.completed || [],
       meta: { listFetchedAt: list.fetchedAt, statusesFresh: Object.keys(statuses).length > 0 }
     })
 
