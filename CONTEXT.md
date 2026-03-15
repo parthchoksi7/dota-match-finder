@@ -181,9 +181,16 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `middleware.js` (Vercel Edge) intercepts `/match/*` requests and injects correct title + OG tags
 
 ### Spoiler-Free Mode
-- Toggle in `App.jsx` - passed as `spoilerFree` prop to `UpcomingMatches` and `MatchCard`
+- Toggle in `App.jsx` - passed as `spoilerFree` prop to `UpcomingMatches`, `MatchCard`, `DraftDisplay`, and `MatchDrawer`
 - In live section: hides series score, winner names in game chips, disables team dimming
-- In latest results: hides game outcomes in `MatchCard`
+- In latest results (`MatchCard`):
+  - Hides series score (shows "? - ?")
+  - Hides BO label (BO3/BO5) - format reveals series length
+  - Hides game count in collapsed view ("X games") - replaced with "Click to expand"
+  - Hides per-game winner in expanded list (shows "Hidden")
+- In match drawer (`MatchDrawer`): game label shows "Game 1" not "Game 1 of 3" - series length is a spoiler
+- In draft breakdown (`DraftDisplay`): hides KDA stats (kills/deaths/assists) for all players
+- Reddit VOD post drafts only include game 1 data so the AI does not reference "Game 3" in generated content
 
 ### Latest Results UI
 - Floating section label above the card (no internal header bar); gray left-border accent (`border-gray-400`)

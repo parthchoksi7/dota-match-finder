@@ -2,6 +2,19 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 15, 2026",
+    tag: "improvement",
+    title: "Stronger Spoiler-Free Mode",
+    desc: "Spoiler-free mode now hides all information that could reveal the outcome or length of a series.",
+    items: [
+      "Series type label (BO3, BO5) is now hidden - knowing the format can hint at how many games were played.",
+      "Game count ('3 games') in collapsed cards is now hidden - replaced with 'Click to expand'.",
+      "Game label in the match drawer now shows 'Game 1' instead of 'Game 1 of 3' so the series length stays hidden.",
+      "KDA stats in the draft breakdown remain hidden (existing behavior).",
+      "Reddit VOD post drafts no longer reference game numbers beyond Game 1, keeping the post spoiler-free.",
+    ],
+  },
+  {
     date: "Mar 14, 2026",
     tag: "improvement",
     title: "Clearer Section Layout on the Homepage",
