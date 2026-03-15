@@ -60,6 +60,7 @@ export default async function middleware(req) {
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${imageUrl}" />
     <title>${escapeHtml(title)}</title>
+    <link rel="canonical" href="${url.href}" />
   `
 
   // Strip ALL existing og/twitter meta tags and title so ours take full precedence
@@ -67,6 +68,14 @@ export default async function middleware(req) {
   html = html.replace(/<meta[^>]*property="og:[^>]*"[^>]*\/?>/gi, '')
   html = html.replace(/<meta[^>]*name="twitter:[^>]*"[^>]*\/?>/gi, '')
   html = html.replace('</head>', ogTags + '</head>')
+
+  // Inject server-rendered content into the root div so Googlebot's first-wave
+  // crawl (no JS) sees real text content rather than an empty shell.
+  // React will replace this on the client side — no effect on users.
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root"><div style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p></div></div>`
+  )
 
   return new Response(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
