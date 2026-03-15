@@ -224,6 +224,7 @@ export default function TournamentDetail() {
           <a
             href="/tournaments"
             className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors mb-4"
+            onClick={() => trackEvent('tournament_back_click', {})}
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -276,6 +277,15 @@ export default function TournamentDetail() {
                 <StatusBadge status={data.status} />
               </div>
 
+              {data.status === 'completed' && data.winner?.name && (
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">🏆</span>
+                  <span className="text-sm font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+                    {data.winner.name}
+                  </span>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-4">
                 {data.beginAt && data.endAt && (
                   <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 tabular-nums">
@@ -320,12 +330,14 @@ export default function TournamentDetail() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-300 rounded transition-colors"
+                  onClick={() => trackEvent('tournament_liquipedia_click', { tournament_name: data.name })}
                 >
                   Liquipedia
                 </a>
                 <a
                   href={`/?q=${encodeURIComponent(data.leagueName || data.name)}`}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-300 rounded transition-colors"
+                  onClick={() => trackEvent('tournament_find_vods_click', { tournament_name: data.name })}
                 >
                   Find VODs
                 </a>
@@ -345,7 +357,7 @@ export default function TournamentDetail() {
                   <button
                     type="button"
                     className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                    onClick={() => setTeamsExpanded(v => !v)}
+                    onClick={() => { setTeamsExpanded(v => !v); trackEvent('tournament_teams_toggle', { tournament_name: data.name }) }}
                   >
                     {teamsExpanded ? 'Collapse' : 'Expand'}
                   </button>
@@ -382,7 +394,7 @@ export default function TournamentDetail() {
                   <button
                     type="button"
                     className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                    onClick={() => setStagesExpanded(v => !v)}
+                    onClick={() => { setStagesExpanded(v => !v); trackEvent('tournament_stages_toggle', { tournament_name: data.name }) }}
                   >
                     {stagesExpanded ? 'Collapse' : 'Expand'}
                   </button>

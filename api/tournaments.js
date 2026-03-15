@@ -165,7 +165,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v1'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v2'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -191,6 +191,7 @@ function mapSeries(serie, status) {
     beginAt: serie.begin_at || null,
     endAt: serie.end_at || null,
     prizePool: formatPrizePool(serie.prizepool),
+    winner: serie.winner?.type === 'Team' ? { id: serie.winner.id, name: serie.winner.name || null } : null,
     tournamentCount: (serie.tournaments || []).length,
     tournaments: (serie.tournaments || []).map(t => ({
       id: t.id,
@@ -234,19 +235,25 @@ async function fetchSeriesList(token) {
   ])
 
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
-  // creates series records late, but tournament entries appear earlier.
-  const upcomingTourRes = await fetch(
-    `${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`,
-    { headers }
-  )
-  const upcomingTours = upcomingTourRes.ok ? await upcomingTourRes.json() : []
+  // creates series records late, but tournament sub-stage entries appear earlier.
+  // Fetch tier s and a separately (comma syntax is unreliable on some plan tiers).
+  const [upTourSRes, upTourARes] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=a&sort=begin_at&page[size]=20`, { headers }),
+  ])
+  const [upTourS, upTourA] = await Promise.all([
+    upTourSRes.ok ? upTourSRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+    upTourARes.ok ? upTourARes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+  ])
+  const upcomingTours = [...upTourS, ...upTourA]
+  console.log(`Upcoming sub-stage tours: ${upcomingTours.length} (s:${upTourS.length} a:${upTourA.length})`)
 
   // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
   const runningIds = new Set((running || []).map(s => s.id))
   const seenSerieIds = new Set()
   const syntheticUpcoming = []
   for (const t of (upcomingTours || [])) {
-    const sid = t.serie_id
+    const sid = t.serie_id || t.serie?.id
     if (!sid || runningIds.has(sid) || seenSerieIds.has(sid)) continue
     seenSerieIds.add(sid)
     syntheticUpcoming.push({

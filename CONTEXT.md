@@ -120,14 +120,18 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Tournament Hub Pages (NEW - Mar 2026)
 - Separate from the existing TournamentHub component (which lives on the homepage)
-- Three new routes: `/tournaments` (series list), `/tournament/:seriesId` (series detail)
+- Two routes: `/tournaments` (series list), `/tournament/:seriesId` (series detail)
 - Uses PandaScore **series** endpoints (`/dota2/series/running`, `/dota2/series/upcoming`, `/dota2/series/past`) - different from the existing TournamentHub which uses **tournament** (sub-stage) endpoints
-- `api/series-list.js` returns series-level objects (not individual tournament stages); each series has `tournaments[]` array for sub-stages
-- `api/series-detail.js` fetches rosters via `/tournaments/{id}/rosters` and standings via `/tournaments/{id}/standings` for each sub-stage
+- Series list mode lives in `api/tournaments.js` behind `?mode=series` query param (merged to stay within 12-function Vercel limit)
+- Series detail mode lives in `api/tournament-detail.js` behind `?series=1` query param (same reason)
+- AI tournament summaries live in `api/summarize.js` behind `type: 'tournament'` in POST body
+- Upcoming tournaments: `/dota2/series/upcoming` is often empty because PandaScore creates series records late. A fallback fetches `/dota2/tournaments/upcoming?filter[tier]=s` and `filter[tier]=a` separately, groups by `serie_id`, and synthesizes series-like entries for any not already in the running list
+- Rosters and standings: `fetchSeriesRosters` and `fetchSeriesStandings` both use `Array.isArray()` guards (PandaScore can return non-array objects)
+- Winner display: `serie.winner` field (type === 'Team') shown as champion on cards and detail page header
 - Routing follows same pattern as AboutPage/ReleaseNotesPage - path check in `main.jsx`, Vercel rewrite to `/` in `vercel.json`
-- Cache keys: `tournaments:dota2:series_list_v1` (1h), `tournament:detail:series:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
-- GA4 events: `tournament_list_view`, `tournament_card_click`, `tournament_detail_view`, `tournament_team_click`, `tournament_stage_click`, `tournament_summary_view`, `tournament_stream_click`, `tournament_bar_click`
-- TournamentBar appears on homepage below search bar when not in search mode; shows max 3 items (live first, then upcoming with countdown)
+- Cache keys: `tournaments:dota2:series_list_v2` (1h), `tournament:detail:series:v2:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
+- GA4 events: `tournament_list_view`, `tournament_card_click`, `tournament_detail_view`, `tournament_team_click`, `tournament_stage_click`, `tournament_summary_view`, `tournament_stream_click`, `tournament_bar_click`, `tournament_back_click`, `tournament_liquipedia_click`, `tournament_find_vods_click`, `tournament_teams_toggle`, `tournament_stages_toggle`
+- TournamentBar and Tournaments nav link are temporarily hidden until upcoming tournament data is confirmed reliable
 - Country-to-region mapping in `src/utils/regions.js` covers WEU, EEU, CN, SEA, NA, SA, ANZ, ME regions
 
 ### Tournament Hub (PandaScore)
