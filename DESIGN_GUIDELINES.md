@@ -166,6 +166,7 @@ Homepage sections use **floating labels** — a small `<h2>` rendered *above* th
 | Live Tournament / Live Now | `border-red-500` | Red = live (matches live indicator color) |
 | Upcoming Tournament / Upcoming Matches | `border-blue-500` | Blue = scheduled/future |
 | My Teams | `border-amber-500` | Amber = personal content |
+| Recently Completed | `border-emerald-500` | Emerald = concluded successfully |
 | Latest Results | `border-gray-400 dark:border-gray-600` | Gray = historical/neutral |
 
 - Label text is always tertiary style: `text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`
