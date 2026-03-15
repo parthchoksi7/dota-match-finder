@@ -226,7 +226,7 @@ async function handleSeriesDetail(req, res, token) {
   for (const stage of stageData) {
     const stageName = (stage.tournament.name || '').toLowerCase()
     const isQualifier = stageName.includes('qualifier') || stageName.includes('qual')
-    for (const roster of stage.rosters) {
+    for (const roster of (stage.rosters || [])) {
       const teamId = roster.team?.id || roster.id
       if (!teamId || teamMap.has(teamId)) continue
       teamMap.set(teamId, mapSeriesTeam(roster, isQualifier ? 'qualified' : 'invited'))
