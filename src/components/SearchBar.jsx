@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
+import { track } from "@vercel/analytics"
+
+function logEvent(name, props) {
+  track(name, props)
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
 
 function SearchBar(
   { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId },
@@ -25,6 +33,7 @@ function SearchBar(
 
   function handleClear() {
     setQuery("")
+    logEvent("search_clear", {})
     onClearSearch?.()
     inputRef.current?.focus()
   }

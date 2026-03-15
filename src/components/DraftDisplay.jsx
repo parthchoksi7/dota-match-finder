@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react"
 import { fetchHeroes } from "../api"
+import { track } from "@vercel/analytics"
+
+function logEvent(name, props) {
+  track(name, props)
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", name, props)
+  }
+}
 
 const LANE_ORDER = { Carry: 1, Mid: 2, Off: 3, "Soft Sup": 4, "Hard Sup": 5, Unknown: 6 }
 
@@ -18,6 +26,7 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoile
       setExpanded((e) => !e)
       return
     }
+    logEvent("draft_load", { matchId })
     setLoading(true)
     setExpanded(true)
     try {
