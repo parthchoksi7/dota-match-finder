@@ -207,6 +207,20 @@ function stageShortName(name) {
   return m ? m[1].trim() : name
 }
 
+// Derive the champion from the Grand Final bracket match when PandaScore's
+// winner field hasn't been populated yet (can lag by hours after a tournament ends).
+function deriveChampionFromBracket(bracket) {
+  if (!bracket?.length) return null
+  const finishedRounds = bracket.filter(r => r.matches.some(m => m.status === 'finished'))
+  if (!finishedRounds.length) return null
+  const lastRound = finishedRounds[finishedRounds.length - 1]
+  const grandFinal = lastRound.matches.find(m => m.status === 'finished')
+  if (!grandFinal) return null
+  const { teamA, teamB, scoreA, scoreB } = grandFinal
+  if (!teamA || !teamB || scoreA == null || scoreB == null || scoreA === scoreB) return null
+  return scoreA > scoreB ? teamA : teamB
+}
+
 function TournamentHub({ spoilerFree }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -395,14 +409,17 @@ function TournamentHub({ spoilerFree }) {
         <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
           {cleanTournamentName(tournament.name)}
         </p>
-        {isCompleted && !spoilerFree && tournament.winner?.name && (
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <span className="text-sm">🏆</span>
-            <span className="text-sm font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
-              {tournament.winner.name}
-            </span>
-          </div>
-        )}
+        {isCompleted && !spoilerFree && (() => {
+          const champion = tournament.winner?.name || deriveChampionFromBracket(detail?.bracket)
+          return champion ? (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-sm">🏆</span>
+              <span className="text-sm font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+                {champion}
+              </span>
+            </div>
+          ) : null
+        })()}
       </div>
 
       {/* Tab bar — segmented control */}
