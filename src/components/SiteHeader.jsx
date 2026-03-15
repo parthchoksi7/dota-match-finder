@@ -65,7 +65,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
         )}
         <button
           type="button"
-          onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+          onClick={() => { const next = theme === "dark" ? "light" : "dark"; logEvent("theme_toggle", { theme: next }); setTheme(() => next) }}
           className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}

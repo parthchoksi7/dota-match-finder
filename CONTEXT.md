@@ -221,6 +221,29 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - In draft breakdown (`DraftDisplay`): hides KDA stats (kills/deaths/assists) for all players
 - Reddit VOD post drafts only include game 1 data so the AI does not reference "Game 3" in generated content
 
+### Search and Filter
+- Search input in `SearchBar.jsx` submits via form `onSubmit`; fires the `search` GA4 event (tracked in `App.jsx`)
+- Clearing the search via the X button calls `onClearSearch()` and fires `search_clear` GA4 event
+- Filtering is done client-side in `App.jsx`: `allMatches` is filtered by the search query against team names and tournament name (case-insensitive substring match)
+- Load More loads additional pages from OpenDota and appends to `allMatches`; search re-filters automatically since it reads from the full `allMatches` array
+- Searching also filters `UpcomingMatches` (passed as `searchQuery` prop) against live/upcoming match team names
+
+### Theme Toggle
+- Dark/light mode stored in `localStorage` under key `"theme"`; default is `"dark"`
+- Managed in `SiteHeader.jsx` via `useState` initializer reading from `localStorage`
+- Toggles `dark` class on `document.documentElement` via `useEffect`
+- Theme toggle fires `theme_toggle` GA4 event with the new theme value
+
+### Watchability Badge
+- `WatchBadge` component (`src/components/WatchBadge.jsx`) shown on each series card
+- Fetches score from `api/watchability.js` (POST with `seriesId` and `matchIds`)
+- Client-side decider bonus: if the series went to a deciding game, score is bumped by +1 (capped at 5)
+- Ratings: `must_watch` (5), `good` (4), `average` (3), `skip` (1-2) — "skip" badges are not shown
+- Signals: `gold_comeback`, `mega_comeback`, `back_and_forth`, `high_kills`, `good_duration`, `series_decider`
+- In-memory cache (`memCache`) prevents re-fetching on re-renders; no localStorage/KV caching
+- Fires `watchability_computed` GA4 event with rating, seriesId, and tournament
+- `seriesWentToDecider()` pure function: true when both teams each have (winsRequired - 1) wins
+
 ### Latest Results UI
 - Floating section label above the card (no internal header bar); gray left-border accent (`border-gray-400`)
 - Date dividers: "Today", "Yesterday", or "Mar 7" labels between groups of matches from different days
