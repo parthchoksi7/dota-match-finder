@@ -3,6 +3,10 @@ Allow: /
 
 User-agent: *
 Allow: /
+Allow: /about
+Allow: /release-notes
+Allow: /tournaments
+Allow: /tournament/
 Allow: /api/og
 Disallow: /api/
 Disallow: /analytics.html

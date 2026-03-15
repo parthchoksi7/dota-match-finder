@@ -38,13 +38,23 @@ This applies to: className edits, new components, loading/empty/error states, an
 - Include: date, tag ("new"/"improvement"/"fix"), title, desc, and optional items array
 - Keep most recent releases at the top of the array
 
-### 4. Analytics Tracking
+### 4. robots.txt and Sitemap
+- File: `public/robots.txt`
+  - Add an explicit `Allow:` line for every new public route (e.g. `/tournaments`, `/tournament/`)
+  - Never disallow routes that users or search engines should be able to reach
+- File: `api/sitemap.js`
+  - Add a `<url>` entry for every new static page route (e.g. `/tournaments`)
+  - Use `<priority>0.8</priority>` and `<changefreq>daily</changefreq>` for high-value pages
+  - Use `<priority>0.5</priority>` and `<changefreq>weekly</changefreq>` for lower-traffic pages
+  - Dynamic per-item pages (e.g. `/tournament/:id`) do not need sitemap entries unless there is a finite, known list to enumerate
+
+### 5. Analytics Tracking
 - Add Google Analytics event tracking for ALL new user interactions
 - Event naming convention: `feature_action` (e.g., `vod_click`, `summary_generate`)
 - Required for: buttons, links, form submissions, drawer opens/closes
 - Use existing GA helper pattern from the codebase
 
-### 5. Automated Testing
+### 6. Automated Testing
 - Write tests for all new features before marking them complete
 - Test files should live in `__tests__/` or `*.test.js` files
 - Cover:
@@ -53,7 +63,7 @@ This applies to: className edits, new components, loading/empty/error states, an
   - User interactions (clicks, inputs, navigation)
 - Use existing testing framework (React Testing Library + Vitest/Jest)
 
-### 6. Regression Testing
+### 7. Regression Testing
 - Before deployment, ask: "Would you like to run regression tests?"
 - Run full test suite: `npm test`
 - Check for:
@@ -61,6 +71,20 @@ This applies to: className edits, new components, loading/empty/error states, an
   - API compatibility issues
   - UI/layout regressions
 - Do NOT proceed to deployment without user confirmation
+
+---
+
+## Vercel Serverless Function Limit
+
+**The Hobby plan allows a maximum of 12 serverless functions per deployment.**
+
+- Count the files in `api/` before adding any new ones: `ls api/*.js | wc -l`
+- Current count is 12 (the maximum). Do NOT add new `.js` files to `api/` without first merging or removing an existing one.
+- When a new feature needs a backend endpoint, merge it into the closest existing file using a query param or POST body field to distinguish behavior. Common patterns:
+  - Add `?mode=newfeature` to an existing GET endpoint
+  - Add `type: 'newfeature'` to an existing POST endpoint body
+  - Add `?series=1` or similar flag to extend an existing endpoint
+- Document which endpoints share a file in `CONTEXT.md`
 
 ---
 
