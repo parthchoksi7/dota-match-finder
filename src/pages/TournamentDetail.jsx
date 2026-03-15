@@ -455,9 +455,9 @@ export default function TournamentDetail() {
                             </div>
                           )}
 
-                          {stage.standings?.length === 0 && stage.hasBracket && (
-                            <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-                              Bracket stage - see schedule
+                          {stage.standings?.length === 0 && (
+                            <p className="py-4 text-center text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                              {stage.hasBracket ? 'Bracket stage. No standings.' : 'Standings not yet available.'}
                             </p>
                           )}
                         </div>
