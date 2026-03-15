@@ -179,7 +179,7 @@ async function fetchSeriesStandings(tournamentId, headers) {
 
 async function handleSeriesDetail(req, res, token) {
   const seriesId = req.query?.id
-  const cacheKey = `tournament:detail:series:${seriesId}`
+  const cacheKey = `tournament:detail:series:v2:${seriesId}`
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
@@ -265,6 +265,7 @@ async function handleSeriesDetail(req, res, token) {
     beginAt: serie.begin_at || null,
     endAt: serie.end_at || null,
     prizePool: formatPrizePool(serie.prizepool),
+    winner: serie.winner?.type === 'Team' ? { id: serie.winner.id, name: serie.winner.name || null } : null,
     liquipediaUrl: `https://liquipedia.net/dota2/${encodeURIComponent((serie.league?.slug || leagueName).replace(/\s+/g, '_'))}`,
     streamUrl,
     stages: stageData.map(({ tournament: t, standings }) => ({

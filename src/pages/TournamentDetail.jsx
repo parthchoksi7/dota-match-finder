@@ -276,6 +276,15 @@ export default function TournamentDetail() {
                 <StatusBadge status={data.status} />
               </div>
 
+              {data.status === 'completed' && data.winner?.name && (
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">🏆</span>
+                  <span className="text-sm font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+                    {data.winner.name}
+                  </span>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-4">
                 {data.beginAt && data.endAt && (
                   <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 tabular-nums">
