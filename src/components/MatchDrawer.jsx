@@ -44,6 +44,54 @@ function MatchDrawer({
 
   if (!match) return null
 
+  // Unplayed game slot — show minimal drawer with empty state
+  if (match.unplayed) {
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity"
+          onClick={onDismiss}
+          aria-hidden="true"
+        />
+        <div
+          className="fixed top-0 right-0 z-50 h-full w-full sm:w-[480px] lg:w-[520px] bg-white dark:bg-gray-950 border-l border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col overflow-hidden animate-slide-in"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Match details"
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
+                {match.tournament}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">
+                {match.radiantTeam} vs {match.direTeam}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="ml-4 shrink-0 p-2 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center px-5 py-8">
+            <div className="text-center space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                Game {match.gameNumber}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                This game was not played.
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   const displaySummary = summary || cachedSummary
   const twitchHref = twitchSearchHref || "https://www.twitch.tv/search?term=dota%202"
   const allVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])

@@ -225,37 +225,69 @@ function MatchCard({
           id={`series-games-${series.id}`}
           className="border-t border-gray-200 dark:border-gray-800"
         >
-          {gameSlots.map((game, i) =>
-            game ? (
+          {gameSlots.map((game, i) => {
+            // In non-spoiler mode, unplayed slots are a non-interactive row
+            if (!game && !spoilerFree) {
+              return (
+                <div
+                  key={`empty-${i}`}
+                  className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] border-b border-gray-200 dark:border-gray-800 last:border-b-0"
+                >
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
+                    Game {i + 1}
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                    Not played
+                  </span>
+                  <span className="w-14" />
+                </div>
+              )
+            }
+
+            // All slots in spoiler-free mode + played slots in normal mode are clickable buttons
+            function handleSlotClick(e) {
+              e.stopPropagation()
+              if (game) {
+                trackEvent("game_click", { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
+                trackEvent("team_click", { team: game.radiantTeam, tournament: series.tournament })
+                trackEvent("team_click", { team: game.direTeam, tournament: series.tournament })
+                onSelectGame(game)
+              } else {
+                // Unplayed slot clicked in spoiler-free mode
+                onSelectGame({ unplayed: true, gameNumber: i + 1, radiantTeam, direTeam, tournament: series.tournament })
+              }
+            }
+
+            return (
               <button
-                key={game.id}
+                key={game ? game.id : `empty-sf-${i}`}
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  trackEvent("game_click", { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
-                  trackEvent("team_click", { team: game.radiantTeam, tournament: series.tournament })
-                  trackEvent("team_click", { team: game.direTeam, tournament: series.tournament })
-                  onSelectGame(game)
-                }}
+                onClick={handleSlotClick}
                 className="focus-ring w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer group border-b border-gray-200 dark:border-gray-800 last:border-b-0 transition-colors text-left"
               >
                 <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
                   Game {i + 1}
                 </span>
-                <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                  {formatDuration(game.duration)}
-                </span>
 
-                {/* Winner -- hidden in spoiler-free mode */}
-                {spoilerFree ? (
-                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider">
-                    Hidden
+                {/* Duration: shown only in non-spoiler mode for played games */}
+                {!spoilerFree && game ? (
+                  <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                    {formatDuration(game.duration)}
                   </span>
                 ) : (
+                  <span className="w-16" aria-hidden="true" />
+                )}
+
+                {/* Winner / spoiler-free placeholder */}
+                {!spoilerFree && game ? (
                   <span className={`text-xs font-semibold ${
                     game.radiantWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                   }`}>
                     {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider">
+                    Hidden
                   </span>
                 )}
 
@@ -263,21 +295,8 @@ function MatchCard({
                   <span aria-hidden>▶</span> Watch VOD
                 </span>
               </button>
-            ) : (
-              <div
-                key={`empty-${i}`}
-                className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] border-b border-gray-200 dark:border-gray-800 last:border-b-0"
-              >
-                <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
-                  Game {i + 1}
-                </span>
-                <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-                  Not played
-                </span>
-                <span className="w-14" />
-              </div>
             )
-          )}
+          })}
 
           {/* Owner action buttons -- only when series is complete and not in spoiler-free mode */}
           {!spoilerFree && (onDraftPosts || onDraftRedditPosts) && (() => {

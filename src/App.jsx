@@ -231,6 +231,18 @@ function App() {
   }
 
   async function handleSelectMatch(match) {
+    setSummary(null)
+    setSummaryMatchId(null)
+    setSummaryError(null)
+    setSummaryErrorMatchId(null)
+    setSummaryLoading(false)
+
+    // Unplayed game slot — show empty state drawer without URL update or VOD fetch
+    if (match.unplayed) {
+      setSelectedMatch(match)
+      return
+    }
+
     // Update URL to shareable slug URL for SEO
     window.history.replaceState(null, "", "/match/" + getMatchSlug(match))
 
@@ -242,11 +254,6 @@ function App() {
     })
 
     if (match.seriesId) setExpandedSeriesId(String(match.seriesId))
-    setSummary(null)
-    setSummaryMatchId(null)
-    setSummaryError(null)
-    setSummaryErrorMatchId(null)
-    setSummaryLoading(false)
     setSelectedMatch({ ...match, loadingVod: true })
     const streamMap = await fetchMatchStreams([match.id], match.startTime)
     const preferredChannel = streamMap[match.id] || streamMap[String(match.startTime)] || null
