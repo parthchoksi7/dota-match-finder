@@ -364,7 +364,7 @@ function TournamentHub({ spoilerFree }) {
       <div className="flex items-center mb-2">
         <h2
           id="tournament-hub-heading"
-          className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-gray-400 dark:border-gray-700" : "border-blue-500"}`}
+          className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-emerald-500" : "border-blue-500"}`}
         >
           {isOngoing ? (
             <span className="inline-flex items-center gap-2">
