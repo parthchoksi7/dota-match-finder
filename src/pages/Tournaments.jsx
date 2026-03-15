@@ -35,7 +35,7 @@ export default function Tournaments() {
 
   useEffect(() => {
     trackEvent('tournament_list_view', {})
-    fetch('/api/series-list')
+    fetch('/api/tournaments?mode=series')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()

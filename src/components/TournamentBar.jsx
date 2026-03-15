@@ -24,7 +24,7 @@ export default function TournamentBar() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/series-list')
+    fetch('/api/tournaments?mode=series')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         setData(d)

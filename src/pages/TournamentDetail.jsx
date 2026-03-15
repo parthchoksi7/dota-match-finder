@@ -104,10 +104,11 @@ function AISummary({ seriesData }) {
     if (summary || loading) return
     setLoading(true)
 
-    fetch('/api/tournament-summary', {
+    fetch('/api/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        type: 'tournament',
         seriesId: seriesData.id,
         name: seriesData.name,
         leagueName: seriesData.leagueName,
@@ -186,7 +187,7 @@ export default function TournamentDetail() {
       return
     }
 
-    fetch(`/api/series-detail?id=${seriesId}`)
+    fetch(`/api/tournament-detail?id=${seriesId}&series=1`)
       .then(r => {
         if (r.status === 404) throw new Error('not_found')
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
