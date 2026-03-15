@@ -410,10 +410,10 @@ function App() {
       ).length
       const seriesWinner = radiantWins >= direWins ? radiantTeam : direTeam
 
-      const games = series.games.map((game, i) => ({
-        gameNumber: i + 1,
-        spectateUrl: window.location.origin + "/match/" + getMatchSlug(game) + "?spoilers=off",
-      }))
+      const games = [{
+        gameNumber: 1,
+        spectateUrl: window.location.origin + "/match/" + getMatchSlug(series.games[0]) + "?spoilers=off",
+      }]
 
       const seriesLink = window.location.origin + "/match/" + getMatchSlug(series.games[0]) + "?spoilers=off"
 
