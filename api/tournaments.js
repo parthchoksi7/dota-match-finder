@@ -152,6 +152,91 @@ async function fetchTournamentStatuses(token) {
   return statuses
 }
 
+// ── Series list mode (?mode=series) ─────────────────────────────────────────
+// Used by /tournaments page and TournamentBar. Fetches PandaScore series
+// (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
+
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v1'
+const SERIES_TTL = 60 * 60 // 1 hour
+
+function formatPrizePool(prize) {
+  if (!prize) return null
+  const match = String(prize).match(/[\d,]+/)
+  if (!match) return prize
+  const num = parseInt(match[0].replace(/,/g, ''))
+  if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`
+  if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`
+  return `$${num}`
+}
+
+function mapSeries(serie, status) {
+  const leagueName = serie.league?.name || ''
+  const fullName = serie.full_name || serie.name || leagueName
+  return {
+    id: serie.id,
+    slug: serie.slug || String(serie.id),
+    name: fullName,
+    leagueName,
+    leagueSlug: serie.league?.slug || '',
+    status,
+    beginAt: serie.begin_at || null,
+    endAt: serie.end_at || null,
+    prizePool: formatPrizePool(serie.prizepool),
+    tournamentCount: (serie.tournaments || []).length,
+    tournaments: (serie.tournaments || []).map(t => ({
+      id: t.id,
+      name: t.name,
+      beginAt: t.begin_at || null,
+      endAt: t.end_at || null,
+      tier: t.tier || null,
+    })),
+  }
+}
+
+async function fetchSeriesList(token) {
+  try {
+    const cached = await kv.get(KV_SERIES_KEY)
+    if (cached) {
+      console.log('Series list: serving from KV cache')
+      return cached
+    }
+  } catch (err) {
+    console.warn('KV series cache read failed:', err?.message)
+  }
+
+  console.log('Series list: fetching from PandaScore')
+  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+
+  const [runningRes, upcomingRes, pastRes] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, { headers }),
+  ])
+
+  if (!runningRes.ok || !upcomingRes.ok || !pastRes.ok) {
+    throw new Error(`PandaScore series error: ${runningRes.status} / ${upcomingRes.status} / ${pastRes.status}`)
+  }
+
+  const [running, upcoming, past] = await Promise.all([
+    runningRes.json(), upcomingRes.json(), pastRes.json(),
+  ])
+
+  const payload = {
+    live: (running || []).filter(s => isTier1(s.league?.name, s.full_name || s.name)).map(s => mapSeries(s, 'live')),
+    upcoming: (upcoming || []).filter(s => isTier1(s.league?.name, s.full_name || s.name)).map(s => mapSeries(s, 'upcoming')),
+    completed: (past || []).filter(s => isTier1(s.league?.name, s.full_name || s.name)).slice(0, 5).map(s => mapSeries(s, 'completed')),
+    fetchedAt: new Date().toISOString(),
+  }
+
+  try {
+    await kv.set(KV_SERIES_KEY, payload, { ex: SERIES_TTL })
+  } catch (err) {
+    console.warn('KV series cache write failed:', err?.message)
+  }
+
+  return payload
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
@@ -161,6 +246,22 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
   }
 
+  // Series list mode — for /tournaments page and TournamentBar
+  if (req.query?.mode === 'series') {
+    if (req.query?.bust === '1') {
+      await kv.del(KV_SERIES_KEY).catch(() => {})
+      console.log('Series list cache cleared')
+    }
+    try {
+      const data = await fetchSeriesList(token)
+      return res.status(200).json(data)
+    } catch (err) {
+      console.error('Series list error:', err?.message || err)
+      return res.status(500).json({ error: 'Failed to fetch tournament data', message: err?.message })
+    }
+  }
+
+  // Default mode — existing TournamentHub behavior (tournament sub-stages)
   if (req.query?.bust === '1') {
     await kv.del(KV_LIST_KEY)
     await kv.del(KV_STATUS_KEY)

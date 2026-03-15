@@ -22,6 +22,14 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ## Key Files
 
 ### Frontend
+- `src/pages/Tournaments.jsx` - Tournament list page at `/tournaments`; fetches from `/api/series-list`; shows live/upcoming/completed sections; fires `tournament_list_view` GA4 event
+- `src/pages/TournamentDetail.jsx` - Tournament detail page at `/tournament/:seriesId`; fetches from `/api/series-detail`; shows header, AI summary, teams+rosters, stages+standings, VOD search links
+- `src/components/TournamentBar.jsx` - Compact homepage bar (below search) showing live tournaments with pulse dot and upcoming with countdown; fetches from `/api/series-list`; max 3 items
+- `src/components/TournamentCard.jsx` - Card used on /tournaments list page; shows status badge, date range, prize pool, stage pills
+- `src/components/TeamRoster.jsx` - Collapsible team card showing logo, region badge, qualification status, player list with nationality flags
+- `src/components/RegionBreakdown.jsx` - Region summary pills (WEU/EEU/CN/SEA/NA/SA) for teams section
+- `src/components/StageTimeline.jsx` - Horizontal timeline of tournament sub-stages; highlights active stage in red
+- `src/utils/regions.js` - Country code to Dota 2 region mapping; `getRegion(code)`, `getRegionColor(region)`, `groupTeamsByRegion(teams)`, `getRegionSummary(teams)`
 - `src/App.jsx` - Main app, state management, search, load more, drawer, spoiler-free toggle, slug URL generation
 - `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, else App
 - `src/api.js` - All API calls: OpenDota, Twitch VOD search, hero fetching, match summaries
@@ -41,6 +49,9 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`)
 
 ### Backend (Vercel Serverless)
+- `api/series-list.js` - Fetches Dota 2 series (live, upcoming, past) from PandaScore; filters to Tier 1; cached 1h in KV under `tournaments:dota2:series_list_v1`. Returns `{ live, upcoming, completed }` arrays for the /tournaments page and TournamentBar.
+- `api/series-detail.js` - Fetches a single series by ID, then fetches rosters and standings for each tournament sub-stage in parallel; cached 30min under `tournament:detail:series:{id}`. Accepts `?id=` param.
+- `api/tournament-summary.js` - Generates AI tournament summary via Claude Haiku; cached 24h (30 days for completed) under `tournament:summary:{id}`. POST with `{ seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages }`.
 - `api/summarize.js` - Generates AI match summary using Claude Haiku
 - `api/twitch-token.js` - Handles Twitch OAuth client credentials flow
 - `api/live-matches.js` - Fetches live Dota 2 matches from PandaScore; cached in KV for 2 min
@@ -57,7 +68,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
 ### Config
-- `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`
+- `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`
 - `middleware.js` - Edge middleware: intercepts `/match/*` requests, injects per-match OG meta tags server-side
 
 ---
@@ -106,6 +117,18 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Searchable by team or tournament name (shared search bar with live section)
 - Shows first 2 by default, "Show N more" button to expand all
 - Stream buttons (Twitch) shown when available
+
+### Tournament Hub Pages (NEW - Mar 2026)
+- Separate from the existing TournamentHub component (which lives on the homepage)
+- Three new routes: `/tournaments` (series list), `/tournament/:seriesId` (series detail)
+- Uses PandaScore **series** endpoints (`/dota2/series/running`, `/dota2/series/upcoming`, `/dota2/series/past`) - different from the existing TournamentHub which uses **tournament** (sub-stage) endpoints
+- `api/series-list.js` returns series-level objects (not individual tournament stages); each series has `tournaments[]` array for sub-stages
+- `api/series-detail.js` fetches rosters via `/tournaments/{id}/rosters` and standings via `/tournaments/{id}/standings` for each sub-stage
+- Routing follows same pattern as AboutPage/ReleaseNotesPage - path check in `main.jsx`, Vercel rewrite to `/` in `vercel.json`
+- Cache keys: `tournaments:dota2:series_list_v1` (1h), `tournament:detail:series:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
+- GA4 events: `tournament_list_view`, `tournament_card_click`, `tournament_detail_view`, `tournament_team_click`, `tournament_stage_click`, `tournament_summary_view`, `tournament_stream_click`, `tournament_bar_click`
+- TournamentBar appears on homepage below search bar when not in search mode; shows max 3 items (live first, then upcoming with countdown)
+- Country-to-region mapping in `src/utils/regions.js` covers WEU, EEU, CN, SEA, NA, SA, ANZ, ME regions
 
 ### Tournament Hub (PandaScore)
 - `api/tournament-detail.js` fetches from 3 PandaScore endpoints in parallel:

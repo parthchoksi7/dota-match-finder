@@ -3,6 +3,22 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 15, 2026",
+    tag: "new",
+    title: "Tournament Hub Pages",
+    desc: "Spectate now has dedicated tournament pages so you can see what Tier 1 events are happening, who is competing, and jump straight to VODs.",
+    items: [
+      "/tournaments - Lists all live, upcoming, and recently completed Tier 1 Dota 2 series with status badges, date ranges, prize pools, and stage counts.",
+      "/tournament/:id - Detail page for each series: stage timeline (with active stage highlighted), full team rosters with player names and nationality flags, region breakdown (WEU/EEU/CN/SEA/NA/SA), per-stage standings tables, and an AI-generated event summary.",
+      "Tournament Bar on the homepage (below search) shows live events with a pulsing indicator and the next upcoming event with a countdown.",
+      "Tournaments link added to the site header for quick access from any page.",
+      "AI summary (Claude Haiku) on each detail page - collapsible, covers why the event matters and what to watch for.",
+      "Team logos loaded from PandaScore with acronym fallback when no image is available.",
+      "Live stream link appears on detail pages while the event is running.",
+      "VOD shortcuts at the bottom link team names to homepage search to find timestamped replays.",
+    ],
+  },
+  {
+    date: "Mar 15, 2026",
     tag: "improvement",
     title: "Stronger Spoiler-Free Mode",
     desc: "Spoiler-free mode now hides all information that could reveal the outcome or length of a series.",

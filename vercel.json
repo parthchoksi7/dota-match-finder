@@ -3,6 +3,8 @@
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/match/:matchId", "destination": "/" },
     { "source": "/about", "destination": "/" },
-    { "source": "/release-notes", "destination": "/" }
+    { "source": "/release-notes", "destination": "/" },
+    { "source": "/tournaments", "destination": "/" },
+    { "source": "/tournament/:seriesId", "destination": "/" }
   ]
 }

@@ -36,6 +36,7 @@ function AboutPage() {
               { title: "Tournament Hub", desc: "Live Overview showing running matches with a pulsing indicator. Full standings, schedule, and bracket tree for ongoing tournaments. League organizer label, active round highlighting, and stage switcher for multi-stage events. Standings tab is always present - bracket stages show a clear message with a shortcut to group stage standings." },
               { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts. Shows top 25 by default with a button to reveal all." },
               { title: "My Teams", desc: "Follow your favorite teams with one click. A dedicated section on the homepage shows only their recent matches. Saved in your browser - no account needed." },
+              { title: "Tournament Pages", desc: "Dedicated pages for Tier 1 series at /tournaments. See live, upcoming, and completed events with prize pools, dates, full team rosters by region, player names with nationality flags, stage timelines, and per-stage standings. Includes an AI-generated summary for each event." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-gray-900 dark:text-white mb-1.5">{f.title}</p>
@@ -68,6 +69,7 @@ function AboutPage() {
               { q: "Is Spectate Esports free?", a: "Yes. Spectate Esports is completely free with no account required." },
               { q: "How does My Teams work?", a: "Click the star next to any team name to follow them. A My Teams section appears at the top of the homepage showing only their recent matches. Your followed teams are saved in your browser's storage - no login required. They will not carry over to other browsers, incognito mode, or other devices." },
               { q: "Which data sources are used?", a: "Match data from OpenDota API. Live and upcoming matches from PandaScore. VOD links from the Twitch API. AI summaries from Anthropic Claude." },
+              { q: "What are the tournament detail pages?", a: "Visit /tournaments to see all current and upcoming Tier 1 Dota 2 events. Click any event to see its full team roster (with player names and nationality flags), stage breakdown (Group Stage, Playoffs), standings tables, and an AI-generated event summary." },
             ].map(({ q, a }) => (
               <div key={q} className="py-5">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white mb-2">{q}</p>

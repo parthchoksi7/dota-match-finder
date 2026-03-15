@@ -57,6 +57,81 @@ async function getHeroNames() {
   }
   return map
 }
+// ── Tournament summary handler ───────────────────────────────────────────────
+// Called with POST { type: 'tournament', seriesId, name, leagueName, ... }
+// Caches 24h for live/upcoming, 30 days for completed.
+
+import { Redis } from '@upstash/redis'
+
+const _kv = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+})
+
+async function handleTournamentSummary(req, res) {
+  const { seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages } = req.body || {}
+
+  if (!seriesId || !name) {
+    return res.status(400).json({ error: 'Missing required fields' })
+  }
+
+  const isCompleted = status === 'completed'
+  const TTL = isCompleted ? 60 * 60 * 24 * 30 : 60 * 60 * 24
+  const cacheKey = `tournament:summary:${seriesId}`
+
+  try {
+    const cached = await _kv.get(cacheKey)
+    if (cached) return res.status(200).json({ summary: cached })
+  } catch {}
+
+  const teamNames = (teams || []).slice(0, 16).map(t => t.name).join(', ')
+  const stageNames = (stages || []).map(s => s.name).join(', ')
+  let dateRange = ''
+  if (beginAt && endAt) {
+    const start = new Date(beginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const end = new Date(endAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    dateRange = `${start} - ${end}`
+  }
+
+  const prompt = `You are a professional Dota 2 esports analyst. Write a short summary paragraph about this tournament for fans visiting the tournament page.
+
+Tournament: ${name}
+Organizer: ${leagueName || 'Unknown'}
+Status: ${status}
+Dates: ${dateRange || 'Unknown'}
+Prize Pool: ${prizePool || 'Unknown'}
+Stages: ${stageNames || 'Unknown'}
+Teams: ${teamNames || 'Unknown'}
+
+Write 3-5 sentences covering why this tournament matters, notable aspects (prize pool, format, prestige), and what fans should watch for (or the result if completed). Rules: never use em dashes, plain text only, no markdown, maximum 100 words.`
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  const data = await response.json()
+  if (!response.ok) {
+    const msg = data.error?.message || response.statusText
+    return res.status(502).json({ error: 'Failed to generate summary', message: msg })
+  }
+
+  const text = data.content?.[0]?.text
+  if (typeof text !== 'string') return res.status(502).json({ error: 'Invalid response from summary service' })
+
+  _kv.set(cacheKey, text, { ex: TTL }).catch(() => {})
+  return res.status(200).json({ summary: text })
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -68,6 +143,16 @@ export default async function handler(req, res) {
       error: 'Summary service unavailable',
       message: 'API key not configured. Set ANTHROPIC_API_KEY in Vercel environment variables.'
     })
+  }
+
+  // Tournament summary mode
+  if (req.body?.type === 'tournament') {
+    try {
+      return await handleTournamentSummary(req, res)
+    } catch (err) {
+      console.error('Tournament summary error:', err?.message || err)
+      return res.status(500).json({ error: 'Failed to generate summary', message: err?.message })
+    }
   }
 
   const { matchData } = req.body || {}
