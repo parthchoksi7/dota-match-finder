@@ -145,7 +145,8 @@ export default async function handler(req, res) {
       .sort((a, b) => b.contested - a.contested || b.picks - a.picks)
 
     const payload = { heroes, gameCount, league: league.name }
-    kv.set(KV_KEY, payload, { ex: TTL }).catch(() => {})
+    const heroesTtl = req.query?.completed === '1' ? 60 * 60 * 24 * 30 : TTL
+    kv.set(KV_KEY, payload, { ex: heroesTtl }).catch(() => {})
 
     return res.status(200).json(payload)
   } catch (err) {
