@@ -222,12 +222,16 @@ async function fetchSeriesList(token) {
     fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, { headers }),
   ])
 
-  if (!runningRes.ok || !upcomingRes.ok || !pastRes.ok) {
-    throw new Error(`PandaScore series error: ${runningRes.status} / ${upcomingRes.status} / ${pastRes.status}`)
+  // Only throw if the critical endpoints (running + upcoming) fail.
+  // Past is best-effort; a 404/error there should not break the page.
+  if (!runningRes.ok || !upcomingRes.ok) {
+    throw new Error(`PandaScore series error: running=${runningRes.status} upcoming=${upcomingRes.status} past=${pastRes.status}`)
   }
 
   const [running, upcoming, past] = await Promise.all([
-    runningRes.json(), upcomingRes.json(), pastRes.json(),
+    runningRes.json(),
+    upcomingRes.json(),
+    pastRes.ok ? pastRes.json() : Promise.resolve([]),
   ])
 
   const payload = {
