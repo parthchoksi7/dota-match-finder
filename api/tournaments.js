@@ -222,21 +222,63 @@ async function fetchSeriesList(token) {
     fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, { headers }),
   ])
 
-  // Only throw if the critical endpoints (running + upcoming) fail.
-  // Past is best-effort; a 404/error there should not break the page.
-  if (!runningRes.ok || !upcomingRes.ok) {
-    throw new Error(`PandaScore series error: running=${runningRes.status} upcoming=${upcomingRes.status} past=${pastRes.status}`)
-  }
+  // All three are non-fatal - a PandaScore blip shows empty sections, not an error banner.
+  if (!runningRes.ok) console.warn('PandaScore running series failed:', runningRes.status)
+  if (!upcomingRes.ok) console.warn('PandaScore upcoming series failed:', upcomingRes.status)
+  if (!pastRes.ok) console.warn('PandaScore past series failed:', pastRes.status)
 
   const [running, upcoming, past] = await Promise.all([
-    runningRes.json(),
-    upcomingRes.json(),
+    runningRes.ok ? runningRes.json() : Promise.resolve([]),
+    upcomingRes.ok ? upcomingRes.json() : Promise.resolve([]),
     pastRes.ok ? pastRes.json() : Promise.resolve([]),
   ])
 
+  // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
+  // creates series records late, but tournament entries appear earlier.
+  const upcomingTourRes = await fetch(
+    `${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`,
+    { headers }
+  )
+  const upcomingTours = upcomingTourRes.ok ? await upcomingTourRes.json() : []
+
+  // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
+  const runningIds = new Set((running || []).map(s => s.id))
+  const seenSerieIds = new Set()
+  const syntheticUpcoming = []
+  for (const t of (upcomingTours || [])) {
+    const sid = t.serie_id
+    if (!sid || runningIds.has(sid) || seenSerieIds.has(sid)) continue
+    seenSerieIds.add(sid)
+    syntheticUpcoming.push({
+      id: sid,
+      slug: t.serie?.slug || String(sid),
+      name: t.serie?.full_name || t.serie?.name || t.league?.name || t.name || 'Upcoming Tournament',
+      leagueName: t.league?.name || '',
+      leagueSlug: t.league?.slug || '',
+      status: 'upcoming',
+      beginAt: t.begin_at || null,
+      endAt: t.end_at || null,
+      prizePool: formatPrizePool(t.prizepool),
+      tournamentCount: 1,
+      tournaments: [{ id: t.id, name: t.name, beginAt: t.begin_at, endAt: t.end_at, tier: t.tier }],
+    })
+  }
+
+  // Merge series-level upcoming with synthetic entries; deduplicate by id.
+  const allUpcoming = [
+    ...(upcoming || []).filter(isTier1Series).map(s => mapSeries(s, 'upcoming')),
+    ...syntheticUpcoming,
+  ]
+  const seenUpcomingIds = new Set()
+  const deduplicatedUpcoming = allUpcoming.filter(s => {
+    if (seenUpcomingIds.has(s.id)) return false
+    seenUpcomingIds.add(s.id)
+    return true
+  })
+
   const payload = {
     live: (running || []).filter(isTier1Series).map(s => mapSeries(s, 'live')),
-    upcoming: (upcoming || []).filter(isTier1Series).map(s => mapSeries(s, 'upcoming')),
+    upcoming: deduplicatedUpcoming,
     completed: (past || []).filter(isTier1Series).slice(0, 5).map(s => mapSeries(s, 'completed')),
     fetchedAt: new Date().toISOString(),
   }
