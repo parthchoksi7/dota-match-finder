@@ -7,7 +7,6 @@ import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import TournamentHub from "./components/TournamentHub"
-import TournamentBar from "./components/TournamentBar"
 import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
@@ -559,9 +558,7 @@ function App() {
           errorId={error ? "app-error" : undefined}
         />
 
-        {!initialLoading && !searched && <TournamentBar />}
-
-        {initialLoading && (
+{initialLoading && (
           <div
             className="border border-gray-200 dark:border-gray-800 px-6 py-12 text-center rounded"
             aria-live="polite"
