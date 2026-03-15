@@ -634,6 +634,15 @@ function TournamentHub() {
         </div>
       )}
 
+      <div className="px-4 sm:px-5 py-3 border-t border-gray-100 dark:border-gray-900 flex justify-end">
+        <a
+          href="/tournaments"
+          className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          onClick={() => logEvent('tournament_hub_view_all_click', {})}
+        >
+          View all tournaments →
+        </a>
+      </div>
     </section>
     </div>
   )
