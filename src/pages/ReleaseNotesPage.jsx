@@ -3,6 +3,16 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 15, 2026",
+    tag: "improvement",
+    title: "Tournament Pages - Champion Display",
+    desc: "Completed tournaments now show the champion clearly on both the tournament list and the detail page.",
+    items: [
+      "Tournament cards show 'Champion: Team Name' in gold below the event metadata for completed events.",
+      "Tournament detail page shows a trophy and the champion team name at the top of the header for completed events.",
+    ],
+  },
+  {
+    date: "Mar 15, 2026",
     tag: "new",
     title: "Tournament Hub Pages",
     desc: "Spectate now has dedicated tournament pages so you can see what Tier 1 events are happening, who is competing, and jump straight to VODs.",
