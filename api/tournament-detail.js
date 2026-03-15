@@ -272,7 +272,7 @@ async function handleSeriesDetail(req, res, token) {
       tier: t.tier || null,
       prizePool: formatPrizePool(t.prizepool),
       hasBracket: t.has_bracket || false,
-      standings: standings.map(s => ({
+      standings: (standings || []).map(s => ({
         rank: s.rank,
         teamId: s.team?.id,
         teamName: s.team?.name || 'TBD',
