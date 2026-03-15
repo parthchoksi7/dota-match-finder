@@ -165,7 +165,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v2'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v3'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -191,7 +191,7 @@ function mapSeries(serie, status) {
     beginAt: serie.begin_at || null,
     endAt: serie.end_at || null,
     prizePool: formatPrizePool(serie.prizepool),
-    winner: serie.winner?.type === 'Team' ? { id: serie.winner.id, name: serie.winner.name || null } : null,
+    winner: serie.winner?.type?.toLowerCase() === 'team' ? { id: serie.winner.id, name: serie.winner.name || null } : null,
     tournamentCount: (serie.tournaments || []).length,
     tournaments: (serie.tournaments || []).map(t => ({
       id: t.id,

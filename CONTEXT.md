@@ -129,7 +129,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Rosters and standings: `fetchSeriesRosters` and `fetchSeriesStandings` both use `Array.isArray()` guards (PandaScore can return non-array objects)
 - Winner display: `serie.winner` field (type === 'Team') shown as champion on cards and detail page header
 - Routing follows same pattern as AboutPage/ReleaseNotesPage - path check in `main.jsx`, Vercel rewrite to `/` in `vercel.json`
-- Cache keys: `tournaments:dota2:series_list_v2` (1h), `tournament:detail:series:v2:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
+- Cache keys: `tournaments:dota2:series_list_v3` (1h), `tournament:detail:series:v3:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
 - GA4 events: `tournament_list_view`, `tournament_card_click`, `tournament_detail_view`, `tournament_team_click`, `tournament_stage_click`, `tournament_summary_view`, `tournament_stream_click`, `tournament_bar_click`, `tournament_back_click`, `tournament_liquipedia_click`, `tournament_find_vods_click`, `tournament_teams_toggle`, `tournament_stages_toggle`
 - TournamentBar and Tournaments nav link are temporarily hidden until upcoming tournament data is confirmed reliable
 - Country-to-region mapping in `src/utils/regions.js` covers WEU, EEU, CN, SEA, NA, SA, ANZ, ME regions

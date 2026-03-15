@@ -179,7 +179,7 @@ async function fetchSeriesStandings(tournamentId, headers) {
 
 async function handleSeriesDetail(req, res, token) {
   const seriesId = req.query?.id
-  const cacheKey = `tournament:detail:series:v2:${seriesId}`
+  const cacheKey = `tournament:detail:series:v3:${seriesId}`
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
@@ -265,7 +265,19 @@ async function handleSeriesDetail(req, res, token) {
     beginAt: serie.begin_at || null,
     endAt: serie.end_at || null,
     prizePool: formatPrizePool(serie.prizepool),
-    winner: serie.winner?.type === 'Team' ? { id: serie.winner.id, name: serie.winner.name || null } : null,
+    winner: (() => {
+      // Prefer PandaScore's winner field (case-insensitive type check)
+      if (serie.winner?.type?.toLowerCase() === 'team' && serie.winner.name) {
+        return { id: serie.winner.id, name: serie.winner.name }
+      }
+      // Fall back to rank-1 team of the final stage (highest end_at, with standings)
+      const finalStage = stageData
+        .filter(s => s.standings?.length > 0)
+        .sort((a, b) => new Date(b.tournament.end_at || 0) - new Date(a.tournament.end_at || 0))[0]
+      const top = finalStage?.standings?.find(s => s.rank === 1)
+      if (top?.team?.name) return { id: top.team.id, name: top.team.name }
+      return null
+    })(),
     liquipediaUrl: `https://liquipedia.net/dota2/${encodeURIComponent((serie.league?.slug || leagueName).replace(/\s+/g, '_'))}`,
     streamUrl,
     stages: stageData.map(({ tournament: t, standings }) => ({
