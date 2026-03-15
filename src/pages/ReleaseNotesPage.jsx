@@ -4,6 +4,17 @@ const RELEASES = [
   {
     date: "Mar 15, 2026",
     tag: "improvement",
+    title: "Tournament Hub - Navigation Links and Completed Fallback",
+    desc: "The Tournament Hub on the homepage is now always visible, and the Tournaments section is easier to reach from any page.",
+    items: [
+      "Tournaments link added to the top nav bar - accessible from every page.",
+      "'View all tournaments' link added to the bottom of the homepage Tournament Hub card.",
+      "When no live or upcoming tournament exists, the hub now shows the most recently completed event with a 'Recently Completed' label instead of disappearing.",
+    ],
+  },
+  {
+    date: "Mar 15, 2026",
+    tag: "improvement",
     title: "Tournament Pages - Champion Display",
     desc: "Completed tournaments now show the champion clearly on both the tournament list and the detail page.",
     items: [

@@ -151,6 +151,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
 - Multi-stage switcher appears when multiple stages of the same event are running simultaneously; hidden on Overview and Heroes tabs where stage context is irrelevant
 - Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
+- **Completed fallback (Mar 2026)**: `api/tournaments.js` default mode now fetches `/tournaments/past` and returns up to 3 recently completed tier-1 tournaments as `completed[]`. TournamentHub uses priority: running > upcoming > recently completed. When showing a completed event, the label reads "Recently Completed" with a gray border accent. This ensures the hub is never empty during breaks between events. Cache key bumped to `dota2:tournament_list_v4`.
+- **Nav links (Mar 2026)**: "Tournaments" link added to SiteHeader top nav. "View all tournaments" footer link added inside TournamentHub card. Both link to `/tournaments`.
 
 ### VOD Linking
 - Searches multiple Twitch channels simultaneously using `Promise.allSettled`
