@@ -247,8 +247,8 @@ async function fetchSeriesList(token) {
   // creates series records late, but tournament sub-stage entries appear earlier.
   // Fetch tier s and a separately (comma syntax is unreliable on some plan tiers).
   const [upTourSRes, upTourARes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=a&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=s&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=a&sort=begin_at&page[size]=20`, { headers }),
   ])
   const [upTourS, upTourA] = await Promise.all([
     upTourSRes.ok ? upTourSRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
