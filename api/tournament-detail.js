@@ -177,9 +177,38 @@ async function fetchSeriesStandings(tournamentId, headers) {
   } catch { return [] }
 }
 
+async function fetchStageBracket(tournamentId, headers) {
+  try {
+    const res = await fetch(`${BASE}/tournaments/${tournamentId}/brackets`, { headers })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch { return [] }
+}
+
+function parseRawBracket(bracketsRaw) {
+  const roundMap = {}
+  for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
+    const { section, round, label, matchPosition } = parseBracketPosition(m.name)
+    const key = `${section}__${round}`
+    if (!roundMap[key]) roundMap[key] = { section, round, label, matches: [] }
+    roundMap[key].matches.push(normalizeMatch(m, matchPosition))
+  }
+  for (const r of Object.values(roundMap)) {
+    r.matches.sort((a, b) => {
+      if (a.matchPosition !== null && b.matchPosition !== null) return a.matchPosition - b.matchPosition
+      return a.id - b.id
+    })
+  }
+  const SECTION_ORDER = { upper: 0, lower: 1, main: 2, grand_final: 3 }
+  return Object.values(roundMap).sort((a, b) =>
+    (SECTION_ORDER[a.section] - SECTION_ORDER[b.section]) || (a.round - b.round)
+  )
+}
+
 async function handleSeriesDetail(req, res, token) {
   const seriesId = req.query?.id
-  const cacheKey = `tournament:detail:series:v4:${seriesId}`
+  const cacheKey = `tournament:detail:series:v5:${seriesId}`
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
@@ -217,11 +246,12 @@ async function handleSeriesDetail(req, res, token) {
 
   const stageData = await Promise.all(
     tournaments.map(async (t) => {
-      const [rosters, standings] = await Promise.all([
+      const [rosters, standings, bracketsRaw] = await Promise.all([
         fetchSeriesRosters(t.id, headers),
         fetchSeriesStandings(t.id, headers),
+        t.has_bracket ? fetchStageBracket(t.id, headers) : Promise.resolve([]),
       ])
-      return { tournament: t, rosters, standings }
+      return { tournament: t, rosters, standings, bracketsRaw }
     })
   )
 
@@ -281,7 +311,7 @@ async function handleSeriesDetail(req, res, token) {
     })(),
     liquipediaUrl: `https://liquipedia.net/dota2/${encodeURIComponent((serie.league?.slug || leagueName).replace(/\s+/g, '_'))}`,
     streamUrl,
-    stages: stageData.map(({ tournament: t, standings }) => ({
+    stages: stageData.map(({ tournament: t, standings, bracketsRaw }) => ({
       id: t.id,
       name: t.name,
       beginAt: t.begin_at || null,
@@ -297,12 +327,14 @@ async function handleSeriesDetail(req, res, token) {
         losses: s.losses ?? null,
         points: s.total?.points ?? null,
       })),
+      bracket: t.has_bracket ? parseRawBracket(bracketsRaw) : [],
     })),
     teams: Array.from(teamMap.values()),
     fetchedAt: new Date().toISOString(),
   }
 
-  kv.set(cacheKey, payload, { ex: SERIES_DETAIL_TTL }).catch(() => {})
+  const cacheTtl = status === 'completed' ? 60 * 60 * 24 * 30 : SERIES_DETAIL_TTL
+  kv.set(cacheKey, payload, { ex: cacheTtl }).catch(() => {})
   return res.status(200).json(payload)
 }
 

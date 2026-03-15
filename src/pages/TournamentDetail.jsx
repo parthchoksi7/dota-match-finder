@@ -3,6 +3,7 @@ import SiteHeader from '../components/SiteHeader'
 import StageTimeline from '../components/StageTimeline'
 import TeamRoster from '../components/TeamRoster'
 import RegionBreakdown from '../components/RegionBreakdown'
+import { HorizontalBracket } from '../components/BracketView'
 import { track } from '@vercel/analytics'
 
 function trackEvent(name, props) {
@@ -164,6 +165,128 @@ function AISummary({ seriesData }) {
           )}
           {summary && (
             <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{summary}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function HeroStatsSection({ stageId, seriesName, isCompleted }) {
+  const [open, setOpen] = useState(false)
+  const [heroes, setHeroes] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+
+  function handleOpen() {
+    setOpen(true)
+    if (heroes || loading || !stageId) return
+    setLoading(true)
+    const params = new URLSearchParams({ id: stageId, name: seriesName })
+    if (isCompleted) params.set('completed', '1')
+    fetch(`/api/tournament-heroes?${params}`)
+      .then(r => r.json())
+      .then(d => { setHeroes(d); setLoading(false) })
+      .catch(() => { setHeroes({ heroes: [], gameCount: 0 }); setLoading(false) })
+  }
+
+  return (
+    <div className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left min-h-[44px]"
+        onClick={open ? () => setOpen(false) : handleOpen}
+        aria-expanded={open}
+      >
+        <span className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
+          Hero Stats
+        </span>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-4 bg-gray-50 dark:bg-gray-800/30">
+          {loading && (
+            <div className="space-y-2 animate-pulse">
+              {[70, 55, 80, 60, 45, 75].map((w, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="h-2 w-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded flex-1" style={{ width: `${w}%` }} />
+                  <div className="h-2 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+                  <div className="h-2 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+                  <div className="h-2 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+              ))}
+            </div>
+          )}
+          {!loading && !heroes?.heroes?.length && (
+            <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-2 text-center">
+              No hero data available.
+            </p>
+          )}
+          {!loading && heroes?.heroes?.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-600 mb-3 uppercase tracking-widest">
+                {heroes.gameCount} game{heroes.gameCount !== 1 ? 's' : ''} · sorted by picks + bans
+              </p>
+              <table className="w-full text-xs table-fixed">
+                <colgroup>
+                  <col className="w-6" />
+                  <col />
+                  <col className="w-10" />
+                  <col className="w-10" />
+                  <col className="w-10" />
+                  <col className="w-10" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-800">
+                    <th className="text-left py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">#</th>
+                    <th className="text-left py-2 pr-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Hero</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Picks</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Win%</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Bans</th>
+                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">P+B</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(showAll ? heroes.heroes : heroes.heroes.slice(0, 25)).map((hero, i) => {
+                    const winPct = hero.picks > 0 ? Math.round((hero.wins / hero.picks) * 100) : null
+                    const isHighWin = winPct !== null && winPct >= 60
+                    const isLowWin = winPct !== null && winPct <= 40
+                    return (
+                      <tr key={hero.name} className="border-b border-gray-100 dark:border-gray-900 hover:bg-white dark:hover:bg-gray-900/40">
+                        <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
+                        <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate max-w-0">{hero.name}</td>
+                        <td className="py-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
+                        <td className={`py-2 text-center tabular-nums font-semibold ${
+                          isHighWin ? 'text-green-600 dark:text-green-500'
+                          : isLowWin ? 'text-red-500 dark:text-red-400'
+                          : 'text-gray-500 dark:text-gray-500'
+                        }`}>
+                          {winPct !== null ? `${winPct}%` : '-'}
+                        </td>
+                        <td className="py-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
+                        <td className="py-2 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {heroes.heroes.length > 25 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(v => !v)}
+                  className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  {showAll ? 'Show less' : `Show all ${heroes.heroes.length} heroes`}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -407,58 +530,63 @@ export default function TournamentDetail() {
                       const stageBegin = stage.beginAt ? new Date(stage.beginAt) : null
                       const stageEnd = stage.endAt ? new Date(stage.endAt) : null
                       const isLive = stageBegin && stageEnd && stageBegin <= now && now <= stageEnd
+                      const hasStandingsData = stage.standings?.some(s => s.wins != null || s.losses != null)
 
                       return (
                         <div
                           key={stage.id}
-                          className={`border rounded p-4 bg-white dark:bg-gray-900 ${isLive ? 'border-red-500/50' : 'border-gray-200 dark:border-gray-800'}`}
+                          className={`border rounded bg-white dark:bg-gray-900 overflow-hidden ${isLive ? 'border-red-500/50' : 'border-gray-200 dark:border-gray-800'}`}
                           onClick={() => trackEvent('tournament_stage_click', {
                             stage_name: stage.name,
                             tournament_name: data.name,
                           })}
                         >
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              {isLive && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-                              )}
-                              <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
-                                {stage.name}
-                              </h3>
+                          <div className="p-4">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2">
+                                {isLive && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
+                                )}
+                                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+                                  {stage.name}
+                                </h3>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {stage.tier && (
+                                  <span className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                                    Tier {stage.tier.toUpperCase ? stage.tier.toUpperCase() : stage.tier}
+                                  </span>
+                                )}
+                                {stage.prizePool && (
+                                  <span className="text-xs text-gray-400 dark:text-gray-600">
+                                    {stage.prizePool}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {stage.tier && (
-                                <span className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600">
-                                  Tier {stage.tier.toUpperCase ? stage.tier.toUpperCase() : stage.tier}
-                                </span>
-                              )}
-                              {stage.prizePool && (
-                                <span className="text-xs text-gray-400 dark:text-gray-600">
-                                  {stage.prizePool}
-                                </span>
-                              )}
-                            </div>
+
+                            {(stage.beginAt || stage.endAt) && (
+                              <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums">
+                                {formatDateRange(stage.beginAt, stage.endAt)}
+                              </p>
+                            )}
                           </div>
 
-                          {(stage.beginAt || stage.endAt) && (
-                            <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums mb-3">
-                              {formatDateRange(stage.beginAt, stage.endAt)}
-                            </p>
+                          {/* Bracket stages: show the bracket */}
+                          {stage.hasBracket && stage.bracket?.length > 0 && (
+                            <div className="border-t border-gray-100 dark:border-gray-800">
+                              <HorizontalBracket bracket={stage.bracket} />
+                            </div>
                           )}
 
-                          {stage.standings?.length > 0 && (
-                            <div className="mt-2 border-t border-gray-100 dark:border-gray-800 pt-2">
+                          {/* Non-bracket stages: show standings only if they have real W/L data */}
+                          {!stage.hasBracket && hasStandingsData && (
+                            <div className="border-t border-gray-100 dark:border-gray-800 p-4 pt-3">
                               <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-2">
                                 Standings
                               </p>
                               <StandingsTable standings={stage.standings} />
                             </div>
-                          )}
-
-                          {stage.standings?.length === 0 && (
-                            <p className="py-4 text-center text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600">
-                              {stage.hasBracket ? 'Bracket stage. No standings.' : 'Standings not yet available.'}
-                            </p>
                           )}
                         </div>
                       )
@@ -466,6 +594,15 @@ export default function TournamentDetail() {
                   </div>
                 )}
               </section>
+            )}
+
+            {/* Hero Stats — completed tournaments only */}
+            {data.stages?.length > 0 && (
+              <HeroStatsSection
+                stageId={data.stages[0]?.id}
+                seriesName={data.name}
+                isCompleted={data.status === 'completed'}
+              />
             )}
 
             {/* VOD section */}
