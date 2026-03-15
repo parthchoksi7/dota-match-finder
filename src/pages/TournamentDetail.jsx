@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import StageTimeline from '../components/StageTimeline'
 import TeamRoster from '../components/TeamRoster'
@@ -169,6 +169,83 @@ function AISummary({ seriesData }) {
         </div>
       )}
     </div>
+  )
+}
+
+function getStageDescription(stageName, hasBracket) {
+  const lower = (stageName || '').toLowerCase()
+  if (lower.includes('play-in') || lower.includes('play in') || lower.includes('playin')) {
+    return 'Qualifying rounds where lower-seeded or newly qualified teams compete for spots in the main playoffs. Round 1 winners advance to join direct-qualified teams in Round 2; Round 2 winners enter the main bracket. Note: bracket connector lines show the approximate match flow — PandaScore doesn\'t expose exact feed links between rounds.'
+  }
+  if (lower.includes('qualifier') || lower.includes('qual')) {
+    return 'Regional qualifying stage. Teams compete here to earn spots in the main event.'
+  }
+  if (lower.includes('grand final')) {
+    return 'The championship match between the two finalists. Winner takes the title and top prize.'
+  }
+  if (lower.includes('playoff') || lower.includes('main event')) {
+    return 'Main elimination bracket. Teams from the group stage and play-in compete in a double or single elimination format for the championship. Winners of the play-in typically enter as lower seeds.'
+  }
+  if (lower.includes('group')) {
+    return 'Group stage using Swiss or round-robin format. All teams play the same number of rounds; final standings determine who advances to the playoffs bracket.'
+  }
+  if (lower.includes('swiss')) {
+    return 'Swiss format: each round pairs teams with similar records. All teams play all rounds; standings decide who advances.'
+  }
+  if (hasBracket) {
+    return 'Bracket stage. Teams play head-to-head; losers may be eliminated or drop to the lower bracket depending on the format.'
+  }
+  return 'Tournament stage where teams compete for advancement.'
+}
+
+function StageInfoTooltip({ stageName, hasBracket }) {
+  const [pos, setPos] = useState(null)
+  const btnRef = useRef(null)
+  const tooltipRef = useRef(null)
+
+  function open(e) {
+    e.stopPropagation()
+    const r = btnRef.current.getBoundingClientRect()
+    setPos({ top: r.bottom + 6, left: r.left })
+  }
+
+  useEffect(() => {
+    if (!pos) return
+    function handler(e) {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target) &&
+        tooltipRef.current && !tooltipRef.current.contains(e.target)
+      ) setPos(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [pos])
+
+  return (
+    <span className="inline-flex items-center">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={open}
+        aria-label={`About ${stageName}`}
+        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 hover:border-gray-600 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-400 transition-colors leading-none font-bold flex-shrink-0"
+        style={{ fontSize: '9px' }}
+      >
+        i
+      </button>
+      {pos && (
+        <div
+          ref={tooltipRef}
+          className="fixed z-[9999] w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-xl p-3"
+          style={{ top: pos.top, left: Math.min(pos.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - 288) }}
+        >
+          <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{stageName}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+            {getStageDescription(stageName, hasBracket)}
+          </p>
+        </div>
+      )}
+    </span>
   )
 }
 
@@ -550,6 +627,7 @@ export default function TournamentDetail() {
                                 <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
                                   {stage.name}
                                 </h3>
+                                <StageInfoTooltip stageName={stage.name} hasBracket={stage.hasBracket} />
                               </div>
                               <div className="flex items-center gap-2">
                                 {stage.tier && (
