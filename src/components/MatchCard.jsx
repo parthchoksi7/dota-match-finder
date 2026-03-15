@@ -71,6 +71,16 @@ function MatchCard({
     }
   }
 
+  function maxGamesForSeries(seriesType) {
+    if (seriesType === 0) return 1
+    if (seriesType === 2) return 5
+    return 3
+  }
+
+  const maxGames = maxGamesForSeries(series.seriesType)
+  // Build fixed-length slot array: actual game or null for unplayed
+  const gameSlots = Array.from({ length: maxGames }, (_, i) => series.games[i] ?? null)
+
   return (
     <div
       data-series-id={series.id}
@@ -215,44 +225,59 @@ function MatchCard({
           id={`series-games-${series.id}`}
           className="border-t border-gray-200 dark:border-gray-800"
         >
-          {series.games.map((game, i) => (
-            <button
-              key={game.id}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                trackEvent("game_click", { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
-                trackEvent("team_click", { team: game.radiantTeam, tournament: series.tournament })
-                trackEvent("team_click", { team: game.direTeam, tournament: series.tournament })
-                onSelectGame(game)
-              }}
-              className="focus-ring w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer group border-b border-gray-200 dark:border-gray-800 last:border-b-0 transition-colors text-left"
-            >
-              <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
-                Game {i + 1}
-              </span>
-              <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                {formatDuration(game.duration)}
-              </span>
-
-              {/* Winner -- hidden in spoiler-free mode */}
-              {spoilerFree ? (
-                <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider">
-                  Hidden
+          {gameSlots.map((game, i) =>
+            game ? (
+              <button
+                key={game.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  trackEvent("game_click", { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
+                  trackEvent("team_click", { team: game.radiantTeam, tournament: series.tournament })
+                  trackEvent("team_click", { team: game.direTeam, tournament: series.tournament })
+                  onSelectGame(game)
+                }}
+                className="focus-ring w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer group border-b border-gray-200 dark:border-gray-800 last:border-b-0 transition-colors text-left"
+              >
+                <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
+                  Game {i + 1}
                 </span>
-              ) : (
-                <span className={`text-xs font-semibold ${
-                  game.radiantWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                }`}>
-                  {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
+                <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                  {formatDuration(game.duration)}
                 </span>
-              )}
 
-              <span className="text-xs text-gray-600 dark:text-gray-600 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors uppercase tracking-wider inline-flex items-center gap-1">
-                <span aria-hidden>▶</span> Watch VOD
-              </span>
-            </button>
-          ))}
+                {/* Winner -- hidden in spoiler-free mode */}
+                {spoilerFree ? (
+                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider">
+                    Hidden
+                  </span>
+                ) : (
+                  <span className={`text-xs font-semibold ${
+                    game.radiantWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                  }`}>
+                    {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
+                  </span>
+                )}
+
+                <span className="text-xs text-gray-600 dark:text-gray-600 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors uppercase tracking-wider inline-flex items-center gap-1">
+                  <span aria-hidden>▶</span> Watch VOD
+                </span>
+              </button>
+            ) : (
+              <div
+                key={`empty-${i}`}
+                className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] border-b border-gray-200 dark:border-gray-800 last:border-b-0"
+              >
+                <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
+                  Game {i + 1}
+                </span>
+                <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                  Not played
+                </span>
+                <span className="w-14" />
+              </div>
+            )
+          )}
 
           {/* Owner action buttons -- only when series is complete and not in spoiler-free mode */}
           {!spoilerFree && (onDraftPosts || onDraftRedditPosts) && (() => {
