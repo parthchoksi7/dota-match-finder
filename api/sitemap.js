@@ -88,6 +88,11 @@ export default async function handler(req, res) {
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
+  <url>
+    <loc>${BASE_URL}/tournaments</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
 ${urls.join('\n')}
 </urlset>`
 

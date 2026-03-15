@@ -25,6 +25,15 @@ function isTier1(leagueName, serieName) {
   return TIER1_KEYWORDS.some(k => lower.includes(k))
 }
 
+// For series objects: accept keyword match OR PandaScore tier 's'/'a' so upcoming
+// events with slightly different names still show up.
+function isTier1Series(s) {
+  const name = ((s.league?.name || '') + ' ' + (s.full_name || s.name || '')).toLowerCase()
+  const hasKeyword = TIER1_KEYWORDS.some(k => name.includes(k))
+  const tier = (s.tier || s.tournaments?.[0]?.tier || '').toLowerCase()
+  return hasKeyword || tier === 's' || tier === 'a'
+}
+
 function buildTournamentName(t) {
   const league = t.league?.name || ''
   const serie = t.serie?.full_name || t.serie?.name || ''
@@ -222,9 +231,9 @@ async function fetchSeriesList(token) {
   ])
 
   const payload = {
-    live: (running || []).filter(s => isTier1(s.league?.name, s.full_name || s.name)).map(s => mapSeries(s, 'live')),
-    upcoming: (upcoming || []).filter(s => isTier1(s.league?.name, s.full_name || s.name)).map(s => mapSeries(s, 'upcoming')),
-    completed: (past || []).filter(s => isTier1(s.league?.name, s.full_name || s.name)).slice(0, 5).map(s => mapSeries(s, 'completed')),
+    live: (running || []).filter(isTier1Series).map(s => mapSeries(s, 'live')),
+    upcoming: (upcoming || []).filter(isTier1Series).map(s => mapSeries(s, 'upcoming')),
+    completed: (past || []).filter(isTier1Series).slice(0, 5).map(s => mapSeries(s, 'completed')),
     fetchedAt: new Date().toISOString(),
   }
 

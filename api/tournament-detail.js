@@ -196,11 +196,20 @@ async function handleSeriesDetail(req, res, token) {
 
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  const seriesRes = await fetch(`${BASE}/dota2/series/${seriesId}`, { headers })
-  if (seriesRes.status === 404) return res.status(404).json({ error: 'Tournament not found' })
-  if (!seriesRes.ok) throw new Error(`PandaScore series error: ${seriesRes.status}`)
-
-  const serie = await seriesRes.json()
+  // Single-entity /dota2/series/{id} returns 404 on the current plan tier.
+  // Use parallel filter calls on the list endpoints instead (confirmed working).
+  const [runR, upR, pastR] = await Promise.all([
+    fetch(`${BASE}/dota2/series/running?filter[id]=${seriesId}`, { headers }),
+    fetch(`${BASE}/dota2/series/upcoming?filter[id]=${seriesId}`, { headers }),
+    fetch(`${BASE}/dota2/series/past?filter[id]=${seriesId}`, { headers }),
+  ])
+  const [runData, upData, pastData] = await Promise.all([
+    runR.ok ? runR.json() : [],
+    upR.ok ? upR.json() : [],
+    pastR.ok ? pastR.json() : [],
+  ])
+  const serie = [...(runData || []), ...(upData || []), ...(pastData || [])][0]
+  if (!serie) return res.status(404).json({ error: 'Tournament not found' })
   const tournaments = serie.tournaments || []
 
   const stageData = await Promise.all(
