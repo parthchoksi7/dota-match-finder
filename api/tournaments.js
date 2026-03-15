@@ -165,7 +165,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v3'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v4'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -217,22 +217,31 @@ async function fetchSeriesList(token) {
   console.log('Series list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  const [runningRes, upcomingRes, pastRes] = await Promise.all([
+  const [runningRes, upcomingRes, pastRes, runningToursRes] = await Promise.all([
     fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=20`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=20`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=20`, { headers }),
   ])
 
-  // All three are non-fatal - a PandaScore blip shows empty sections, not an error banner.
+  // All are non-fatal - a PandaScore blip shows empty sections, not an error banner.
   if (!runningRes.ok) console.warn('PandaScore running series failed:', runningRes.status)
   if (!upcomingRes.ok) console.warn('PandaScore upcoming series failed:', upcomingRes.status)
   if (!pastRes.ok) console.warn('PandaScore past series failed:', pastRes.status)
+  if (!runningToursRes.ok) console.warn('PandaScore running tournaments failed:', runningToursRes.status)
 
-  const [running, upcoming, past] = await Promise.all([
+  const [running, upcoming, past, runningTours] = await Promise.all([
     runningRes.ok ? runningRes.json() : Promise.resolve([]),
     upcomingRes.ok ? upcomingRes.json() : Promise.resolve([]),
     pastRes.ok ? pastRes.json() : Promise.resolve([]),
+    runningToursRes.ok ? runningToursRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
   ])
+
+  // Build a set of serie_ids that still have active sub-tournaments.
+  // PandaScore sometimes moves a series to /series/past before the final match ends.
+  const runningTourSerieIds = new Set(
+    (runningTours || []).map(t => t.serie_id || t.serie?.id).filter(Boolean)
+  )
 
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
@@ -283,10 +292,22 @@ async function fetchSeriesList(token) {
     return true
   })
 
+  // Rescue any "past" series that still have running sub-tournaments — PandaScore
+  // can move a series to /series/past before the Grand Finals match finishes.
+  const completedFiltered = (past || []).filter(isTier1Series)
+  const rescuedToLive = completedFiltered.filter(s => runningTourSerieIds.has(s.id))
+  const trulyCompleted = completedFiltered.filter(s => !runningTourSerieIds.has(s.id))
+  if (rescuedToLive.length > 0) {
+    console.log(`Rescued ${rescuedToLive.length} series from past→live: ${rescuedToLive.map(s => s.full_name || s.name).join(', ')}`)
+  }
+
   const payload = {
-    live: (running || []).filter(isTier1Series).map(s => mapSeries(s, 'live')),
+    live: [
+      ...(running || []).filter(isTier1Series).map(s => mapSeries(s, 'live')),
+      ...rescuedToLive.map(s => mapSeries(s, 'live')),
+    ],
     upcoming: deduplicatedUpcoming,
-    completed: (past || []).filter(isTier1Series).slice(0, 5).map(s => mapSeries(s, 'completed')),
+    completed: trulyCompleted.slice(0, 5).map(s => mapSeries(s, 'completed')),
     fetchedAt: new Date().toISOString(),
   }
 

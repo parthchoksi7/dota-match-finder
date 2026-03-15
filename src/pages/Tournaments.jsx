@@ -99,16 +99,22 @@ export default function Tournaments() {
               </section>
             )}
 
-            {upcoming.length > 0 && (
+            {(upcoming.length > 0 || live.length === 0) && (
               <section>
                 <div className="flex items-center mb-2">
                   <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-blue-500">
                     Upcoming
                   </h2>
                 </div>
-                <div className="flex flex-col gap-3">
-                  {upcoming.map(t => <TournamentCard key={t.id} tournament={t} />)}
-                </div>
+                {upcoming.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {upcoming.map(t => <TournamentCard key={t.id} tournament={t} />)}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-3 pl-2">
+                    Between events — check back soon
+                  </p>
+                )}
               </section>
             )}
 
