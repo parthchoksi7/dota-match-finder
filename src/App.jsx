@@ -635,7 +635,7 @@ function App() {
 
         {!initialLoading && !searched && !error && (
           <div className="flex flex-col gap-6">
-            <TournamentHub />
+            <TournamentHub spoilerFree={spoilerFree} />
             <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
             <MyTeamsSection
               matches={allMatches}

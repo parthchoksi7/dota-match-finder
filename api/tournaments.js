@@ -71,6 +71,7 @@ function mapTournament(t, status) {
     status,
     league: leagueName,
     serie: serieName,
+    winner: t.winner?.type?.toLowerCase() === 'team' ? { id: t.winner.id, name: t.winner.name || null } : null,
     liquipediaUrl: `https://liquipedia.net/dota2/${encodeURIComponent(leagueName.replace(/\s+/g, '_'))}`,
     pandascoreUrl: `https://pandascore.co/dota2/tournaments/${t.slug}`,
     xHandle: resolveXHandle(leagueName || name),

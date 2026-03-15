@@ -207,7 +207,7 @@ function stageShortName(name) {
   return m ? m[1].trim() : name
 }
 
-function TournamentHub() {
+function TournamentHub({ spoilerFree }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Overview')
@@ -395,6 +395,14 @@ function TournamentHub() {
         <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
           {cleanTournamentName(tournament.name)}
         </p>
+        {isCompleted && !spoilerFree && tournament.winner?.name && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <span className="text-sm">🏆</span>
+            <span className="text-sm font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+              {tournament.winner.name}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tab bar — segmented control */}
