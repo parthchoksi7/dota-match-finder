@@ -4,51 +4,13 @@ import StageTimeline from '../components/StageTimeline'
 import TeamRoster from '../components/TeamRoster'
 import RegionBreakdown from '../components/RegionBreakdown'
 import { HorizontalBracket } from '../components/BracketView'
-import { track } from '@vercel/analytics'
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', name, props)
-  }
-}
+import StatusBadge from '../components/StatusBadge'
+import { trackEvent, formatDateRange } from '../utils'
 
 function getSeriesIdFromPath() {
   if (typeof window === 'undefined') return null
   const match = window.location.pathname.match(/^\/tournament\/(\d+)/)
   return match ? match[1] : null
-}
-
-function formatDateRange(beginAt, endAt) {
-  if (!beginAt) return null
-  const opts = { month: 'short', day: 'numeric' }
-  const start = new Date(beginAt).toLocaleDateString('en-US', opts)
-  if (!endAt) return start
-  const end = new Date(endAt).toLocaleDateString('en-US', { ...opts, year: 'numeric' })
-  return `${start} - ${end}`
-}
-
-function StatusBadge({ status }) {
-  if (status === 'live') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-red-500/10 text-red-500">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-        Live
-      </span>
-    )
-  }
-  if (status === 'upcoming') {
-    return (
-      <span className="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400">
-        Upcoming
-      </span>
-    )
-  }
-  return (
-    <span className="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500">
-      Completed
-    </span>
-  )
 }
 
 function StandingsTable({ standings }) {

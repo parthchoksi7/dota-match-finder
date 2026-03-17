@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import TournamentCard from '../components/TournamentCard'
-import { track } from '@vercel/analytics'
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', name, props)
-  }
-}
+import { trackEvent } from '../utils'
 
 function SkeletonCard() {
   return (

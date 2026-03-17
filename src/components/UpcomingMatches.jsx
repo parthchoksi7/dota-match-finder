@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react"
+import { trackEvent } from "../utils"
 
 const INITIAL_SHOW = 2
 const POLL_INTERVAL = 2 * 60 * 1000
-
-function trackEvent(name, props) {
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
 
 function formatMatchTime(scheduledAt) {
   if (!scheduledAt) return null

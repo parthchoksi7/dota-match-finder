@@ -11,15 +11,7 @@ import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
-import { formatDuration, getFollowedTeams, setFollowedTeams } from "./utils"
-import { track } from '@vercel/analytics'
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 
@@ -338,12 +330,7 @@ function App() {
 
       const radiantTeam = series.games[0].radiantTeam
       const direTeam = series.games[0].direTeam
-      const radiantWins = series.games.filter(g =>
-        (g.radiantWin && g.radiantTeam === radiantTeam) || (!g.radiantWin && g.direTeam === radiantTeam)
-      ).length
-      const direWins = series.games.filter(g =>
-        (g.radiantWin && g.radiantTeam === direTeam) || (!g.radiantWin && g.direTeam === direTeam)
-      ).length
+      const { radiantWins, direWins } = getSeriesWins(series)
       const seriesWinner = radiantWins >= direWins ? radiantTeam : direTeam
 
       const games = series.games.map((game, i) => ({
@@ -409,12 +396,7 @@ function App() {
     try {
       const radiantTeam = series.games[0].radiantTeam
       const direTeam = series.games[0].direTeam
-      const radiantWins = series.games.filter(g =>
-        (g.radiantWin && g.radiantTeam === radiantTeam) || (!g.radiantWin && g.direTeam === radiantTeam)
-      ).length
-      const direWins = series.games.filter(g =>
-        (g.radiantWin && g.radiantTeam === direTeam) || (!g.radiantWin && g.direTeam === direTeam)
-      ).length
+      const { radiantWins, direWins } = getSeriesWins(series)
       const seriesWinner = radiantWins >= direWins ? radiantTeam : direTeam
 
       const games = [{
