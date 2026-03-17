@@ -25,6 +25,7 @@ function MatchCard({
   followedTeams,
   onToggleFollow,
   expandedSeriesId = null,
+  isGrandFinal = false,
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
 
@@ -68,10 +69,12 @@ function MatchCard({
     <div
       data-series-id={series.id}
       className={
-        "transition-all bg-white dark:bg-gray-950 rounded border " +
+        "transition-all rounded border " +
         (series.id === expandedSeriesId
-          ? "border-blue-500 dark:border-blue-500 ring-1 ring-blue-500/30"
-          : "border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600")
+          ? "bg-white dark:bg-gray-950 border-blue-500 dark:border-blue-500 ring-1 ring-blue-500/30"
+          : isGrandFinal
+          ? "bg-amber-50/60 dark:bg-amber-950/20 border-amber-500/70 dark:border-amber-500/60 hover:border-amber-500 dark:hover:border-amber-400"
+          : "bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600")
       }
     >
 
@@ -86,13 +89,18 @@ function MatchCard({
         className="focus-ring w-full text-left cursor-pointer"
       >
         {/* Tournament + date row */}
-        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-2">
+        <div className={`px-4 py-2 border-b flex justify-between items-center flex-wrap gap-2 ${isGrandFinal ? "border-amber-200 dark:border-amber-800/50" : "border-gray-200 dark:border-gray-800"}`}>
           <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold flex items-center gap-2 min-w-0">
             <span className="truncate">{series.tournament}</span>
             {seriesLabel && !spoilerFree && (
               <span className="text-gray-400 dark:text-gray-600 font-normal shrink-0">({seriesLabel})</span>
             )}
           </span>
+          {isGrandFinal && (
+            <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+              <span aria-hidden>🏆</span> Grand Final
+            </span>
+          )}
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-gray-500 dark:text-gray-600 flex items-center gap-2">
               {series.date}
@@ -206,7 +214,7 @@ function MatchCard({
       {expanded && (
         <div
           id={`series-games-${series.id}`}
-          className="border-t border-gray-200 dark:border-gray-800"
+          className={`border-t ${isGrandFinal ? "border-amber-200 dark:border-amber-800/50" : "border-gray-200 dark:border-gray-800"}`}
         >
           {gameSlots.map((game, i) => {
             // In non-spoiler mode, unplayed slots are a non-interactive row

@@ -96,6 +96,15 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 - All buttons: `font-semibold text-sm rounded px-3 py-1.5` (small) or `px-4 py-2` (default)
 - Disabled: `disabled:opacity-50 disabled:cursor-not-allowed`
 
+### Grand Final match cards
+- Detected when `series.tournament.toLowerCase().includes('grand final')`
+- Card background: `bg-amber-50/60 dark:bg-amber-950/20`
+- Card border: `border-amber-500/70 dark:border-amber-500/60`, hover: `hover:border-amber-500 dark:hover:border-amber-400`
+- Internal dividers: `border-amber-200 dark:border-amber-800/50`
+- Trophy badge in the tournament header row: trophy emoji + "Grand Final" label in `text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wide`
+- Do NOT animate-pulse the card border or background
+- Amber is used here at the card level only - section label `border-l-2 border-amber-500` for My Teams remains unchanged
+
 ### Match cards — winner/loser state
 - **Winner** team name: `font-display font-black text-base sm:text-xl uppercase tracking-wide text-gray-900 dark:text-white`
 - **Loser** team name: same size but `font-bold text-gray-400 dark:text-gray-500` — still readable, clearly secondary

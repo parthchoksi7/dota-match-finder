@@ -57,6 +57,7 @@ function LatestMatches({ matches, onSelectMatch, onDraftPosts, onDraftRedditPost
                 followedTeams={followedTeams}
                 onToggleFollow={onToggleFollow}
                 expandedSeriesId={expandedSeriesId}
+                isGrandFinal={s.tournament?.toLowerCase().includes('grand final')}
               />
             </Fragment>
           )
