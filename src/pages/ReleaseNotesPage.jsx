@@ -2,6 +2,16 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 17, 2026",
+    tag: "improvement",
+    title: "Grand Final cards stand out in Latest Results",
+    desc: "Grand Final matches now look distinct in the Latest Results and My Teams sections so they're easy to spot at a glance.",
+    items: [
+      "Grand Final cards get a gold (amber) border and a warm background tint to separate them from regular matches.",
+      "A trophy badge labeled 'Grand Final' appears in the card header next to the tournament name.",
+    ],
+  },
+  {
     date: "Mar 15, 2026",
     tag: "improvement",
     title: "Tournament Hub - Navigation Links and Completed Fallback",
