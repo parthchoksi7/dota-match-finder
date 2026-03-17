@@ -1,13 +1,5 @@
 import { useState, useEffect } from "react"
-import { formatDuration, getSeriesLabel } from "../utils"
-import { track } from "@vercel/analytics"
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
+import { formatDuration, getSeriesLabel, trackEvent, getSeriesWins } from "../utils"
 
 // Star icon: filled when followed, outlined when not
 function StarIcon({ filled }) {
@@ -42,16 +34,7 @@ function MatchCard({
 
   const radiantTeam = series.games[0].radiantTeam
   const direTeam = series.games[0].direTeam
-  const radiantWins = series.games.filter(
-    (g) =>
-      (g.radiantWin && g.radiantTeam === radiantTeam) ||
-      (!g.radiantWin && g.direTeam === radiantTeam)
-  ).length
-  const direWins = series.games.filter(
-    (g) =>
-      (g.radiantWin && g.radiantTeam === direTeam) ||
-      (!g.radiantWin && g.direTeam === direTeam)
-  ).length
+  const { radiantWins, direWins } = getSeriesWins(series)
   const seriesLabel = getSeriesLabel(series.seriesType)
 
   const isRadiantFollowed = !!followedTeams?.includes(radiantTeam)

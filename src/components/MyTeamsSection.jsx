@@ -1,14 +1,6 @@
 import { useEffect, useRef } from "react"
-import { groupIntoSeries, isSeriesComplete } from "../utils"
+import { groupIntoSeries, isSeriesComplete, trackEvent } from "../utils"
 import MatchCard from "./MatchCard"
-import { track } from "@vercel/analytics"
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
 
 function MyTeamsSection({
   matches,

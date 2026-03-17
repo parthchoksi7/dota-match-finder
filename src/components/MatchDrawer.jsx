@@ -1,14 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
 import { VOD_CHANNEL_LABELS } from "../api"
 import { useEffect, useRef, useState } from "react"
-import { track } from "@vercel/analytics"
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
+import { trackEvent } from "../utils"
 
 function MatchDrawer({
   match,

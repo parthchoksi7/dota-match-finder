@@ -1,13 +1,6 @@
 import { useState, useEffect, useRef } from "react"
-import { track } from '@vercel/analytics'
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
-
-function logEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
+import { trackEvent } from '../utils'
 
 const FORMAT_DESCRIPTIONS = {
   'Swiss': {
@@ -429,7 +422,7 @@ function TournamentHub({ spoilerFree }) {
             <button
               key={tab}
               type="button"
-              onClick={() => { setActiveTab(tab); logEvent('tournament_tab_click', { tab }) }}
+              onClick={() => { setActiveTab(tab); trackEvent('tournament_tab_click', { tab }) }}
               className={`flex-1 py-1 text-xs font-semibold uppercase tracking-wide rounded transition-colors text-center whitespace-nowrap ${
                 activeTab === tab
                   ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
@@ -650,7 +643,7 @@ function TournamentHub({ spoilerFree }) {
               {heroStats.heroes.length > 25 && (
                 <button
                   type="button"
-                  onClick={() => { const next = !showAllHeroes; setShowAllHeroes(next); logEvent('heroes_show_more', { expanded: next }) }}
+                  onClick={() => { const next = !showAllHeroes; setShowAllHeroes(next); trackEvent('heroes_show_more', { expanded: next }) }}
                   className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   {showAllHeroes ? 'Show less' : `Show all ${heroStats.heroes.length} heroes`}
@@ -665,7 +658,7 @@ function TournamentHub({ spoilerFree }) {
         <a
           href="/tournaments"
           className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          onClick={() => logEvent('tournament_hub_view_all_click', {})}
+          onClick={() => trackEvent('tournament_hub_view_all_click', {})}
         >
           View all tournaments →
         </a>

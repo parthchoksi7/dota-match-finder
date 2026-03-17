@@ -1,3 +1,34 @@
+import { track } from '@vercel/analytics'
+
+export function trackEvent(name, props) {
+  track(name, props)
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', name, props)
+  }
+}
+
+export function formatDateRange(beginAt, endAt) {
+  if (!beginAt) return null
+  const opts = { month: 'short', day: 'numeric' }
+  const start = new Date(beginAt).toLocaleDateString('en-US', opts)
+  if (!endAt) return start
+  const end = new Date(endAt).toLocaleDateString('en-US', { ...opts, year: 'numeric' })
+  return `${start} - ${end}`
+}
+
+/** Returns { radiantWins, direWins } for a series object. */
+export function getSeriesWins(series) {
+  const radiantTeam = series.games[0].radiantTeam
+  const direTeam = series.games[0].direTeam
+  const radiantWins = series.games.filter(
+    g => (g.radiantWin && g.radiantTeam === radiantTeam) || (!g.radiantWin && g.direTeam === radiantTeam)
+  ).length
+  const direWins = series.games.filter(
+    g => (g.radiantWin && g.radiantTeam === direTeam) || (!g.radiantWin && g.direTeam === direTeam)
+  ).length
+  return { radiantWins, direWins }
+}
+
 /**
  * Format "HH:MM" or "H:MM" duration string to human-readable "1h 23m" or "45m"
  */
