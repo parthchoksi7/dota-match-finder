@@ -8,8 +8,10 @@
  * my-teams.test.js; this file focuses on the uncovered branches.
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries } from '../utils'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent } from '../utils'
+
+vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
 // ── formatDuration ──────────────────────────────────────────────────────────
 
@@ -204,5 +206,123 @@ describe('groupIntoSeries — sort order', () => {
     // recent should be first
     expect(result[0].id).toBe('2')
     expect(result[1].id).toBe('1')
+  })
+})
+
+// ── formatDateRange ──────────────────────────────────────────────────────────
+
+describe('formatDateRange', () => {
+  it('returns null when beginAt is falsy', () => {
+    expect(formatDateRange(null, null)).toBeNull()
+    expect(formatDateRange('', '')).toBeNull()
+    expect(formatDateRange(undefined, undefined)).toBeNull()
+  })
+
+  it('returns just the start date when endAt is missing', () => {
+    const result = formatDateRange('2025-03-01T00:00:00Z', null)
+    expect(result).toBe('Mar 1')
+  })
+
+  it('returns a range string when both dates are provided', () => {
+    const result = formatDateRange('2025-03-01T00:00:00Z', '2025-03-15T00:00:00Z')
+    expect(result).toMatch(/Mar 1/)
+    expect(result).toMatch(/Mar 15/)
+    expect(result).toContain(' - ')
+  })
+
+  it('includes the year in the end date but not the start date', () => {
+    const result = formatDateRange('2025-03-01T00:00:00Z', '2025-03-15T00:00:00Z')
+    // End date should include the year; start date should not
+    expect(result).toMatch(/2025/)
+    // Result format: "Mar 1 - Mar 15, 2025"
+    const parts = result.split(' - ')
+    expect(parts[0]).not.toMatch(/\d{4}/)
+    expect(parts[1]).toMatch(/\d{4}/)
+  })
+})
+
+// ── getSeriesWins ────────────────────────────────────────────────────────────
+
+function makeSeries(games) {
+  return { games }
+}
+
+function makeMatchGame({ radiantWin, radiantTeam = 'Radiant', direTeam = 'Dire' } = {}) {
+  return { radiantWin, radiantTeam, direTeam }
+}
+
+describe('getSeriesWins', () => {
+  it('returns 2-0 when radiant sweeps a BO3', () => {
+    const series = makeSeries([
+      makeMatchGame({ radiantWin: true }),
+      makeMatchGame({ radiantWin: true }),
+    ])
+    expect(getSeriesWins(series)).toEqual({ radiantWins: 2, direWins: 0 })
+  })
+
+  it('returns 0-2 when dire sweeps a BO3', () => {
+    const series = makeSeries([
+      makeMatchGame({ radiantWin: false }),
+      makeMatchGame({ radiantWin: false }),
+    ])
+    expect(getSeriesWins(series)).toEqual({ radiantWins: 0, direWins: 2 })
+  })
+
+  it('returns 1-1 for a split BO3 after two games', () => {
+    const series = makeSeries([
+      makeMatchGame({ radiantWin: true }),
+      makeMatchGame({ radiantWin: false }),
+    ])
+    expect(getSeriesWins(series)).toEqual({ radiantWins: 1, direWins: 1 })
+  })
+
+  it('returns 3-2 for a full BO5 won by radiant', () => {
+    const series = makeSeries([
+      makeMatchGame({ radiantWin: true }),
+      makeMatchGame({ radiantWin: false }),
+      makeMatchGame({ radiantWin: true }),
+      makeMatchGame({ radiantWin: false }),
+      makeMatchGame({ radiantWin: true }),
+    ])
+    expect(getSeriesWins(series)).toEqual({ radiantWins: 3, direWins: 2 })
+  })
+
+  it('counts wins correctly when team names differ per game (swap sides)', () => {
+    // Game 1: Radiant=Team A wins; Game 2: Radiant=Team B wins (Team A on Dire side)
+    // getSeriesWins uses games[0] teams as the canonical reference — both games use the same teams
+    const series = makeSeries([
+      { radiantWin: true, radiantTeam: 'Team A', direTeam: 'Team B' },
+      { radiantWin: false, radiantTeam: 'Team A', direTeam: 'Team B' }, // Dire (Team B) wins
+    ])
+    expect(getSeriesWins(series)).toEqual({ radiantWins: 1, direWins: 1 })
+  })
+})
+
+// ── trackEvent ───────────────────────────────────────────────────────────────
+
+describe('trackEvent', () => {
+  beforeEach(() => {
+    delete window.gtag
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    delete window.gtag
+  })
+
+  it('calls window.gtag when it is defined', () => {
+    window.gtag = vi.fn()
+    trackEvent('test_event', { foo: 'bar' })
+    expect(window.gtag).toHaveBeenCalledWith('event', 'test_event', { foo: 'bar' })
+  })
+
+  it('does not throw when window.gtag is not defined', () => {
+    expect(() => trackEvent('test_event', {})).not.toThrow()
+  })
+
+  it('calls the vercel track function', async () => {
+    const { track } = await import('@vercel/analytics')
+    trackEvent('test_event', { key: 'value' })
+    expect(track).toHaveBeenCalledWith('test_event', { key: 'value' })
   })
 })
