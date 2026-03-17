@@ -121,7 +121,7 @@ export default function Tournaments() {
             {completed.length > 0 && (
               <section>
                 <div className="flex items-center mb-2">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-gray-400 dark:border-gray-600">
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-emerald-500">
                     Recently Completed
                   </h2>
                 </div>
