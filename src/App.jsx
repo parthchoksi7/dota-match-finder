@@ -9,7 +9,7 @@ import RedditPostsModal from "./components/RedditPostsModal"
 import TournamentHub from "./components/TournamentHub"
 import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
-import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, VOD_CHANNEL_LABELS } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
 
@@ -70,6 +70,7 @@ function getMatchIdFromUrl() {
 function App() {
   const [allMatches, setAllMatches] = useState([])
   const [nextMatchId, setNextMatchId] = useState(null)
+  const [grandFinalMatchIds, setGrandFinalMatchIds] = useState(new Set())
   const [loadingMore, setLoadingMore] = useState(false)
   const [matches, setMatches] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -144,6 +145,7 @@ function App() {
 
   useEffect(() => {
     loadMatches()
+    fetchGrandFinalMatchIds().then(ids => setGrandFinalMatchIds(new Set(ids)))
   }, [loadMatches])
 
   // Handle share URL on load — supports both /match/:id and legacy #match-:id
@@ -629,6 +631,7 @@ function App() {
               onToggleFollow={handleToggleFollow}
               spoilerFree={spoilerFree}
               expandedSeriesId={expandedSeriesId}
+              grandFinalMatchIds={grandFinalMatchIds}
             />
             <LatestMatches
               matches={allMatches}
@@ -639,6 +642,7 @@ function App() {
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
               expandedSeriesId={expandedSeriesId}
+              grandFinalMatchIds={grandFinalMatchIds}
             />
           </div>
         )}

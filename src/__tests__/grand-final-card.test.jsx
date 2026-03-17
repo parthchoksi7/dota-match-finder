@@ -4,7 +4,9 @@
  * Covers:
  * - isGrandFinal=true renders trophy badge and "Grand Final" label
  * - isGrandFinal=false (default) renders no badge
- * - Grand Final detection string used by LatestMatches/MyTeamsSection
+ * - Combined detection used by LatestMatches/MyTeamsSection:
+ *     string-based (tournament name includes "grand final")
+ *     OR match-ID-based (grandFinalMatchIds Set contains a game id)
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -45,6 +47,20 @@ const baseSeries = {
   ],
 }
 
+// OpenDota-sourced series — league name only, no stage info
+const openDotaSeries = {
+  ...baseSeries,
+  id: '99',
+  tournament: 'PGL Wallachia Season 7', // no "Grand Final" in name
+  games: [
+    { id: '7890001', radiantTeam: 'Liquid', direTeam: 'Yandex', radiantWin: false, duration: '0:42', startTime: 1_742_100_000 },
+    { id: '7890002', radiantTeam: 'Liquid', direTeam: 'Yandex', radiantWin: true,  duration: '0:51', startTime: 1_742_103_000 },
+    { id: '7890003', radiantTeam: 'Liquid', direTeam: 'Yandex', radiantWin: false, duration: '0:38', startTime: 1_742_106_000 },
+  ],
+}
+
+// ── MatchCard visual treatment ────────────────────────────────────────────────
+
 describe('MatchCard — Grand Final treatment', () => {
   it('shows the Grand Final badge when isGrandFinal=true', () => {
     render(<MatchCard series={baseSeries} onSelectGame={vi.fn()} isGrandFinal={true} />)
@@ -72,8 +88,7 @@ describe('MatchCard — Grand Final treatment', () => {
     const { container } = render(
       <MatchCard series={baseSeries} onSelectGame={vi.fn()} isGrandFinal={true} />
     )
-    const card = container.firstChild
-    expect(card.className).toMatch(/amber/)
+    expect(container.firstChild.className).toMatch(/amber/)
   })
 
   it('does not apply amber border class when isGrandFinal=false', () => {
@@ -81,37 +96,52 @@ describe('MatchCard — Grand Final treatment', () => {
     const { container } = render(
       <MatchCard series={normalSeries} onSelectGame={vi.fn()} isGrandFinal={false} />
     )
-    const card = container.firstChild
-    expect(card.className).not.toMatch(/amber/)
+    expect(container.firstChild.className).not.toMatch(/amber/)
   })
 })
 
-// ── Grand Final detection heuristic ─────────────────────────────────────────
+// ── Combined detection heuristic ─────────────────────────────────────────────
 
-describe('Grand Final detection string heuristic', () => {
-  function detectGrandFinal(tournamentName) {
-    return tournamentName?.toLowerCase().includes('grand final') ?? false
+describe('Grand Final detection — combined heuristic', () => {
+  function detect(series, grandFinalMatchIds = new Set()) {
+    return (
+      series.tournament?.toLowerCase().includes('grand final') ||
+      series.games.some(g => grandFinalMatchIds.has(g.id))
+    )
   }
 
-  it('detects "Grand Final" in PandaScore stage tournament names', () => {
-    expect(detectGrandFinal('DreamLeague Season 25 — Grand Final')).toBe(true)
-    expect(detectGrandFinal('PGL Wallachia S7 — Grand Final')).toBe(true)
-    expect(detectGrandFinal('The International 2025 — Grand Final')).toBe(true)
+  it('detects via tournament name for PandaScore-sourced data', () => {
+    expect(detect(baseSeries)).toBe(true)
+    expect(detect({ ...baseSeries, tournament: 'PGL Wallachia S7 — Grand Final' })).toBe(true)
   })
 
-  it('is case insensitive', () => {
-    expect(detectGrandFinal('ESL One — grand final')).toBe(true)
-    expect(detectGrandFinal('ESL One — GRAND FINAL')).toBe(true)
+  it('detects via match ID set for OpenDota-sourced data (Yandex vs Liquid scenario)', () => {
+    const gfIds = new Set(['7890001', '7890002', '7890003'])
+    expect(detect(openDotaSeries, gfIds)).toBe(true)
   })
 
-  it('returns false for regular stage names', () => {
-    expect(detectGrandFinal('DreamLeague Season 25')).toBe(false)
-    expect(detectGrandFinal('PGL Wallachia S7 — Lower Bracket Round 3')).toBe(false)
-    expect(detectGrandFinal('DreamLeague Season 25 — Playoffs')).toBe(false)
+  it('detects when only one game ID is in the set', () => {
+    const gfIds = new Set(['7890001']) // just the first game
+    expect(detect(openDotaSeries, gfIds)).toBe(true)
   })
 
-  it('returns false for null or undefined', () => {
-    expect(detectGrandFinal(null)).toBe(false)
-    expect(detectGrandFinal(undefined)).toBe(false)
+  it('returns false when tournament name has no stage info and set is empty', () => {
+    expect(detect(openDotaSeries, new Set())).toBe(false)
+  })
+
+  it('returns false when match IDs are different (non-GF series)', () => {
+    const gfIds = new Set(['9999999']) // different IDs
+    expect(detect(openDotaSeries, gfIds)).toBe(false)
+  })
+
+  it('is case insensitive for tournament name', () => {
+    expect(detect({ ...baseSeries, tournament: 'ESL One — GRAND FINAL' })).toBe(true)
+    expect(detect({ ...baseSeries, tournament: 'ESL One — grand final' })).toBe(true)
+  })
+
+  it('handles null/undefined tournament gracefully', () => {
+    const s = { ...openDotaSeries, tournament: null }
+    expect(detect(s, new Set())).toBe(false)
+    expect(detect(s, new Set(['7890001']))).toBe(true)
   })
 })
