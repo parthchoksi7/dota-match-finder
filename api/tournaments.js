@@ -348,24 +348,45 @@ async function fetchGrandFinalMatchIds(token) {
 
   console.log('Grand finals: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-  const response = await fetch(
-    `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=100`,
+
+  // Step 1: Find recent Grand Final tournament stages by name.
+  // Using the /tournaments endpoint with search[name] is more reliable than
+  // scanning the last N past matches — those 100 matches can cover just a few
+  // days and older Grand Finals simply won't appear.
+  const tourRes = await fetch(
+    `${PANDASCORE_BASE}/tournaments/past?search[name]=Grand+Final&sort=-end_at&page[size]=15`,
     { headers }
   )
-  if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+  if (!tourRes.ok) throw new Error(`PandaScore tournaments error: ${tourRes.status}`)
+  const tournaments = await tourRes.json()
 
-  const data = await response.json()
-  const grandFinals = (data || []).filter(m =>
-    m.tournament?.name?.toLowerCase().includes('grand final')
+  console.log(`Grand finals: found ${tournaments.length} Grand Final tournament stages`)
+
+  if (!tournaments.length) {
+    const empty = { matchIds: [], fetchedAt: new Date().toISOString() }
+    await kv.set(KV_GF_KEY, empty, { ex: GF_TTL }).catch(() => {})
+    return empty
+  }
+
+  // Step 2: Fetch the matches for each Grand Final stage in parallel.
+  // Each match has games[].external_identifier which is the OpenDota match_id.
+  const matchArrays = await Promise.all(
+    tournaments.map(t =>
+      fetch(`${PANDASCORE_BASE}/tournaments/${t.id}/matches?page[size]=10`, { headers })
+        .then(r => r.ok ? r.json() : [])
+        .catch(() => [])
+    )
   )
 
   const matchIds = []
-  for (const m of grandFinals) {
-    for (const g of m.games || []) {
-      if (g.external_identifier) matchIds.push(String(g.external_identifier))
+  for (const matches of matchArrays) {
+    for (const m of (matches || [])) {
+      for (const g of (m.games || [])) {
+        if (g.external_identifier) matchIds.push(String(g.external_identifier))
+      }
     }
   }
-  console.log(`Grand finals: ${grandFinals.length} GF series, ${matchIds.length} match IDs`)
+  console.log(`Grand finals: ${tournaments.length} stages, ${matchIds.length} game IDs collected`)
 
   const payload = { matchIds, fetchedAt: new Date().toISOString() }
   try {
