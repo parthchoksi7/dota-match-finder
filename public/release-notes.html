@@ -300,6 +300,29 @@
 
     <div class="timeline">
 
+      <!-- Mar 18, 2026 -->
+      <div class="release">
+        <div class="release-meta">
+          <p class="release-date">Mar 18, 2026</p>
+          <span class="release-tag tag-new">New</span>
+        </div>
+        <div class="release-body">
+          <p class="release-title">Calendar Feed Subscriptions</p>
+          <p class="release-desc">Subscribe to Dota 2 match schedules directly in Google Calendar, Apple Calendar, or Outlook. Matches show up automatically as your calendar app refreshes the feed.</p>
+          <ul class="release-items">
+            <li><strong>/calendar</strong> - New page to build your personal calendar URL. Select teams from a list, copy the generated URL, and paste it into any calendar app.</li>
+            <li><strong>Team feeds</strong> - Subscribe to upcoming and recent matches for one or more teams via <code>/api/calendar/team?teams=team-liquid,tundra-esports</code>. One URL covers multiple teams.</li>
+            <li><strong>Tournament feeds</strong> - Subscribe to a full tournament series via <code>/api/calendar/tournament?series={id}</code>. Includes an all-day banner event for the tournament date range plus individual match events.</li>
+            <li><strong>My Teams integration</strong> - A "Calendar" button now appears in the My Teams section header. Click it to open the subscribe modal with a pre-built URL for all your followed teams.</li>
+            <li>Calendar events show match time in UTC; your calendar app converts to local time automatically.</li>
+            <li>Match duration estimated: Bo1 = 1h, Bo3 = 2h, Bo5 = 3h.</li>
+            <li>Feed data is cached 30 minutes in Redis so PandaScore API usage stays minimal even with many subscribers.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="date-separator"></div>
+
       <!-- Mar 15, 2026 -->
       <div class="release">
         <div class="release-meta">
