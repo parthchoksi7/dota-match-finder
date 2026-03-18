@@ -266,6 +266,25 @@ async function handleSeriesDetail(req, res, token) {
     }
   }
 
+  // Fallback: if rosters are unavailable (e.g. upcoming events), build teams from standings.
+  // Standings objects from PandaScore include the full team (name, acronym, location, image_url).
+  // Players will be empty, which TeamRoster displays as "Roster unavailable".
+  for (const stage of stageData) {
+    for (const s of (stage.standings || [])) {
+      const team = s.team
+      if (!team?.id || teamMap.has(team.id)) continue
+      teamMap.set(team.id, {
+        id: team.id,
+        name: team.name || 'Unknown',
+        acronym: team.acronym || null,
+        location: team.location || null,
+        imageUrl: team.image_url || null,
+        qualified: 'invited',
+        players: [],
+      })
+    }
+  }
+
   const leagueName = serie.league?.name || ''
   const now = new Date()
   const begin = serie.begin_at ? new Date(serie.begin_at) : null

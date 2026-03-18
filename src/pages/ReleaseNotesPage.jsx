@@ -4,6 +4,16 @@ const RELEASES = [
   {
     date: "Mar 18, 2026",
     tag: "fix",
+    title: "Tournament Hub - Teams section missing for upcoming events",
+    desc: "The Teams section on tournament detail pages now shows participating teams even when player rosters have not been confirmed yet.",
+    items: [
+      "Previously, if PandaScore had not published rosters for a tournament stage, the entire Teams section was hidden with no explanation.",
+      "Teams are now pulled from standings data as a fallback, so team names and logos appear immediately. Individual player rosters show 'Roster unavailable' until PandaScore publishes them.",
+    ],
+  },
+  {
+    date: "Mar 18, 2026",
+    tag: "fix",
     title: "Tournament Hub - Stage order and missing Playoffs",
     desc: "Two bugs in the Tournament Hub stage timeline and switcher have been fixed.",
     items: [
