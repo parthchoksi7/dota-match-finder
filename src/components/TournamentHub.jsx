@@ -258,12 +258,13 @@ function TournamentHub({ spoilerFree }) {
       .finally(() => setDetailLoading(false))
   }, [tournament?.id])
 
-  // When eventStages load, auto-select the active stage (running → latest finished)
+  // When eventStages load, auto-select the active stage (running → first upcoming → latest finished)
   useEffect(() => {
     if (!detail?.eventStages?.length || activeStageId !== null) return
     const stages = detail.eventStages
     const running = stages.find(s => s.status === 'running')
-    const def = running || stages[stages.length - 1]
+    const firstUpcoming = stages.find(s => s.status === 'upcoming')
+    const def = running || firstUpcoming || stages[stages.length - 1]
     setActiveStageId(def?.id ?? null)
   }, [detail?.eventStages])
 
