@@ -126,7 +126,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Series detail mode lives in `api/tournament-detail.js` behind `?series=1` query param (same reason)
 - AI tournament summaries live in `api/summarize.js` behind `type: 'tournament'` in POST body
 - Upcoming tournaments: `/dota2/series/upcoming` is often empty because PandaScore creates series records late. A fallback fetches `/dota2/tournaments/upcoming?filter[tier]=s` and `filter[tier]=a` separately, groups by `serie_id`, and synthesizes series-like entries for any not already in the running list
-- Rosters and standings: `fetchSeriesRosters` and `fetchSeriesStandings` both use `Array.isArray()` guards (PandaScore can return non-array objects)
+- Rosters and standings: `fetchSeriesRosters` and `fetchSeriesStandings` both use `Array.isArray()` guards (PandaScore can return non-array objects). If rosters are empty (common for upcoming events where lineups are unconfirmed), teams are built from standings as a fallback - team names and logos appear immediately, player rosters show "Roster unavailable" until PandaScore publishes them.
 - Winner display: `serie.winner` field (type === 'Team') shown as champion on cards and detail page header
 - Routing follows same pattern as AboutPage/ReleaseNotesPage - path check in `main.jsx`, Vercel rewrite to `/` in `vercel.json`
 - Cache keys: `tournaments:dota2:series_list_v4` (1h), `tournament:detail:series:v5:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
