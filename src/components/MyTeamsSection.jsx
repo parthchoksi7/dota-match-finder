@@ -82,10 +82,7 @@ function MyTeamsSection({
               followedTeams={followedTeams}
               onToggleFollow={onToggleFollow}
               expandedSeriesId={expandedSeriesId}
-              isGrandFinal={
-                s.tournament?.toLowerCase().includes('grand final') ||
-                s.games.some(g => grandFinalMatchIds.has(g.id))
-              }
+              isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
             />
           ))}
         </div>

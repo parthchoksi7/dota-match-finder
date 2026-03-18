@@ -4,9 +4,9 @@
  * Covers:
  * - isGrandFinal=true renders trophy badge and "Grand Final" label
  * - isGrandFinal=false (default) renders no badge
- * - Combined detection used by LatestMatches/MyTeamsSection:
- *     string-based (tournament name includes "grand final")
- *     OR match-ID-based (grandFinalMatchIds Set contains a game id)
+ * - Detection used by LatestMatches/MyTeamsSection:
+ *     match-ID-based only (grandFinalMatchIds Set contains a game id)
+ *     IDs come from PandaScore external_identifier via /api/tournaments?mode=grand-finals
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -100,43 +100,39 @@ describe('MatchCard — Grand Final treatment', () => {
   })
 })
 
-// ── Combined detection heuristic ─────────────────────────────────────────────
+// ── Detection heuristic ───────────────────────────────────────────────────────
+// Detection is ID-only: grandFinalMatchIds (from PandaScore external_identifier)
+// must contain one of the series game IDs. The s.tournament field comes from
+// OpenDota league_name and never includes stage names like "Grand Final".
 
-describe('Grand Final detection — combined heuristic', () => {
+describe('Grand Final detection — ID-based heuristic', () => {
   function detect(series, grandFinalMatchIds = new Set()) {
-    return (
-      series.tournament?.toLowerCase().includes('grand final') ||
-      series.games.some(g => grandFinalMatchIds.has(g.id))
-    )
+    return series.games.some(g => grandFinalMatchIds.has(g.id))
   }
 
-  it('detects via tournament name for PandaScore-sourced data', () => {
-    expect(detect(baseSeries)).toBe(true)
-    expect(detect({ ...baseSeries, tournament: 'PGL Wallachia S7 — Grand Final' })).toBe(true)
-  })
-
-  it('detects via match ID set for OpenDota-sourced data (Yandex vs Liquid scenario)', () => {
+  it('detects when all game IDs are in the set (Liquid vs Yandex scenario)', () => {
     const gfIds = new Set(['7890001', '7890002', '7890003'])
     expect(detect(openDotaSeries, gfIds)).toBe(true)
   })
 
-  it('detects when only one game ID is in the set', () => {
+  it('detects when only one game ID matches', () => {
     const gfIds = new Set(['7890001']) // just the first game
     expect(detect(openDotaSeries, gfIds)).toBe(true)
   })
 
-  it('returns false when tournament name has no stage info and set is empty', () => {
+  it('returns false when set is empty', () => {
     expect(detect(openDotaSeries, new Set())).toBe(false)
   })
 
-  it('returns false when match IDs are different (non-GF series)', () => {
-    const gfIds = new Set(['9999999']) // different IDs
+  it('returns false when match IDs do not match (non-GF series)', () => {
+    const gfIds = new Set(['9999999'])
     expect(detect(openDotaSeries, gfIds)).toBe(false)
   })
 
-  it('is case insensitive for tournament name', () => {
-    expect(detect({ ...baseSeries, tournament: 'ESL One — GRAND FINAL' })).toBe(true)
-    expect(detect({ ...baseSeries, tournament: 'ESL One — grand final' })).toBe(true)
+  it('returns false regardless of tournament name — league name is not a detection signal', () => {
+    // s.tournament = OpenDota league_name, never contains "Grand Final"
+    const s = { ...baseSeries, tournament: 'DreamLeague Season 25' }
+    expect(detect(s, new Set())).toBe(false)
   })
 
   it('handles null/undefined tournament gracefully', () => {
