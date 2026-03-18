@@ -7,6 +7,7 @@ import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import TournamentHub from "./components/TournamentHub"
+import TournamentBar from "./components/TournamentBar"
 import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
@@ -143,10 +144,23 @@ function App() {
       })
   }, [])
 
+  // Read ?q= param from URL so "Find VODs" links from tournament detail pages work
+  const initialSearchQuery = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("q") || ""
+    : ""
+
   useEffect(() => {
     loadMatches()
     fetchGrandFinalMatchIds().then(ids => setGrandFinalMatchIds(new Set(ids)))
   }, [loadMatches])
+
+  useEffect(() => {
+    if (!initialLoading && initialSearchQuery) {
+      handleSearch(initialSearchQuery)
+    }
+    // Only run once after initial load completes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialLoading])
 
   // Handle share URL on load — supports both /match/:id and legacy #match-:id
   useEffect(() => {
@@ -540,7 +554,10 @@ function App() {
           onClearSearch={handleClearSearch}
           disabled={initialLoading}
           errorId={error ? "app-error" : undefined}
+          initialQuery={initialSearchQuery}
         />
+
+        {!initialLoading && !searched && <TournamentBar />}
 
 {initialLoading && (
           <div

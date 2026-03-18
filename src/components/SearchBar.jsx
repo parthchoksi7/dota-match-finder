@@ -9,10 +9,10 @@ function logEvent(name, props) {
 }
 
 function SearchBar(
-  { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId },
+  { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId, initialQuery },
   ref
 ) {
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(initialQuery || "")
   const inputRef = useRef(null)
 
   useImperativeHandle(ref, () => ({
