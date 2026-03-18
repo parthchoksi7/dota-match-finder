@@ -37,6 +37,7 @@ function AboutPage() {
               { title: "Hero Pick/Ban Stats", desc: "See which heroes are being picked and banned most across a tournament, with win rates and contested counts. Shows top 25 by default with a button to reveal all." },
               { title: "My Teams", desc: "Follow your favorite teams with one click. A dedicated section on the homepage shows only their recent matches. Saved in your browser - no account needed." },
               { title: "Tournament Pages", desc: "Dedicated pages for Tier 1 series at /tournaments. See live, upcoming, and completed events with prize pools, dates, full team rosters by region, player names with nationality flags, stage timelines, and per-stage standings. Includes an AI-generated summary for each event." },
+              { title: "Grand Final Highlight", desc: "Grand Final match cards are visually distinct - gold border, warm background, and a trophy badge so championship matches stand out at a glance in your latest results and My Teams feed." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-gray-900 dark:text-white mb-1.5">{f.title}</p>

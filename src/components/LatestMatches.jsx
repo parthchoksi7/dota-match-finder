@@ -19,7 +19,7 @@ function getDayKey(unixSeconds) {
   return d.toDateString()
 }
 
-function LatestMatches({ matches, onSelectMatch, onDraftPosts, onDraftRedditPosts, spoilerFree = false, followedTeams, onToggleFollow, expandedSeriesId }) {
+function LatestMatches({ matches, onSelectMatch, onDraftPosts, onDraftRedditPosts, spoilerFree = false, followedTeams, onToggleFollow, expandedSeriesId, grandFinalMatchIds = new Set() }) {
   if (!matches || matches.length === 0) return null
 
   const allSeries = groupIntoSeries(matches)
@@ -57,7 +57,10 @@ function LatestMatches({ matches, onSelectMatch, onDraftPosts, onDraftRedditPost
                 followedTeams={followedTeams}
                 onToggleFollow={onToggleFollow}
                 expandedSeriesId={expandedSeriesId}
-                isGrandFinal={s.tournament?.toLowerCase().includes('grand final')}
+                isGrandFinal={
+                  s.tournament?.toLowerCase().includes('grand final') ||
+                  s.games.some(g => grandFinalMatchIds.has(g.id))
+                }
               />
             </Fragment>
           )

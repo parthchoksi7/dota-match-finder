@@ -418,32 +418,50 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fetch sibling stages from the same serie to show full event structure
+    // Fetch sibling stages from the same serie to show full event structure.
+    // Query running + upcoming + past separately — the generic endpoint excludes upcoming stages.
     let eventStages = []
     if (tournament.serie_id) {
       try {
-        const stagesRes = await fetch(
-          `${BASE}/dota2/tournaments?filter[serie_id]=${tournament.serie_id}&page[size]=20`,
-          { headers }
-        )
-        if (stagesRes.ok) {
-          const stages = await stagesRes.json()
-          if (Array.isArray(stages)) {
-            eventStages = stages
-              .sort((a, b) => new Date(a.begin_at || 0) - new Date(b.begin_at || 0))
-              .map(s => ({
-                id: s.id,
-                name: s.name,
-                status: s.end_at && new Date(s.end_at) < new Date() ? 'finished'
-                  : s.begin_at && new Date(s.begin_at) > new Date() ? 'upcoming'
-                  : 'running',
-                format: inferFormat(s, {}),
-                beginAt: s.begin_at || null,
-                endAt: s.end_at || null,
-                hasBracket: s.has_bracket,
-              }))
-          }
-        }
+        const [runStagesRes, upStagesRes, pastStagesRes] = await Promise.all([
+          fetch(`${BASE}/dota2/tournaments/running?filter[serie_id]=${tournament.serie_id}&page[size]=20`, { headers }),
+          fetch(`${BASE}/dota2/tournaments/upcoming?filter[serie_id]=${tournament.serie_id}&page[size]=20`, { headers }),
+          fetch(`${BASE}/dota2/tournaments/past?filter[serie_id]=${tournament.serie_id}&page[size]=20`, { headers }),
+        ])
+        const toArr = async r => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
+        const [runStages, upStages, pastStages] = await Promise.all([
+          runStagesRes.ok ? toArr(runStagesRes) : [],
+          upStagesRes.ok ? toArr(upStagesRes) : [],
+          pastStagesRes.ok ? toArr(pastStagesRes) : [],
+        ])
+
+        // Deduplicate by id, then sort by begin_at asc (nulls last), then name as tiebreaker
+        const seenIds = new Set()
+        const stages = [...runStages, ...upStages, ...pastStages].filter(s => {
+          if (seenIds.has(s.id)) return false
+          seenIds.add(s.id)
+          return true
+        })
+
+        const now = new Date()
+        eventStages = stages
+          .sort((a, b) => {
+            const ta = a.begin_at ? new Date(a.begin_at).getTime() : Infinity
+            const tb = b.begin_at ? new Date(b.begin_at).getTime() : Infinity
+            if (ta !== tb) return ta - tb
+            return (a.name || '').localeCompare(b.name || '')
+          })
+          .map(s => ({
+            id: s.id,
+            name: s.name,
+            status: s.end_at && new Date(s.end_at) < now ? 'finished'
+              : s.begin_at && new Date(s.begin_at) > now ? 'upcoming'
+              : 'running',
+            format: inferFormat(s, {}),
+            beginAt: s.begin_at || null,
+            endAt: s.end_at || null,
+            hasBracket: s.has_bracket,
+          }))
       } catch {}
     }
 

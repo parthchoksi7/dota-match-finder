@@ -327,6 +327,55 @@ async function fetchSeriesList(token) {
   return payload
 }
 
+// ── Grand Finals mode (?mode=grand-finals) ──────────────────────────────────
+// Returns OpenDota match IDs (via PandaScore game.external_identifier) for
+// recently completed Grand Final series. Used by LatestMatches/MyTeamsSection
+// to detect and visually highlight Grand Final cards in the home feed.
+
+const KV_GF_KEY = 'dota2:grand_final_match_ids_v1'
+const GF_TTL = 60 * 60 // 1 hour
+
+async function fetchGrandFinalMatchIds(token) {
+  try {
+    const cached = await kv.get(KV_GF_KEY)
+    if (cached) {
+      console.log('Grand finals: serving from KV cache')
+      return cached
+    }
+  } catch (err) {
+    console.warn('Grand finals KV read failed:', err?.message)
+  }
+
+  console.log('Grand finals: fetching from PandaScore')
+  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+  const response = await fetch(
+    `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=100`,
+    { headers }
+  )
+  if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+
+  const data = await response.json()
+  const grandFinals = (data || []).filter(m =>
+    m.tournament?.name?.toLowerCase().includes('grand final')
+  )
+
+  const matchIds = []
+  for (const m of grandFinals) {
+    for (const g of m.games || []) {
+      if (g.external_identifier) matchIds.push(String(g.external_identifier))
+    }
+  }
+  console.log(`Grand finals: ${grandFinals.length} GF series, ${matchIds.length} match IDs`)
+
+  const payload = { matchIds, fetchedAt: new Date().toISOString() }
+  try {
+    await kv.set(KV_GF_KEY, payload, { ex: GF_TTL })
+  } catch (err) {
+    console.warn('Grand finals KV write failed:', err?.message)
+  }
+  return payload
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
@@ -334,6 +383,22 @@ export default async function handler(req, res) {
   const token = process.env.PANDASCORE_TOKEN
   if (!token) {
     return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
+  }
+
+  // Grand Finals mode — returns OpenDota match IDs for Grand Final games
+  if (req.query?.mode === 'grand-finals') {
+    if (req.query?.bust === '1') {
+      await kv.del(KV_GF_KEY).catch(() => {})
+      console.log('Grand finals cache cleared')
+    }
+    try {
+      const data = await fetchGrandFinalMatchIds(token)
+      return res.status(200).json(data)
+    } catch (err) {
+      console.error('Grand finals error:', err?.message || err)
+      // Fail open so the UI degrades gracefully
+      return res.status(200).json({ matchIds: [], fetchedAt: new Date().toISOString(), error: err?.message })
+    }
   }
 
   // Series list mode — for /tournaments page and TournamentBar

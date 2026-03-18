@@ -88,6 +88,22 @@ export async function fetchProMatches(lastMatchId = null) {
   return { matches, nextMatchId: cursor }
 }
 
+/**
+ * Fetches recently completed Grand Final match IDs from the backend.
+ * Returns an array of OpenDota match ID strings (via PandaScore external_identifier).
+ * Falls back to [] on any error so callers degrade gracefully.
+ */
+export async function fetchGrandFinalMatchIds() {
+  try {
+    const res = await fetch('/api/tournaments?mode=grand-finals')
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data.matchIds) ? data.matchIds : []
+  } catch {
+    return []
+  }
+}
+
 async function getTwitchToken() {
   const res = await fetch(
     'https://id.twitch.tv/oauth2/token?client_id=' + import.meta.env.VITE_TWITCH_CLIENT_ID + '&client_secret=' + import.meta.env.VITE_TWITCH_CLIENT_SECRET + '&grant_type=client_credentials',

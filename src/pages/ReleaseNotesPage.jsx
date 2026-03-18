@@ -2,6 +2,16 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 18, 2026",
+    tag: "fix",
+    title: "Tournament Hub - Stage order and missing Playoffs",
+    desc: "Two bugs in the Tournament Hub stage timeline and switcher have been fixed.",
+    items: [
+      "Playoffs (and other not-yet-started stages) now appear in the stage timeline and switcher as soon as PandaScore creates them, rather than only showing up once they go live.",
+      "Group A now always appears before Group B when stages run in parallel - the ordering was unstable when both stages had the same start date.",
+    ],
+  },
+  {
     date: "Mar 17, 2026",
     tag: "improvement",
     title: "Grand Final cards stand out in Latest Results",
