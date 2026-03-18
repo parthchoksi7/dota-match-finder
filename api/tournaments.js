@@ -332,7 +332,7 @@ async function fetchSeriesList(token) {
 // recently completed Grand Final series. Used by LatestMatches/MyTeamsSection
 // to detect and visually highlight Grand Final cards in the home feed.
 
-const KV_GF_KEY = 'dota2:grand_final_match_ids_v1'
+const KV_GF_KEY = 'dota2:grand_final_match_ids_v2'
 const GF_TTL = 60 * 60 // 1 hour
 
 async function fetchGrandFinalMatchIds(token) {
