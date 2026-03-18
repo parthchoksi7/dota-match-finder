@@ -3,6 +3,20 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 18, 2026",
+    tag: "new",
+    title: "Calendar Feed Subscriptions",
+    desc: "Subscribe to Dota 2 match schedules in Google Calendar, Apple Calendar, or Outlook. Matches show up automatically as your calendar app refreshes the feed.",
+    items: [
+      "/calendar - New page to build your personal calendar URL. Select teams from a list, copy the generated URL, and paste it into any calendar app.",
+      "Team feeds - Subscribe to upcoming and recent matches for one or more teams. One URL covers multiple teams and updates automatically.",
+      "Tournament feeds - Subscribe to a full tournament series. Includes an all-day banner event for the tournament date range plus individual match events.",
+      "My Teams integration - A Calendar button now appears in the My Teams section header. Click it to open the subscribe modal with a pre-built URL for all your followed teams.",
+      "Calendar nav link added to the site header for quick access from every page.",
+      "Match times are in UTC; your calendar app converts to your local timezone automatically.",
+    ],
+  },
+  {
+    date: "Mar 18, 2026",
     tag: "fix",
     title: "Tournament Hub - Stage order and missing Playoffs",
     desc: "Two bugs in the Tournament Hub stage timeline and switcher have been fixed.",

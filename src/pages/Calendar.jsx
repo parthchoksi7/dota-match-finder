@@ -114,7 +114,7 @@ export default function Calendar() {
   const calendarUrl = useMemo(() => {
     if (selectedTeams.length === 0) return ''
     const slugs = selectedTeams.map(t => t.slug).join(',')
-    return `https://spectateesports.live/api/calendar/team?teams=${slugs}`
+    return `https://spectateesports.live/api/tournaments?mode=calendar-team&teams=${slugs}`
   }, [selectedTeams])
 
   // Fetch preview matches when teams change
@@ -125,9 +125,7 @@ export default function Calendar() {
     }
     const slugs = selectedTeams.map(t => t.slug).join(',')
     setPreviewLoading(true)
-    fetch(`/api/calendar/team?teams=${encodeURIComponent(slugs)}`, {
-      headers: { Accept: 'text/calendar' },
-    })
+    fetch(`/api/tournaments?mode=calendar-team&teams=${encodeURIComponent(slugs)}`)
       .then(() => {
         // Preview: fetch upcoming matches separately for display
         return fetch(`/api/upcoming-matches`)
@@ -179,7 +177,7 @@ export default function Calendar() {
   }
 
   function handleTournamentSubscribe(tournament) {
-    const url = `https://spectateesports.live/api/calendar/tournament?series=${tournament.id}`
+    const url = `https://spectateesports.live/api/tournaments?mode=calendar-tournament&series=${tournament.id}`
     const label = tournament.full_name || tournament.name || `Series ${tournament.id}`
     setTournamentModalUrl(url)
     setTournamentModalLabel(label)

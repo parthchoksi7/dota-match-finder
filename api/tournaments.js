@@ -2,6 +2,205 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
+// ─── iCal helpers (used by calendar modes) ────────────────────────────────────
+
+const CRLF = '\r\n'
+
+function icalEscapeText(str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n')
+}
+
+function icalFoldLine(line) {
+  if (line.length <= 75) return line
+  const parts = []
+  let pos = 0
+  parts.push(line.slice(0, 75))
+  pos = 75
+  while (pos < line.length) {
+    parts.push(' ' + line.slice(pos, pos + 74))
+    pos += 74
+  }
+  return parts.join(CRLF)
+}
+
+function icalFormatDateUTC(date) {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const pad = n => String(n).padStart(2, '0')
+  return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) +
+    'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z'
+}
+
+function icalFormatDateOnly(date) {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const pad = n => String(n).padStart(2, '0')
+  return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate())
+}
+
+function icalMatchDurationHours(matchType) {
+  if (!matchType) return 2
+  const lower = matchType.toLowerCase()
+  if (lower.includes('best_of_1')) return 1
+  if (lower.includes('best_of_5')) return 3
+  return 2
+}
+
+function icalFormatLabel(matchType) {
+  if (!matchType) return 'Bo3'
+  if (matchType === 'best_of_1') return 'Bo1'
+  if (matchType === 'best_of_2') return 'Bo2'
+  if (matchType === 'best_of_3') return 'Bo3'
+  if (matchType === 'best_of_5') return 'Bo5'
+  return matchType
+}
+
+function icalMatchEvent(match, dtstamp) {
+  const beginAt = match.begin_at || match.scheduled_at
+  if (!beginAt) return null
+  const start = new Date(beginAt)
+  if (isNaN(start.getTime())) return null
+  const end = new Date(start.getTime() + icalMatchDurationHours(match.match_type) * 3600000)
+  const opponents = match.opponents || []
+  const teamA = opponents[0]?.opponent?.name || 'TBD'
+  const teamB = opponents[1]?.opponent?.name || 'TBD'
+  const league = match.league?.name || ''
+  const serie = match.serie?.full_name || match.serie?.name || ''
+  const tournament = match.tournament?.name || ''
+  const combined = league && serie
+    ? (serie.toLowerCase().includes(league.toLowerCase()) ? serie : `${league} ${serie}`)
+    : league || serie || tournament || 'Unknown Tournament'
+  const lines = [
+    'BEGIN:VEVENT',
+    `UID:spectate-match-${match.id}@spectateesports.live`,
+    `DTSTAMP:${dtstamp}`,
+    `DTSTART:${icalFormatDateUTC(start)}`,
+    `DTEND:${icalFormatDateUTC(end)}`,
+    `SUMMARY:${icalEscapeText(`${teamA} vs ${teamB} - ${combined}`)}`,
+    `DESCRIPTION:${icalEscapeText(`Watch VODs at https://spectateesports.live\n\nTournament: ${combined}\nFormat: ${icalFormatLabel(match.match_type)}\nStage: ${tournament}`)}`,
+    'URL:https://spectateesports.live',
+    'STATUS:CONFIRMED',
+    'CATEGORIES:Dota 2,Esports',
+    'END:VEVENT',
+  ]
+  return lines.map(icalFoldLine).join(CRLF)
+}
+
+function icalTournamentEvent(series, dtstamp) {
+  if (!series.begin_at) return null
+  const start = new Date(series.begin_at)
+  if (isNaN(start.getTime())) return null
+  const endDate = series.end_at ? new Date(series.end_at) : start
+  const endPlus1 = new Date(endDate.getTime() + 86400000)
+  const seriesName = series.full_name || series.name || 'Dota 2 Tournament'
+  const descParts = [seriesName]
+  if (series.prizepool) descParts.push(`Prize Pool: $${Number(series.prizepool).toLocaleString()}`)
+  if (series.location) descParts.push(`Location: ${series.location}`)
+  descParts.push(`\nMore info: https://spectateesports.live/tournament/${series.id}`)
+  const lines = [
+    'BEGIN:VEVENT',
+    `UID:spectate-series-${series.id}@spectateesports.live`,
+    `DTSTAMP:${dtstamp}`,
+    `DTSTART;VALUE=DATE:${icalFormatDateOnly(start)}`,
+    `DTEND;VALUE=DATE:${icalFormatDateOnly(endPlus1)}`,
+    `SUMMARY:${icalEscapeText(`${seriesName} (Dota 2)`)}`,
+    `DESCRIPTION:${icalEscapeText(descParts.join('\n'))}`,
+    'TRANSP:TRANSPARENT',
+    'CATEGORIES:Dota 2,Esports,Tournament',
+    'END:VEVENT',
+  ]
+  return lines.map(icalFoldLine).join(CRLF)
+}
+
+function icalWrapCalendar(calName, eventBlocks) {
+  const header = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'PRODID:-//Spectate Esports//Dota 2 Match Calendar//EN',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    `X-WR-CALNAME:${icalEscapeText(calName)}`,
+    'X-WR-TIMEZONE:UTC', 'X-PUBLISHED-TTL:PT1H',
+  ].map(icalFoldLine).join(CRLF)
+  const parts = [header, ...eventBlocks.filter(Boolean), 'END:VCALENDAR']
+  return parts.join(CRLF) + CRLF
+}
+
+// ─── Team slug normalization (calendar modes) ─────────────────────────────────
+
+const CAL_SLUG_ALIASES = {
+  'liquid': 'team-liquid', 'teamliquid': 'team-liquid',
+  'tundra': 'tundra-esports',
+  'spirit': 'team-spirit', 'teamspirit': 'team-spirit',
+  'betboom': 'betboom', 'bb': 'betboom',
+  'yandex': 'team-yandex', 'teamyandex': 'team-yandex',
+  'falcons': 'team-falcons', 'teamfalcons': 'team-falcons',
+  'gaimin': 'gaimin-gladiators', 'gladiators': 'gaimin-gladiators', 'gaimingladiators': 'gaimin-gladiators',
+  'aurora': 'aurora-gaming',
+  'talon': 'talon-esports',
+  'nouns': 'nouns-esports',
+  'og': 'og',
+  'navi': 'natus-vincere', 'natusvincere': 'natus-vincere',
+  'virtuspro': 'virtus-pro', 'vp': 'virtus-pro',
+  'secret': 'team-secret', 'teamsecret': 'team-secret',
+  'aster': 'team-aster', 'teamaster': 'team-aster',
+}
+
+function normalizeTeamSlug(input) {
+  const clean = input.toLowerCase().replace(/[\s\-_]/g, '')
+  return CAL_SLUG_ALIASES[clean] || input.toLowerCase().trim()
+}
+
+const CAL_MATCHES_TTL = 60 * 30
+const CAL_TEAM_ID_TTL = 60 * 60 * 24
+
+async function calResolveTeamId(slug, token, kv) {
+  const cacheKey = `calendar:team_id:${slug}`
+  try {
+    const cached = await kv.get(cacheKey)
+    if (cached) return cached
+  } catch {}
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  const res = await fetch(`${PANDASCORE_BASE}/teams?filter[slug]=${encodeURIComponent(slug)}&page[size]=1`, { headers })
+  if (res.ok) {
+    const data = await res.json()
+    if (Array.isArray(data) && data.length > 0) {
+      const id = data[0].id
+      try { await kv.set(cacheKey, id, { ex: CAL_TEAM_ID_TTL }) } catch {}
+      return id
+    }
+  }
+  const searchRes = await fetch(`${PANDASCORE_BASE}/teams?search[name]=${encodeURIComponent(slug)}&page[size]=1`, { headers })
+  if (!searchRes.ok) return null
+  const searchData = await searchRes.json()
+  if (!Array.isArray(searchData) || searchData.length === 0) return null
+  const id = searchData[0].id
+  try { await kv.set(cacheKey, id, { ex: CAL_TEAM_ID_TTL }) } catch {}
+  return id
+}
+
+async function calFetchMatchesForTeam(teamId, token) {
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+  const sevenDaysAhead = new Date(Date.now() + 7 * 86400000).toISOString()
+  const [upRes, runRes, pastRes] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/matches/upcoming?filter[opponent_id]=${teamId}&sort=scheduled_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/matches/running?filter[opponent_id]=${teamId}&page[size]=10`, { headers }),
+    fetch(`${PANDASCORE_BASE}/matches/past?filter[opponent_id]=${teamId}&sort=-end_at&page[size]=20&range[end_at]=${sevenDaysAgo},${sevenDaysAhead}`, { headers }),
+  ])
+  const results = await Promise.allSettled([
+    upRes.ok ? upRes.json() : Promise.resolve([]),
+    runRes.ok ? runRes.json() : Promise.resolve([]),
+    pastRes.ok ? pastRes.json() : Promise.resolve([]),
+  ])
+  return [
+    ...(results[0].status === 'fulfilled' ? results[0].value || [] : []),
+    ...(results[1].status === 'fulfilled' ? results[1].value || [] : []),
+    ...(results[2].status === 'fulfilled' ? results[2].value || [] : []),
+  ]
+}
+
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
   token: process.env.KV_REST_API_TOKEN,
@@ -404,6 +603,90 @@ export default async function handler(req, res) {
   const token = process.env.PANDASCORE_TOKEN
   if (!token) {
     return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
+  }
+
+  // Calendar team feed mode (?mode=calendar-team&teams=slug1,slug2)
+  if (req.query?.mode === 'calendar-team') {
+    const teamsParam = req.query?.teams || ''
+    if (!teamsParam) {
+      return res.status(400).send('Missing required parameter: teams')
+    }
+    const teamSlugs = teamsParam.split(',').map(s => s.trim()).filter(Boolean).map(normalizeTeamSlug).slice(0, 10)
+    if (teamSlugs.length === 0) return res.status(400).send('No valid team slugs provided')
+
+    console.log(`calendar-team: teams=${teamSlugs.join(',')}`)
+    const cacheKey = `calendar:matches:${[...teamSlugs].sort().join(',')}`
+    let matches = null
+    try { matches = await kv.get(cacheKey) } catch {}
+
+    if (!matches) {
+      try {
+        const teamIds = await Promise.all(teamSlugs.map(slug => calResolveTeamId(slug, token, kv)))
+        const validIds = teamIds.filter(Boolean)
+        if (validIds.length === 0) return res.status(404).send(`No teams found for: ${teamSlugs.join(', ')}`)
+        const matchArrays = await Promise.all(validIds.map(id => calFetchMatchesForTeam(id, token).catch(() => [])))
+        const seen = new Set()
+        matches = []
+        for (const arr of matchArrays) {
+          for (const m of arr) { if (!seen.has(m.id)) { seen.add(m.id); matches.push(m) } }
+        }
+        matches.sort((a, b) => ((a.begin_at || a.scheduled_at || '') < (b.begin_at || b.scheduled_at || '') ? -1 : 1))
+        try { await kv.set(cacheKey, matches, { ex: CAL_MATCHES_TTL }) } catch (err) { console.warn('KV write:', err?.message) }
+      } catch (err) {
+        console.error('calendar-team error:', err?.message)
+        return res.status(500).send(`Failed to fetch match data: ${err.message}`)
+      }
+    }
+
+    const dtstamp = icalFormatDateUTC(new Date())
+    const eventBlocks = matches.map(m => icalMatchEvent(m, dtstamp)).filter(Boolean)
+    const icsContent = icalWrapCalendar(`Dota 2 - ${teamSlugs.join(', ')}`, eventBlocks)
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
+    res.setHeader('Content-Disposition', 'inline; filename="dota2-matches.ics"')
+    res.setHeader('Cache-Control', 'public, max-age=1800')
+    return res.status(200).send(icsContent)
+  }
+
+  // Calendar tournament feed mode (?mode=calendar-tournament&series={id})
+  if (req.query?.mode === 'calendar-tournament') {
+    const seriesId = parseInt(req.query?.series, 10)
+    if (!seriesId || seriesId <= 0) return res.status(400).send('Missing or invalid parameter: series')
+
+    console.log(`calendar-tournament: series=${seriesId}`)
+    const cacheKey = `calendar:series:${seriesId}`
+    let cached = null
+    try { cached = await kv.get(cacheKey) } catch {}
+
+    let series, matches
+    if (cached) {
+      series = cached.series
+      matches = cached.matches
+    } else {
+      try {
+        const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+        const [seriesRes, matchesRes] = await Promise.all([
+          fetch(`${PANDASCORE_BASE}/series/${seriesId}`, { headers }),
+          fetch(`${PANDASCORE_BASE}/series/${seriesId}/matches?sort=scheduled_at&page[size]=100`, { headers }),
+        ])
+        if (!seriesRes.ok) throw new Error(`PandaScore series lookup failed: ${seriesRes.status}`)
+        series = await seriesRes.json()
+        matches = matchesRes.ok ? await matchesRes.json() : []
+        if (!Array.isArray(matches)) matches = []
+        try { await kv.set(cacheKey, { series, matches }, { ex: CAL_MATCHES_TTL }) } catch (err) { console.warn('KV write:', err?.message) }
+      } catch (err) {
+        console.error('calendar-tournament error:', err?.message)
+        return res.status(500).send(`Failed to fetch tournament data: ${err.message}`)
+      }
+    }
+
+    const dtstamp = icalFormatDateUTC(new Date())
+    const eventBlocks = [icalTournamentEvent(series, dtstamp), ...matches.map(m => icalMatchEvent(m, dtstamp))].filter(Boolean)
+    const seriesName = series.full_name || series.name || `Series ${seriesId}`
+    const icsContent = icalWrapCalendar(`${seriesName} (Dota 2)`, eventBlocks)
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
+    res.setHeader('Content-Disposition', `inline; filename="dota2-tournament-${seriesId}.ics"`)
+    res.setHeader('Cache-Control', 'public, max-age=1800')
+    return res.status(200).send(icsContent)
   }
 
   // Grand Finals mode — returns OpenDota match IDs for Grand Final games

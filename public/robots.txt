@@ -7,6 +7,7 @@ Allow: /about
 Allow: /release-notes
 Allow: /tournaments
 Allow: /tournament/
+Allow: /calendar
 Allow: /api/og
 Disallow: /api/
 Disallow: /analytics.html

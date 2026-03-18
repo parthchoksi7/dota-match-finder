@@ -78,7 +78,7 @@ function MyTeamsSection({
   if (!followedTeams || followedTeams.length === 0) return null
 
   const calendarUrl = followedTeams.length > 0
-    ? `https://spectateesports.live/api/calendar/team?teams=${followedTeams.map(teamNameToSlug).join(',')}`
+    ? `https://spectateesports.live/api/tournaments?mode=calendar-team&teams=${followedTeams.map(teamNameToSlug).join(',')}`
     : ''
 
   function handleSelectGame(game) {
