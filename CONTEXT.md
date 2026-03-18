@@ -64,7 +64,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
-- `api/tournaments.js` - Tournament data endpoint
+- `api/tournaments.js` - Tournament data endpoint. Default mode: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs via PandaScore external_identifier
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
 ### Config
@@ -129,7 +129,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Rosters and standings: `fetchSeriesRosters` and `fetchSeriesStandings` both use `Array.isArray()` guards (PandaScore can return non-array objects)
 - Winner display: `serie.winner` field (type === 'Team') shown as champion on cards and detail page header
 - Routing follows same pattern as AboutPage/ReleaseNotesPage - path check in `main.jsx`, Vercel rewrite to `/` in `vercel.json`
-- Cache keys: `tournaments:dota2:series_list_v3` (1h), `tournament:detail:series:v3:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
+- Cache keys: `tournaments:dota2:series_list_v4` (1h), `tournament:detail:series:v5:{id}` (30min), `tournament:summary:{id}` (24h / 30d for completed)
 - GA4 events: `tournament_list_view`, `tournament_card_click`, `tournament_detail_view`, `tournament_team_click`, `tournament_stage_click`, `tournament_summary_view`, `tournament_stream_click`, `tournament_bar_click`, `tournament_back_click`, `tournament_liquipedia_click`, `tournament_find_vods_click`, `tournament_teams_toggle`, `tournament_stages_toggle`
 - TournamentBar and Tournaments nav link are temporarily hidden until upcoming tournament data is confirmed reliable
 - Country-to-region mapping in `src/utils/regions.js` covers WEU, EEU, CN, SEA, NA, SA, ANZ, ME regions
@@ -139,7 +139,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
   - `/tournaments/{id}` - tournament metadata (teams, `has_bracket`, `serie_id`)
   - `/tournaments/{id}/standings` - W-L table
   - `/tournaments/{id}/brackets` - flat match list named "Round N: ..."
-- Also fetches sibling stages via `?filter[serie_id]={id}` to show the full event pipeline
+- Also fetches sibling stages via running/upcoming/past status endpoints all filtered by `serie_id` to show full event pipeline including not-yet-started stages (e.g. upcoming Playoffs)
 - Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
 - TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
@@ -243,6 +243,16 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - In-memory cache (`memCache`) prevents re-fetching on re-renders; no localStorage/KV caching
 - Fires `watchability_computed` GA4 event with rating, seriesId, and tournament
 - `seriesWentToDecider()` pure function: true when both teams each have (winsRequired - 1) wins
+
+### Grand Final Card Highlighting (Mar 2026)
+- Grand Final series are visually distinct in LatestMatches and MyTeamsSection: amber/gold border, warm background tint, trophy badge in the card header
+- Detection is a two-step OR: (1) tournament name contains "grand final" (works for PandaScore-sourced names), (2) any game.id is in a Set of OpenDota match IDs sourced from PandaScore
+- `api/tournaments.js` handles `?mode=grand-finals`: fetches `/dota2/matches/past?sort=-end_at&page[size]=100` from PandaScore, filters for `m.tournament.name` containing "grand final", extracts `game.external_identifier` (= OpenDota match_id), caches in KV 1h under `dota2:grand_final_match_ids_v1`
+- Merged into `api/tournaments.js` (not a separate file) to stay within 12-function Vercel limit
+- `fetchGrandFinalMatchIds()` in `src/api.js` calls `/api/tournaments?mode=grand-finals`
+- App.jsx loads the IDs on startup alongside match feed; passes `grandFinalMatchIds` (Set) to LatestMatches and MyTeamsSection
+- Fails open: empty set on PandaScore error; string detection still works as fallback
+- Cache bust: `/api/tournaments?mode=grand-finals&bust=1`
 
 ### Latest Results UI
 - Floating section label above the card (no internal header bar); gray left-border accent (`border-gray-400`)

@@ -95,7 +95,7 @@ export async function fetchProMatches(lastMatchId = null) {
  */
 export async function fetchGrandFinalMatchIds() {
   try {
-    const res = await fetch('/api/grand-finals')
+    const res = await fetch('/api/tournaments?mode=grand-finals')
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data.matchIds) ? data.matchIds : []
