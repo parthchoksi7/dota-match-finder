@@ -35,6 +35,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
       </a>
       <div className="flex items-center gap-3 sm:gap-4">
         <a href="/tournaments" onClick={() => logEvent('nav_tournaments_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Tournaments</a>
+        <a href="/calendar" onClick={() => logEvent('nav_calendar_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Calendar</a>
         <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
         <a href="/release-notes" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
         {showSpoiler && (

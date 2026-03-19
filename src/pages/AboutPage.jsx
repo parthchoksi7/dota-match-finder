@@ -38,6 +38,7 @@ function AboutPage() {
               { title: "My Teams", desc: "Follow your favorite teams with one click. A dedicated section on the homepage shows only their recent matches. Saved in your browser - no account needed." },
               { title: "Tournament Pages", desc: "Dedicated pages for Tier 1 series at /tournaments. See live, upcoming, and completed events with prize pools, dates, full team rosters by region, player names with nationality flags, stage timelines, and per-stage standings. Includes an AI-generated summary for each event." },
               { title: "Grand Final Highlight", desc: "Grand Final match cards are visually distinct - gold border, warm background, and a trophy badge so championship matches stand out at a glance in your latest results and My Teams feed." },
+              { title: "Calendar Feeds", desc: "Subscribe to Dota 2 match schedules in Google Calendar, Apple Calendar, or Outlook. Visit /calendar to build your personal feed URL by selecting teams. Your calendar app refreshes automatically so you never miss a match." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-gray-900 dark:text-white mb-1.5">{f.title}</p>
@@ -71,6 +72,7 @@ function AboutPage() {
               { q: "How does My Teams work?", a: "Click the star next to any team name to follow them. A My Teams section appears at the top of the homepage showing only their recent matches. Your followed teams are saved in your browser's storage - no login required. They will not carry over to other browsers, incognito mode, or other devices." },
               { q: "Which data sources are used?", a: "Match data from OpenDota API. Live and upcoming matches from PandaScore. VOD links from the Twitch API. AI summaries from Anthropic Claude." },
               { q: "What are the tournament detail pages?", a: "Visit /tournaments to see all current and upcoming Tier 1 Dota 2 events. Click any event to see its full team roster (with player names and nationality flags), stage breakdown (Group Stage, Playoffs), standings tables, and an AI-generated event summary." },
+              { q: "How do calendar feeds work?", a: "Visit /calendar to select the teams you want to follow. Copy the generated URL and paste it into Google Calendar, Apple Calendar, or Outlook as a subscribed calendar. Your calendar app will fetch the latest match schedule automatically. Google Calendar refreshes every 12-24 hours; Apple Calendar can be configured to refresh more frequently." },
             ].map(({ q, a }) => (
               <div key={q} className="py-5">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white mb-2">{q}</p>

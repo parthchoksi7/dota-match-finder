@@ -31,7 +31,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/StageTimeline.jsx` - Horizontal timeline of tournament sub-stages; highlights active stage in red
 - `src/utils/regions.js` - Country code to Dota 2 region mapping; `getRegion(code)`, `getRegionColor(region)`, `groupTeamsByRegion(teams)`, `getRegionSummary(teams)`
 - `src/App.jsx` - Main app, state management, search, load more, drawer, spoiler-free toggle, slug URL generation
-- `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, else App
+- `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, `/calendar` -> Calendar, else App
 - `src/api.js` - All API calls: OpenDota, Twitch VOD search, hero fetching, match summaries
 - `src/components/MatchDrawer.jsx` - Slide-in drawer showing match details, VOD links, draft, AI summary
 - `src/components/DraftDisplay.jsx` - Hero picks, bans, player names, KDA
@@ -46,6 +46,9 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/WatchBadge.jsx` - Watchability badge component
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
+- `src/pages/Calendar.jsx` - Calendar feed builder at `/calendar`; team selector with slug autocomplete, generated URL, match preview, tournament feed list with Add to Calendar buttons; fires `calendar_page_view`, `calendar_team_select`, `calendar_team_remove`, `calendar_subscribe_modal_open` GA4 events
+- `src/components/CalendarSubscribeModal.jsx` - Modal with subscription URL + Copy button + per-platform instructions accordion (Google, Apple, Outlook); fires `calendar_url_copy` GA4 event
+- `src/utils/icsGenerator.js` - Client-side ICS utility (also duplicated server-side as `api/calendar/ics-utils.js`): `generateCalendar()`, `generateMatchEvent()`, `generateTournamentEvent()`, `formatDateUTC()`, `formatDateOnly()`
 - `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`)
 
 ### Backend (Vercel Serverless)
@@ -64,7 +67,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
-- `api/tournaments.js` - Tournament data endpoint. Default mode: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs via PandaScore external_identifier
+- `api/tournaments.js` - Multi-mode tournament endpoint. Default: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs. `?mode=calendar-team&teams=slug1,slug2`: .ics team calendar feed (resolves slugs, fetches running+upcoming+past 7d matches, caches 30min under `calendar:matches:{sorted_slugs}`). `?mode=calendar-tournament&series={id}`: .ics tournament feed (all-day VEVENT for series + match VEVENTs, caches 30min under `calendar:series:{id}`). Both calendar modes return `text/calendar` not JSON.
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
 ### Config
@@ -243,6 +246,22 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - In-memory cache (`memCache`) prevents re-fetching on re-renders; no localStorage/KV caching
 - Fires `watchability_computed` GA4 event with rating, seriesId, and tournament
 - `seriesWentToDecider()` pure function: true when both teams each have (winsRequired - 1) wins
+
+### Calendar Feed Subscriptions (Mar 2026)
+- Two .ics endpoints: `api/calendar/team.js` (teams param) and `api/calendar/tournament.js` (series param)
+- Team feed: accepts comma-separated PandaScore slugs. Resolves each to a team ID, fetches running + upcoming + past 7d matches, deduplicates, generates VCALENDAR with match VEVENTs
+- Tournament feed: fetches series metadata + all series matches; generates one all-day VEVENT (TRANSP:TRANSPARENT) for the series date range + match VEVENTs
+- Match event duration: Bo1=1h, Bo3=2h, Bo5=3h. Matches with no `begin_at` are skipped.
+- All times in UTC format (YYYYMMDDTHHMMSSZ); calendar apps convert to local timezone automatically
+- Caching: match data cached 30min in KV (`calendar:matches:{sorted_slugs}`, `calendar:series:{id}`), team ID lookups cached 24h (`calendar:team_id:{slug}`)
+- Response headers: `Content-Type: text/calendar`, `Cache-Control: public, max-age=1800`
+- `/calendar` page: team selector (searchable autocomplete from static tier-1 list), real-time URL generation, match preview panel, tournament list with per-tournament Add to Calendar buttons
+- `CalendarSubscribeModal`: reusable modal with URL copy button, collapsible platform instructions (Google/Apple/Outlook)
+- `MyTeamsSection`: "Calendar" button in header opens subscribe modal pre-filled with followed team slugs
+- `SiteHeader`: "Calendar" nav link added between Tournaments and About
+- GA4 events: `calendar_page_view`, `calendar_subscribe_modal_open` (source), `calendar_url_copy` (feed_type), `calendar_team_select` (team_name), `calendar_team_remove` (team_name)
+- Team name to PandaScore slug mapping: `CAL_SLUG_ALIASES` in `api/tournaments.js` and `teamNameToSlug` helper in `MyTeamsSection.jsx`
+- Calendar modes are merged into `api/tournaments.js` to stay within the 12-function Vercel Hobby plan limit
 
 ### Grand Final Card Highlighting (Mar 2026)
 - Grand Final series are visually distinct in LatestMatches and MyTeamsSection: amber/gold border, warm background tint, trophy badge in the card header
