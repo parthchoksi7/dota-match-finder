@@ -654,6 +654,7 @@ export default async function handler(req, res) {
 
     console.log(`calendar-tournament: series=${seriesId}`)
     const cacheKey = `calendar:series:${seriesId}`
+    if (req.query?.bust === '1') { try { await kv.del(cacheKey) } catch {} }
     let cached = null
     try { cached = await kv.get(cacheKey) } catch {}
 
@@ -666,9 +667,9 @@ export default async function handler(req, res) {
         const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
         // Direct /series/{id} returns 404 on current plan tier - use filter[id] on list endpoints instead
         const [runSR, upSR, pastSR] = await Promise.all([
-          fetch(`${PANDASCORE_BASE}/dota2/series/running?filter[id]=${seriesId}`, { headers }),
-          fetch(`${PANDASCORE_BASE}/dota2/series/upcoming?filter[id]=${seriesId}`, { headers }),
-          fetch(`${PANDASCORE_BASE}/dota2/series/past?filter[id]=${seriesId}`, { headers }),
+          fetch(`${PANDASCORE_BASE}/series/running?filter[id]=${seriesId}`, { headers }),
+          fetch(`${PANDASCORE_BASE}/series/upcoming?filter[id]=${seriesId}`, { headers }),
+          fetch(`${PANDASCORE_BASE}/series/past?filter[id]=${seriesId}`, { headers }),
         ])
         const toArr = async (r) => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
         const [runSD, upSD, pastSD] = await Promise.all([
@@ -680,9 +681,9 @@ export default async function handler(req, res) {
         if (!series) throw new Error(`Series ${seriesId} not found`)
         // Fetch matches using filter[serie_id] on running/upcoming/past endpoints
         const [runMR, upMR, pastMR] = await Promise.all([
-          fetch(`${PANDASCORE_BASE}/dota2/matches/running?filter[serie_id]=${seriesId}&page[size]=50`, { headers }),
-          fetch(`${PANDASCORE_BASE}/dota2/matches/upcoming?filter[serie_id]=${seriesId}&sort=scheduled_at&page[size]=100`, { headers }),
-          fetch(`${PANDASCORE_BASE}/dota2/matches/past?filter[serie_id]=${seriesId}&sort=-scheduled_at&page[size]=50`, { headers }),
+          fetch(`${PANDASCORE_BASE}/matches/running?filter[serie_id]=${seriesId}&page[size]=50`, { headers }),
+          fetch(`${PANDASCORE_BASE}/matches/upcoming?filter[serie_id]=${seriesId}&sort=scheduled_at&page[size]=100`, { headers }),
+          fetch(`${PANDASCORE_BASE}/matches/past?filter[serie_id]=${seriesId}&sort=-scheduled_at&page[size]=50`, { headers }),
         ])
         const [runMD, upMD, pastMD] = await Promise.all([
           runMR.ok ? toArr(runMR) : Promise.resolve([]),
