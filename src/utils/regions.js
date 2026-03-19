@@ -4,6 +4,7 @@ const COUNTRY_TO_REGION = {
   DE: 'WEU', FR: 'WEU', SE: 'WEU', DK: 'WEU', FI: 'WEU', NO: 'WEU',
   NL: 'WEU', BE: 'WEU', AT: 'WEU', ES: 'WEU', PT: 'WEU', IT: 'WEU',
   GB: 'WEU', UK: 'WEU', IE: 'WEU', CH: 'WEU', PL: 'WEU',
+  EU: 'WEU', // PandaScore uses "EU" for pan-European orgs (e.g. OG)
 
   // Eastern Europe / CIS
   RU: 'EEU', UA: 'EEU', BY: 'EEU', KZ: 'EEU', RS: 'EEU',
