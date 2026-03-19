@@ -261,7 +261,13 @@ async function handleSeriesDetail(req, res, token) {
     const isQualifier = stageName.includes('qualifier') || stageName.includes('qual')
     for (const roster of (stage.rosters || [])) {
       const teamId = roster.team?.id || roster.id
-      if (!teamId || teamMap.has(teamId)) continue
+      if (!teamId) continue
+      if (teamMap.has(teamId)) {
+        // Qualifier status wins: if we see a team in a qualifier stage, upgrade
+        // their label even if they were already seen in the main event roster.
+        if (isQualifier) teamMap.get(teamId).qualified = 'qualified'
+        continue
+      }
       teamMap.set(teamId, mapSeriesTeam(roster, isQualifier ? 'qualified' : 'invited'))
     }
   }
