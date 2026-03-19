@@ -248,18 +248,23 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `seriesWentToDecider()` pure function: true when both teams each have (winsRequired - 1) wins
 
 ### Calendar Feed Subscriptions (Mar 2026)
-- Two .ics modes merged into `api/tournaments.js`: `?mode=calendar-team&teams=slug1,slug2` and `?mode=calendar-tournament&series={id}`
-- Team feed: accepts comma-separated PandaScore slugs. Resolves each to a team ID, fetches running + upcoming + past 7d matches, deduplicates, generates VCALENDAR with match VEVENTs
-- Tournament feed: fetches series metadata + all series matches; generates one all-day VEVENT (TRANSP:TRANSPARENT) for the series date range + match VEVENTs
+- Three .ics modes merged into `api/tournaments.js`:
+  - `?mode=calendar-all` - All running + upcoming Dota 2 tournaments. Fetches all series and all matches in 4 parallel API calls. New matches (playoffs etc.) appear automatically on the next cache refresh (30min). Cache key: `calendar:all`.
+  - `?mode=calendar-team&teams=slug1,slug2` - Team-specific feed; accepts comma-separated PandaScore slugs
+  - `?mode=calendar-tournament&series={id}` - Single-series feed (legacy; the all-tournaments feed is preferred)
+- Team feed: resolves each slug to a team ID, fetches running + upcoming + past 7d matches, deduplicates, generates VCALENDAR with match VEVENTs
+- Tournament/all feed: generates one all-day VEVENT (TRANSP:TRANSPARENT) per series for the date range + individual match VEVENTs
+- Series banner event duration: uses `series.end_at` if set; falls back to latest match `end_at` derived from the fetched matches; then falls back to `begin_at` (single day)
+- Calendar display name format: `icalSeriesDisplayName()` strips 4-digit year and formats as `{League} {ShortName} - Dota 2` (e.g. "ESL Birmingham - Dota 2")
 - Match event duration: Bo1=1h, Bo3=2h, Bo5=3h. Matches with no `begin_at` are skipped.
 - All times in UTC format (YYYYMMDDTHHMMSSZ); calendar apps convert to local timezone automatically
-- Caching: match data cached 30min in KV (`calendar:matches:{sorted_slugs}`, `calendar:series:{id}`), team ID lookups cached 24h (`calendar:team_id:{slug}`)
+- Caching: match data cached 30min in KV (`calendar:all`, `calendar:matches:{sorted_slugs}`, `calendar:series:{id}`), team ID lookups cached 24h (`calendar:team_id:{slug}`). All modes support `?bust=1` to clear cache.
 - Response headers: `Content-Type: text/calendar`, `Cache-Control: public, max-age=1800`
-- `/calendar` page: team selector (searchable autocomplete from static tier-1 list), real-time URL generation, match preview panel, tournament list with per-tournament Add to Calendar buttons
+- `/calendar` page: "All Tournaments" featured card at top of Tournament section with helper text + Subscribe button; individual per-tournament list below as secondary option; team selector with autocomplete + match preview
 - `CalendarSubscribeModal`: reusable modal with URL copy button, collapsible platform instructions (Google/Apple/Outlook)
 - `MyTeamsSection`: "Calendar" button in header opens subscribe modal pre-filled with followed team slugs
 - `SiteHeader`: "Calendar" nav link added between Tournaments and About
-- GA4 events: `calendar_page_view`, `calendar_subscribe_modal_open` (source), `calendar_url_copy` (feed_type), `calendar_team_select` (team_name), `calendar_team_remove` (team_name)
+- GA4 events: `calendar_page_view`, `calendar_subscribe_modal_open` (source: `all_tournaments` | `tournament` | `calendar_page`), `calendar_url_copy` (feed_type), `calendar_team_select` (team_name), `calendar_team_remove` (team_name)
 - Team name to PandaScore slug mapping: `CAL_SLUG_ALIASES` in `api/tournaments.js` and `teamNameToSlug` helper in `MyTeamsSection.jsx`
 - Calendar modes are merged into `api/tournaments.js` to stay within the 12-function Vercel Hobby plan limit
 

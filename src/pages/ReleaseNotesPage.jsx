@@ -3,6 +3,18 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 19, 2026",
+    tag: "improvement",
+    title: "All Tournaments calendar feed",
+    desc: "One URL now covers every active and upcoming Dota 2 tournament. Subscribe once and new matches - including playoffs added after group stages - appear on your calendar automatically.",
+    items: [
+      "New All Tournaments feed on the /calendar page. Subscribe once; every pro tournament and all its matches are included.",
+      "Matches added to PandaScore after you subscribe (such as ESL Birmingham playoffs) appear on your calendar within 30 minutes, no action required.",
+      "Tournament banner events now span the full tournament duration instead of only the first day.",
+      "Calendar names now use a cleaner format - ESL Birmingham - Dota 2 instead of Birmingham 2026 (Dota 2).",
+    ],
+  },
+  {
+    date: "Mar 19, 2026",
     tag: "fix",
     title: "Tournament calendar feed now works",
     desc: "The tournament .ics feed was returning a validation error for all series IDs. Fixed by switching to the correct PandaScore API endpoints for the current plan tier.",
