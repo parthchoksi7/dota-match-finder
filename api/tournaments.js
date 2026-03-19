@@ -664,13 +664,32 @@ export default async function handler(req, res) {
     } else {
       try {
         const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-        const [seriesRes, matchesRes] = await Promise.all([
-          fetch(`${PANDASCORE_BASE}/series/${seriesId}`, { headers }),
-          fetch(`${PANDASCORE_BASE}/series/${seriesId}/matches?sort=scheduled_at&page[size]=100`, { headers }),
+        // Direct /series/{id} returns 404 on current plan tier - use filter[id] on list endpoints instead
+        const [runSR, upSR, pastSR] = await Promise.all([
+          fetch(`${PANDASCORE_BASE}/dota2/series/running?filter[id]=${seriesId}`, { headers }),
+          fetch(`${PANDASCORE_BASE}/dota2/series/upcoming?filter[id]=${seriesId}`, { headers }),
+          fetch(`${PANDASCORE_BASE}/dota2/series/past?filter[id]=${seriesId}`, { headers }),
         ])
-        if (!seriesRes.ok) throw new Error(`PandaScore series lookup failed: ${seriesRes.status}`)
-        series = await seriesRes.json()
-        matches = matchesRes.ok ? await matchesRes.json() : []
+        const toArr = async (r) => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
+        const [runSD, upSD, pastSD] = await Promise.all([
+          runSR.ok ? toArr(runSR) : Promise.resolve([]),
+          upSR.ok ? toArr(upSR) : Promise.resolve([]),
+          pastSR.ok ? toArr(pastSR) : Promise.resolve([]),
+        ])
+        series = [...runSD, ...upSD, ...pastSD][0]
+        if (!series) throw new Error(`Series ${seriesId} not found`)
+        // Fetch matches using filter[serie_id] on running/upcoming/past endpoints
+        const [runMR, upMR, pastMR] = await Promise.all([
+          fetch(`${PANDASCORE_BASE}/dota2/matches/running?filter[serie_id]=${seriesId}&page[size]=50`, { headers }),
+          fetch(`${PANDASCORE_BASE}/dota2/matches/upcoming?filter[serie_id]=${seriesId}&sort=scheduled_at&page[size]=100`, { headers }),
+          fetch(`${PANDASCORE_BASE}/dota2/matches/past?filter[serie_id]=${seriesId}&sort=-scheduled_at&page[size]=50`, { headers }),
+        ])
+        const [runMD, upMD, pastMD] = await Promise.all([
+          runMR.ok ? toArr(runMR) : Promise.resolve([]),
+          upMR.ok ? toArr(upMR) : Promise.resolve([]),
+          pastMR.ok ? toArr(pastMR) : Promise.resolve([]),
+        ])
+        matches = [...runMD, ...upMD, ...pastMD]
         if (!Array.isArray(matches)) matches = []
         try { await kv.set(cacheKey, { series, matches }, { ex: CAL_MATCHES_TTL }) } catch (err) { console.warn('KV write:', err?.message) }
       } catch (err) {

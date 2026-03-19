@@ -48,7 +48,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
 - `src/pages/Calendar.jsx` - Calendar feed builder at `/calendar`; team selector with slug autocomplete, generated URL, match preview, tournament feed list with Add to Calendar buttons; fires `calendar_page_view`, `calendar_team_select`, `calendar_team_remove`, `calendar_subscribe_modal_open` GA4 events
 - `src/components/CalendarSubscribeModal.jsx` - Modal with subscription URL + Copy button + per-platform instructions accordion (Google, Apple, Outlook); fires `calendar_url_copy` GA4 event
-- `src/utils/icsGenerator.js` - Client-side ICS utility (also duplicated server-side as `api/calendar/ics-utils.js`): `generateCalendar()`, `generateMatchEvent()`, `generateTournamentEvent()`, `formatDateUTC()`, `formatDateOnly()`
+- `src/utils/icsGenerator.js` - Client-side ICS utility: `generateCalendar()`, `generateMatchEvent()`, `generateTournamentEvent()`, `formatDateUTC()`, `formatDateOnly()`
 - `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`)
 
 ### Backend (Vercel Serverless)
@@ -248,7 +248,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `seriesWentToDecider()` pure function: true when both teams each have (winsRequired - 1) wins
 
 ### Calendar Feed Subscriptions (Mar 2026)
-- Two .ics endpoints: `api/calendar/team.js` (teams param) and `api/calendar/tournament.js` (series param)
+- Two .ics modes merged into `api/tournaments.js`: `?mode=calendar-team&teams=slug1,slug2` and `?mode=calendar-tournament&series={id}`
 - Team feed: accepts comma-separated PandaScore slugs. Resolves each to a team ID, fetches running + upcoming + past 7d matches, deduplicates, generates VCALENDAR with match VEVENTs
 - Tournament feed: fetches series metadata + all series matches; generates one all-day VEVENT (TRANSP:TRANSPARENT) for the series date range + match VEVENTs
 - Match event duration: Bo1=1h, Bo3=2h, Bo5=3h. Matches with no `begin_at` are skipped.
@@ -292,6 +292,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
 - Tournament bracket parsing relies on PandaScore naming format "Round N: ..." - may break if format changes
+- PandaScore plan limitation: `GET /dota2/series/{id}` and `GET /dota2/series/{id}/matches` return 404/validation errors on the current plan tier. Use `filter[id]` on `/dota2/series/running|upcoming|past` and `filter[serie_id]` on `/dota2/matches/running|upcoming|past` instead (pattern used in `tournament-detail.js` and `calendar-tournament` mode)
 
 ---
 
