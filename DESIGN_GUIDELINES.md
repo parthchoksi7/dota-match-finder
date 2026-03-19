@@ -193,13 +193,20 @@ Homepage sections use **floating labels** — a small `<h2>` rendered *above* th
 
 The header nav row (`flex items-center gap-3 sm:gap-4`) has limited horizontal space, especially on 320-375px screens where the logo already consumes most of the width. **Before adding any new nav item:**
 
-- Count the existing text links. As of Mar 2026: Tournaments, About, What's New, plus icon buttons (Spoiler, Theme). That is already near the limit.
+- Count the existing text links. As of Mar 2026: Tournaments, About, What's New, plus icon buttons (Calendar, Spoiler, Theme). That is already near the limit.
 - **Prefer icons over text** for nav items beyond the first two text links. An icon with `aria-label` and `title` takes ~20px vs ~80px+ for a text label.
 - Never add a text-only nav link without first checking it renders correctly at 320px width (the narrowest common screen). If it causes wrapping or pushes the logo off-screen, use an icon instead.
 - Icon-only nav links must always have `aria-label` (for screen readers) and `title` (for hover tooltip).
 - Do NOT use `tracking-widest` on nav labels - it inflates width significantly. Use `tracking-wide` at most for any text that must remain as text.
 
-**Failing this check caused the Calendar nav overflow bug (Mar 2026):** Adding "Calendar" as a text link broke the header on mobile. Fix: replaced with a calendar icon (`w-4 h-4` SVG).
+**Nav item grouping - never mix icons into the text link group:**
+- The nav has two distinct zones: text links on the left, icon buttons on the right.
+- Text links: `text-xs font-semibold uppercase` plain `<a>` tags - no border, no padding box.
+- Icon buttons: `focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors` - always at the far right.
+- **Never insert an icon into the middle of the text link group.** If an item is icon-only, it belongs in the icon button group on the right, using the bordered button style above.
+- Order (left to right): text links → icon buttons. No interleaving.
+
+**Failing this check caused two Calendar nav bugs (Mar 2026):** (1) Adding "Calendar" as a text link broke the header on mobile - fix: replaced with an icon. (2) The icon was placed between text links instead of with the other icons - fix: moved to the right icon group with matching border/padding style.
 
 ### Tournament identity
 - League organizer label: `text-xs uppercase tracking-[4px] text-red-500 mb-1` above the tournament display name
