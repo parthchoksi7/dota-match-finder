@@ -64,13 +64,16 @@ This applies to: className edits, new components, loading/empty/error states, an
 - Use existing testing framework (React Testing Library + Vitest/Jest)
 
 ### 7. Regression Testing
-- Before deployment, ask: "Would you like to run regression tests?"
-- Run full test suite: `npm test`
-- Check for:
-  - Breaking changes in existing features
-  - API compatibility issues
-  - UI/layout regressions
-- Do NOT proceed to deployment without user confirmation
+- Make a calculated decision on whether to run the full test suite based on the scope of changes. You are the expert - use your judgement.
+- Run regression (`npm test`) when:
+  - Changes touch shared utilities, API handlers, or components used across multiple pages
+  - A bug fix could have introduced a new edge case
+  - Refactoring touched core logic
+- Skip regression when:
+  - Changes are isolated UI additions (new text, new card, new modal) with no shared logic modified
+  - The only changed files are a single new component plus its dedicated test
+  - Changes are purely additive (new route, new copy, new release note entry)
+- If you run regression, report the result. If you skip it, briefly state why.
 
 ---
 

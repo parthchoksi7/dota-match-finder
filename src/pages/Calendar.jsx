@@ -377,12 +377,12 @@ export default function Calendar() {
                   {tournaments.map(t => (
                     <div key={t.id} className="flex items-center justify-between gap-3 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                          {t.full_name || t.name}
-                        </p>
-                        {t.league?.name && (
-                          <p className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider">{t.league.name}</p>
+                        {t.leagueName && (
+                          <p className="text-xs uppercase tracking-[3px] text-red-500 truncate">{t.leagueName}</p>
                         )}
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                          {t.name}
+                        </p>
                       </div>
                       <button
                         type="button"
