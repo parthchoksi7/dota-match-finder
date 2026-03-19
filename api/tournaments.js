@@ -690,8 +690,12 @@ export default async function handler(req, res) {
           runMatchR.ok ? toArr(runMatchR) : Promise.resolve([]),
           upMatchR.ok ? toArr(upMatchR) : Promise.resolve([]),
         ])
-        allSeries = [...runSer, ...upSer]
-        allMatches = [...runMatch, ...upMatch]
+        allSeries = [...runSer, ...upSer].filter(isTier1Series)
+        const tier1SerieIds = new Set(allSeries.map(s => s.id))
+        allMatches = [...runMatch, ...upMatch].filter(m => {
+          const sid = m.serie_id || m.serie?.id
+          return sid && tier1SerieIds.has(sid)
+        })
         try { await kv.set(cacheKey, { allSeries, allMatches }, { ex: CAL_MATCHES_TTL }) } catch (err) { console.warn('KV write:', err?.message) }
       } catch (err) {
         console.error('calendar-all error:', err?.message)
