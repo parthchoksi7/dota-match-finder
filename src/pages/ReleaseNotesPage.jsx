@@ -2,6 +2,16 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 19, 2026",
+    tag: "fix",
+    title: "Tournament calendar feed now works",
+    desc: "The tournament .ics feed was returning a validation error for all series IDs. Fixed by switching to the correct PandaScore API endpoints for the current plan tier.",
+    items: [
+      "Tournament feeds (via the Add to Calendar button on the Calendar page) now correctly fetch series metadata and match schedules.",
+      "Root cause: the plan tier does not support the direct /series/{id} endpoint. The feed now uses the same filter-based lookup pattern used by the Tournament Hub.",
+    ],
+  },
+  {
     date: "Mar 18, 2026",
     tag: "new",
     title: "Calendar Feed Subscriptions",
