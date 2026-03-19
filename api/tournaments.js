@@ -89,14 +89,28 @@ function icalMatchEvent(match, dtstamp) {
   return lines.map(icalFoldLine).join(CRLF)
 }
 
-function icalTournamentEvent(series, dtstamp) {
+function icalSeriesDisplayName(series) {
+  const league = series.league?.name || ''
+  const raw = series.full_name || series.name || ''
+  // Strip 4-digit year (e.g. "Birmingham 2026" → "Birmingham")
+  const shortName = raw.replace(/\s*\b20\d\d\b/g, '').replace(/\s+/g, ' ').trim()
+  if (league && shortName && !shortName.toLowerCase().startsWith(league.toLowerCase())) {
+    return `${league} ${shortName} - Dota 2`
+  }
+  return `${shortName || 'Dota 2 Tournament'} - Dota 2`
+}
+
+function icalTournamentEvent(series, dtstamp, latestMatchEnd) {
   if (!series.begin_at) return null
   const start = new Date(series.begin_at)
   if (isNaN(start.getTime())) return null
-  const endDate = series.end_at ? new Date(series.end_at) : start
+  // Use end_at if available; fall back to latestMatchEnd; then start itself
+  const endDate = series.end_at
+    ? new Date(series.end_at)
+    : (latestMatchEnd instanceof Date && !isNaN(latestMatchEnd) ? latestMatchEnd : start)
   const endPlus1 = new Date(endDate.getTime() + 86400000)
-  const seriesName = series.full_name || series.name || 'Dota 2 Tournament'
-  const descParts = [seriesName]
+  const displayName = icalSeriesDisplayName(series)
+  const descParts = [displayName]
   if (series.prizepool) descParts.push(`Prize Pool: $${Number(series.prizepool).toLocaleString()}`)
   if (series.location) descParts.push(`Location: ${series.location}`)
   descParts.push(`\nMore info: https://spectateesports.live/tournament/${series.id}`)
@@ -106,7 +120,7 @@ function icalTournamentEvent(series, dtstamp) {
     `DTSTAMP:${dtstamp}`,
     `DTSTART;VALUE=DATE:${icalFormatDateOnly(start)}`,
     `DTEND;VALUE=DATE:${icalFormatDateOnly(endPlus1)}`,
-    `SUMMARY:${icalEscapeText(`${seriesName} (Dota 2)`)}`,
+    `SUMMARY:${icalEscapeText(displayName)}`,
     `DESCRIPTION:${icalEscapeText(descParts.join('\n'))}`,
     'TRANSP:TRANSPARENT',
     'CATEGORIES:Dota 2,Esports,Tournament',
@@ -647,6 +661,63 @@ export default async function handler(req, res) {
     return res.status(200).send(icsContent)
   }
 
+  // All-tournaments calendar feed (?mode=calendar-all)
+  // One subscription URL — every running/upcoming tournament and their matches appear automatically.
+  if (req.query?.mode === 'calendar-all') {
+    const cacheKey = 'calendar:all'
+    if (req.query?.bust === '1') { try { await kv.del(cacheKey) } catch {} }
+    let cached = null
+    try { cached = await kv.get(cacheKey) } catch {}
+
+    let allSeries, allMatches
+    if (cached) {
+      allSeries = cached.allSeries
+      allMatches = cached.allMatches
+    } else {
+      try {
+        const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+        const toArr = async (r) => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
+        // Fetch all running+upcoming series and all running+upcoming matches in parallel
+        const [runSerR, upSerR, runMatchR, upMatchR] = await Promise.all([
+          fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=50`, { headers }),
+          fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=50`, { headers }),
+          fetch(`${PANDASCORE_BASE}/matches/running?sort=scheduled_at&page[size]=100`, { headers }),
+          fetch(`${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=100`, { headers }),
+        ])
+        const [runSer, upSer, runMatch, upMatch] = await Promise.all([
+          runSerR.ok ? toArr(runSerR) : Promise.resolve([]),
+          upSerR.ok ? toArr(upSerR) : Promise.resolve([]),
+          runMatchR.ok ? toArr(runMatchR) : Promise.resolve([]),
+          upMatchR.ok ? toArr(upMatchR) : Promise.resolve([]),
+        ])
+        allSeries = [...runSer, ...upSer]
+        allMatches = [...runMatch, ...upMatch]
+        try { await kv.set(cacheKey, { allSeries, allMatches }, { ex: CAL_MATCHES_TTL }) } catch (err) { console.warn('KV write:', err?.message) }
+      } catch (err) {
+        console.error('calendar-all error:', err?.message)
+        return res.status(500).send(`Failed to fetch tournament data: ${err.message}`)
+      }
+    }
+
+    const dtstamp = icalFormatDateUTC(new Date())
+    // Build a map of latest match end per series for accurate banner event duration
+    const matchEndBySeries = {}
+    for (const m of allMatches) {
+      const sid = m.serie_id || m.serie?.id
+      if (!sid) continue
+      const ts = new Date(m.end_at || m.begin_at || m.scheduled_at)
+      if (isNaN(ts)) continue
+      if (!matchEndBySeries[sid] || ts > matchEndBySeries[sid]) matchEndBySeries[sid] = ts
+    }
+    const seriesEvents = allSeries.map(s => icalTournamentEvent(s, dtstamp, matchEndBySeries[s.id] || null)).filter(Boolean)
+    const matchEvents = allMatches.map(m => icalMatchEvent(m, dtstamp)).filter(Boolean)
+    const icsContent = icalWrapCalendar('Dota 2 Esports', [...seriesEvents, ...matchEvents])
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
+    res.setHeader('Content-Disposition', 'inline; filename="dota2-esports.ics"')
+    res.setHeader('Cache-Control', 'public, max-age=1800')
+    return res.status(200).send(icsContent)
+  }
+
   // Calendar tournament feed mode (?mode=calendar-tournament&series={id})
   if (req.query?.mode === 'calendar-tournament') {
     const seriesId = parseInt(req.query?.series, 10)
@@ -700,9 +771,10 @@ export default async function handler(req, res) {
     }
 
     const dtstamp = icalFormatDateUTC(new Date())
-    const eventBlocks = [icalTournamentEvent(series, dtstamp), ...matches.map(m => icalMatchEvent(m, dtstamp))].filter(Boolean)
-    const seriesName = series.full_name || series.name || `Series ${seriesId}`
-    const icsContent = icalWrapCalendar(`${seriesName} (Dota 2)`, eventBlocks)
+    const matchEnds = matches.map(m => new Date(m.end_at || m.begin_at || m.scheduled_at)).filter(d => !isNaN(d))
+    const latestMatchEnd = matchEnds.length ? new Date(Math.max(...matchEnds.map(d => d.getTime()))) : null
+    const eventBlocks = [icalTournamentEvent(series, dtstamp, latestMatchEnd), ...matches.map(m => icalMatchEvent(m, dtstamp))].filter(Boolean)
+    const icsContent = icalWrapCalendar(icalSeriesDisplayName(series), eventBlocks)
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
     res.setHeader('Content-Disposition', `inline; filename="dota2-tournament-${seriesId}.ics"`)
     res.setHeader('Cache-Control', 'public, max-age=1800')
