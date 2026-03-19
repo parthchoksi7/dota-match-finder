@@ -148,11 +148,14 @@ function mapSeriesPlayer(p) {
 }
 
 function mapSeriesTeam(t, qualified) {
+  const name = t.team?.name || t.name || 'Unknown'
+  const location = t.team?.location || t.location || null
+  console.log(`[team-location] ${name}: ${location}`)
   return {
     id: t.team?.id || t.id,
-    name: t.team?.name || t.name || 'Unknown',
+    name,
     acronym: t.team?.acronym || t.acronym || null,
-    location: t.team?.location || t.location || null,
+    location,
     imageUrl: t.team?.image_url || t.image_url || null,
     qualified,
     players: (t.players || []).map(mapSeriesPlayer),
