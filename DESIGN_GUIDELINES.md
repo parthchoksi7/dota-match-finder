@@ -189,6 +189,18 @@ Homepage sections use **floating labels** — a small `<h2>` rendered *above* th
 - In bracket round column labels: swap label to `text-red-500` and prepend a `w-1 h-1` pulse dot when any match in that round is `status === 'running'`
 - Live bracket match card: `border-red-500/80 bg-red-500/5` — do NOT animate-pulse the card itself (fades text content)
 
+### Site header nav
+
+The header nav row (`flex items-center gap-3 sm:gap-4`) has limited horizontal space, especially on 320-375px screens where the logo already consumes most of the width. **Before adding any new nav item:**
+
+- Count the existing text links. As of Mar 2026: Tournaments, About, What's New, plus icon buttons (Spoiler, Theme). That is already near the limit.
+- **Prefer icons over text** for nav items beyond the first two text links. An icon with `aria-label` and `title` takes ~20px vs ~80px+ for a text label.
+- Never add a text-only nav link without first checking it renders correctly at 320px width (the narrowest common screen). If it causes wrapping or pushes the logo off-screen, use an icon instead.
+- Icon-only nav links must always have `aria-label` (for screen readers) and `title` (for hover tooltip).
+- Do NOT use `tracking-widest` on nav labels - it inflates width significantly. Use `tracking-wide` at most for any text that must remain as text.
+
+**Failing this check caused the Calendar nav overflow bug (Mar 2026):** Adding "Calendar" as a text link broke the header on mobile. Fix: replaced with a calendar icon (`w-4 h-4` SVG).
+
 ### Tournament identity
 - League organizer label: `text-xs uppercase tracking-[4px] text-red-500 mb-1` above the tournament display name
 - Use `getLeagueLabel(name)` helper (in TournamentHub.jsx) to extract organizer from tournament name

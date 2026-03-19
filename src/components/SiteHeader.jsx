@@ -35,7 +35,14 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
       </a>
       <div className="flex items-center gap-3 sm:gap-4">
         <a href="/tournaments" onClick={() => logEvent('nav_tournaments_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Tournaments</a>
-        <a href="/calendar" onClick={() => logEvent('nav_calendar_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Calendar</a>
+        <a href="/calendar" onClick={() => logEvent('nav_calendar_click', {})} aria-label="Calendar feeds" title="Calendar feeds" className="text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        </a>
         <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
         <a href="/release-notes" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
         {showSpoiler && (
