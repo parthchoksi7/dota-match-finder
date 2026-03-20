@@ -6,6 +6,7 @@
     { "source": "/release-notes", "destination": "/" },
     { "source": "/tournaments", "destination": "/" },
     { "source": "/tournament/:seriesId", "destination": "/" },
-    { "source": "/calendar", "destination": "/" }
+    { "source": "/calendar", "destination": "/" },
+    { "source": "/analytics", "destination": "/" }
   ]
 }
