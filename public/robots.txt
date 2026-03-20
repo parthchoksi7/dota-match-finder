@@ -10,6 +10,7 @@ Allow: /tournament/
 Allow: /calendar
 Allow: /api/og
 Disallow: /api/
+Disallow: /analytics
 Disallow: /analytics.html
 
 Sitemap: https://spectateesports.live/sitemap.xml
