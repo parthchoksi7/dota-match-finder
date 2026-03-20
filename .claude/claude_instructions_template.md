@@ -183,7 +183,7 @@ These features are intentionally hidden from public documentation. They are gate
 - Button opens `XPostsModal` (src/components/XPostsModal.jsx)
 - `App.jsx` calls `/api/draft-posts` with series metadata and game replay URLs
 - `api/draft-posts.js` uses Claude Haiku to generate one post per game (under 200 chars + link)
-- `api/og-series.js` generates a downloadable series summary image (winner, score, tournament, format)
+- `api/og.js?mode=series` generates a downloadable series summary image (winner, score, tournament, format) — merged into `api/og.js` to stay within the 12-function limit
 - Posts vary in tone across games (opener, momentum shift, decider narrative)
 - Each post ends with the Spectate match URL as the CTA/replay link
 - `XPostsModal` shows posts per game with a one-click Copy button; closes on Escape or backdrop click

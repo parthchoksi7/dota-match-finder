@@ -45,7 +45,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher
 - `src/components/XPostsModal.jsx` - Modal for displaying AI-generated X/Twitter posts per game in a series, plus series summary and downloadable result image
 - `src/components/WatchBadge.jsx` - Watchability badge component
-- `src/pages/AnalyticsPage.jsx` - **Private** analytics chat page at `/analytics`; password-gated; NOT indexed by Google; NOT in sitemap; checks `ANALYTICS_PASSWORD` via `/api/analytics-auth`
+- `src/pages/AnalyticsPage.jsx` - **Private** analytics chat page at `/analytics`; password-gated; NOT indexed by Google; NOT in sitemap; checks `ANALYTICS_PASSWORD` via `/api/analytics-chat?mode=auth`
 - `src/components/AnalyticsChat.jsx` - Chat UI for the analytics page; passes password in each request; supports suggested questions and conversation history
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
@@ -65,14 +65,11 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/tournament-detail.js` - Fetches tournament standings, bracket, and sibling stages from PandaScore; cached in KV for 3 min
 - `api/tournament-heroes.js` - Aggregates hero pick/ban stats across all finished tournament games via OpenDota. Step 1: looks up the tournament serie name from PandaScore if not passed by the frontend. Step 2: searches OpenDota `/api/leagues` (9000+ leagues, cached 24h as `opendota:leagues_v1`) using token overlap matching to find the right league. Step 3: fetches `/api/leagues/{leagueid}/matches` then full match details in batches of 10 via `/api/matches/{id}` to get picks_bans. Hero IDs resolved to names via `/api/heroes` (cached 24h as `opendota:hero_map_v1`). Cached in KV for 3h under `dota2:tournament_heroes_v7:{id}`. PandaScore does not expose picks_bans on any accessible endpoint (the /dota2/games list endpoint does not exist; embedded games in /matches omit picks_bans; /matches/{id}/games requires a higher-tier plan).
 - `api/draft-posts.js` - Generates per-game X/Twitter posts using Claude Haiku; varied tone per game (opener/momentum/decider); posts kept under 220 chars to fit a VOD URL
-- `api/og-series.js` - Renders a 1200x630 series result image (winner, score, tournament, format) using satori + resvg; used in X posts modal as a downloadable PNG
 - `api/match-streams.js` - KV lookup endpoint that returns the stored stream channel for a batch of OpenDota match IDs; used to resolve exact VOD channel before Twitch search
-- `api/analytics-auth.js` - Password check endpoint for `/analytics` page; POST `{ password }` -> 200 or 401; checks `ANALYTICS_PASSWORD` env var
-- `api/analytics-chat.js` - Claude Sonnet with `query_analytics` tool use; queries GA4 BigQuery data live; agentic loop (up to 5 tool calls per message); requires password in request body
-- `api/analytics.js` - Direct BigQuery query endpoint (pageviews/top_pages/top_events/countries/custom); used independently of Claude
+- `api/analytics-chat.js` - Merged analytics endpoint with 3 modes: `?mode=auth` (POST password check -> 200/401), `?mode=query` (direct BigQuery query for pageviews/top_pages/top_events/countries/custom SQL), default POST (Claude Sonnet chat with `query_analytics` tool use; agentic loop up to 5 tool calls per message; requires password in request body). Merged from 3 separate files to stay within the 12-function Vercel limit.
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
-- `api/og.js` - OG image/metadata generation for share card URLs
+- `api/og.js` - OG image/metadata generation for share card URLs. Also handles series result images via `?mode=series` (1200x630 PNG with winner, score, tournament, format using satori + resvg; used in X posts modal as downloadable PNG). Merged from `og.js` + `og-series.js` to stay within the 12-function Vercel limit.
 - `api/tournaments.js` - Multi-mode tournament endpoint. Default: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs. `?mode=calendar-team&teams=slug1,slug2`: .ics team calendar feed (resolves slugs, fetches running+upcoming+past 7d matches, caches 30min under `calendar:matches:{sorted_slugs}`). `?mode=calendar-tournament&series={id}`: .ics tournament feed (all-day VEVENT for series + match VEVENTs, caches 30min under `calendar:series:{id}`). Both calendar modes return `text/calendar` not JSON.
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
@@ -152,7 +149,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
   - `/tournaments/{id}/standings` - W-L table
   - `/tournaments/{id}/brackets` - flat match list named "Round N: ..."
 - Also fetches sibling stages via running/upcoming/past status endpoints all filtered by `serie_id` to show full event pipeline including not-yet-started stages (e.g. upcoming Playoffs)
-- Format inference (`inferFormat()`): `has_bracket: false` + "Group Stage" name -> Swiss; `has_bracket: true` + "Playoffs" -> Double Elimination
+- Format inference (`inferFormat()`): checks tournament **name first** before `has_bracket`. If the name contains "group", it is always treated as Swiss/Group Stage regardless of `has_bracket` (PandaScore sometimes sets `has_bracket: true` on group stages). Then: `has_bracket: true` + "Playoffs" name -> Double Elimination; `has_bracket: true` otherwise -> Bracket.
 - Cached under `dota2:tournament_detail_v3:{id}` for 3 minutes (changes during live matches)
 - TournamentHub UI has 4 tabs: Overview | Standings | Schedule | Heroes
   - **Overview** (ongoing): format badge + date range + round/team count at the top (always visible), then Live Now (running matches with pulsing dot). Stage switcher and Up Next / Standings snapshot are intentionally hidden on the Overview tab to reduce noise.
@@ -162,7 +159,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
   - **Heroes**: pick/ban frequency table for the tournament, sorted by contested (picks + bans). Shows picks, win%, bans, and P+B per hero. Fetched lazily on tab click via OpenDota API (see `api/tournament-heroes.js`). Shows top 25 heroes by default; a "Show all N heroes" button below the table expands to reveal all. Stage switcher is hidden on this tab (hero stats are tournament-wide, not stage-specific). Table uses `table-fixed` layout with truncated hero names and `overflow-x-auto` on the tab bar to avoid horizontal overflow clipping on mobile.
 - `FormatTooltip` uses `position: fixed` + `getBoundingClientRect()` to escape overflow:hidden parent containers
 - Multi-stage switcher appears when multiple stages of the same event are running simultaneously; hidden on Overview and Heroes tabs where stage context is irrelevant
-- Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. Labels always render even when all matches in a round are still TBD.
+- Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. If a name looks like a team matchup (contains " vs " with no round keywords), the label is cleared to prevent PandaScore match names like "Tundra vs RNX" from appearing as section headers. `BracketFlatView` only renders the round header `<p>` when `label` is truthy.
 - **Completed fallback (Mar 2026)**: `api/tournaments.js` default mode now fetches `/tournaments/past` and returns up to 3 recently completed tier-1 tournaments as `completed[]`. TournamentHub uses priority: running > upcoming > recently completed. When showing a completed event, the label reads "Recently Completed" with a gray border accent. This ensures the hub is never empty during breaks between events. Cache key bumped to `dota2:tournament_list_v4`.
 - **Nav links (Mar 2026)**: "Tournaments" link added to SiteHeader top nav. "View all tournaments" footer link added inside TournamentHub card. Both link to `/tournaments`.
 
@@ -305,7 +302,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
-- Tournament bracket parsing relies on PandaScore naming format "Round N: ..." - may break if format changes
+- Tournament bracket parsing relies on PandaScore naming conventions ("Round N", "Upper Bracket Semifinal", etc.) for proper round labels. If PandaScore changes naming, rounds fall back to generic "Round N" numbering. Match-named rounds (e.g. "Tundra vs RNX") are detected and shown with no section header.
 - PandaScore plan limitation: `GET /dota2/series/{id}` and `GET /dota2/series/{id}/matches` return 404/validation errors on the current plan tier. Use `filter[id]` on `/dota2/series/running|upcoming|past` and `filter[serie_id]` on `/dota2/matches/running|upcoming|past` instead (pattern used in `tournament-detail.js` and `calendar-tournament` mode)
 
 ---
