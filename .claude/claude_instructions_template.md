@@ -40,13 +40,15 @@ This applies to: className edits, new components, loading/empty/error states, an
 
 ### 4. robots.txt and Sitemap
 - File: `public/robots.txt`
-  - Add an explicit `Allow:` line for every new public route (e.g. `/tournaments`, `/tournament/`)
+  - Add an explicit `Allow:` line for every new **public** route (e.g. `/tournaments`, `/tournament/`)
   - Never disallow routes that users or search engines should be able to reach
+  - **NEVER add `/analytics` to the Allow list** — it is a private, password-protected internal tool and must stay `Disallow: /analytics`
 - File: `api/sitemap.js`
-  - Add a `<url>` entry for every new static page route (e.g. `/tournaments`)
+  - Add a `<url>` entry for every new static **public** page route (e.g. `/tournaments`)
   - Use `<priority>0.8</priority>` and `<changefreq>daily</changefreq>` for high-value pages
   - Use `<priority>0.5</priority>` and `<changefreq>weekly</changefreq>` for lower-traffic pages
   - Dynamic per-item pages (e.g. `/tournament/:id`) do not need sitemap entries unless there is a finite, known list to enumerate
+  - **NEVER add `/analytics` to the sitemap** — it is private and must not be indexed by search engines
 
 ### 5. Analytics Tracking
 - Add Google Analytics event tracking for ALL new user interactions

@@ -15,7 +15,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - **Data**: OpenDota API (match data), Twitch API (VOD links), PandaScore API (live/upcoming/tournament data)
 - **Cache**: Upstash Redis (KV) for live/upcoming/tournament caching
 - **AI**: Anthropic Claude Haiku via `/api/summarize.js`
-- **Analytics**: Vercel Analytics with custom events + Google Analytics (GA4)
+- **Analytics**: Vercel Analytics with custom events + Google Analytics (GA4) + BigQuery export
+- **Analytics AI**: Claude Sonnet via `/api/analytics-chat.js` with BigQuery tool use for live GA4 data queries
 
 ---
 
@@ -44,6 +45,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher
 - `src/components/XPostsModal.jsx` - Modal for displaying AI-generated X/Twitter posts per game in a series, plus series summary and downloadable result image
 - `src/components/WatchBadge.jsx` - Watchability badge component
+- `src/pages/AnalyticsPage.jsx` - **Private** analytics chat page at `/analytics`; password-gated; NOT indexed by Google; NOT in sitemap; checks `ANALYTICS_PASSWORD` via `/api/analytics-auth`
+- `src/components/AnalyticsChat.jsx` - Chat UI for the analytics page; passes password in each request; supports suggested questions and conversation history
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
 - `src/pages/ReleaseNotesPage.jsx` - React Release Notes page (served at `/release-notes`)
 - `src/pages/Calendar.jsx` - Calendar feed builder at `/calendar`; team selector with slug autocomplete, generated URL, match preview, tournament feed list with Add to Calendar buttons; fires `calendar_page_view`, `calendar_team_select`, `calendar_team_remove`, `calendar_subscribe_modal_open` GA4 events
@@ -64,6 +67,9 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/draft-posts.js` - Generates per-game X/Twitter posts using Claude Haiku; varied tone per game (opener/momentum/decider); posts kept under 220 chars to fit a VOD URL
 - `api/og-series.js` - Renders a 1200x630 series result image (winner, score, tournament, format) using satori + resvg; used in X posts modal as a downloadable PNG
 - `api/match-streams.js` - KV lookup endpoint that returns the stored stream channel for a batch of OpenDota match IDs; used to resolve exact VOD channel before Twitch search
+- `api/analytics-auth.js` - Password check endpoint for `/analytics` page; POST `{ password }` -> 200 or 401; checks `ANALYTICS_PASSWORD` env var
+- `api/analytics-chat.js` - Claude Sonnet with `query_analytics` tool use; queries GA4 BigQuery data live; agentic loop (up to 5 tool calls per message); requires password in request body
+- `api/analytics.js` - Direct BigQuery query endpoint (pageviews/top_pages/top_events/countries/custom); used independently of Claude
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs
@@ -71,7 +77,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
 
 ### Config
-- `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`
+- `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/analytics` -> `/`
 - `middleware.js` - Edge middleware: intercepts `/match/*` requests, injects per-match OG meta tags server-side
 
 ---
@@ -83,6 +89,9 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `PANDASCORE_TOKEN` - PandaScore API token for live/upcoming/tournament data
 - `KV_REST_API_URL` - Upstash Redis REST URL
 - `KV_REST_API_TOKEN` - Upstash Redis REST token
+- `GOOGLE_CREDENTIALS` - Service account JSON (minified, single line) for BigQuery access (project: spectate-esports)
+- `GA4_BIGQUERY_DATASET` - BigQuery dataset name for GA4 export (e.g. `analytics_526697998`)
+- `ANALYTICS_PASSWORD` - Password to access the private `/analytics` chat page
 
 ---
 
