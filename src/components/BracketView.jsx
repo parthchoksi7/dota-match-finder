@@ -213,9 +213,11 @@ export function BracketFlatView({ bracket }) {
     <div className="flex flex-col divide-y divide-gray-100 dark:divide-gray-900">
       {rounds.map(({ round, label, matches }) => (
         <div key={round} className="py-3 px-4 sm:px-5">
-          <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
-            {label || `Round ${round}`}
-          </p>
+          {label && (
+            <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 font-semibold mb-2">
+              {label}
+            </p>
+          )}
           <div className="flex flex-col gap-1.5">
             {matches.map((m, i) => {
               const isLive = m.status === 'running'

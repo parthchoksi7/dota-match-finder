@@ -61,6 +61,10 @@ function parseBracketPosition(name) {
     label = 'Final'
   } else if (numMatch) {
     label = `Round ${numMatch[1]}`
+  } else if (lower.includes(' vs ')) {
+    // PandaScore sometimes names bracket rounds after the first match (e.g. "Tundra vs RNX").
+    // These are not meaningful round labels, so clear them to avoid showing team names as headers.
+    label = ''
   }
   return { section, round, label, matchPosition }
 }

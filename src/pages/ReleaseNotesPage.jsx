@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 19, 2026",
+    tag: "fix",
+    title: "Group stage schedule no longer shows team matchup names as headers",
+    desc: "In the Schedule tab for group stages, round section headers were showing team names like 'Tundra vs RNX' instead of a meaningful label. PandaScore names some bracket rounds after the first scheduled match. These are now detected and suppressed.",
+  },
+  {
+    date: "Mar 19, 2026",
     tag: "improvement",
     title: "All Tournaments calendar feed",
     desc: "One URL now covers every active and upcoming Dota 2 tournament. Subscribe once and new matches - including playoffs added after group stages - appear on your calendar automatically.",
