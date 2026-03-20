@@ -361,7 +361,7 @@ function App() {
       const seriesLink = window.location.origin + "/match/" + getMatchSlug(series.games[0]) +
         "?utm_source=twitter&utm_medium=social&utm_campaign=series-recap"
 
-      const seriesImageUrl = "/api/og-series?" + new URLSearchParams({
+      const seriesImageUrl = "/api/og?mode=series&" + new URLSearchParams({
         team1: radiantTeam,
         team2: direTeam,
         winner: seriesWinner,

@@ -14,7 +14,7 @@ export default function AnalyticsPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/analytics-auth', {
+      const res = await fetch('/api/analytics-chat?mode=auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: input }),
