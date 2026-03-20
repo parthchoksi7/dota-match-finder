@@ -148,11 +148,14 @@ function mapSeriesPlayer(p) {
 }
 
 function mapSeriesTeam(t, qualified) {
+  const name = t.team?.name || t.name || 'Unknown'
+  const location = t.team?.location || t.location || null
+  console.log(`[team-location] ${name}: ${location}`)
   return {
     id: t.team?.id || t.id,
-    name: t.team?.name || t.name || 'Unknown',
+    name,
     acronym: t.team?.acronym || t.acronym || null,
-    location: t.team?.location || t.location || null,
+    location,
     imageUrl: t.team?.image_url || t.image_url || null,
     qualified,
     players: (t.players || []).map(mapSeriesPlayer),
@@ -261,7 +264,13 @@ async function handleSeriesDetail(req, res, token) {
     const isQualifier = stageName.includes('qualifier') || stageName.includes('qual')
     for (const roster of (stage.rosters || [])) {
       const teamId = roster.team?.id || roster.id
-      if (!teamId || teamMap.has(teamId)) continue
+      if (!teamId) continue
+      if (teamMap.has(teamId)) {
+        // Qualifier status wins: if we see a team in a qualifier stage, upgrade
+        // their label even if they were already seen in the main event roster.
+        if (isQualifier) teamMap.get(teamId).qualified = 'qualified'
+        continue
+      }
       teamMap.set(teamId, mapSeriesTeam(roster, isQualifier ? 'qualified' : 'invited'))
     }
   }

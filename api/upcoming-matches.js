@@ -37,7 +37,13 @@ function getTwitchStreams(leagueName, serieName) {
     { label: 'PGL', url: 'https://twitch.tv/pgl_dota2' },
     { label: 'PGL (EN2)', url: 'https://twitch.tv/pgl_dota2en2' },
   ]
-  if (lower.includes('esl one') || lower.includes('dreamleague')) return [
+  if (lower.includes('esl one')) return [
+    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
+    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
+    { label: 'ESL Storm', url: 'https://twitch.tv/esl_dota2storm' },
+    { label: 'ESL Earth', url: 'https://twitch.tv/esl_dota2earth' },
+  ]
+  if (lower.includes('dreamleague')) return [
     { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
     { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
   ]
