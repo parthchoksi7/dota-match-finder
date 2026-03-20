@@ -76,24 +76,21 @@ function inferFormat(tournament, roundCounts) {
   const name = (tournament.name || '').toLowerCase()
   const hasBracket = tournament.has_bracket
 
+  // Group stages are never elimination brackets, even if PandaScore sets has_bracket: true
+  if (name.includes('group')) {
+    const numRounds = Object.keys(roundCounts).length
+    const numTeams = tournament.teams?.length || 0
+    if (numTeams > 0 && numRounds < numTeams - 1) return 'Swiss'
+    if (numRounds > 0) return 'Swiss'
+    return 'Group Stage'
+  }
+
   if (hasBracket) {
     // Elimination bracket — Dota 2 tier-1 events use double elimination for playoffs
     if (name.includes('playoff') || name.includes('main event') || name.includes('upper') || name.includes('lower')) {
       return 'Double Elimination'
     }
     return 'Bracket'
-  }
-
-  // No bracket flag — group/swiss stage
-  if (name.includes('group')) {
-    // Swiss: each team plays the same number of rounds, not everyone meets everyone.
-    // Round-robin: every team plays every other team.
-    // Dota 2 tier-1 events have used Swiss since ~2022. Heuristic: if rounds < teams, likely Swiss.
-    const numRounds = Object.keys(roundCounts).length
-    const numTeams = tournament.teams?.length || 0
-    if (numTeams > 0 && numRounds < numTeams - 1) return 'Swiss'
-    if (numRounds > 0) return 'Swiss' // default for group stages in Dota 2
-    return 'Group Stage'
   }
 
   return null // unknown
