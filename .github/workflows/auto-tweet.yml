@@ -20,7 +20,8 @@ jobs:
       - name: Trigger auto-tweet
         if: steps.check.outputs.count != '0'
         run: |
-          curl -s -X POST https://spectateesports.live/api/auto-tweet \
+          curl -s -X POST https://spectateesports.live/api/draft-posts \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
+            -d '{"type":"cron"}' \
             --fail-with-body
