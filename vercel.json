@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/auto-tweet",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/match/:matchId", "destination": "/" },
