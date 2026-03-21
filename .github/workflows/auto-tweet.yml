@@ -1,0 +1,26 @@
+name: Auto Tweet
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # every 30 minutes
+  workflow_dispatch:          # allow manual trigger from Actions UI
+
+jobs:
+  tweet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for matches today
+        id: check
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          COUNT=$(curl -sf https://spectateesports.live/api/upcoming-matches \
+            | jq --arg d "$TODAY" '[.matches[] | select(.scheduledAt // "" | startswith($d))] | length')
+          echo "count=${COUNT:-0}" >> $GITHUB_OUTPUT
+
+      - name: Trigger auto-tweet
+        if: steps.check.outputs.count != '0'
+        run: |
+          curl -s -X POST https://spectateesports.live/api/auto-tweet \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body

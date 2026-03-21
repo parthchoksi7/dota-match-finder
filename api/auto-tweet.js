@@ -32,12 +32,34 @@ function buildOAuthHeader(method, url) {
   return 'OAuth ' + Object.keys(cred).sort().map(k => `${pct(k)}="${pct(cred[k])}"`).join(', ')
 }
 
-async function postTweet(text) {
+async function uploadMedia(pngBuffer) {
+  const url = 'https://upload.twitter.com/1.1/media/upload.json'
+  const boundary = `TwitterBoundary${Date.now()}`
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="media"\r\n\r\n`),
+    pngBuffer,
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ])
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      Authorization: buildOAuthHeader('POST', url),
+    },
+    body,
+  })
+  const data = await res.json()
+  return data.media_id_string || null
+}
+
+async function postTweet(text, mediaId = null) {
   const url = 'https://api.twitter.com/2/tweets'
+  const payload = { text }
+  if (mediaId) payload.media = { media_ids: [mediaId] }
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: buildOAuthHeader('POST', url) },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(payload),
   })
   return res.json()
 }
@@ -228,17 +250,32 @@ export default async function handler(req, res) {
 
     const { winner, score } = seriesResult(games)
     const link = seriesUrl(games[0])
-    const text = await makeSeriesTweet(
-      games[0].radiant_name || 'Radiant', games[0].dire_name || 'Dire',
-      winner, score, seriesLabel, games[0].league_name, link
-    )
+    const team1 = games[0].radiant_name || 'Radiant'
+    const team2 = games[0].dire_name || 'Dire'
+    const text = await makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link)
     if (!text) continue
 
-    const twRes = await postTweet(text)
+    // Fetch the score card image and upload it to Twitter
+    let mediaId = null
+    try {
+      const ogParams = new URLSearchParams({
+        mode: 'series', team1, team2, winner, score,
+        tournament: games[0].league_name || '',
+        seriesType: String(seriesType),
+      })
+      const imgRes = await fetch(`https://spectateesports.live/api/og?${ogParams}`)
+      if (imgRes.ok) {
+        mediaId = await uploadMedia(Buffer.from(await imgRes.arrayBuffer()))
+      }
+    } catch (e) {
+      console.error('OG image upload failed:', e.message) // degrade gracefully, tweet without image
+    }
+
+    const twRes = await postTweet(text, mediaId)
     if (twRes.data?.id) {
       await kv.set(sk, 1, { ex: 2592000 })
       count++
-      results.push({ type: 'series', key: seriesKey, tweetId: twRes.data.id })
+      results.push({ type: 'series', key: seriesKey, tweetId: twRes.data.id, hasImage: !!mediaId })
     } else {
       console.error('Series tweet failed:', seriesKey, JSON.stringify(twRes))
     }
