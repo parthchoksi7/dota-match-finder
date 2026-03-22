@@ -147,8 +147,12 @@ export function seriesComplete(games, seriesType) {
 export function seriesResult(games) {
   const wins = {}
   for (const g of games) {
-    const w = g.radiant_win ? (g.radiant_name || 'Radiant') : (g.dire_name || 'Dire')
-    wins[w] = (wins[w] || 0) + 1
+    const radiant = g.radiant_name || 'Radiant'
+    const dire = g.dire_name || 'Dire'
+    if (!wins[radiant]) wins[radiant] = 0
+    if (!wins[dire]) wins[dire] = 0
+    const w = g.radiant_win ? radiant : dire
+    wins[w] += 1
   }
   const sorted = Object.entries(wins).sort((a, b) => b[1] - a[1])
   return { winner: sorted[0][0], score: sorted.map(([, v]) => v).join('-') }
