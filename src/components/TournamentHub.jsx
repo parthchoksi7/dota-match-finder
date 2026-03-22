@@ -220,8 +220,6 @@ function TournamentHub({ spoilerFree }) {
   const [activeTab, setActiveTab] = useState('Overview')
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [activeTournamentIdx, setActiveTournamentIdx] = useState(0)
-
   // Stage switching: each stage in the same event has its own detail
   const [stageCache, setStageCache] = useState({})   // { [stageId]: detail }
   const [activeStageId, setActiveStageId] = useState(null)
@@ -238,7 +236,7 @@ function TournamentHub({ spoilerFree }) {
   const ongoing = data?.ongoing || []
   const upcoming = data?.upcoming || []
   const completed = data?.completed || []
-  const tournament = ongoing[activeTournamentIdx] || ongoing[0] || upcoming[0] || completed[0] || null
+  const tournament = ongoing[0] || upcoming[0] || completed[0] || null
   const isOngoing = ongoing.length > 0
   const isCompleted = !isOngoing && upcoming.length === 0 && !!tournament
 
@@ -297,16 +295,6 @@ function TournamentHub({ spoilerFree }) {
       .finally(() => setHeroStatsLoading(false))
   }, [activeTab, tournament?.id])
 
-  // Reset everything when switching between concurrent tournaments
-  function switchTournament(idx) {
-    setActiveTournamentIdx(idx)
-    setActiveTab('Overview')
-    setDetail(null)
-    setStageCache({})
-    setActiveStageId(null)
-    setHeroStats(null)
-    setShowAllHeroes(false)
-  }
 
   // The detail used for Standings + Schedule (active stage, falling back to main)
   const effectiveDetail = (activeStageId && stageCache[activeStageId]) || detail
@@ -372,26 +360,6 @@ function TournamentHub({ spoilerFree }) {
       className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
       aria-labelledby="tournament-hub-heading"
       >
-
-      {/* Tournament switcher (if multiple ongoing stages) */}
-      {ongoing.length > 1 && (
-        <div className="flex gap-0 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
-          {ongoing.map((t, i) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => switchTournament(i)}
-              className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors flex-shrink-0 ${
-                activeTournamentIdx === i
-                  ? 'border-b-2 border-red-500 text-gray-900 dark:text-white'
-                  : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white border-b-2 border-transparent'
-              }`}
-            >
-              {t.name.replace(/.*—\s*/, '') || cleanTournamentName(t.name)}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Tournament name */}
       <div className="px-4 sm:px-5 pt-4 pb-3">
