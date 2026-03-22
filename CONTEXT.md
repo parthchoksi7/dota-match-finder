@@ -52,7 +52,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/pages/Calendar.jsx` - Calendar feed builder at `/calendar`; team selector with slug autocomplete, generated URL, match preview, tournament feed list with Add to Calendar buttons; fires `calendar_page_view`, `calendar_team_select`, `calendar_team_remove`, `calendar_subscribe_modal_open` GA4 events
 - `src/components/CalendarSubscribeModal.jsx` - Modal with subscription URL + Copy button + per-platform instructions accordion (Google, Apple, Outlook); fires `calendar_url_copy` GA4 event
 - `src/utils/icsGenerator.js` - Client-side ICS utility: `generateCalendar()`, `generateMatchEvent()`, `generateTournamentEvent()`, `formatDateUTC()`, `formatDateOnly()`
-- `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`); both treat a BO2 draw (seriesType 1, 2 games played, score 1-1) as complete — OpenDota reports BO2s as seriesType 1 (same as BO3), so without this check, 1-1 draws are never marked complete and get filtered out of results
+- `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`); OpenDota `series_type` values: 0=BO1, 1=BO3, 2=BO5, **3=BO2** (undocumented); BO2 draws (1-1 after 2 games) are explicitly marked complete; `getSeriesLabel` maps seriesType 3 → "BO2"
 
 ### Backend (Vercel Serverless)
 - `api/series-list.js` - Fetches Dota 2 series (live, upcoming, past) from PandaScore; filters to Tier 1; cached 1h in KV under `tournaments:dota2:series_list_v1`. Returns `{ live, upcoming, completed }` arrays for the /tournaments page and TournamentBar.
@@ -98,7 +98,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Fetches pro matches from OpenDota `/promatches` endpoint
 - Filters to Tier 1 tournaments only using keyword list in `api.js`
 - Paginates by fetching until 20 Tier 1 matches found per page
-- Groups individual games into series (BO1/BO2/BO3/BO5) — BO2s are detected when seriesType 1 ends 1-1 after 2 games
+- Groups individual games into series (BO1/BO2/BO3/BO5) — OpenDota series_type 3 = BO2 (undocumented); BO2 draws (1-1) are also explicitly marked complete
 - Search filters `allMatches` live so load more updates results automatically
 
 ### SEO Match URLs & Sitemap
