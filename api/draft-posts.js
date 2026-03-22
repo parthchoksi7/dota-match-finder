@@ -103,7 +103,7 @@ async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, dura
   const seriesContext = seriesLabel === 'BO1'
     ? 'This is a single game (BO1) — there is no series narrative.'
     : seriesLabel === 'BO2'
-    ? 'This is a BO2 — maximum 2 games, result will be 2-0 or 1-1 draw. There is NO decider game possible. Do not reference a "decider" or "Game 3".'
+    ? 'This is a BO2 — exactly 2 games, no more. The series ends either 2-0 (sweep) or 1-1 (draw — both teams split). NEVER say: "decider", "Game 3", "series trophy", "clinch the series", "forces a decider", "decide it all", or anything implying one team must win overall. A 1-1 draw is a valid final result. For Game 1: frame it as one team going ahead, with a sweep or a draw both still possible in Game 2.'
     : seriesLabel === 'BO3'
     ? 'This is a BO3 — first to 2 wins. A decider Game 3 is only possible if it\'s 1-1.'
     : 'This is a BO5 — first to 3 wins.'
