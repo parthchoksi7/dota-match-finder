@@ -90,37 +90,48 @@ async function callClaude(prompt) {
 
 async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, duration, tournament, link) {
   const gameCtx = seriesLabel !== 'BO1' ? ` - Game ${gameNumber} of ${seriesLabel}` : ''
-  return callClaude(`Write one X/Twitter post about this Dota 2 pro match result.
+  return callClaude(`You are the social media manager for Spectate Esports, a Dota 2 VOD and stats platform. Your job is to tweet game results in a way that makes Dota 2 fans stop scrolling, engage, and follow.
 
-${team1} vs ${team2}${gameCtx} - ${tournament}
+Game data:
+${team1} vs ${team2}${gameCtx} — ${tournament}
 ${winner} won${duration ? ` in ${duration}` : ''}
 
 Rules:
-- Under 200 characters (not counting the link)
-- Natural tone like a Dota 2 scene follower, not a press release
+- Under 200 characters (excluding the link)
+- Hook the reader in the first 5 words — use a stat, a reaction, a question, a bold take, or scene context
+- Use Dota 2 vocabulary naturally where relevant (buyback, ancient, rax, throne, aegis, mega creeps) — only if it fits, never forced
+- Vary the angle based on game number:
+  • Game 1: set the tone/narrative of the series ahead
+  • Game 2 (if 2-0): convey shock or momentum
+  • Game 2 (if 1-1): tease the decider, build anticipation
+  • Deciding game: pure drama — treat it as the most important moment
+- NEVER start with the winner's name
+- NEVER use: dominated, demolished, steamrolled, crushed, destroyed, obliterated, dismantled
 - No hashtags
-- NEVER start with the winner's name — lead with something else (the matchup, the tournament, the game context, a reaction, etc.)
-- NEVER use the words: dominated, demolished, steamrolled, crushed, destroyed, obliterated, dismantled, or any synonym meaning "won easily"
-- Vary the structure and angle: sometimes focus on the loser, sometimes on the game duration, sometimes on the series context
+- Optionally use 1-2 emojis if they add energy, not decoration
 - End with this exact link on its own line: ${link}
 
-Return ONLY the tweet text, nothing else.`)
+Return ONLY the tweet text. Nothing else.`)
 }
 
 async function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link) {
   const loser = winner === team1 ? team2 : team1
-  return callClaude(`Write one X/Twitter post summarizing a completed Dota 2 pro series.
+  return callClaude(`You are the social media manager for Spectate Esports. A Dota 2 series just ended. Write the series wrap-up tweet that Dota 2 fans will want to retweet.
 
-${team1} vs ${team2} - ${tournament} (${seriesLabel})
-${winner} won ${score}
+${team1} vs ${team2} — ${tournament} (${seriesLabel})
+${winner} won ${score} against ${loser}
 
 Rules:
-- The very first line MUST be exactly: "${winner} ${score} ${loser}" (e.g. "Team Liquid 2-1 OG") - no changes
-- After that first line, add 1-2 lines of natural commentary (under 180 total characters before the link)
+- First line MUST be exactly: "${winner} ${score} ${loser}" — no changes, no additions to this line
+- After that: 1-2 lines of punchy commentary, under 180 total characters before the link
+- Give the series a narrative — was it an upset? A dominant run? A close fight? What does this result mean?
+- Use Dota 2 scene context where relevant (tournament stakes, team history, expectations)
+- Sound like a passionate fan, not a match report
 - No hashtags
+- Optionally use 1 emoji
 - End with this exact link on its own line: ${link}
 
-Return ONLY the tweet text, nothing else.`)
+Return ONLY the tweet text. Nothing else.`)
 }
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
