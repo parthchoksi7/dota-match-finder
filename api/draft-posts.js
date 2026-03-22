@@ -99,6 +99,9 @@ Rules:
 - Under 200 characters (not counting the link)
 - Natural tone like a Dota 2 scene follower, not a press release
 - No hashtags
+- NEVER start with the winner's name — lead with something else (the matchup, the tournament, the game context, a reaction, etc.)
+- NEVER use the words: dominated, demolished, steamrolled, crushed, destroyed, obliterated, dismantled, or any synonym meaning "won easily"
+- Vary the structure and angle: sometimes focus on the loser, sometimes on the game duration, sometimes on the series context
 - End with this exact link on its own line: ${link}
 
 Return ONLY the tweet text, nothing else.`)
