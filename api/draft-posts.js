@@ -88,7 +88,7 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text?.trim() || null
 }
 
-async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, duration, tournament, link) {
+async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, duration, tournament, link, seriesScoreAfter) {
   const gameCtx = seriesLabel !== 'BO1' ? ` - Game ${gameNumber} of ${seriesLabel}` : ''
   const openingAngles = [
     "Lead with the series implications — what does this result mean for the overall series?",
@@ -114,6 +114,7 @@ Game data:
 ${team1} vs ${team2}${gameCtx} — ${tournament}
 ${winner} won${duration ? ` in ${duration}` : ''}
 Series format: ${seriesLabel} — ${seriesContext}
+Series score after this game: ${winner} ${seriesScoreAfter?.split('-')[0]} – ${winner === team1 ? team2 : team1} ${seriesScoreAfter?.split('-')[1]}
 
 Your opening angle for this tweet: ${angle}
 
@@ -315,7 +316,15 @@ async function runAutoTweet(req, res) {
   for (const s of seriesList) {
     if (count >= MAX_PER_RUN) break
     const { key: seriesKey, type: seriesType, games } = s
-    const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : 'BO3'
+    // Detect BO2: seriesType 1 where the series ends 1-1 (both teams win exactly 1 game)
+    const finalWins = {}
+    for (const g of games) {
+      const w = g.radiant_win ? (g.radiant_name || 'Radiant') : (g.dire_name || 'Dire')
+      finalWins[w] = (finalWins[w] || 0) + 1
+    }
+    const finalMax = Math.max(0, ...Object.values(finalWins))
+    const isBO2Draw = seriesType === 1 && games.length >= 2 && finalMax === 1 && Object.keys(finalWins).length === 2
+    const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : isBO2Draw ? 'BO2' : 'BO3'
 
     // Per-game tweets, chained as a thread
     for (let i = 0; i < games.length; i++) {
@@ -325,10 +334,23 @@ async function runAutoTweet(req, res) {
       if (kvMap[gk] != null) continue
 
       const winner = g.radiant_win ? (g.radiant_name || 'Radiant') : (g.dire_name || 'Dire')
+      const loser = g.radiant_win ? (g.dire_name || 'Dire') : (g.radiant_name || 'Radiant')
       const durMins = g.duration ? Math.round(g.duration / 60) : null
       const dur = durMins ? `${durMins} minutes` : null
       const link = gameUrl(g, i + 1)
-      const text = await makeGameTweet(i + 1, seriesLabel, g.radiant_name || 'Radiant', g.dire_name || 'Dire', winner, dur, g.league_name, link)
+
+      // Calculate running series score after this game
+      const runningWins = {}
+      for (const gg of games.slice(0, i + 1)) {
+        const w = gg.radiant_win ? (gg.radiant_name || 'Radiant') : (gg.dire_name || 'Dire')
+        const l = gg.radiant_win ? (gg.dire_name || 'Dire') : (gg.radiant_name || 'Radiant')
+        if (!runningWins[w]) runningWins[w] = 0
+        if (!runningWins[l]) runningWins[l] = 0
+        runningWins[w] += 1
+      }
+      const seriesScoreAfter = `${runningWins[winner]}-${runningWins[loser]}`
+
+      const text = await makeGameTweet(i + 1, seriesLabel, g.radiant_name || 'Radiant', g.dire_name || 'Dire', winner, dur, g.league_name, link, seriesScoreAfter)
       if (!text) continue
 
       // Game 1 is the thread root; subsequent games reply to the previous

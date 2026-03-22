@@ -107,7 +107,10 @@ export function groupIntoSeries(matches) {
       teamWins[winner] = (teamWins[winner] || 0) + 1
     }
     const maxWins = Math.max(...Object.values(teamWins))
-    return maxWins >= winsRequired(s)
+    if (maxWins >= winsRequired(s)) return true
+    // BO2 draw: seriesType 1, both teams have 1 win after 2 games
+    if (s.seriesType === 1 && s.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
+    return false
   }
 
   const reversed = [...series].reverse()
@@ -155,7 +158,7 @@ export function setFollowedTeams(teams) {
   } catch {}
 }
 
-/** True if the series has a winner (max wins >= required). */
+/** True if the series has a winner or ended in a BO2 draw. */
 export function isSeriesComplete(series) {
   if (!series || !series.games || !series.games.length) return false
   const teamWins = {}
@@ -164,5 +167,8 @@ export function isSeriesComplete(series) {
     teamWins[winner] = (teamWins[winner] || 0) + 1
   }
   const maxWins = Math.max(...Object.values(teamWins))
-  return maxWins >= winsRequiredForSeries(series.seriesType)
+  if (maxWins >= winsRequiredForSeries(series.seriesType)) return true
+  // BO2 draw: seriesType 1, both teams have 1 win after 2 games
+  if (series.seriesType === 1 && series.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
+  return false
 }
