@@ -28,7 +28,10 @@ function SearchBar(
   function handleSubmit(e) {
     e.preventDefault()
     const q = query.trim()
-    if (q) onSearch(q)
+    if (q) {
+      logEvent("search", { query: q })
+      onSearch(q)
+    }
   }
 
   function handleClear() {
