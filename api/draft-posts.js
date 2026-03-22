@@ -213,6 +213,7 @@ export const isTier1 = name => !!name && TIER1_KW.some(k => name.toLowerCase().i
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1
   if (seriesType === 2) return 3
+  if (seriesType === 3) return 2 // BO2
   return 2
 }
 
@@ -323,8 +324,8 @@ async function runAutoTweet(req, res) {
       finalWins[w] = (finalWins[w] || 0) + 1
     }
     const finalMax = Math.max(0, ...Object.values(finalWins))
-    const isBO2Draw = seriesType === 1 && games.length >= 2 && finalMax === 1 && Object.keys(finalWins).length === 2
-    const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : isBO2Draw ? 'BO2' : 'BO3'
+    const isBO2Draw = (seriesType === 3 || seriesType === 1) && games.length >= 2 && finalMax === 1 && Object.keys(finalWins).length === 2
+    const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : seriesType === 3 ? 'BO2' : isBO2Draw ? 'BO2' : 'BO3'
 
     // Per-game tweets, chained as a thread
     for (let i = 0; i < games.length; i++) {

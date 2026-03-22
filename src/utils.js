@@ -41,7 +41,7 @@ export function formatDuration(isoTimeStr) {
   return "0m"
 }
 
-const SERIES_LABELS = { 0: "BO1", 1: "BO3", 2: "BO5" }
+const SERIES_LABELS = { 0: "BO1", 1: "BO3", 2: "BO5", 3: "BO2" }
 export function getSeriesLabel(seriesType) {
   return SERIES_LABELS[seriesType] ?? ""
 }
@@ -97,6 +97,7 @@ export function groupIntoSeries(matches) {
   function winsRequired(s) {
     if (s.seriesType === 0) return 1
     if (s.seriesType === 2) return 3
+    if (s.seriesType === 3) return 2 // BO2: win 2 games to sweep, or draw 1-1
     return 2
   }
 
@@ -108,8 +109,9 @@ export function groupIntoSeries(matches) {
     }
     const maxWins = Math.max(...Object.values(teamWins))
     if (maxWins >= winsRequired(s)) return true
-    // BO2 draw: seriesType 1, both teams have 1 win after 2 games
-    if (s.seriesType === 1 && s.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
+    // BO2 draw: both teams have 1 win after 2 games (seriesType 3 = BO2, or seriesType 1 fallback)
+    const isBO2 = s.seriesType === 3 || s.seriesType === 1
+    if (isBO2 && s.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
     return false
   }
 
@@ -122,7 +124,7 @@ export function groupIntoSeries(matches) {
   return series
 }
 
-/** Wins required to win the series (BO1=1, BO3=2, BO5=3) */
+/** Wins required to win the series (BO1=1, BO2=2, BO3=2, BO5=3) */
 function winsRequiredForSeries(seriesType) {
   if (seriesType === 0) return 1
   if (seriesType === 2) return 3
@@ -168,7 +170,8 @@ export function isSeriesComplete(series) {
   }
   const maxWins = Math.max(...Object.values(teamWins))
   if (maxWins >= winsRequiredForSeries(series.seriesType)) return true
-  // BO2 draw: seriesType 1, both teams have 1 win after 2 games
-  if (series.seriesType === 1 && series.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
+  // BO2 draw: both teams have 1 win after 2 games (seriesType 3 = BO2, or seriesType 1 fallback)
+  const isBO2 = series.seriesType === 3 || series.seriesType === 1
+  if (isBO2 && series.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
   return false
 }
