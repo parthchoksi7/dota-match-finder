@@ -90,25 +90,32 @@ async function callClaude(prompt) {
 
 async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, duration, tournament, link) {
   const gameCtx = seriesLabel !== 'BO1' ? ` - Game ${gameNumber} of ${seriesLabel}` : ''
+  const openingAngles = [
+    "Lead with the series implications — what does this result mean for the overall series?",
+    "Lead with the loser — what went wrong or what they need to fix.",
+    "Lead with a bold one-line take or hot opinion about the game.",
+    "Lead with a question that fans will want to answer.",
+    "Lead with a Dota 2 in-game moment if it fits (e.g. a comeback, a throne race, an aegis fight) — only if natural.",
+    "Lead with the winner's team identity or reputation — not just their name.",
+  ]
+  const angle = openingAngles[(gameNumber - 1) % openingAngles.length]
+
   return callClaude(`You are the social media manager for Spectate Esports, a Dota 2 VOD and stats platform. Your job is to tweet game results in a way that makes Dota 2 fans stop scrolling, engage, and follow.
 
 Game data:
 ${team1} vs ${team2}${gameCtx} — ${tournament}
 ${winner} won${duration ? ` in ${duration}` : ''}
 
+Your opening angle for this tweet: ${angle}
+
 Rules:
 - Under 200 characters (excluding the link)
-- Hook the reader in the first 5 words — use a stat, a reaction, a question, a bold take, or scene context
-- Use Dota 2 vocabulary naturally where relevant (buyback, ancient, rax, throne, aegis, mega creeps) — only if it fits, never forced
-- Vary the angle based on game number:
-  • Game 1: set the tone/narrative of the series ahead
-  • Game 2 (if 2-0): convey shock or momentum
-  • Game 2 (if 1-1): tease the decider, build anticipation
-  • Deciding game: pure drama — treat it as the most important moment
+- NEVER open with a time or duration (e.g. "43 minutes to..." or "30 minutes later...") — duration can appear later in the tweet if relevant
 - NEVER start with the winner's name
 - NEVER use: dominated, demolished, steamrolled, crushed, destroyed, obliterated, dismantled
+- Use Dota 2 vocabulary only where natural (buyback, rax, throne, aegis, mega creeps)
 - No hashtags
-- Optionally use 1-2 emojis if they add energy, not decoration
+- Optionally use 1 emoji if it adds energy
 - End with this exact link on its own line: ${link}
 
 Return ONLY the tweet text. Nothing else.`)
