@@ -141,6 +141,56 @@ Rules:
 Return ONLY the tweet text. Nothing else.`)
 }
 
+// ── Cron / auto-tweet: X handle lookups ─────────────────────────────────────
+// Add/update handles here as needed. Keys are lowercase for case-insensitive matching.
+
+const TEAM_HANDLES = {
+  'tundra esports': '@TundraEsports',
+  'team liquid': '@TeamLiquid',
+  'og': '@OGesports',
+  'team secret': '@TeamSecret',
+  'gaimin gladiators': '@GaiminGladiators',
+  'team spirit': '@TeamSpiritGG',
+  'virtus.pro': '@virtuspro',
+  'natus vincere': '@natusvincere',
+  'navi': '@natusvincere',
+  'psg.lgd': '@LGDgaming',
+  'entity': '@EntityGG',
+  'tsm': '@TSM',
+  'mouz': '@mousesports',
+  'mousesports': '@mousesports',
+  'gamerlegion': '@GamerLegion',
+  'betboom team': '@BetBoomDota',
+  '9pandas': '@9Pandas',
+  'shopify rebellion': '@ShopifyRebellion',
+}
+
+const TOURNAMENT_HANDLES = {
+  'esl one': '@ESLDota2',
+  'esl challenger': '@ESLDota2',
+  'dreamleague': '@DreamLeagueDota',
+  'pgl': '@PGLDota2',
+  'weplay': '@WePlayEsports',
+  'the international': '@DOTA2',
+  'blast': '@BLASTEsports',
+  'beyond the summit': '@BeyondTheSummit',
+}
+
+function getHandle(name, map) {
+  if (!name) return null
+  const key = name.toLowerCase()
+  return Object.entries(map).find(([k]) => key.includes(k))?.[1] || null
+}
+
+function buildMentions(team1, team2, tournament) {
+  const handles = [
+    getHandle(team1, TEAM_HANDLES),
+    getHandle(team2, TEAM_HANDLES),
+    getHandle(tournament, TOURNAMENT_HANDLES),
+  ].filter(Boolean)
+  return handles.length ? '\n' + handles.join(' ') : ''
+}
+
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
 const TIER1_KW = [
@@ -296,8 +346,9 @@ async function runAutoTweet(req, res) {
     const team1 = games[0].radiant_name || 'Radiant'
     const team2 = games[0].dire_name || 'Dire'
     const link = seriesUrl(games[0]) // always links to the first match
-    const text = await makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link)
-    if (!text) continue
+    const baseText = await makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link)
+    if (!baseText) continue
+    const text = baseText + buildMentions(team1, team2, games[0].league_name)
 
     let mediaId = null
     try {
