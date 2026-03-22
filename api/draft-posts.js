@@ -245,7 +245,8 @@ async function runAutoTweet(req, res) {
       if (kvMap[gk] != null) continue
 
       const winner = g.radiant_win ? (g.radiant_name || 'Radiant') : (g.dire_name || 'Dire')
-      const dur = g.duration ? new Date(g.duration * 1000).toISOString().slice(11, 16) : null
+      const durMins = g.duration ? Math.round(g.duration / 60) : null
+      const dur = durMins ? `${durMins} minutes` : null
       const link = gameUrl(g, i + 1)
       const text = await makeGameTweet(i + 1, seriesLabel, g.radiant_name || 'Radiant', g.dire_name || 'Dire', winner, dur, g.league_name, link)
       if (!text) continue
