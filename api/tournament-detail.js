@@ -464,11 +464,16 @@ export default async function handler(req, res) {
           pastStagesRes.ok ? toArr(pastStagesRes) : [],
         ])
 
-        // Deduplicate by id, then sort by begin_at asc (nulls last), then name as tiebreaker
+        // Deduplicate by id first, then by name — prefer running > upcoming > past
+        // (PandaScore sometimes creates multiple stage IDs for the same named group)
         const seenIds = new Set()
+        const seenNames = new Set()
         const stages = [...runStages, ...upStages, ...pastStages].filter(s => {
           if (seenIds.has(s.id)) return false
           seenIds.add(s.id)
+          const name = (s.name || '').trim().toLowerCase()
+          if (name && seenNames.has(name)) return false
+          if (name) seenNames.add(name)
           return true
         })
 
