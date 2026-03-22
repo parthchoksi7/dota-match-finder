@@ -98,7 +98,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Fetches pro matches from OpenDota `/promatches` endpoint
 - Filters to Tier 1 tournaments only using keyword list in `api.js`
 - Paginates by fetching until 20 Tier 1 matches found per page
-- Groups individual games into series (BO1/BO3/BO5)
+- Groups individual games into series (BO1/BO2/BO3/BO5) — BO2s are detected when seriesType 1 ends 1-1 after 2 games
 - Search filters `allMatches` live so load more updates results automatically
 
 ### SEO Match URLs & Sitemap
@@ -220,10 +220,10 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### X Posts
 - "Draft X Posts" button appears on completed series cards (owner-only, gated by localStorage flag)
-- Calls `api/draft-posts.js` (Claude Haiku) to generate one post per game with varied tone: opener, momentum shift, decider
+- Calls `api/draft-posts.js` (Claude Haiku, `type: "x"`) to generate one post per game with rotating angle (series implications, loser focus, bold take, fan question, in-game moment, team identity)
 - Each post is kept under 220 chars so a VOD URL fits within X's 280-char limit; no hashtags
 - `XPostsModal` shows posts with individual copy buttons plus a series summary section at the top
-- Series summary includes an AI-generated recap post and a downloadable 1200x630 result image from `api/og-series.js`
+- Series summary includes an AI-generated recap post and a downloadable 1200x630 result image from `api/og.js?mode=series`
 - All VOD links include UTM tags (`utm_source=twitter, utm_medium=social, utm_campaign=game-recap, utm_content=game-N`)
 - Series link uses `utm_campaign=series-recap`
 
