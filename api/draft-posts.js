@@ -100,11 +100,20 @@ async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, dura
   ]
   const angle = openingAngles[(gameNumber - 1) % openingAngles.length]
 
+  const seriesContext = seriesLabel === 'BO1'
+    ? 'This is a single game (BO1) — there is no series narrative.'
+    : seriesLabel === 'BO2'
+    ? 'This is a BO2 — maximum 2 games, result will be 2-0 or 1-1 draw. There is NO decider game possible. Do not reference a "decider" or "Game 3".'
+    : seriesLabel === 'BO3'
+    ? 'This is a BO3 — first to 2 wins. A decider Game 3 is only possible if it\'s 1-1.'
+    : 'This is a BO5 — first to 3 wins.'
+
   return callClaude(`You are the social media manager for Spectate Esports, a Dota 2 VOD and stats platform. Your job is to tweet game results in a way that makes Dota 2 fans stop scrolling, engage, and follow.
 
 Game data:
 ${team1} vs ${team2}${gameCtx} — ${tournament}
 ${winner} won${duration ? ` in ${duration}` : ''}
+Series format: ${seriesLabel} — ${seriesContext}
 
 Your opening angle for this tweet: ${angle}
 
@@ -146,7 +155,7 @@ Return ONLY the tweet text. Nothing else.`)
 
 const TEAM_HANDLES = {
   'tundra esports': '@TundraEsports',
-  'team liquid': '@TeamLiquid',
+  'team liquid': '@TeamLiquidDota',
   'og': '@OGesports',
   'team secret': '@TeamSecret',
   'gaimin gladiators': '@GaiminGladiators',
