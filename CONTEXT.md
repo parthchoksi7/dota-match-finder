@@ -39,7 +39,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/MatchList.jsx` - Search results list grouped into series
 - `src/components/LatestMatches.jsx` - Homepage latest results with styled header and tournament change dividers
 - `src/components/UpcomingMatches.jsx` - Live Now + Upcoming Matches sections (separate bordered boxes, polls every 2 min)
-- `src/components/MatchCard.jsx` - Individual series card with expand/collapse
+- `src/components/MatchCard.jsx` - Individual series card with expand/collapse; each game row shows "Match Details" CTA (opens drawer with VOD, draft, AI summary); fires `game_click` + `card_vod_click` GA4 events on game row click; unplayed slots hidden in normal mode, shown as interactive placeholders in spoiler-free mode
 - `src/components/SearchBar.jsx` - Search input (no suggestions)
 - `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher
@@ -242,6 +242,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
   - Hides BO label (BO3/BO5) - format reveals series length
   - Hides game count in collapsed view ("X games") - replaced with "Click to expand"
   - Hides per-game winner in expanded list (shows "Hidden")
+  - Unplayed game slots (e.g. Game 3 in a 2-0 BO3) are shown as interactive placeholders in spoiler-free mode, and hidden entirely in normal mode
 - In match drawer (`MatchDrawer`): game label shows "Game 1" not "Game 1 of 3" - series length is a spoiler
 - In draft breakdown (`DraftDisplay`): hides KDA stats (kills/deaths/assists) for all players
 - Reddit VOD post drafts only include game 1 data so the AI does not reference "Game 3" in generated content

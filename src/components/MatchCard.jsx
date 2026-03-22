@@ -217,23 +217,8 @@ function MatchCard({
           className={`border-t ${isGrandFinal ? "border-amber-200 dark:border-amber-800/50" : "border-gray-200 dark:border-gray-800"}`}
         >
           {gameSlots.map((game, i) => {
-            // In non-spoiler mode, unplayed slots are a non-interactive row
-            if (!game && !spoilerFree) {
-              return (
-                <div
-                  key={`empty-${i}`}
-                  className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] border-b border-gray-200 dark:border-gray-800 last:border-b-0"
-                >
-                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider whitespace-nowrap w-14 shrink-0">
-                    Game {i + 1}
-                  </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-                    Not played
-                  </span>
-                  <span className="w-14" />
-                </div>
-              )
-            }
+            // In non-spoiler mode, unplayed slots are hidden
+            if (!game && !spoilerFree) return null
 
             // All slots in spoiler-free mode + played slots in normal mode are clickable buttons
             function handleSlotClick(e) {
@@ -242,6 +227,7 @@ function MatchCard({
                 trackEvent("game_click", { matchId: game.id, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
                 trackEvent("team_click", { team: game.radiantTeam, tournament: series.tournament })
                 trackEvent("team_click", { team: game.direTeam, tournament: series.tournament })
+                trackEvent("card_vod_click", { matchId: game.id, gameNumber: i + 1, radiantTeam: game.radiantTeam, direTeam: game.direTeam, tournament: series.tournament })
                 onSelectGame(game)
               } else {
                 // Unplayed slot clicked in spoiler-free mode
@@ -283,7 +269,7 @@ function MatchCard({
                 )}
 
                 <span className="text-xs text-gray-600 dark:text-gray-600 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors uppercase tracking-wider inline-flex items-center gap-1">
-                  <span aria-hidden>▶</span> Watch VOD
+                  <span aria-hidden>▶</span> Match Details
                 </span>
               </button>
             )
