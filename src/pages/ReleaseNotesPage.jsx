@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 22, 2026",
+    tag: "fix",
+    title: "Removed duplicate stage tabs in Tournament Hub",
+    desc: "The GROUP A / GROUP B tabs shown above the tournament card were redundant - the Standings and Schedule tabs already have a stage switcher at the bottom. The top tabs have been removed to reduce clutter.",
+  },
+  {
     date: "Mar 19, 2026",
     tag: "fix",
     title: "Group stage schedule no longer shows team matchup names as headers",
