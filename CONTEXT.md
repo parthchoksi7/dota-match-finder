@@ -52,7 +52,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/pages/Calendar.jsx` - Calendar feed builder at `/calendar`; team selector with slug autocomplete, generated URL, match preview, tournament feed list with Add to Calendar buttons; fires `calendar_page_view`, `calendar_team_select`, `calendar_team_remove`, `calendar_subscribe_modal_open` GA4 events
 - `src/components/CalendarSubscribeModal.jsx` - Modal with subscription URL + Copy button + per-platform instructions accordion (Google, Apple, Outlook); fires `calendar_url_copy` GA4 event
 - `src/utils/icsGenerator.js` - Client-side ICS utility: `generateCalendar()`, `generateMatchEvent()`, `generateTournamentEvent()`, `formatDateUTC()`, `formatDateOnly()`
-- `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`); OpenDota `series_type` values: 0=BO1, 1=BO3, 2=BO5, **3=BO2** (undocumented); BO2 draws (1-1 after 2 games) are explicitly marked complete; `getSeriesLabel` maps seriesType 3 → "BO2"
+- `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries` — all exported); OpenDota `series_type` values: 0=BO1, 1=BO3, 2=BO5, **3=BO2** (undocumented); BO2 draws (1-1 after 2 games) are explicitly marked complete; `getSeriesLabel` maps seriesType 3 → "BO2"; `trackEvent` (dual Vercel + GA4 tracking) — always import this from utils, never redefine locally in components
+- `src/components/CopyButton.jsx` - Shared copy-to-clipboard button with "Copied!" confirmation state; used by `XPostsModal` and `RedditPostsModal`
 
 ### Backend (Vercel Serverless)
 - `api/series-list.js` - Fetches Dota 2 series (live, upcoming, past) from PandaScore; filters to Tier 1; cached 1h in KV under `tournaments:dota2:series_list_v1`. Returns `{ live, upcoming, completed }` arrays for the /tournaments page and TournamentBar.
@@ -72,6 +73,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/og.js` - OG image/metadata generation for share card URLs. Also handles series result images via `?mode=series` (1200x630 PNG with winner, score, tournament, format using satori + resvg; used in X posts modal as downloadable PNG). Merged from `og.js` + `og-series.js` to stay within the 12-function Vercel limit.
 - `api/tournaments.js` - Multi-mode tournament endpoint. Default: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs. `?mode=calendar-team&teams=slug1,slug2`: .ics team calendar feed (resolves slugs, fetches running+upcoming+past 7d matches, caches 30min under `calendar:matches:{sorted_slugs}`). `?mode=calendar-tournament&series={id}`: .ics tournament feed (all-day VEVENT for series + match VEVENTs, caches 30min under `calendar:series:{id}`). Both calendar modes return `text/calendar` not JSON.
 - `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
+- `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `TIER1_KEYWORDS` (array) and `isTier1(...names)` (variadic — accepts 1 or 2 name strings). All API files that need tier 1 filtering import from here. When adding a new tournament to the tier 1 list, update only this file.
 
 ### Config
 - `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/analytics` -> `/`

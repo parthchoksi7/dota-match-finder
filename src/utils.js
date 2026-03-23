@@ -94,29 +94,8 @@ export function groupIntoSeries(matches) {
   series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)
 
-  function winsRequired(s) {
-    if (s.seriesType === 0) return 1
-    if (s.seriesType === 2) return 3
-    if (s.seriesType === 3) return 2 // BO2: win 2 games to sweep, or draw 1-1
-    return 2
-  }
-
-  function isComplete(s) {
-    const teamWins = {}
-    for (const g of s.games) {
-      const winner = g.radiantWin ? g.radiantTeam : g.direTeam
-      teamWins[winner] = (teamWins[winner] || 0) + 1
-    }
-    const maxWins = Math.max(...Object.values(teamWins))
-    if (maxWins >= winsRequired(s)) return true
-    // BO2 draw: both teams have 1 win after 2 games (seriesType 3 = BO2, or seriesType 1 fallback)
-    const isBO2 = s.seriesType === 3 || s.seriesType === 1
-    if (isBO2 && s.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
-    return false
-  }
-
   const reversed = [...series].reverse()
-  const oldestIncompleteIndex = reversed.findIndex((s) => !isComplete(s))
+  const oldestIncompleteIndex = reversed.findIndex((s) => !isSeriesComplete(s))
   if (oldestIncompleteIndex !== -1) {
     series.splice(series.length - 1 - oldestIncompleteIndex, 1)
   }
@@ -125,9 +104,10 @@ export function groupIntoSeries(matches) {
 }
 
 /** Wins required to win the series (BO1=1, BO2=2, BO3=2, BO5=3) */
-function winsRequiredForSeries(seriesType) {
+export function winsRequiredForSeries(seriesType) {
   if (seriesType === 0) return 1
   if (seriesType === 2) return 3
+  if (seriesType === 3) return 2 // BO2
   return 2
 }
 

@@ -1,29 +1,5 @@
-import { useState, useEffect, useRef } from "react"
-
-function CopyButton({ text, label = "Copy" }) {
-  const [copied, setCopied] = useState(false)
-
-  function handleCopy() {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="shrink-0 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors focus-ring"
-      style={copied
-        ? { borderColor: '#16a34a', color: '#16a34a' }
-        : { borderColor: 'rgb(209 213 219)', color: 'rgb(107 114 128)' }
-      }
-    >
-      {copied ? "Copied!" : label}
-    </button>
-  )
-}
+import { useEffect, useRef } from "react"
+import CopyButton from "./CopyButton"
 
 function RedditPostsModal({ open, onClose, series, matchPost, dayComment, loading, error }) {
   const overlayRef = useRef(null)

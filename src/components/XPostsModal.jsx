@@ -1,29 +1,5 @@
-import { useState, useEffect, useRef } from "react"
-
-function CopyButton({ text }) {
-  const [copied, setCopied] = useState(false)
-
-  function handleCopy() {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="shrink-0 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors focus-ring"
-      style={copied
-        ? { borderColor: '#16a34a', color: '#16a34a' }
-        : { borderColor: 'rgb(209 213 219)', color: 'rgb(107 114 128)' }
-      }
-    >
-      {copied ? "Copied!" : "Copy"}
-    </button>
-  )
-}
+import { useEffect, useRef } from "react"
+import CopyButton from "./CopyButton"
 
 function XPostsModal({ open, onClose, series, posts, summaryPost, seriesImageUrl, loading, error }) {
   const overlayRef = useRef(null)

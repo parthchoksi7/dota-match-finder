@@ -1,13 +1,4 @@
-const TIER1_KEYWORDS = [
-  'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
-  'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters'
-]
-
-function isTier1(leagueName) {
-  const lower = (leagueName || '').toLowerCase()
-  return TIER1_KEYWORDS.some(k => lower.includes(k))
-}
+import { isTier1 } from './_shared.js'
 
 function slugify(str) {
   return (str || '')

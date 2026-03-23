@@ -133,10 +133,17 @@ Two distinct tab patterns exist - use the right one for the context:
 - No red indicator - the filled background IS the active indicator
 - Use when: switching between views within a contained component
 
-**Underline tabs** (tournament/event switcher, full-width navigation rows):
+**Underline tabs** (full-width navigation rows for switching top-level items):
 - Active: `border-b-2 border-red-500 text-gray-900 dark:text-white`
 - Inactive: `border-b-2 border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white`
-- Use when: switching between top-level items (e.g. multiple active tournaments)
+- Use when: switching between top-level distinct items at the same hierarchical level
+- Do NOT use for sub-stage navigation inside a component — use the stage picker pattern instead
+
+### Copy button (clipboard)
+- Use the shared `CopyButton` component (`src/components/CopyButton.jsx`) for any copy-to-clipboard action
+- Default state: ghost border (`border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400`)
+- Confirmed state: `border-green-600 text-green-600 dark:border-green-500 dark:text-green-500`, label changes to "Copied!" for 2 seconds
+- Always use Tailwind classes for colors, never inline `style` props
 
 ### Loading states
 - **Inline spinners:** `w-4 h-4 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin`

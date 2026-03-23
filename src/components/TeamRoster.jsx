@@ -1,13 +1,6 @@
 import { useState } from 'react'
 import { getRegion, getRegionColor } from '../utils/regions'
-import { track } from '@vercel/analytics'
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', name, props)
-  }
-}
+import { trackEvent } from '../utils'
 
 function getFlagEmoji(nationality) {
   if (!nationality) return null

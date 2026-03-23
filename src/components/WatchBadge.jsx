@@ -1,13 +1,6 @@
 
 import { useState, useEffect } from "react"
-import { track } from "@vercel/analytics"
-
-function trackEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
+import { trackEvent } from "../utils"
 
 const BADGE_STYLES = {
   must_watch: "bg-red-600 text-white border-red-600",

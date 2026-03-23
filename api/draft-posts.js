@@ -213,12 +213,8 @@ function buildMentions(team1, team2, tournament) {
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
-const TIER1_KW = [
-  'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
-  'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters',
-]
-export const isTier1 = name => !!name && TIER1_KW.some(k => name.toLowerCase().includes(k))
+import { isTier1 } from './_shared.js'
+export { isTier1 }
 
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1

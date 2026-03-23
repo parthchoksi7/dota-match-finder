@@ -12,16 +12,7 @@ const TTL = 60 * 2 // 2 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-const TIER1_KEYWORDS = [
-  'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
-  'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters'
-]
-
-function isTier1(leagueName, serieName) {
-  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
-  return TIER1_KEYWORDS.some(k => lower.includes(k))
-}
+import { isTier1 } from './_shared.js'
 
 function getSeriesLabel(matchType) {
   if (matchType === 'best_of_1') return 'BO1'

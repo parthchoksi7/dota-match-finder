@@ -128,7 +128,7 @@ Write 3-5 sentences covering why this tournament matters, notable aspects (prize
   const text = data.content?.[0]?.text
   if (typeof text !== 'string') return res.status(502).json({ error: 'Invalid response from summary service' })
 
-  _kv.set(cacheKey, text, { ex: TTL }).catch(() => {})
+  _kv.set(cacheKey, text, { ex: TTL }).catch(e => console.error('KV write failed (summary):', e?.message || e))
   return res.status(200).json({ summary: text })
 }
 

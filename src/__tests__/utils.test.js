@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -105,6 +105,10 @@ describe('getSeriesLabel', () => {
 
   it('returns BO5 for seriesType 2', () => {
     expect(getSeriesLabel(2)).toBe('BO5')
+  })
+
+  it('returns BO2 for seriesType 3', () => {
+    expect(getSeriesLabel(3)).toBe('BO2')
   })
 
   it('returns empty string for unknown seriesType', () => {
@@ -206,6 +210,80 @@ describe('groupIntoSeries — sort order', () => {
     // recent should be first
     expect(result[0].id).toBe('2')
     expect(result[1].id).toBe('1')
+  })
+})
+
+// ── winsRequiredForSeries ────────────────────────────────────────────────────
+
+describe('winsRequiredForSeries', () => {
+  it('returns 1 for BO1 (seriesType 0)', () => expect(winsRequiredForSeries(0)).toBe(1))
+  it('returns 2 for BO3 (seriesType 1)', () => expect(winsRequiredForSeries(1)).toBe(2))
+  it('returns 3 for BO5 (seriesType 2)', () => expect(winsRequiredForSeries(2)).toBe(3))
+  it('returns 2 for BO2 (seriesType 3)', () => expect(winsRequiredForSeries(3)).toBe(2))
+  it('defaults to 2 for unknown seriesType', () => expect(winsRequiredForSeries(99)).toBe(2))
+})
+
+// ── isSeriesComplete ─────────────────────────────────────────────────────────
+
+function makeCompleteGame({ radiantWin, radiantTeam = 'Team A', direTeam = 'Team B' } = {}) {
+  return { radiantWin, radiantTeam, direTeam }
+}
+
+describe('isSeriesComplete', () => {
+  it('returns false for null or empty input', () => {
+    expect(isSeriesComplete(null)).toBe(false)
+    expect(isSeriesComplete({ games: [] })).toBe(false)
+  })
+
+  it('is complete for a BO1 after 1 game', () => {
+    const series = { seriesType: 0, games: [makeCompleteGame({ radiantWin: true })] }
+    expect(isSeriesComplete(series)).toBe(true)
+  })
+
+  it('is complete for a 2-0 BO3', () => {
+    const series = {
+      seriesType: 1,
+      games: [makeCompleteGame({ radiantWin: true }), makeCompleteGame({ radiantWin: true })],
+    }
+    expect(isSeriesComplete(series)).toBe(true)
+  })
+
+  it('is not complete for a BO3 after only 1 game', () => {
+    const series = { seriesType: 1, games: [makeCompleteGame({ radiantWin: true })] }
+    expect(isSeriesComplete(series)).toBe(false)
+  })
+
+  it('is complete for a BO2 draw (seriesType 3, 1-1 after 2 games)', () => {
+    const series = {
+      seriesType: 3,
+      games: [makeCompleteGame({ radiantWin: true }), makeCompleteGame({ radiantWin: false })],
+    }
+    expect(isSeriesComplete(series)).toBe(true)
+  })
+
+  it('is complete for a BO2 draw (seriesType 1 fallback, 1-1 after 2 games)', () => {
+    const series = {
+      seriesType: 1,
+      games: [makeCompleteGame({ radiantWin: true }), makeCompleteGame({ radiantWin: false })],
+    }
+    expect(isSeriesComplete(series)).toBe(true)
+  })
+
+  it('is not complete for a BO2 after only 1 game', () => {
+    const series = { seriesType: 3, games: [makeCompleteGame({ radiantWin: true })] }
+    expect(isSeriesComplete(series)).toBe(false)
+  })
+})
+
+// ── groupIntoSeries — BO2 draw handling ──────────────────────────────────────
+
+describe('groupIntoSeries — BO2 draw is not dropped as incomplete', () => {
+  it('keeps a completed BO2 1-1 draw in results (seriesType 3)', () => {
+    const game1 = makeGame({ seriesId: 99, seriesType: 3, startTime: 1_741_900_000, radiantWin: true })
+    const game2 = makeGame({ seriesId: 99, seriesType: 3, startTime: 1_741_900_100, radiantWin: false })
+    const result = groupIntoSeries([game1, game2])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(2)
   })
 })
 

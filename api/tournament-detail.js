@@ -363,7 +363,7 @@ async function handleSeriesDetail(req, res, token) {
   }
 
   const cacheTtl = status === 'completed' ? 60 * 60 * 24 * 30 : SERIES_DETAIL_TTL
-  kv.set(cacheKey, payload, { ex: cacheTtl }).catch(() => {})
+  kv.set(cacheKey, payload, { ex: cacheTtl }).catch(e => console.error('KV write failed (series-detail):', e?.message || e))
   return res.status(200).json(payload)
 }
 
@@ -525,7 +525,7 @@ export default async function handler(req, res) {
       fetchedAt: new Date().toISOString(),
     }
 
-    kv.set(KV_KEY, payload, { ex: TTL }).catch(() => {})
+    kv.set(KV_KEY, payload, { ex: TTL }).catch(e => console.error('KV write failed (tournament-detail):', e?.message || e))
 
     return res.status(200).json(payload)
   } catch (err) {

@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react"
-import { track } from "@vercel/analytics"
-
-function logEvent(name, props) {
-  track(name, props)
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", name, props)
-  }
-}
+import { trackEvent } from "../utils"
 
 export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
   const [theme, setTheme] = useState(() => {
@@ -34,10 +27,10 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
         </div>
       </a>
       <div className="flex items-center gap-3 sm:gap-4">
-        <a href="/tournaments" onClick={() => logEvent('nav_tournaments_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Tournaments</a>
+        <a href="/tournaments" onClick={() => trackEvent('nav_tournaments_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Tournaments</a>
         <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
         <a href="/release-notes" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
-        <a href="/calendar" onClick={() => logEvent('nav_calendar_click', {})} aria-label="Calendar feeds" title="Calendar feeds" className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+        <a href="/calendar" onClick={() => trackEvent('nav_calendar_click', {})} aria-label="Calendar feeds" title="Calendar feeds" className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
@@ -73,7 +66,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
         )}
         <button
           type="button"
-          onClick={() => { const next = theme === "dark" ? "light" : "dark"; logEvent("theme_toggle", { theme: next }); setTheme(() => next) }}
+          onClick={() => { const next = theme === "dark" ? "light" : "dark"; trackEvent("theme_toggle", { theme: next }); setTheme(() => next) }}
           className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}

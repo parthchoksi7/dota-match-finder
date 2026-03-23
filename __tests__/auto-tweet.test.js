@@ -57,6 +57,10 @@ describe('winsNeeded', () => {
     expect(winsNeeded(2)).toBe(3)
   })
 
+  it('returns 2 for BO2 (seriesType 3)', () => {
+    expect(winsNeeded(3)).toBe(2)
+  })
+
   it('defaults to 2 for unknown series types', () => {
     expect(winsNeeded(99)).toBe(2)
     expect(winsNeeded(undefined)).toBe(2)
@@ -113,6 +117,26 @@ describe('seriesComplete', () => {
     // Falls back to 'Radiant' and 'Dire' - should still complete a BO1
     expect(seriesComplete([game], 0)).toBe(true)
   })
+
+  it('is complete for a BO2 draw (seriesType 3, 1-1 after 2 games)', () => {
+    const games = [
+      makeGame({ radiant_win: true,  radiant_name: 'Team A', dire_name: 'Team B' }),
+      makeGame({ radiant_win: false, radiant_name: 'Team A', dire_name: 'Team B' }),
+    ]
+    expect(seriesComplete(games, 3)).toBe(true)
+  })
+
+  it('is complete for a BO2 draw (seriesType 1 fallback, 1-1 after 2 games)', () => {
+    const games = [
+      makeGame({ radiant_win: true,  radiant_name: 'Team A', dire_name: 'Team B' }),
+      makeGame({ radiant_win: false, radiant_name: 'Team A', dire_name: 'Team B' }),
+    ]
+    expect(seriesComplete(games, 1)).toBe(true)
+  })
+
+  it('is not complete for a BO2 after only 1 game', () => {
+    expect(seriesComplete([makeGame()], 3)).toBe(false)
+  })
 })
 
 // ── seriesResult ─────────────────────────────────────────────────────────────
@@ -141,6 +165,15 @@ describe('seriesResult', () => {
       makeGame({ radiant_win: false, radiant_name: 'Liquid', dire_name: 'OG' }),
     ]
     expect(seriesResult(games)).toEqual({ winner: 'OG', score: '2-0' })
+  })
+
+  it('returns 1-1 score for a BO2 draw', () => {
+    const games = [
+      makeGame({ radiant_win: true,  radiant_name: 'Liquid', dire_name: 'OG' }),
+      makeGame({ radiant_win: false, radiant_name: 'Liquid', dire_name: 'OG' }),
+    ]
+    const result = seriesResult(games)
+    expect(result.score).toBe('1-1')
   })
 
   it('handles a full BO5 won 3-2', () => {

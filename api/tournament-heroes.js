@@ -74,7 +74,7 @@ export default async function handler(req, res) {
         const r = await fetch(`${OPENDOTA}/leagues`)
         if (!r.ok) return []
         const data = await r.json()
-        kv.set('opendota:leagues_v1', data, { ex: LEAGUES_TTL }).catch(() => {})
+        kv.set('opendota:leagues_v1', data, { ex: LEAGUES_TTL }).catch(e => console.error('KV write failed (leagues):', e?.message || e))
         return data
       })(),
       (async () => {
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
         const heroes = await r.json()
         const map = {}
         for (const h of (heroes || [])) map[h.id] = h.localized_name || h.name
-        kv.set('opendota:hero_map_v1', map, { ex: HEROES_TTL }).catch(() => {})
+        kv.set('opendota:hero_map_v1', map, { ex: HEROES_TTL }).catch(e => console.error('KV write failed (hero_map):', e?.message || e))
         return map
       })(),
     ])
@@ -146,7 +146,7 @@ export default async function handler(req, res) {
 
     const payload = { heroes, gameCount, league: league.name }
     const heroesTtl = req.query?.completed === '1' ? 60 * 60 * 24 * 30 : TTL
-    kv.set(KV_KEY, payload, { ex: heroesTtl }).catch(() => {})
+    kv.set(KV_KEY, payload, { ex: heroesTtl }).catch(e => console.error('KV write failed (heroes):', e?.message || e))
 
     return res.status(200).json(payload)
   } catch (err) {

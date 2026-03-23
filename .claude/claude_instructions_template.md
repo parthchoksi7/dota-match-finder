@@ -54,7 +54,7 @@ This applies to: className edits, new components, loading/empty/error states, an
 - Add Google Analytics event tracking for ALL new user interactions
 - Event naming convention: `feature_action` (e.g., `vod_click`, `summary_generate`)
 - Required for: buttons, links, form submissions, drawer opens/closes
-- Use existing GA helper pattern from the codebase
+- Always use `trackEvent` imported from `../utils` (or `../../utils`). **NEVER define a local `trackEvent` or `logEvent` function in a component** — this creates duplication and drift.
 
 ### 6. Automated Testing
 - Write tests for all new features before marking them complete
@@ -83,8 +83,9 @@ This applies to: className edits, new components, loading/empty/error states, an
 
 **The Hobby plan allows a maximum of 12 serverless functions per deployment.**
 
-- Count the files in `api/` before adding any new ones: `ls api/*.js | wc -l`
+- Count the deployable functions in `api/` before adding any new ones: `ls api/[^_]*.js | wc -l`
 - Current count is 12 (the maximum). Do NOT add new `.js` files to `api/` without first merging or removing an existing one.
+- **Exception**: Files prefixed with `_` (e.g. `api/_shared.js`) are NOT deployed as serverless functions and do NOT count toward the limit. Use `api/_shared.js` for shared utilities that multiple functions need. The plain `ls api/*.js | wc -l` will show 13 due to `_shared.js` — this is expected and correct.
 - When a new feature needs a backend endpoint, merge it into the closest existing file using a query param or POST body field to distinguish behavior. Common patterns:
   - Add `?mode=newfeature` to an existing GET endpoint
   - Add `type: 'newfeature'` to an existing POST endpoint body
@@ -162,13 +163,14 @@ This applies to: className edits, new components, loading/empty/error states, an
 Before deploying to production:
 
 1. ✅ Run regression tests (`npm test`)
-2. ✅ Check all new features have GA tracking
+2. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js` — never define locally)
 3. ✅ Verify API rate limits won't be exceeded
 4. ✅ Test on mobile viewport
 5. ✅ Update `CONTEXT.md` with changes
 6. ✅ Update About page
 7. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
-8. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
+8. ✅ Run through relevant scenarios in `QA_PROCESS.md`
+9. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
 
 ---
 
