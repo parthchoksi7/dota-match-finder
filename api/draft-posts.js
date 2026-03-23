@@ -131,17 +131,27 @@ Rules:
 Return ONLY the tweet text. Nothing else.`)
 }
 
-async function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link) {
+async function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link, isDraw = false) {
   const loser = winner === team1 ? team2 : team1
+  const resultLine = isDraw
+    ? `${team1} vs ${team2} ended in a 1-1 draw`
+    : `${winner} won ${score} against ${loser}`
+  const firstLineRule = isDraw
+    ? `- First line MUST be exactly: "${team1} 1-1 ${team2}" — no changes, no additions to this line`
+    : `- First line MUST be exactly: "${winner} ${score} ${loser}" — no changes, no additions to this line`
+  const narrativeHint = isDraw
+    ? '- This is a BO2 draw (1-1) — both teams split the series. Frame it as a contested match where neither team could close it out. Both move on. No winner, no loser.'
+    : '- Give the series a narrative — was it an upset? A dominant run? A close fight? What does this result mean?'
+
   return callClaude(`You are the social media manager for Spectate Esports. A Dota 2 series just ended. Write the series wrap-up tweet that Dota 2 fans will want to retweet.
 
 ${team1} vs ${team2} — ${tournament} (${seriesLabel})
-${winner} won ${score} against ${loser}
+${resultLine}
 
 Rules:
-- First line MUST be exactly: "${winner} ${score} ${loser}" — no changes, no additions to this line
+${firstLineRule}
 - After that: 1-2 lines of punchy commentary, under 180 total characters before the link
-- Give the series a narrative — was it an upset? A dominant run? A close fight? What does this result mean?
+${narrativeHint}
 - Use Dota 2 scene context where relevant (tournament stakes, team history, expectations)
 - Sound like a passionate fan, not a match report
 - No hashtags
@@ -223,7 +233,12 @@ export function seriesComplete(games, seriesType) {
     const w = g.radiant_win ? (g.radiant_name || 'Radiant') : (g.dire_name || 'Dire')
     wins[w] = (wins[w] || 0) + 1
   }
-  return Math.max(0, ...Object.values(wins)) >= winsNeeded(seriesType)
+  const maxWins = Math.max(0, ...Object.values(wins))
+  if (maxWins >= winsNeeded(seriesType)) return true
+  // BO2 draw: 1-1 after 2 games is a valid final result
+  const isBO2 = seriesType === 3 || seriesType === 1
+  if (isBO2 && games.length >= 2 && maxWins === 1 && Object.keys(wins).length === 2) return true
+  return false
 }
 
 export function seriesResult(games) {
@@ -378,7 +393,7 @@ async function runAutoTweet(req, res) {
     const team1 = games[0].radiant_name || 'Radiant'
     const team2 = games[0].dire_name || 'Dire'
     const link = seriesUrl(games[0]) // always links to the first match
-    const baseText = await makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link)
+    const baseText = await makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link, isBO2Draw)
     if (!baseText) continue
     const text = baseText + buildMentions(team1, team2, games[0].league_name)
 
