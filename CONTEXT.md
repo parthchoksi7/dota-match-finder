@@ -169,11 +169,11 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Searches multiple Twitch channels simultaneously using `Promise.allSettled`
 - Returns ALL matching channels (not just first hit) - shown as multiple watch buttons
 - Channels tracked: ESL Main, ESL Ember, ESL Storm, ESL Earth, BTS, PGL, WePlay, DreamLeague, and more
-- **Stream mapping (timestamp-based)**: while a match is live with exactly 1 tracked English stream, `api/live-matches.js` writes `stream:ts:{roundedBeginAt}` → channel to KV (14-day TTL). Key is `begin_at` unix timestamp rounded to 5 min.
-- PandaScore's `external_identifier` (OpenDota match ID) is never populated, so matching is done by timestamp instead
+- **Stream mapping (timestamp-based)**: while a match is live with exactly 1 tracked English stream, `api/live-matches.js` writes `stream:ts:{roundedBeginAt}` → channel and `stream:match:{gameMatchId}` → channel to KV (14-day TTL). Key is `begin_at` unix timestamp rounded to 5 min. Cache writes only happen for the game currently in `status === 'running'` - finished games are skipped to prevent a later game in the same series from overwriting an earlier game's stored channel with the wrong stream.
 - `api/match-streams.js` supports `?ts=` param: tries rounded ±1 bucket (±5 min) to absorb drift between PandaScore `begin_at` and OpenDota `start_time`
-- On drawer open, `fetchMatchStreams(matchId, startTime)` is called; `streamMap[startTime]` is used as `preferredChannel` if found
+- On drawer open, `fetchMatchStreams(matchIds, startTime)` is called; looks up all sibling game IDs in KV; if all resolve to the same channel it is used as `preferredChannel`; otherwise falls back to full group search
 - When `preferredChannel` is set, only that channel is searched (single result); otherwise falls back to full group search
+- PandaScore fallback: if a game ID is missing from KV, `match-streams.js` fetches the match from PandaScore and caches the result with 14-day TTL
 - When multiple streams were live, an inline note explains the ambiguity
 
 ### Draft Display
