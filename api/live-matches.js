@@ -36,17 +36,26 @@ const CHANNEL_LABELS = {
 }
 
 function getTwitchStreams(streamsList, leagueName, serieName) {
-  // Use PandaScore streams_list if available — filters to official English streams only
+  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
+
+  // Use PandaScore streams_list if available — filters to official English streams only.
+  // Exception: for ESL One tournaments, PandaScore consistently returns only esl_dota2 (main hub)
+  // even when the actual broadcast is on a sub-channel (esl_dota2earth/storm/ember).
+  // In that case, fall through to the static mapping so all sub-channels are shown.
   const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
   if (official.length > 0) {
-    return official.map(s => {
+    const streams = official.map(s => {
       const channel = s.raw_url.replace('https://www.twitch.tv/', '')
       return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
     })
+    const isEslOneMainOnly = lower.includes('esl one')
+      && streams.length === 1
+      && streams[0].url === 'https://www.twitch.tv/esl_dota2'
+    if (!isEslOneMainOnly) return streams
+    // Fall through to static mapping below
   }
 
   // Fallback: static mapping by tournament name
-  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
   if (lower.includes('pgl')) return [
     { label: 'PGL', url: 'https://twitch.tv/pgl_dota2' },
     { label: 'PGL EN2', url: 'https://twitch.tv/pgl_dota2en2' },
