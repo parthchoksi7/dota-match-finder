@@ -10,9 +10,7 @@ const kv = new Redis({
 const KV_KEY = 'dota2:live_matches_v1'
 const TTL = 60 * 2 // 2 minutes
 
-const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
-
-import { isTier1 } from './_shared.js'
+import { isTier1, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL } from './_shared.js'
 
 function getSeriesLabel(matchType) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -22,68 +20,6 @@ function getSeriesLabel(matchType) {
   return null
 }
 
-const CHANNEL_LABELS = {
-  pgl_dota2: 'PGL',
-  pgl_dota2en2: 'PGL EN2',
-  esl_dota2: 'ESL',
-  esl_dota2ember: 'ESL Ember',
-  esl_dota2storm: 'ESL Storm',
-  esl_dota2earth: 'ESL Earth',
-  beyond_the_summit: 'BTS',
-  dota2ti: 'TI',
-  blast_dota2: 'BLAST',
-  weplaydota: 'WePlay',
-}
-
-function getTwitchStreams(streamsList, leagueName, serieName) {
-  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
-
-  // Use PandaScore streams_list if available — filters to official English streams only.
-  // Exception: for ESL One tournaments, PandaScore consistently returns only esl_dota2 (main hub)
-  // even when the actual broadcast is on a sub-channel (esl_dota2earth/storm/ember).
-  // In that case, fall through to the static mapping so all sub-channels are shown.
-  const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
-  if (official.length > 0) {
-    const streams = official.map(s => {
-      const channel = s.raw_url.replace('https://www.twitch.tv/', '')
-      return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
-    })
-    const isEslOneMainOnly = lower.includes('esl one')
-      && streams.length === 1
-      && streams[0].url === 'https://www.twitch.tv/esl_dota2'
-    if (!isEslOneMainOnly) return streams
-    // Fall through to static mapping below
-  }
-
-  // Fallback: static mapping by tournament name
-  if (lower.includes('pgl')) return [
-    { label: 'PGL', url: 'https://twitch.tv/pgl_dota2' },
-    { label: 'PGL EN2', url: 'https://twitch.tv/pgl_dota2en2' },
-  ]
-  if (lower.includes('esl one')) return [
-    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
-    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
-    { label: 'ESL Storm', url: 'https://twitch.tv/esl_dota2storm' },
-    { label: 'ESL Earth', url: 'https://twitch.tv/esl_dota2earth' },
-  ]
-  if (lower.includes('dreamleague')) return [
-    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
-    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
-  ]
-  if (lower.includes('beyond the summit') || lower.includes('bts')) return [
-    { label: 'BTS', url: 'https://twitch.tv/beyond_the_summit' },
-  ]
-  if (lower.includes('blast')) return [
-    { label: 'BLAST', url: 'https://twitch.tv/blast_dota2' },
-  ]
-  if (lower.includes('weplay')) return [
-    { label: 'WePlay', url: 'https://twitch.tv/weplaydota' },
-  ]
-  if (lower.includes('the international') || lower.includes(' ti ')) return [
-    { label: 'TI', url: 'https://twitch.tv/dota2ti' },
-  ]
-  return []
-}
 
 function buildTournamentName(m) {
   const league = m.league?.name || ''
@@ -156,14 +92,66 @@ function mapMatch(m) {
   }
 }
 
+/**
+ * Writes stream:match and stream:ts KV entries for all running games.
+ * Called by both the normal handler (client poll) and the cron mode.
+ * nx=true on stream:match so the first recorded channel is never overwritten.
+ */
+async function cacheRunningStreams(rawMatches) {
+  const streamWrites = []
+  for (const m of rawMatches) {
+    const streams = getTwitchStreams(m.streams_list, m.league?.name, m.serie?.full_name || m.serie?.name)
+    if (streams.length !== 1) continue
+    const channel = streams[0].url.replace('https://www.twitch.tv/', '')
+    for (const game of m.games || []) {
+      if (!game.begin_at || game.status !== 'running') continue
+      const ts = Math.floor(new Date(game.begin_at).getTime() / 1000)
+      const roundedTs = Math.floor(ts / 300) * 300
+      streamWrites.push(kv.set(`stream:ts:${roundedTs}`, channel, { ex: STREAM_TTL }))
+      const matchId = game.external_identifier || null
+      if (matchId) {
+        // nx: true — write-once. First recorded channel is never overwritten.
+        streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
+      }
+    }
+  }
+  if (streamWrites.length > 0) {
+    await Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
+  }
+  return streamWrites.length
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
 
   const token = process.env.PANDASCORE_TOKEN
   if (!token) {
     return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
   }
+
+  // Cron mode: called every 30 min by GitHub Actions to cache stream channels server-side.
+  // Bypasses the KV read cache so it always fetches fresh data from PandaScore.
+  // Uses nx:true writes so the first recorded channel is never overwritten.
+  if (req.query?.cron === '1') {
+    if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).end()
+    }
+    try {
+      const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers })
+      if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+      const data = await response.json()
+      const tier1 = (data || []).filter(m => isTier1(m.league?.name, m.serie?.full_name) && m.opponents?.length === 2)
+      const written = await cacheRunningStreams(tier1)
+      console.log(`live-matches cron: ${written} stream writes`)
+      return res.status(200).json({ written })
+    } catch (err) {
+      console.error('live-matches cron error:', err?.message)
+      return res.status(500).json({ error: err?.message })
+    }
+  }
+
+  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY)
@@ -187,10 +175,10 @@ export default async function handler(req, res) {
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
     const data = await response.json()
-    const matches = (data || [])
+    const tier1Raw = (data || [])
       .filter(m => isTier1(m.league?.name, m.serie?.full_name))
       .filter(m => m.opponents?.length === 2)
-      .map(mapMatch)
+    const matches = tier1Raw.map(mapMatch)
 
     const payload = { matches, fetchedAt: new Date().toISOString() }
 
@@ -202,27 +190,7 @@ export default async function handler(req, res) {
 
     // Store game start timestamp → channel for single-stream matches.
     // Keyed by begin_at rounded to 5 min so OpenDota's start_time (close but not identical) can look it up.
-    const STREAM_TTL = 60 * 60 * 24 * 14 // 14 days
-    const streamWrites = []
-    for (const match of matches) {
-      if (match.streams.length === 1) {
-        const channel = match.streams[0].url.replace('https://www.twitch.tv/', '')
-        for (const game of match.games) {
-          if (game.beginAt && game.status === 'running') {
-            const ts = Math.floor(new Date(game.beginAt).getTime() / 1000)
-            const roundedTs = Math.floor(ts / 300) * 300
-            streamWrites.push(kv.set(`stream:ts:${roundedTs}`, channel, { ex: STREAM_TTL }))
-            // Also key by game match ID so VOD lookup can find it without timestamp guessing
-            if (game.matchId) {
-              streamWrites.push(kv.set(`stream:match:${game.matchId}`, channel, { ex: STREAM_TTL }))
-            }
-          }
-        }
-      }
-    }
-    if (streamWrites.length > 0) {
-      await Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
-    }
+    await cacheRunningStreams(tier1Raw)
 
     return res.status(200).json(payload)
 

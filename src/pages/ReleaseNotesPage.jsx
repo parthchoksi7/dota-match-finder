@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Mar 24, 2026",
+    tag: "improvement",
+    title: "VOD stream channels now cached server-side every 30 minutes",
+    desc: "Previously, the stream-to-channel mapping was only recorded when someone had the app open in their browser during a live game. If no one was watching, the mapping was never stored and VOD links could land on the wrong Twitch channel. The channel is now captured by an automated background job running every 30 minutes, so VOD links are reliable regardless of visitor activity during the match.",
+  },
+  {
+    date: "Mar 24, 2026",
     tag: "fix",
     title: "VOD links now point to the correct stream for every game in a series",
     desc: "In multi-game series, earlier games could end up linked to the wrong Twitch channel. The stream cache was being overwritten while a later game was in progress - meaning Game 1's stored channel would get replaced with whatever channel was broadcasting Game 2. Each game's stream is now locked in when that game is live and never overwritten by a later game in the same series.",

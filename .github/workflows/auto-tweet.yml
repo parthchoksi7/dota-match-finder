@@ -9,6 +9,11 @@ jobs:
   tweet:
     runs-on: ubuntu-latest
     steps:
+      - name: Cache live stream channels
+        run: |
+          curl -s -X GET "https://spectateesports.live/api/live-matches?cron=1" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body
       - name: Trigger auto-tweet
         run: |
           curl -s -X POST https://spectateesports.live/api/draft-posts \

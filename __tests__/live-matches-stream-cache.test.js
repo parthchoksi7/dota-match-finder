@@ -12,7 +12,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ── Module mocks (must be hoisted before imports) ────────────────────────────
 
 vi.mock('dotenv', () => ({ config: vi.fn() }))
-vi.mock('../api/_shared.js', () => ({ isTier1: () => true }))
+vi.mock('../api/_shared.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, isTier1: () => true }
+})
 
 // Use vi.hoisted so mockKv is available inside the mock factory (which is hoisted)
 const { mockKv, kvSetCalls } = vi.hoisted(() => {
