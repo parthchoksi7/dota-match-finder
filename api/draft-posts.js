@@ -90,15 +90,15 @@ async function callClaude(prompt) {
 
 async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, duration, tournament, link, seriesScoreAfter) {
   const gameCtx = seriesLabel !== 'BO1' ? ` - Game ${gameNumber} of ${seriesLabel}` : ''
-  const openingAngles = [
-    "Lead with the series implications — what does this result mean for the overall series?",
-    "Lead with the loser — what went wrong or what they need to fix.",
-    "Lead with a bold one-line take or hot opinion about the game.",
-    "Lead with a question that fans will want to answer.",
-    "Lead with a Dota 2 in-game moment if it fits (e.g. a comeback, a throne race, an aegis fight) — only if natural.",
-    "Lead with the winner's team identity or reputation — not just their name.",
+  const tweetFormats = [
+    "Write a single punchy sentence. Everything in one line — no second line.",
+    "Lead with a question fans will want to answer in the replies. Follow with the result in one line.",
+    "Lead with the loser — what this game means for them, not the winner.",
+    "Two lines: first line is a bold take or observation, second line is the result context.",
+    "Start with a specific Dota 2 in-game moment if one fits naturally (comeback, throne race, aegis play). Only use this if you can make it feel grounded, not generic.",
+    "Write it like you're texting a friend who follows the Dota 2 scene — casual, direct, no fluff.",
   ]
-  const angle = openingAngles[(gameNumber - 1) % openingAngles.length]
+  const format = tweetFormats[(gameNumber - 1) % tweetFormats.length]
 
   const seriesContext = seriesLabel === 'BO1'
     ? 'This is a single game (BO1) — there is no series narrative.'
@@ -108,7 +108,7 @@ async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, dura
     ? 'This is a BO3 — first to 2 wins. A decider Game 3 is only possible if it\'s 1-1.'
     : 'This is a BO5 — first to 3 wins.'
 
-  return callClaude(`You are the social media manager for Spectate Esports, a Dota 2 VOD and stats platform. Your job is to tweet game results in a way that makes Dota 2 fans stop scrolling, engage, and follow.
+  return callClaude(`You're a passionate Dota 2 fan who runs @SpectateDota2. You post about pro match results the way someone genuinely invested in the scene would — knowledgeable, occasionally emotional, never corporate.
 
 Game data:
 ${team1} vs ${team2}${gameCtx} — ${tournament}
@@ -116,16 +116,18 @@ ${winner} won${duration ? ` in ${duration}` : ''}
 Series format: ${seriesLabel} — ${seriesContext}
 Series score after this game: ${winner} ${seriesScoreAfter?.split('-')[0]} – ${winner === team1 ? team2 : team1} ${seriesScoreAfter?.split('-')[1]}
 
-Your opening angle for this tweet: ${angle}
+Format for this tweet: ${format}
+
+Examples of the right tone and format variety (do not copy these — reference only):
+- "Nobody's going 3-0 here. Spirit claw back and force a Game 3."
+- "How does Entity keep doing this? Down all game, buyback into a throne race, series tied."
+- "Tundra drop Game 2. Their draft had no answer for the lategame and it showed."
 
 Rules:
 - Under 200 characters (excluding the link)
-- NEVER open with a time or duration (e.g. "43 minutes to..." or "30 minutes later...") — duration can appear later in the tweet if relevant
-- NEVER start with the winner's name
-- NEVER use: dominated, demolished, steamrolled, crushed, destroyed, obliterated, dismantled
-- Use Dota 2 vocabulary only where natural (buyback, rax, throne, aegis, mega creeps)
+- Don't start with the winner's name
+- Don't open with the game duration
 - No hashtags
-- Optionally use 1 emoji if it adds energy
 - End with this exact link on its own line: ${link}
 
 Return ONLY the tweet text. Nothing else.`)
@@ -143,7 +145,7 @@ async function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournam
     ? '- This is a BO2 draw (1-1) — both teams split the series. Frame it as a contested match where neither team could close it out. Both move on. No winner, no loser.'
     : '- Give the series a narrative — was it an upset? A dominant run? A close fight? What does this result mean?'
 
-  return callClaude(`You are the social media manager for Spectate Esports. A Dota 2 series just ended. Write the series wrap-up tweet that Dota 2 fans will want to retweet.
+  return callClaude(`You're a passionate Dota 2 fan running @SpectateDota2. A series just finished. Write the series wrap-up tweet.
 
 ${team1} vs ${team2} — ${tournament} (${seriesLabel})
 ${resultLine}
@@ -512,28 +514,30 @@ Return ONLY a valid JSON object with this exact shape:
     const summaryLinkLine = seriesLink ? `\nSeries link: ${seriesLink}` : ''
 
     maxTokens = 1500
-    prompt = `You write X/Twitter posts for Dota 2 esports results. Generate one post per game for this series, plus one series summary post.
+    prompt = `You're a passionate Dota 2 fan who runs @SpectateDota2. You post about pro match results the way someone genuinely invested in the scene would — knowledgeable, occasionally emotional, never corporate. Generate one post per game for this series, plus one series summary post.
 
 Series: ${team1} vs ${team2} - ${tournament} (${seriesLabel})
 Final result: ${seriesWinner} won ${seriesScore}
 Games:
 ${gamesText}${summaryLinkLine}
 
+Examples of the right tone (do not copy — reference only):
+- "Nobody's going 3-0 here. Spirit claw back and force a Game 3."
+- "How does Entity keep doing this? Down all game, buyback into a throne race, series tied."
+- "Tundra drop Game 2. Their draft had no answer for the lategame and it showed."
+
 Rules for per-game posts:
 - Write exactly ${games.length} post${games.length > 1 ? 's' : ''}, one per game
-- Each post must sound noticeably different from the others - vary the structure, tone, angle, and opening
-- Natural and human - like someone who follows the Dota 2 pro scene, not a press release
+- Each post must use a different format — rotate through: single punchy sentence, question that fans want to answer, loser-focused, bold take + result detail, in-game moment, casual texting-a-friend style
 - Under 200 characters each excluding the link (the replay link must appear at the end of every post)
-- Mention which team won Game N and include a brief natural observation about the result
 - Always end with the exact replay link provided - do not modify or shorten it
-- No hashtags. No forced enthusiasm. Vary whether or not you use emojis across posts
-- ${games.length > 1 ? 'Think about the narrative arc: opener, momentum shift, decider - each game has a different weight' : "Keep it punchy since it's a single game"}
+- No hashtags. Vary whether or not you use emojis across posts
+- ${games.length > 1 ? 'Think about the narrative arc: opener, momentum shift, decider — each game has a different weight' : "Keep it punchy since it's a single game"}
 - Never start two posts the same way
 
 Rules for the series summary post:
 - Summarizes the full series outcome in one punchy post
 - Mention both teams, the final score (${seriesScore}), and the series format (${seriesLabel})
-- Natural and human, not a press release - this is the main series tweet
 - Under 220 characters excluding the link${seriesLink ? '\n- End with the series link: ' + seriesLink : ''}
 - No hashtags. Vary tone from the per-game posts
 
