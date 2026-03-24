@@ -263,8 +263,27 @@ function App() {
 
     if (match.seriesId) setExpandedSeriesId(String(match.seriesId))
     setSelectedMatch({ ...match, loadingVod: true })
-    const streamMap = await fetchMatchStreams([match.id], match.startTime)
-    const preferredChannel = streamMap[match.id] || streamMap[String(match.startTime)] || null
+
+    // Fetch streams for all games in the series so we can check consistency.
+    // If all games agree on the same channel, trust it. If they disagree, fall back
+    // to group search which shows all channels that were online at that time.
+    const siblingIds = match.seriesId
+      ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
+      : [match.id]
+    const idsToFetch = siblingIds.length > 0 ? siblingIds : [match.id]
+    const streamMap = await fetchMatchStreams(idsToFetch, match.startTime)
+
+    const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
+    const uniqueChannels = [...new Set(resolvedChannels)]
+    let preferredChannel
+    if (uniqueChannels.length === 1) {
+      preferredChannel = uniqueChannels[0]                           // All games agree -- use it
+    } else if (uniqueChannels.length === 0) {
+      preferredChannel = streamMap[String(match.startTime)] || null  // No match-ID hits -- try timestamp (legacy)
+    } else {
+      preferredChannel = null                                        // Inconsistent -- show all channels
+    }
+
     const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
     setSelectedMatch({
       ...match,
