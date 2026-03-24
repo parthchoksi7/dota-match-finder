@@ -49,5 +49,36 @@ export default async function handler(req, res) {
     console.warn('match-streams KV read failed:', err?.message)
   }
 
+  // Fallback: for any match IDs still missing from KV, fetch the match from PandaScore
+  // to get the authoritative streams_list. This handles completed ESL One matches where
+  // the KV entry was never written (or stored the wrong main channel and was skipped).
+  if (ids && process.env.PANDASCORE_TOKEN) {
+    const allIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
+    const missingIds = allIds.filter(id => !result[id])
+    if (missingIds.length > 0) {
+      await Promise.all(missingIds.map(async (id) => {
+        try {
+          const r = await fetch(
+            `https://api.pandascore.co/dota2/matches/${id}`,
+            { headers: { Authorization: `Bearer ${process.env.PANDASCORE_TOKEN}`, Accept: 'application/json' } }
+          )
+          if (!r.ok) return
+          const m = await r.json()
+          const official = (m.streams_list || []).filter(s => s.official && s.language === 'en' && s.raw_url)
+          if (official.length === 1) {
+            const channel = official[0].raw_url.replace('https://www.twitch.tv/', '')
+            // Skip esl_dota2 main for ESL One -- it's unreliable (PandaScore lists it even when
+            // the actual broadcast is on a sub-channel like esl_dota2storm or esl_dota2earth).
+            const tournamentName = ((m.league?.name || '') + ' ' + (m.serie?.full_name || '')).toLowerCase()
+            if (channel === 'esl_dota2' && tournamentName.includes('esl one')) return
+            result[id] = channel
+            // Cache so we don't call PandaScore again for this match
+            kv.set(`stream:match:${id}`, channel, { ex: 60 * 60 * 24 * 14 }).catch(() => {})
+          }
+        } catch { /* best effort */ }
+      }))
+    }
+  }
+
   return res.status(200).json(result)
 }

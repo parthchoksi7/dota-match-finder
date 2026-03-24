@@ -212,6 +212,10 @@ export default async function handler(req, res) {
             const ts = Math.floor(new Date(game.beginAt).getTime() / 1000)
             const roundedTs = Math.floor(ts / 300) * 300
             streamWrites.push(kv.set(`stream:ts:${roundedTs}`, channel, { ex: STREAM_TTL }))
+            // Also key by game match ID so VOD lookup can find it without timestamp guessing
+            if (game.matchId) {
+              streamWrites.push(kv.set(`stream:match:${game.matchId}`, channel, { ex: STREAM_TTL }))
+            }
           }
         }
       }
