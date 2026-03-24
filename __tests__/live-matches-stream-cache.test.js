@@ -142,7 +142,7 @@ describe('live-matches stream cache writes', () => {
     expect(streamKeys).toHaveLength(0)
   })
 
-  it('does not write stream entries when match has multiple streams', async () => {
+  it('writes stream entry using first stream when multiple streams have no main flag', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => [{
@@ -164,7 +164,7 @@ describe('live-matches stream cache writes', () => {
     const streamKeys = kvSetCalls
       .map(args => args[0])
       .filter(k => k.startsWith('stream:'))
-    expect(streamKeys).toHaveLength(0)
+    expect(streamKeys).toContain('stream:match:G1')
   })
 
   it('writes stream entry when multiple streams but exactly one is marked main', async () => {
