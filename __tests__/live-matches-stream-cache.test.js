@@ -166,4 +166,28 @@ describe('live-matches stream cache writes', () => {
       .filter(k => k.startsWith('stream:'))
     expect(streamKeys).toHaveLength(0)
   })
+
+  it('writes stream entry when multiple streams but exactly one is marked main', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{
+        ...makeMatch({
+          games: [makeGame({ position: 1, status: 'running', matchId: 'G1', beginAt: '2026-03-24T10:00:00Z' })],
+        }),
+        streams_list: [
+          { official: true, language: 'en', main: true,  raw_url: 'https://www.twitch.tv/esl_dota2earth' },
+          { official: true, language: 'en', main: false, raw_url: 'https://www.twitch.tv/esl_dota2storm' },
+          { official: true, language: 'en', main: false, raw_url: 'https://www.twitch.tv/esl_dota2ember' },
+          { official: true, language: 'en', main: false, raw_url: 'https://www.twitch.tv/esl_dota2' },
+        ],
+      }],
+    })
+
+    const req = makeReq()
+    const res = makeRes()
+    await handler(req, res)
+
+    const streamKeys = kvSetCalls.map(args => args[0]).filter(k => k.startsWith('stream:'))
+    expect(streamKeys).toContain('stream:match:G1')
+  })
 })

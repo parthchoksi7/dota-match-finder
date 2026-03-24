@@ -49,7 +49,11 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   // In that case, fall through to the static mapping so all sub-channels are shown.
   const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
   if (official.length > 0) {
-    const streams = official.map(s => {
+    // When multiple concurrent matches share sub-channels (e.g. DreamLeague), PandaScore marks
+    // exactly one stream main:true per match. Narrow to it so each match shows its own channel.
+    const mainStreams = official.filter(s => s.main)
+    const toUse = mainStreams.length === 1 ? mainStreams : official
+    const streams = toUse.map(s => {
       const channel = s.raw_url.replace('https://www.twitch.tv/', '')
       return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
     })
