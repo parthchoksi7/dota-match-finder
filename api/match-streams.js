@@ -65,8 +65,14 @@ export default async function handler(req, res) {
           if (!r.ok) return
           const m = await r.json()
           const official = (m.streams_list || []).filter(s => s.official && s.language === 'en' && s.raw_url)
-          if (official.length === 1) {
-            const channel = official[0].raw_url.replace('https://www.twitch.tv/', '')
+          // Prefer the stream marked main:true — that's the sub-channel designated for this specific
+          // match. Falls back to the single-stream case for tournaments with only one channel.
+          const mainStreams = official.filter(s => s.main)
+          const candidate = mainStreams.length === 1 ? mainStreams[0]
+                          : official.length === 1   ? official[0]
+                          : null
+          if (candidate) {
+            const channel = candidate.raw_url.replace('https://www.twitch.tv/', '')
             // Skip esl_dota2 main for ESL One -- it's unreliable (PandaScore lists it even when
             // the actual broadcast is on a sub-channel like esl_dota2storm or esl_dota2earth).
             const tournamentName = ((m.league?.name || '') + ' ' + (m.serie?.full_name || '')).toLowerCase()
