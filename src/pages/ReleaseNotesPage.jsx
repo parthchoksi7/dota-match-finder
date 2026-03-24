@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 24, 2026",
+    tag: "fix",
+    title: "VOD links now point to the correct stream for every game in a series",
+    desc: "In multi-game series, earlier games could end up linked to the wrong Twitch channel. The stream cache was being overwritten while a later game was in progress - meaning Game 1's stored channel would get replaced with whatever channel was broadcasting Game 2. Each game's stream is now locked in when that game is live and never overwritten by a later game in the same series.",
+  },
+  {
     date: "Mar 22, 2026",
     tag: "improvement",
     title: "Internal code cleanup and QA process",

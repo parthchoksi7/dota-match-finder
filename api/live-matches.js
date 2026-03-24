@@ -208,7 +208,7 @@ export default async function handler(req, res) {
       if (match.streams.length === 1) {
         const channel = match.streams[0].url.replace('https://www.twitch.tv/', '')
         for (const game of match.games) {
-          if (game.beginAt && game.status !== 'not_started') {
+          if (game.beginAt && game.status === 'running') {
             const ts = Math.floor(new Date(game.beginAt).getTime() / 1000)
             const roundedTs = Math.floor(ts / 300) * 300
             streamWrites.push(kv.set(`stream:ts:${roundedTs}`, channel, { ex: STREAM_TTL }))
