@@ -93,6 +93,27 @@ function mapMatch(m) {
 }
 
 /**
+ * For matches that have multiple official English streams in the bulk response,
+ * fetch individual match data — the per-match endpoint sets main:true on exactly
+ * the sub-channel assigned to that match, which the bulk endpoint does not.
+ */
+async function enrichMultiStreamMatches(matches, headers) {
+  const multi = matches.filter(m => {
+    const official = (m.streams_list || []).filter(s => s.official && s.language === 'en' && s.raw_url)
+    return official.length > 1
+  })
+  if (multi.length === 0) return
+  await Promise.all(multi.map(async m => {
+    try {
+      const r = await fetch(`${PANDASCORE_BASE}/matches/${m.id}`, { headers })
+      if (!r.ok) return
+      const detail = await r.json()
+      if (detail.streams_list) m.streams_list = detail.streams_list
+    } catch { /* best effort */ }
+  }))
+}
+
+/**
  * Writes stream:match and stream:ts KV entries for all running games.
  * Called by both the normal handler (client poll) and the cron mode.
  * nx=true on stream:match so the first recorded channel is never overwritten.
@@ -142,6 +163,7 @@ export default async function handler(req, res) {
       if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
       const data = await response.json()
       const tier1 = (data || []).filter(m => isTier1(m.league?.name, m.serie?.full_name) && m.opponents?.length === 2)
+      await enrichMultiStreamMatches(tier1, headers)
       const written = await cacheRunningStreams(tier1)
       console.log(`live-matches cron: ${written} stream writes`)
       return res.status(200).json({ written })
@@ -178,6 +200,7 @@ export default async function handler(req, res) {
     const tier1Raw = (data || [])
       .filter(m => isTier1(m.league?.name, m.serie?.full_name))
       .filter(m => m.opponents?.length === 2)
+    await enrichMultiStreamMatches(tier1Raw, headers)
     const matches = tier1Raw.map(mapMatch)
 
     const payload = { matches, fetchedAt: new Date().toISOString() }
