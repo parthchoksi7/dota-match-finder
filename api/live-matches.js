@@ -106,10 +106,17 @@ async function enrichMultiStreamMatches(matches, headers) {
   await Promise.all(multi.map(async m => {
     try {
       const r = await fetch(`${PANDASCORE_BASE}/matches/${m.id}`, { headers })
-      if (!r.ok) return
+      if (!r.ok) {
+        console.warn(`enrichMultiStream: match ${m.id} fetch failed (${r.status})`)
+        return
+      }
       const detail = await r.json()
+      const en = (detail.streams_list || []).filter(s => s.official && s.language === 'en')
+      console.log(`enrichMultiStream: match ${m.id} →`, en.map(s => `${s.raw_url}(main=${s.main})`).join(', '))
       if (detail.streams_list) m.streams_list = detail.streams_list
-    } catch { /* best effort */ }
+    } catch (err) {
+      console.warn(`enrichMultiStream: match ${m.id} exception:`, err?.message)
+    }
   }))
 }
 
