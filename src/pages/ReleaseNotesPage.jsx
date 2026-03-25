@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 25, 2026",
+    tag: "fix",
+    title: "VOD links now resolve the correct stream when multiple matches run at the same time",
+    desc: "When several matches started simultaneously (common in ESL One group stages), all games in the same 5-minute window were being mapped to the same Twitch channel - whichever match happened to write last. VOD links for most games would land on the wrong stream. The lookup now uses team names to query PandaScore directly and identify the exact channel for each match, with the time-window cache kept as a fallback.",
+  },
+  {
     date: "Mar 24, 2026",
     tag: "improvement",
     title: "VOD stream channels now cached server-side every 30 minutes",

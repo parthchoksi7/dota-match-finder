@@ -66,13 +66,13 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/tournament-detail.js` - Fetches tournament standings, bracket, and sibling stages from PandaScore; cached in KV for 3 min
 - `api/tournament-heroes.js` - Aggregates hero pick/ban stats across all finished tournament games via OpenDota. Step 1: looks up the tournament serie name from PandaScore if not passed by the frontend. Step 2: searches OpenDota `/api/leagues` (9000+ leagues, cached 24h as `opendota:leagues_v1`) using token overlap matching to find the right league. Step 3: fetches `/api/leagues/{leagueid}/matches` then full match details in batches of 10 via `/api/matches/{id}` to get picks_bans. Hero IDs resolved to names via `/api/heroes` (cached 24h as `opendota:hero_map_v1`). Cached in KV for 3h under `dota2:tournament_heroes_v7:{id}`. PandaScore does not expose picks_bans on any accessible endpoint (the /dota2/games list endpoint does not exist; embedded games in /matches omit picks_bans; /matches/{id}/games requires a higher-tier plan).
 - `api/draft-posts.js` - Two modes: (1) **cron** (`{ type: "cron" }`): owner-only auto-tweet system triggered by GitHub Actions every 30 min — fetches OpenDota promatches, filters Tier 1, posts per-game X threads and series summary tweets via Twitter OAuth 1.0a, deduplicates via Redis KV; (2) **manual** (`{ type: "x" }` or `{ type: "reddit" }`): generates per-game X posts or Reddit VOD roundup posts on demand for a given series; posts kept under 220 chars to fit a VOD URL
-- `api/match-streams.js` - KV lookup endpoint that returns the stored stream channel for a batch of OpenDota match IDs; used to resolve exact VOD channel before Twitch search
+- `api/match-streams.js` - Stream channel lookup for a batch of OpenDota match IDs. Lookup order: (1) KV `stream:match:{id}` fast path; (2) PandaScore fuzzy match - queries `/dota2/matches` with a +/-1h time window around `?ts=` and fuzzy-matches `?radiantTeam=`/`?direTeam=` against PandaScore opponent names, caches result to KV; (3) ts fallback - reads `stream:ts:{bucket}` (now a JSON array of all channels active in that window) and returns them as `_candidates` for the frontend to narrow Twitch VOD search
 - `api/analytics-chat.js` - Merged analytics endpoint with 3 modes: `?mode=auth` (POST password check -> 200/401), `?mode=query` (direct BigQuery query for pageviews/top_pages/top_events/countries/custom SQL), default POST (Claude Sonnet chat with `query_analytics` tool use; agentic loop up to 5 tool calls per message; requires password in request body). Merged from 3 separate files to stay within the 12-function Vercel limit.
 - `api/sitemap.js` - Generates `/sitemap.xml` with slug URLs for recent Tier 1 matches; cached at edge for 1h
 - `api/watchability.js` - Watchability scoring logic
 - `api/og.js` - OG image/metadata generation for share card URLs. Also handles series result images via `?mode=series` (1200x630 PNG with winner, score, tournament, format using satori + resvg; used in X posts modal as downloadable PNG). Merged from `og.js` + `og-series.js` to stay within the 12-function Vercel limit.
 - `api/tournaments.js` - Multi-mode tournament endpoint. Default: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs. `?mode=calendar-team&teams=slug1,slug2`: .ics team calendar feed (resolves slugs, fetches running+upcoming+past 7d matches, caches 30min under `calendar:matches:{sorted_slugs}`). `?mode=calendar-tournament&series={id}`: .ics tournament feed (all-day VEVENT for series + match VEVENTs, caches 30min under `calendar:series:{id}`). Both calendar modes return `text/calendar` not JSON.
-- `api/match-streams.js` - Looks up KV store for matchId → Twitch channel mappings; used to resolve exact VOD channel
+- `api/match-streams.js` - See description above
 - `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `TIER1_KEYWORDS` (array) and `isTier1(...names)` (variadic — accepts 1 or 2 name strings). All API files that need tier 1 filtering import from here. When adding a new tournament to the tier 1 list, update only this file.
 
 ### Config
@@ -170,10 +170,11 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Returns ALL matching channels (not just first hit) - shown as multiple watch buttons
 - Channels tracked: ESL Main, ESL Ember, ESL Storm, ESL Earth, BTS, PGL, WePlay, DreamLeague, and more
 - **Stream mapping (server-side cron)**: `api/live-matches.js?cron=1` is called every 30 min by GitHub Actions (added as a step in `.github/workflows/auto-tweet.yml`). It fetches running matches from PandaScore and writes `stream:match:{gameMatchId}` (nx:true - write-once, never overwritten) and `stream:ts:{roundedBeginAt}` to KV (14-day TTL). The `nx:true` flag ensures the first recorded channel for a game is preserved for the lifetime of the entry. The client-side poll (`api/live-matches.js`) also writes these entries as a fallback, but without `nx:true`. Cron runs are authenticated via `CRON_SECRET` header. Cache writes only happen for the game currently in `status === 'running'`.
-- `api/match-streams.js` supports `?ts=` param: tries rounded ±1 bucket (±5 min) to absorb drift between PandaScore `begin_at` and OpenDota `start_time`
-- On drawer open, `fetchMatchStreams(matchIds, startTime)` is called; looks up all sibling game IDs in KV; if all resolve to the same channel it is used as `preferredChannel`; otherwise falls back to full group search
-- When `preferredChannel` is set, only that channel is searched (single result); otherwise falls back to full group search
-- PandaScore fallback: if a game ID is missing from KV, `match-streams.js` fetches the match from PandaScore and caches the result with 14-day TTL
+- On drawer open, `fetchMatchStreams(matchIds, startTime, radiantTeam, direTeam)` is called with all sibling game IDs and team names
+- `match-streams.js` resolves channels in order: KV fast path -> PandaScore fuzzy match (team names + time window) -> ts bucket fallback (array of candidate channels)
+- If all sibling games resolve to the same channel it is used as `preferredChannel` (single Twitch search); otherwise `_candidates` from the ts fallback narrows the search; if neither is set, falls back to full tournament group search
+- `stream:ts:{bucket}` now stores a JSON array of all channels active in that 5-min window (previously a single value, which caused last-write-wins collisions when multiple matches started simultaneously)
+- `cacheRunningStreams` in `live-matches.js` collects all active channels per bucket and writes the array once per bucket, eliminating race conditions
 - When multiple streams were live, an inline note explains the ambiguity
 
 ### Draft Display
@@ -318,7 +319,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ## Known Issues / Limitations
 - Role detection (Carry/Mid/Off/Support) is removed - OpenDota `lane_role` field is unreliable
-- VOD channel selection is best-effort when multiple streams were live simultaneously; resolved automatically for single-stream matches via KV mapping
+- VOD channel selection is best-effort when PandaScore team name fuzzy match fails (e.g. very different name formats); falls back to ts candidate channels or full group search
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
