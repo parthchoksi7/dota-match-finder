@@ -271,20 +271,14 @@ function App() {
       ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
       : [match.id]
     const idsToFetch = siblingIds.length > 0 ? siblingIds : [match.id]
-    const streamMap = await fetchMatchStreams(idsToFetch, match.startTime)
+    const streamMap = await fetchMatchStreams(idsToFetch, match.startTime, match.radiantTeam, match.direTeam)
 
     const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
     const uniqueChannels = [...new Set(resolvedChannels)]
-    let preferredChannel
-    if (uniqueChannels.length === 1) {
-      preferredChannel = uniqueChannels[0]                           // All games agree -- use it
-    } else if (uniqueChannels.length === 0) {
-      preferredChannel = streamMap[String(match.startTime)] || null  // No match-ID hits -- try timestamp (legacy)
-    } else {
-      preferredChannel = null                                        // Inconsistent -- show all channels
-    }
+    const candidateChannels = streamMap._candidates || null
+    const preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null
 
-    const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
+    const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel, candidateChannels)
     setSelectedMatch({
       ...match,
       loadingVod: false,

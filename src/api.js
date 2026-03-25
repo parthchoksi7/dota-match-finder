@@ -182,12 +182,14 @@ function getChannelGroup(tournamentName) {
  * Look up which Twitch channel(s) streamed the given match IDs.
  * Returns a map of matchId → channel name for matches we have a definitive record for.
  */
-export async function fetchMatchStreams(matchIds, startTime = null) {
-  if ((!matchIds || matchIds.length === 0) && !startTime) return {}
+export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam = null, direTeam = null) {
+  if (!matchIds || matchIds.length === 0) return {}
   try {
     const params = new URLSearchParams()
-    if (matchIds && matchIds.length > 0) params.set('ids', matchIds.join(','))
+    params.set('ids', matchIds.join(','))
     if (startTime) params.set('ts', String(startTime))
+    if (radiantTeam) params.set('radiantTeam', radiantTeam)
+    if (direTeam) params.set('direTeam', direTeam)
     const res = await fetch(`/api/match-streams?${params}`)
     if (!res.ok) return {}
     return await res.json()
@@ -202,7 +204,7 @@ export async function fetchMatchStreams(matchIds, startTime = null) {
  * is searched — giving a single, definitive result with no ambiguity.
  * Falls back to the full group-based search if the preferred channel has no VOD.
  */
-export async function findTwitchVod(matchStartTime, tournamentName, preferredChannel = null) {
+export async function findTwitchVod(matchStartTime, tournamentName, preferredChannel = null, candidateChannels = null) {
   const token = await getTwitchToken()
   const headers = {
     'Client-ID': import.meta.env.VITE_TWITCH_CLIENT_ID,
@@ -216,8 +218,13 @@ export async function findTwitchVod(matchStartTime, tournamentName, preferredCha
     // VOD not found on preferred channel (may not be published yet) — fall through
   }
 
+  // Narrow to ts-derived candidate channels if available, otherwise search all known channels.
+  const channelsToSearch = candidateChannels
+    ? VOD_CHANNELS.filter(ch => candidateChannels.includes(ch))
+    : VOD_CHANNELS
+
   const results = await Promise.allSettled(
-    VOD_CHANNELS.map((ch) => findVodOnChannel(ch, matchStartTime, headers))
+    channelsToSearch.map((ch) => findVodOnChannel(ch, matchStartTime, headers))
   )
   const hits = results
     .filter(r => r.status === 'fulfilled' && r.value != null)

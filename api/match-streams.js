@@ -7,82 +7,112 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
+import { PANDASCORE_BASE, STREAM_TTL } from './_shared.js'
+
 /**
- * GET /api/match-streams?ids=123,456,789
+ * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
+ * Uses substring matching in both directions to handle name truncation on either side
+ * (e.g. "BetBoom Team" vs "BetBoom", "Yakult Brothers" vs "Yakult S Brothers").
+ */
+function teamsMatch(psOpponents, radiantTeam, direTeam) {
+  if (!psOpponents || psOpponents.length < 2) return false
+  const names = psOpponents.map(o => o.opponent?.name?.toLowerCase() || '')
+  const r = radiantTeam?.toLowerCase() || ''
+  const d = direTeam?.toLowerCase() || ''
+  if (!r || !d) return false
+  const matchesOne = (psName, odName) => psName.includes(odName) || odName.includes(psName)
+  return (matchesOne(names[0], r) || matchesOne(names[0], d)) &&
+         (matchesOne(names[1], r) || matchesOne(names[1], d))
+}
+
+/**
+ * GET /api/match-streams?ids=123,456&ts=1234567890&radiantTeam=Tundra&direTeam=REKONIX
  *
- * Returns a map of matchId → channel name for matches where we recorded
- * which Twitch channel was streaming it live. Used to skip the "guess which
- * stream" step in the VOD drawer.
+ * Lookup flow per match ID:
+ * 1. KV `stream:match:{id}` — fast path, written when external_identifier is available
+ *    or when a prior PandaScore fuzzy match cached it.
+ * 2. PandaScore fuzzy match — query by ±1h time window, match by team names.
+ *    Caches result to KV for future lookups.
+ * 3. ts fallback — if fuzzy match finds nothing, read `stream:ts:{bucket}` which now
+ *    stores a JSON array of all channels that were live in that time window.
+ *    Returned as `_candidates` so the frontend can narrow its Twitch VOD search.
  */
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
 
-  const { ids, ts } = req.query
-  if (!ids && !ts) return res.status(400).json({ error: 'ids or ts required' })
+  const { ids, ts, radiantTeam, direTeam } = req.query
+  if (!ids) return res.status(400).json({ error: 'ids required' })
 
   const result = {}
 
-  try {
-    if (ids) {
-      const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
-      if (matchIds.length > 0) {
-        const keys = matchIds.map(id => `stream:match:${id}`)
-        const values = await kv.mget(...keys)
-        matchIds.forEach((id, i) => { if (values[i]) result[id] = values[i] })
-      }
-    }
+  const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
 
-    if (ts) {
-      // Look up by game start timestamp (rounded to 5 min to handle PandaScore vs OpenDota drift).
-      // Try the rounded bucket and the one before/after to absorb edge-of-window mismatches.
-      const rawTs = parseInt(ts, 10)
-      if (!isNaN(rawTs)) {
-        const rounded = Math.floor(rawTs / 300) * 300
-        const candidates = [rounded - 300, rounded, rounded + 300]
-        const tsKeys = candidates.map(t => `stream:ts:${t}`)
-        const tsValues = await kv.mget(...tsKeys)
-        const hit = tsValues.find(v => v != null)
-        if (hit) result[ts] = hit
-      }
+  // Step 1: KV lookup by match ID
+  try {
+    if (matchIds.length > 0) {
+      const keys = matchIds.map(id => `stream:match:${id}`)
+      const values = await kv.mget(...keys)
+      matchIds.forEach((id, i) => { if (values[i]) result[id] = values[i] })
     }
   } catch (err) {
     console.warn('match-streams KV read failed:', err?.message)
   }
 
-  // Fallback: for any match IDs still missing from KV, fetch the match from PandaScore
-  // to get the authoritative streams_list. This handles completed ESL One matches where
-  // the KV entry was never written (or stored the wrong main channel and was skipped).
-  if (ids && process.env.PANDASCORE_TOKEN) {
-    const allIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
-    const missingIds = allIds.filter(id => !result[id])
-    if (missingIds.length > 0) {
-      await Promise.all(missingIds.map(async (id) => {
-        try {
-          const r = await fetch(
-            `https://api.pandascore.co/dota2/matches/${id}`,
-            { headers: { Authorization: `Bearer ${process.env.PANDASCORE_TOKEN}`, Accept: 'application/json' } }
-          )
-          if (!r.ok) return
-          const m = await r.json()
-          const official = (m.streams_list || []).filter(s => s.official && s.language === 'en' && s.raw_url)
-          // Prefer the stream marked main:true — that's the sub-channel designated for this specific
-          // match. Falls back to the single-stream case for tournaments with only one channel.
-          const mainStreams = official.filter(s => s.main)
-          const candidate = mainStreams.length === 1 ? mainStreams[0]
-                          : official.length === 1   ? official[0]
-                          : null
-          if (candidate) {
-            const channel = candidate.raw_url.replace('https://www.twitch.tv/', '')
-            // Skip esl_dota2 main for ESL One -- it's unreliable (PandaScore lists it even when
-            // the actual broadcast is on a sub-channel like esl_dota2storm or esl_dota2earth).
-            const tournamentName = ((m.league?.name || '') + ' ' + (m.serie?.full_name || '')).toLowerCase()
-            if (channel === 'esl_dota2' && tournamentName.includes('esl one')) return
-            result[id] = channel
-            // Cache so we don't call PandaScore again for this match
-            kv.set(`stream:match:${id}`, channel, { ex: 60 * 60 * 24 * 14 }).catch(() => {})
+  const missingIds = matchIds.filter(id => !result[id])
+
+  // Step 2: PandaScore fuzzy match for missing IDs
+  if (missingIds.length > 0 && ts && radiantTeam && direTeam && process.env.PANDASCORE_TOKEN) {
+    try {
+      const startTime = parseInt(ts, 10)
+      if (!isNaN(startTime)) {
+        const startIso = new Date((startTime - 3600) * 1000).toISOString()
+        const endIso = new Date((startTime + 3600) * 1000).toISOString()
+        const psRes = await fetch(
+          `${PANDASCORE_BASE}/matches?range[begin_at]=${startIso},${endIso}&sort=begin_at&page[size]=20`,
+          { headers: { Authorization: `Bearer ${process.env.PANDASCORE_TOKEN}`, Accept: 'application/json' } }
+        )
+        if (psRes.ok) {
+          const psMatches = await psRes.json()
+          const psMatch = (psMatches || []).find(m => teamsMatch(m.opponents, radiantTeam, direTeam))
+          if (psMatch) {
+            const official = (psMatch.streams_list || []).filter(s => s.official && s.language === 'en' && s.raw_url)
+            const mainStreams = official.filter(s => s.main)
+            const candidate = mainStreams.length === 1 ? mainStreams[0]
+                            : official.length === 1   ? official[0]
+                            : null
+            if (candidate) {
+              const channel = candidate.raw_url.replace('https://www.twitch.tv/', '')
+              for (const id of missingIds) {
+                result[id] = channel
+                kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(() => {})
+              }
+              console.log(`match-streams fuzzy match: ${radiantTeam} vs ${direTeam} → ${channel}`)
+            }
           }
-        } catch { /* best effort */ }
-      }))
+        }
+      }
+    } catch (err) {
+      console.warn('match-streams PandaScore fuzzy match failed:', err?.message)
+    }
+  }
+
+  // Step 3: ts fallback — return candidate channels from the time bucket
+  const stillMissing = matchIds.filter(id => !result[id])
+  if (stillMissing.length > 0 && ts) {
+    try {
+      const rawTs = parseInt(ts, 10)
+      if (!isNaN(rawTs)) {
+        const rounded = Math.floor(rawTs / 300) * 300
+        const tsKeys = [rounded - 300, rounded, rounded + 300].map(t => `stream:ts:${t}`)
+        const tsValues = await kv.mget(...tsKeys)
+        const hit = tsValues.find(v => v != null)
+        if (hit) {
+          // New format: JSON array of channels. Legacy format: plain string.
+          result._candidates = Array.isArray(hit) ? hit : [hit]
+        }
+      }
+    } catch (err) {
+      console.warn('match-streams ts fallback failed:', err?.message)
     }
   }
 

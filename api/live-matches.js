@@ -127,6 +127,8 @@ async function enrichMultiStreamMatches(matches, headers) {
  */
 async function cacheRunningStreams(rawMatches) {
   const streamWrites = []
+  const tsBuckets = {} // roundedTs → Set<channel>
+
   for (const m of rawMatches) {
     const streams = getTwitchStreams(m.streams_list, m.league?.name, m.serie?.full_name || m.serie?.name)
     if (streams.length !== 1) continue
@@ -135,7 +137,8 @@ async function cacheRunningStreams(rawMatches) {
       if (!game.begin_at || game.status !== 'running') continue
       const ts = Math.floor(new Date(game.begin_at).getTime() / 1000)
       const roundedTs = Math.floor(ts / 300) * 300
-      streamWrites.push(kv.set(`stream:ts:${roundedTs}`, channel, { ex: STREAM_TTL }))
+      if (!tsBuckets[roundedTs]) tsBuckets[roundedTs] = new Set()
+      tsBuckets[roundedTs].add(channel)
       const matchId = game.external_identifier || null
       if (matchId) {
         // nx: true — write-once. First recorded channel is never overwritten.
@@ -143,6 +146,13 @@ async function cacheRunningStreams(rawMatches) {
       }
     }
   }
+
+  // Write each ts bucket as a JSON array of all channels active in that window.
+  // This replaces the old single-value write that caused last-write-wins collisions.
+  for (const [roundedTs, channels] of Object.entries(tsBuckets)) {
+    streamWrites.push(kv.set(`stream:ts:${roundedTs}`, [...channels], { ex: STREAM_TTL }))
+  }
+
   if (streamWrites.length > 0) {
     await Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
   }
