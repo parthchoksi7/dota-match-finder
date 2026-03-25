@@ -49,16 +49,21 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   // In that case, fall through to the static mapping so all sub-channels are shown.
   const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
   if (official.length > 0) {
-    // When multiple concurrent matches share sub-channels (e.g. DreamLeague), PandaScore marks
-    // exactly one stream main:true per match. Narrow to it so each match shows its own channel.
-    // If no stream is marked main (PandaScore bulk endpoint omits the flag), pick the first one.
+    // When multiple concurrent matches share sub-channels (e.g. ESL One, DreamLeague), PandaScore
+    // marks exactly one stream main:true per match on the individual endpoint. Narrow to it.
+    // If no stream is marked main (bulk endpoint omits the flag), pick the first one.
     const mainStreams = official.filter(s => s.main)
-    const toUse = mainStreams.length > 0 ? mainStreams : official.slice(0, 1)
+    const hasMainFlag = mainStreams.length > 0
+    const toUse = hasMainFlag ? mainStreams : official.slice(0, 1)
     const streams = toUse.map(s => {
       const channel = s.raw_url.replace('https://www.twitch.tv/', '')
       return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
     })
-    const isEslOneMainOnly = lower.includes('esl one')
+    // Only fall through to the static ESL One mapping when there is no main flag at all
+    // (bulk endpoint data) and we're guessing esl_dota2. If PandaScore explicitly assigned
+    // main:true to esl_dota2, that match really is on the main hub — trust it.
+    const isEslOneMainOnly = !hasMainFlag
+      && lower.includes('esl one')
       && streams.length === 1
       && streams[0].url === 'https://www.twitch.tv/esl_dota2'
     if (!isEslOneMainOnly) return streams
