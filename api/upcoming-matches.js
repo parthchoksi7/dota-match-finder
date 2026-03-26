@@ -12,45 +12,15 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1 } from './_shared.js'
+import { isTier1, getTwitchStreams } from './_shared.js'
 
-function getSeriesLabel(matchType) {
+function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
   if (matchType === 'best_of_2') return 'BO2'
   if (matchType === 'best_of_3') return 'BO3'
   if (matchType === 'best_of_5') return 'BO5'
+  if (matchType === 'best_of' && numberOfGames) return `BO${numberOfGames}`
   return null
-}
-
-function getTwitchStreams(leagueName, serieName) {
-  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
-  if (lower.includes('pgl')) return [
-    { label: 'PGL', url: 'https://twitch.tv/pgl_dota2' },
-    { label: 'PGL (EN2)', url: 'https://twitch.tv/pgl_dota2en2' },
-  ]
-  if (lower.includes('esl one')) return [
-    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
-    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
-    { label: 'ESL Storm', url: 'https://twitch.tv/esl_dota2storm' },
-    { label: 'ESL Earth', url: 'https://twitch.tv/esl_dota2earth' },
-  ]
-  if (lower.includes('dreamleague')) return [
-    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
-    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
-  ]
-  if (lower.includes('beyond the summit') || lower.includes('bts')) return [
-    { label: 'BTS', url: 'https://twitch.tv/beyond_the_summit' },
-  ]
-  if (lower.includes('blast')) return [
-    { label: 'BLAST', url: 'https://twitch.tv/blast_dota2' },
-  ]
-  if (lower.includes('weplay')) return [
-    { label: 'WePlay', url: 'https://twitch.tv/weplaydota' },
-  ]
-  if (lower.includes('the international') || lower.includes(' ti ')) return [
-    { label: 'TI', url: 'https://twitch.tv/dota2ti' },
-  ]
-  return []
 }
 
 function buildTournamentName(m) {
@@ -78,8 +48,8 @@ function mapMatch(m) {
     teamA,
     teamB,
     tournament: buildTournamentName(m),
-    seriesLabel: getSeriesLabel(m.match_type),
-    streams: getTwitchStreams(leagueName, serieName),
+    seriesLabel: getSeriesLabel(m.match_type, m.number_of_games),
+    streams: getTwitchStreams(m.streams_list, leagueName, serieName),
   }
 }
 

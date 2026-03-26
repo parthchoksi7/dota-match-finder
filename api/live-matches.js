@@ -12,11 +12,12 @@ const TTL = 60 * 2 // 2 minutes
 
 import { isTier1, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL } from './_shared.js'
 
-function getSeriesLabel(matchType) {
+function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
   if (matchType === 'best_of_2') return 'BO2'
   if (matchType === 'best_of_3') return 'BO3'
   if (matchType === 'best_of_5') return 'BO5'
+  if (matchType === 'best_of' && numberOfGames) return `BO${numberOfGames}`
   return null
 }
 
@@ -84,7 +85,7 @@ function mapMatch(m) {
     teamA,
     teamB,
     tournament: buildTournamentName(m),
-    seriesLabel: getSeriesLabel(m.match_type),
+    seriesLabel: getSeriesLabel(m.match_type, m.number_of_games),
     seriesScore: getSeriesScore(m),
     currentGame: getCurrentGame(m),
     games: mapGames(m),

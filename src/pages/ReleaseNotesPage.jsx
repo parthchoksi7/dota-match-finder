@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Mar 25, 2026",
     tag: "fix",
+    title: "Upcoming matches now show the correct stream and series format",
+    desc: "Upcoming matches were showing all 4 ESL sub-channels instead of only the one assigned to each match. Series labels were also missing for any match using PandaScore's newer format (e.g. BO3 was blank instead of showing "BO3"). Both fixed.",
+  },
+  {
+    date: "Mar 25, 2026",
+    tag: "fix",
     title: "VOD links now resolve the correct stream when multiple matches run at the same time",
     desc: "When several matches started simultaneously (common in ESL One group stages), all games in the same 5-minute window were being mapped to the same Twitch channel - whichever match happened to write last. VOD links for most games would land on the wrong stream. The lookup now uses team names to query PandaScore directly and identify the exact channel for each match, with the time-window cache kept as a fallback.",
   },
