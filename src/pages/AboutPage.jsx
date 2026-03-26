@@ -64,7 +64,7 @@ function AboutPage() {
             {[
               { q: "How do I find a match VOD?", a: "Search for a team name or tournament on the homepage. Click any past match to open the details panel and get a direct Twitch link timestamped to that exact game." },
               { q: "How far back do VODs go?", a: "Twitch VODs are available for up to 60 days. Matches older than that will show no VOD found." },
-              { q: "Why are multiple stream links shown?", a: "When tournaments run concurrent matches on different sub-channels, all matching streams are shown. This is a known limitation — Twitch does not expose which stream carried which match." },
+              { q: "Why are multiple stream links shown?", a: "For most matches, only the single assigned sub-channel is shown. In rare cases where PandaScore has not yet assigned a specific channel to a match, all active streams for that tournament are shown as fallback options." },
               { q: "What is the AI match summary?", a: "Each match has an AI-generated summary covering draft analysis with a draft winner, team strategy, MVP, and a match highlight. Generated using Claude by Anthropic." },
               { q: "Can I share a specific match?", a: "Yes. Click the share button in any match drawer to copy a direct link. The link includes a preview card showing teams, score, and tournament." },
               { q: "What is spoiler-free mode?", a: "Toggle \"Spoilers: Off\" in the header to hide scores, results, KDA stats, series game count, and format labels (BO3/BO5). Everything that could reveal the outcome or length of a series is hidden. Your preference is saved across sessions." },
