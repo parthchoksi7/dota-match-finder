@@ -5,7 +5,7 @@ const RELEASES = [
     date: "Mar 25, 2026",
     tag: "fix",
     title: "Upcoming matches now show the correct stream and series format",
-    desc: "Upcoming matches were showing all 4 ESL sub-channels instead of only the one assigned to each match. Series labels were also missing for any match using PandaScore's newer format (e.g. BO3 was blank instead of showing "BO3"). Both fixed.",
+    desc: "Upcoming matches were showing all 4 ESL sub-channels instead of only the one assigned to each match. Series labels were also missing for any match using PandaScore's newer format (e.g. a BO3 was showing no label). Both fixed.",
   },
   {
     date: "Mar 25, 2026",
