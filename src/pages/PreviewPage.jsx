@@ -730,6 +730,55 @@ function PreviewPage() {
         </div>
       </header>
 
+      {/* ── Live banner (sticky below header) ── */}
+      {!liveLoading && liveMatches.length > 0 && (() => {
+        const first = liveMatches[0]
+        const more = liveMatches.length - 1
+        const teamA = first.radiantTeam?.name || "Radiant"
+        const teamB = first.direTeam?.name || "Dire"
+        const scoreA = first.radiantScore ?? ""
+        const scoreB = first.direScore ?? ""
+        const watchUrl = first.streams?.[0]?.rawUrl || null
+        return (
+          <div className="sticky top-[57px] z-30 border-b border-red-500/40 bg-gray-950/95 backdrop-blur-sm">
+            <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="flex items-center gap-1.5 text-red-500 text-xs font-bold uppercase tracking-widest flex-shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  {liveMatches.length} Live
+                </span>
+                <span className="font-display font-black text-white text-base sm:text-lg uppercase truncate">
+                  {spoilerFree ? `${teamA} vs ${teamB}` : `${teamA} ${scoreA}–${scoreB} · ${teamB}`}
+                </span>
+                {more > 0 && (
+                  <a
+                    href="#live-section"
+                    onClick={e => { e.preventDefault(); document.getElementById("live-section")?.scrollIntoView({ behavior: "smooth" }) }}
+                    className="text-gray-600 hover:text-gray-400 text-xs font-semibold tabular-nums flex-shrink-0 transition-colors"
+                  >
+                    +{more} more ↓
+                  </a>
+                )}
+              </div>
+              {watchUrl && (
+                <a
+                  href={watchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackEvent("preview_live_banner_watch", { url: watchUrl })}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
+                  </svg>
+                  Watch
+                </a>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Main content ── */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-5 pb-24 sm:pb-6 flex flex-col gap-4">
 
@@ -820,7 +869,7 @@ function PreviewPage() {
 
         {/* ── Live Now ── */}
         {!liveLoading && liveMatches.length > 0 && (
-          <div>
+          <div id="live-section">
             <SectionLabel color="red" count={liveMatches.length}>Live Now</SectionLabel>
             <div>
               {liveMatches.map(match => (
