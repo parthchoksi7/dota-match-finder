@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import MatchDrawer from "../components/MatchDrawer"
-import TournamentBar from "../components/TournamentBar"
+import TournamentHub from "../components/TournamentHub"
 import {
   fetchProMatches,
   findTwitchVod,
@@ -449,6 +449,8 @@ function PreviewPage() {
   })
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"))
+  const [tournamentPills, setTournamentPills] = useState(null)
+  const [expandedTournamentId, setExpandedTournamentId] = useState(null)
 
   const searchInputRef = useRef(null)
 
@@ -487,6 +489,13 @@ function PreviewPage() {
     const interval = setInterval(fetchLiveData, 2 * 60 * 1000)
     return () => clearInterval(interval)
   }, [loadMatches])
+
+  useEffect(() => {
+    fetch("/api/tournaments?mode=series")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setTournamentPills([...(d.live || []), ...(d.upcoming || [])].slice(0, 3)) })
+      .catch(() => {})
+  }, [])
 
   // ── Series + game number map ────────────────────────────────────────────────
   const seriesMatchMap = {}
@@ -737,8 +746,48 @@ function PreviewPage() {
           }}
         />
 
-        {/* Tournament Hub */}
-        <TournamentBar />
+        {/* Tournament pills + inline hub */}
+        {tournamentPills && tournamentPills.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-[4px] text-gray-600 flex-shrink-0">Tournaments</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {tournamentPills.map(t => {
+                  const isLive = t.status === "live"
+                  const isExpanded = expandedTournamentId === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        trackEvent("preview_tournament_pill_click", { tournament_id: t.id, tournament_name: t.name })
+                        setExpandedTournamentId(isExpanded ? null : t.id)
+                      }}
+                      className={
+                        "flex items-center gap-1.5 px-3 py-1.5 border rounded text-sm font-semibold transition-colors " +
+                        (isLive
+                          ? "border-red-500/50 bg-red-500/5 text-white hover:bg-red-500/10"
+                          : "border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-300")
+                      }
+                    >
+                      {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />}
+                      {t.name}
+                      <span className={isExpanded ? "text-gray-400 text-xs" : "text-gray-700 text-xs"}>▾</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            {expandedTournamentId && (
+              <TournamentHub
+                key={expandedTournamentId}
+                tournamentId={expandedTournamentId}
+                spoilerFree={spoilerFree}
+                onClose={() => setExpandedTournamentId(null)}
+              />
+            )}
+          </div>
+        )}
 
         {/* ── Today at a Glance strip ── */}
         {!initialLoading && !liveLoading && (dayGroups[0]?.key === new Date().toDateString() || liveMatches.length > 0) && (

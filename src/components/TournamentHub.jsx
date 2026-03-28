@@ -214,7 +214,7 @@ function deriveChampionFromBracket(bracket) {
   return scoreA > scoreB ? teamA : teamB
 }
 
-function TournamentHub({ spoilerFree }) {
+function TournamentHub({ spoilerFree, tournamentId, onClose }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Overview')
@@ -236,9 +236,12 @@ function TournamentHub({ spoilerFree }) {
   const ongoing = data?.ongoing || []
   const upcoming = data?.upcoming || []
   const completed = data?.completed || []
-  const tournament = ongoing[0] || upcoming[0] || completed[0] || null
-  const isOngoing = ongoing.length > 0
-  const isCompleted = !isOngoing && upcoming.length === 0 && !!tournament
+  const allTournaments = [...ongoing, ...upcoming, ...completed]
+  const tournament = tournamentId
+    ? (allTournaments.find(t => t.id === tournamentId) || null)
+    : (ongoing[0] || upcoming[0] || completed[0] || null)
+  const isOngoing = tournament ? ongoing.some(t => t.id === tournament.id) : false
+  const isCompleted = tournament ? (!isOngoing && !upcoming.some(t => t.id === tournament.id)) : false
 
   // Fetch detail for the main tournament (also seeds the stage cache)
   useEffect(() => {
@@ -385,8 +388,8 @@ function TournamentHub({ spoilerFree }) {
       </div>
 
       {/* Tab bar — segmented control */}
-      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
+        <div className="flex flex-1 w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
           {TABS.map(tab => (
             <button
               key={tab}
@@ -402,6 +405,15 @@ function TournamentHub({ spoilerFree }) {
             </button>
           ))}
         </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+          >
+            Close ✕
+          </button>
+        )}
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
