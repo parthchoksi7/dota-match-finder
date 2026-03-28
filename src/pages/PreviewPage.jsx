@@ -749,7 +749,7 @@ function PreviewPage() {
                   {liveMatches.length} Live
                 </span>
                 <span className="font-display font-black text-white text-base sm:text-lg uppercase truncate">
-                  {spoilerFree ? `${teamA} vs ${teamB}` : `${teamA} ${scoreA}–${scoreB} · ${teamB}`}
+                  {spoilerFree ? `${teamA} vs ${teamB}` : `${teamA} ${scoreA}–${scoreB} ${teamB}`}
                 </span>
                 {more > 0 && (
                   <a
