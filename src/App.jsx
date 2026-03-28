@@ -545,7 +545,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col overflow-x-hidden">
       <SiteHeader
         spoilerFree={spoilerFree}
         onSpoilerToggle={() => {

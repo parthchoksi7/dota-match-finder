@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import MatchDrawer from "../components/MatchDrawer"
-import TournamentHub from "../components/TournamentHub"
+import TournamentBar from "../components/TournamentBar"
 import {
   fetchProMatches,
   findTwitchVod,
@@ -738,7 +738,7 @@ function PreviewPage() {
         />
 
         {/* Tournament Hub */}
-        <TournamentHub spoilerFree={spoilerFree} />
+        <TournamentBar />
 
         {/* ── Today at a Glance strip ── */}
         {!initialLoading && !liveLoading && (dayGroups[0]?.key === new Date().toDateString() || liveMatches.length > 0) && (
