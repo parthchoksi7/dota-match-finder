@@ -641,6 +641,7 @@ function PreviewPage() {
   async function handleLoadMore() {
     if (loadingMore || !nextMatchId) return
     setLoadingMore(true)
+    trackEvent("load_more", { page: "preview" })
     try {
       const { matches: newMatches, nextMatchId: newNextId } = await fetchProMatches(nextMatchId)
       setAllMatches(prev => [...prev, ...newMatches])
