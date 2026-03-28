@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Mar 28, 2026",
+    tag: "fix",
+    title: "Fixed horizontal scroll on mobile homepage",
+    desc: "The homepage could scroll horizontally on narrow screens due to the bracket viewer inside the Tournament Hub. Fixed by containing overflow at the page root.",
+  },
+  {
     date: "Mar 25, 2026",
     tag: "fix",
     title: "Upcoming matches now show the correct stream and series format",
