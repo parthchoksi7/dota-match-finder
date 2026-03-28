@@ -491,9 +491,16 @@ function PreviewPage() {
   }, [loadMatches])
 
   useEffect(() => {
-    fetch("/api/tournaments?mode=series")
+    fetch("/api/tournaments")
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setTournamentPills([...(d.live || []), ...(d.upcoming || [])].slice(0, 3)) })
+      .then(d => {
+        if (!d) return
+        const pills = [
+          ...(d.ongoing || []).map(t => ({ ...t, status: "live" })),
+          ...(d.upcoming || []).map(t => ({ ...t, status: "upcoming" })),
+        ].slice(0, 3)
+        setTournamentPills(pills)
+      })
       .catch(() => {})
   }, [])
 
