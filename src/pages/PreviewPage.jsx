@@ -658,9 +658,9 @@ function PreviewPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
-      {/* ── Header — max-w-4xl constrained, matches prototype ── */}
+      {/* ── Header — full width ── */}
       <header className="border-b border-gray-800 sticky top-0 z-40 bg-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+        <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
           <a href="/" className="flex items-center gap-2.5 flex-shrink-0">
             <img src="/favicon.png" alt="Spectate Esports" className="h-8 w-8" />
             <div className="hidden sm:block">
