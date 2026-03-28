@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Mar 28, 2026",
     tag: "fix",
+    title: "Homepage no longer hangs when OpenDota is down",
+    desc: "If the OpenDota API is slow or unavailable, the homepage used to spin indefinitely with no way to recover. Fetches now time out after 15 seconds and show a clear error message with a retry button.",
+  },
+  {
+    date: "Mar 28, 2026",
+    tag: "fix",
     title: "Fixed horizontal scroll on mobile homepage",
     desc: "The homepage could scroll horizontally on narrow screens due to the bracket viewer inside the Tournament Hub. Fixed by containing overflow at the page root.",
   },
