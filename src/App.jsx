@@ -139,7 +139,7 @@ function App() {
         setInitialLoading(false)
       })
       .catch(() => {
-        setError("Failed to load matches.")
+        setError("Could not load matches - OpenDota may be temporarily down. Try again in a moment.")
         setInitialLoading(false)
       })
   }, [])

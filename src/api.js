@@ -35,7 +35,15 @@ export async function fetchProMatches(lastMatchId = null) {
       ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${cursor}`
       : `${OPENDOTA_BASE}/promatches`
 
-    const res = await fetch(url)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
+    let res
+    try {
+      res = await fetch(url, { signal: controller.signal })
+    } finally {
+      clearTimeout(timeoutId)
+    }
+    if (!res.ok) throw new Error(`OpenDota promatches error: ${res.status}`)
     const data = await res.json()
 
     if (!Array.isArray(data) || data.length === 0) break
