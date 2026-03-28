@@ -464,19 +464,6 @@ function PreviewPage() {
 
   const searchInputRef = useRef(null)
 
-  // ── Font loading ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const id = "preview-barlow-font"
-    if (!document.getElementById(id)) {
-      const link = document.createElement("link")
-      link.id = id
-      link.rel = "stylesheet"
-      link.href = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=Barlow:wght@400;500;600&display=swap"
-      document.head.appendChild(link)
-    }
-    return () => {} // don't remove on unmount — font is cached anyway
-  }, [])
-
   // ── Data fetching ───────────────────────────────────────────────────────────
   const loadMatches = useCallback(() => {
     setError(null)
@@ -672,21 +659,14 @@ function PreviewPage() {
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
   return (
-    <div
-      className="min-h-screen bg-gray-950 text-white flex flex-col"
-      style={{ fontFamily: "'Barlow', sans-serif" }}
-    >
-      {/* Inject font-display utility via inline style on elements */}
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800/80">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <a href="/" className="flex items-center gap-2.5 shrink-0">
             <img src="/favicon.png" alt="Spectate Esports" className="h-8 w-8" />
-            <span
-              className="text-base font-black uppercase tracking-wide text-white leading-none hidden sm:block"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-            >
+            <span className="font-display text-base font-black uppercase tracking-wide text-white leading-none hidden sm:block">
               Spectate
             </span>
           </a>

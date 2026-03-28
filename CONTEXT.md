@@ -32,7 +32,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/StageTimeline.jsx` - Horizontal timeline of tournament sub-stages; highlights active stage in red
 - `src/utils/regions.js` - Country code to Dota 2 region mapping; `getRegion(code)`, `getRegionColor(region)`, `groupTeamsByRegion(teams)`, `getRegionSummary(teams)`
 - `src/App.jsx` - Main app, state management, search, load more, drawer, spoiler-free toggle, slug URL generation
-- `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, `/calendar` -> Calendar, else App
+- `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, `/calendar` -> Calendar, `/preview` -> PreviewPage, else App
 - `src/api.js` - All API calls: OpenDota, Twitch VOD search, hero fetching, match summaries
 - `src/components/MatchDrawer.jsx` - Slide-in drawer showing match details, VOD links, draft, AI summary
 - `src/components/DraftDisplay.jsx` - Hero picks, bans, player names, KDA
@@ -45,6 +45,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher
 - `src/components/XPostsModal.jsx` - Modal for displaying AI-generated X/Twitter posts per game in a series, plus series summary and downloadable result image
 - `src/components/WatchBadge.jsx` - Watchability badge component
+- `src/pages/PreviewPage.jsx` - **Internal** design preview at `/preview`; NOT indexed (disallowed in robots.txt); dark-only B+ design system with Barlow Condensed fonts, state-sectioned feed (Live Now / Coming Up / Results by date), game chips as play buttons that open MatchDrawer, abbreviated tournament names, followed-team amber accent, mobile bottom nav. Fetches same data as homepage: `/api/live-matches`, `/api/upcoming-matches`, `fetchProMatches`. Reuses `TournamentHub` and `MatchDrawer` as-is. Intentionally diverges from DESIGN_GUIDELINES (dark-only, rounded-xl cards, larger typography) as a design exploration prototype.
 - `src/pages/AnalyticsPage.jsx` - **Private** analytics chat page at `/analytics`; password-gated; NOT indexed by Google; NOT in sitemap; checks `ANALYTICS_PASSWORD` via `/api/analytics-chat?mode=auth`
 - `src/components/AnalyticsChat.jsx` - Chat UI for the analytics page; passes password in each request; supports suggested questions and conversation history
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
@@ -76,7 +77,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `TIER1_KEYWORDS` (array) and `isTier1(...names)` (variadic — accepts 1 or 2 name strings). All API files that need tier 1 filtering import from here. When adding a new tournament to the tier 1 list, update only this file.
 
 ### Config
-- `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/analytics` -> `/`
+- `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/calendar` -> `/`, `/analytics` -> `/`, `/preview` -> `/` (internal design preview, disallowed in robots.txt)
 - `middleware.js` - Edge middleware: intercepts `/match/*` requests, injects per-match OG meta tags server-side
 
 ---
