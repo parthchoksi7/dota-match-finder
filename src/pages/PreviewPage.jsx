@@ -676,7 +676,6 @@ function PreviewPage() {
               <p className="font-display font-black text-lg uppercase tracking-widest leading-none">
                 Spectate <span className="text-red-500">Esports</span>
               </p>
-              <p className="text-xs text-gray-600 uppercase tracking-widest leading-none mt-0.5">Pro Dota 2 replays</p>
             </div>
           </a>
 
