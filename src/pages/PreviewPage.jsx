@@ -680,57 +680,42 @@ function PreviewPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800/80">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <a href="/" className="flex items-center gap-2.5 shrink-0">
-            <img src="/favicon.png" alt="Spectate Esports" className="h-8 w-8" />
-            <span className="font-display text-base font-black uppercase tracking-wide text-white leading-none hidden sm:block">
-              Spectate
-            </span>
-          </a>
-
-          <div className="flex-1 relative">
-            <input
-              ref={searchInputRef}
-              type="search"
-              placeholder="Search teams, tournaments..."
-              className="w-full bg-gray-800/60 border border-gray-700/50 rounded-full px-4 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 focus:bg-gray-800"
-              onKeyDown={e => {
-                if (e.key === "Enter" && e.target.value.trim()) {
-                  window.location.href = "/?q=" + encodeURIComponent(e.target.value.trim())
-                }
-              }}
-            />
+      {/* ── Header — full-width, matches production SiteHeader layout ── */}
+      <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800/80 px-4 sm:px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-3">
+        <a href="/" className="flex items-center gap-3 min-w-0 shrink-0">
+          <img src="/favicon.png" alt="Spectate Esports" className="h-10 w-10 flex-shrink-0" />
+          <div className="min-w-0 hidden sm:block">
+            <p className="font-display text-xl font-black uppercase tracking-widest text-white truncate leading-none">
+              Spectate <span className="text-red-500">Esports</span>
+            </p>
+            <p className="text-gray-600 text-xs uppercase tracking-widest mt-0.5">
+              Pro Dota 2 replays.
+            </p>
           </div>
+        </a>
 
-          {/* Desktop nav links */}
-          <nav className="hidden sm:flex items-center gap-4 shrink-0">
-            <a href="/tournaments" className="text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-300 transition-colors">
-              Tournaments
-            </a>
-            <a href="/calendar" className="text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-300 transition-colors">
-              Calendar
-            </a>
+        <div className="flex items-center gap-3">
+          <nav className="hidden sm:flex items-center gap-4">
+            <a href="/tournaments" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Tournaments</a>
+            <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">About</a>
+            <a href="/calendar" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Calendar</a>
           </nav>
 
           <button
             type="button"
             onClick={handleSpoilerToggle}
-            className={[
-              "shrink-0 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border transition-colors",
-              spoilerFree
-                ? "bg-amber-500/15 border-amber-500/50 text-amber-400"
-                : "border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300"
-            ].join(" ")}
+            title={spoilerFree ? "Spoiler-free mode on — scores hidden" : "Enable spoiler-free mode"}
+            aria-label={spoilerFree ? "Disable spoiler-free mode" : "Enable spoiler-free mode"}
+            className={"p-2 rounded border transition-colors " + (spoilerFree
+              ? "bg-red-600 border-red-600 text-white"
+              : "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500")}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
               {spoilerFree
-                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
+                : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
               }
             </svg>
-            <span className="hidden sm:inline">Spoilers</span>
           </button>
 
           <button
@@ -738,15 +723,18 @@ function PreviewPage() {
             onClick={handleThemeToggle}
             title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="shrink-0 p-1.5 rounded border border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors"
+            className="p-2 rounded border border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors"
           >
             {isDark ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
             )}
           </button>
@@ -755,6 +743,21 @@ function PreviewPage() {
 
       {/* ── Main content ── */}
       <main className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-6 flex-1 w-full pb-24 sm:pb-6">
+
+        {/* Search bar */}
+        <div className="relative">
+          <input
+            ref={searchInputRef}
+            type="search"
+            placeholder="Search teams or tournaments..."
+            className="w-full bg-gray-800/60 border border-gray-700/50 rounded-full px-5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 focus:bg-gray-800"
+            onKeyDown={e => {
+              if (e.key === "Enter" && e.target.value.trim()) {
+                window.location.href = "/?q=" + encodeURIComponent(e.target.value.trim())
+              }
+            }}
+          />
+        </div>
 
         {/* Tournament Hub */}
         <TournamentHub spoilerFree={spoilerFree} />
