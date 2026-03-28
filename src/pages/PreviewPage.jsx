@@ -154,17 +154,23 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
         </span>
       </div>
 
-      {/* Teams + Score */}
-      <div className="px-4 pb-2.5 flex items-center gap-2">
+      {/* Teams + Score — clickable to open drawer for game 1 */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelectGame(series.games[0])}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGame(series.games[0]) } }}
+        className="px-4 pb-2.5 flex items-center gap-2 cursor-pointer hover:bg-white/[0.03] -mx-0 rounded-lg transition-colors"
+      >
         <p className={[
-          "flex-1 text-right font-display text-xl sm:text-2xl font-black uppercase tracking-wide leading-none truncate",
+          "flex-1 text-right font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
           radiantDim ? "text-gray-600" : "text-white"
         ].join(" ")}>
           {radiantTeam}
         </p>
         {!spoilerFree ? (
           <div className="shrink-0 flex items-center px-1">
-            <span className="font-black tabular-nums text-2xl sm:text-3xl text-white leading-none">
+            <span className="font-black tabular-nums text-3xl sm:text-4xl text-white leading-none">
               <span className={radiantDim ? "text-gray-600" : ""}>{radiantWins}</span>
               <span className="text-gray-700 font-light mx-1.5">–</span>
               <span className={direDim ? "text-gray-600" : ""}>{direWins}</span>
@@ -176,7 +182,7 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
           </div>
         )}
         <p className={[
-          "flex-1 font-display text-xl sm:text-2xl font-black uppercase tracking-wide leading-none truncate",
+          "flex-1 font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
           direDim ? "text-gray-600" : "text-white"
         ].join(" ")}>
           {direTeam}
@@ -238,7 +244,7 @@ function LiveCard({ match, onSelectMatchId, spoilerFree }) {
   const completedGames = (match.games || []).filter(g => g.status === "finished")
 
   return (
-    <div className="px-4 py-4 border-b border-gray-800/60 last:border-0">
+    <div className="pl-4 pr-4 py-4 border-b border-gray-800/60 last:border-0 border-l-4 border-l-red-500">
       {/* Row 1: Tournament + series badge + stream */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -273,14 +279,14 @@ function LiveCard({ match, onSelectMatchId, spoilerFree }) {
       {/* Row 2: Teams + score */}
       <div className="flex items-center gap-2 mb-2">
         <p className={[
-          "flex-1 text-right font-display text-xl font-black uppercase tracking-wide leading-none truncate",
+          "flex-1 text-right font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
           dimA ? "text-gray-600" : "text-white"
         ].join(" ")}>
           {match.teamA}
         </p>
-        <div className="shrink-0 flex flex-col items-center w-20">
+        <div className="shrink-0 flex flex-col items-center w-24">
           {hasScore && !spoilerFree ? (
-            <span className="font-black tabular-nums text-2xl text-white leading-none">
+            <span className="font-black tabular-nums text-3xl sm:text-4xl text-white leading-none">
               <span className={dimA ? "text-gray-600" : ""}>{scoreA}</span>
               <span className="text-gray-700 font-light mx-1">–</span>
               <span className={dimB ? "text-gray-600" : ""}>{scoreB}</span>
@@ -296,7 +302,7 @@ function LiveCard({ match, onSelectMatchId, spoilerFree }) {
           )}
         </div>
         <p className={[
-          "flex-1 font-display text-xl font-black uppercase tracking-wide leading-none truncate",
+          "flex-1 font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
           dimB ? "text-gray-600" : "text-white"
         ].join(" ")}>
           {match.teamB}
@@ -381,10 +387,13 @@ function UpcomingRow({ match }) {
 // ── Date section header ──────────────────────────────────────────────────────
 function DateHeader({ label }) {
   return (
-    <div className="flex items-center gap-3 px-1 py-2">
-      <div className="flex-1 h-px bg-gray-800" />
-      <span className="text-xs uppercase tracking-widest text-gray-500 font-bold shrink-0">{label}</span>
-      <div className="flex-1 h-px bg-gray-800" />
+    <div className="relative flex items-center py-3 px-1">
+      <span className="absolute left-0 text-6xl font-black uppercase select-none pointer-events-none text-white/[0.04] tracking-wider leading-none">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-gray-800/60" />
+      <span className="text-xs uppercase tracking-widest text-gray-600 font-bold shrink-0 px-3">{label}</span>
+      <div className="flex-1 h-px bg-gray-800/60" />
     </div>
   )
 }
@@ -461,6 +470,7 @@ function PreviewPage() {
     try { return localStorage.getItem("spoilerFree") === "true" } catch { return false }
   })
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"))
 
   const searchInputRef = useRef(null)
 
@@ -657,6 +667,14 @@ function PreviewPage() {
     trackEvent("spoiler_free_toggle", { enabled: next, page: "preview" })
   }
 
+  function handleThemeToggle() {
+    const root = document.documentElement
+    const next = !root.classList.contains("dark")
+    root.classList.toggle("dark", next)
+    try { localStorage.setItem("theme", next ? "dark" : "light") } catch {}
+    setIsDark(next)
+  }
+
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
   return (
@@ -664,7 +682,7 @@ function PreviewPage() {
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800/80">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <a href="/" className="flex items-center gap-2.5 shrink-0">
             <img src="/favicon.png" alt="Spectate Esports" className="h-8 w-8" />
             <span className="font-display text-base font-black uppercase tracking-wide text-white leading-none hidden sm:block">
@@ -686,23 +704,57 @@ function PreviewPage() {
             />
           </div>
 
+          {/* Desktop nav links */}
+          <nav className="hidden sm:flex items-center gap-4 shrink-0">
+            <a href="/tournaments" className="text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-300 transition-colors">
+              Tournaments
+            </a>
+            <a href="/calendar" className="text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-300 transition-colors">
+              Calendar
+            </a>
+          </nav>
+
           <button
             type="button"
             onClick={handleSpoilerToggle}
             className={[
-              "shrink-0 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors",
+              "shrink-0 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-full border transition-colors",
               spoilerFree
                 ? "bg-amber-500/15 border-amber-500/50 text-amber-400"
                 : "border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300"
             ].join(" ")}
           >
-            {spoilerFree ? "🙈 Spoilers off" : "Spoilers on"}
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              {spoilerFree
+                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              }
+            </svg>
+            <span className="hidden sm:inline">Spoilers</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleThemeToggle}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="shrink-0 p-1.5 rounded border border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors"
+          >
+            {isDark ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
           </button>
         </div>
       </header>
 
       {/* ── Main content ── */}
-      <main className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6 flex-1 w-full pb-24 sm:pb-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-6 flex-1 w-full pb-24 sm:pb-6">
 
         {/* Tournament Hub */}
         <TournamentHub spoilerFree={spoilerFree} />
