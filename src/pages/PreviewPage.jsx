@@ -71,6 +71,11 @@ function getDateLabel(unixSeconds) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
+function getDateStr(unixSeconds) {
+  if (!unixSeconds) return null
+  return new Date(unixSeconds * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
 function getDayKey(unixSeconds) {
   if (!unixSeconds) return "unknown"
   return new Date(unixSeconds * 1000).toDateString()
@@ -105,7 +110,7 @@ function PlayIcon() {
   )
 }
 
-// ── Result card (B+ style) ───────────────────────────────────────────────────
+// ── Result card (B+ style) — flat list row, matches prototype ────────────────
 function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandFinal }) {
   const game1 = series.games[0]
   const radiantTeam = game1.radiantTeam
@@ -121,116 +126,98 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
   const direDim = !spoilerFree && seriesWinner && seriesWinner !== direTeam
 
   return (
-    <div
+    <article
       data-series-id={series.id}
+      onClick={() => onSelectGame(series.games[0])}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGame(series.games[0]) } }}
+      tabIndex={0}
       className={[
-        "rounded-xl border bg-gray-900/60 transition-all",
-        isFollowed
-          ? "border-l-4 border-amber-500/50 pl-0"
-          : isGrandFinal
-          ? "border-amber-500/50"
-          : "border-gray-800/80",
+        "py-5 border-b border-gray-800 group cursor-pointer hover:bg-gray-900/30",
+        "-mx-4 px-4 sm:-mx-6 sm:px-6 transition-colors outline-none",
+        isFollowed ? "border-l-4 border-l-amber-500/60" : "",
       ].join(" ")}
     >
-      {/* Top meta row */}
-      <div className="px-4 pt-3 pb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-bold uppercase tracking-[3px] text-gray-500 truncate">
-            {tournamentShort}
-          </span>
+      {/* Meta row */}
+      <div className="text-xs uppercase tracking-widest text-gray-600 mb-3 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span>{tournamentShort}</span>
           {seriesLabel && (
-            <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 font-bold">
-              {seriesLabel}
-            </span>
+            <span className="text-xs px-1.5 py-0.5 rounded border border-gray-800 text-gray-600">{seriesLabel}</span>
           )}
           {isGrandFinal && (
-            <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-bold uppercase tracking-wide">
-              Grand Final
-            </span>
+            <span className="text-xs px-1.5 py-0.5 rounded border border-amber-800/40 text-amber-500/80">Grand Final</span>
           )}
         </div>
-        <span className="shrink-0 text-xs text-gray-600 tabular-nums">
-          {formatDuration(game1.duration)}
-        </span>
+        <span className="text-gray-700 tabular-nums">{formatDuration(game1.duration)}</span>
       </div>
 
-      {/* Teams + Score — clickable to open drawer for game 1 */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelectGame(series.games[0])}
-        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGame(series.games[0]) } }}
-        className="px-4 pb-2.5 flex items-center gap-2 cursor-pointer hover:bg-white/[0.03] -mx-0 rounded-lg transition-colors"
-      >
-        <p className={[
-          "flex-1 text-right font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
-          radiantDim ? "text-gray-600" : "text-white"
-        ].join(" ")}>
-          {radiantTeam}
-        </p>
-        {!spoilerFree ? (
-          <div className="shrink-0 flex items-center px-1">
-            <span className="font-black tabular-nums text-3xl sm:text-4xl text-white leading-none">
-              <span className={radiantDim ? "text-gray-600" : ""}>{radiantWins}</span>
-              <span className="text-gray-700 font-light mx-1.5">–</span>
-              <span className={direDim ? "text-gray-600" : ""}>{direWins}</span>
-            </span>
-          </div>
-        ) : (
-          <div className="shrink-0 w-8 text-center">
-            <span className="text-gray-600 text-sm font-normal">vs</span>
-          </div>
-        )}
-        <p className={[
-          "flex-1 font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
-          direDim ? "text-gray-600" : "text-white"
-        ].join(" ")}>
-          {direTeam}
-        </p>
+      {/* Teams + Score */}
+      <div className="flex items-center gap-4 sm:gap-8">
+        <div className="flex items-center flex-1 justify-end min-w-0">
+          <p className={[
+            "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
+            radiantDim ? "text-gray-500" : "text-white"
+          ].join(" ")}>
+            {radiantTeam}
+          </p>
+        </div>
+        <div className="flex-shrink-0 flex items-center gap-1.5">
+          {!spoilerFree ? (
+            <>
+              <span className={["font-display font-black text-4xl sm:text-5xl tabular-nums leading-none", radiantDim ? "text-gray-500" : "text-white"].join(" ")}>{radiantWins}</span>
+              <span className="text-gray-700 text-xl font-medium">–</span>
+              <span className={["font-display font-black text-4xl sm:text-5xl tabular-nums leading-none", direDim ? "text-gray-500" : "text-white"].join(" ")}>{direWins}</span>
+            </>
+          ) : (
+            <span className="text-gray-600 text-sm">vs</span>
+          )}
+        </div>
+        <div className="flex items-center flex-1 min-w-0">
+          <p className={[
+            "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
+            direDim ? "text-gray-500" : "text-gray-400"
+          ].join(" ")}>
+            {direTeam}
+          </p>
+        </div>
       </div>
 
       {/* Game chips */}
-      <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
         {gameSlots.map((game, i) => {
           if (!game) {
             return (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-gray-800 text-gray-700"
-              >
+              <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800 text-gray-600">
                 G{i + 1}
               </span>
             )
           }
           const gameWinner = game.radiantWin ? game.radiantTeam : game.direTeam
           const showWinner = !spoilerFree && gameWinner
-
           return (
             <button
               key={game.id}
               type="button"
-              onClick={() => onSelectGame(game)}
+              onClick={e => { e.stopPropagation(); onSelectGame(game) }}
               className={[
-                "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors",
-                "hover:border-purple-500 hover:text-purple-300 hover:bg-purple-900/20",
-                showWinner
-                  ? "border-emerald-800/50 text-emerald-400/70"
-                  : "border-gray-700 text-gray-400"
+                "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800",
+                "hover:bg-purple-900/40 hover:text-purple-300 transition-colors",
+                showWinner ? "text-green-400" : "text-gray-500"
               ].join(" ")}
             >
               <PlayIcon />
               <span>G{i + 1}</span>
               {showWinner && (
                 <>
-                  <span className="font-semibold truncate max-w-[72px]">{gameWinner}</span>
-                  <span className="opacity-50">✓</span>
+                  <span className="truncate max-w-[72px]">{gameWinner}</span>
+                  <span>✓</span>
                 </>
               )}
             </button>
           )
         })}
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -244,98 +231,87 @@ function LiveCard({ match, onSelectMatchId, spoilerFree }) {
   const completedGames = (match.games || []).filter(g => g.status === "finished")
 
   return (
-    <div className="pl-4 pr-4 py-4 border-b border-gray-800/60 last:border-0 border-l-4 border-l-red-500">
-      {/* Row 1: Tournament + series badge + stream */}
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-          <span className="text-xs uppercase tracking-widest text-gray-500 font-medium truncate">
-            {match.tournament}
-          </span>
-          {match.seriesLabel && (
-            <span className="shrink-0 text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-gray-700 text-gray-500">
-              {match.seriesLabel}
-            </span>
-          )}
-        </div>
-        {match.streams?.length > 0 && (
-          <div className="flex gap-1.5 shrink-0">
-            {match.streams.map((s, i) => (
-              <a
-                key={i}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackEvent("stream_click", { channel: s.label, match: `${match.teamA} vs ${match.teamB}` })}
-                className="inline-flex items-center px-2.5 py-1 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap"
-              >
-                ▶ {s.label}
-              </a>
-            ))}
-          </div>
+    <div className="py-5 border-b border-gray-800 last:border-0 border-l-4 border-l-red-500 pl-4 pr-4">
+      {/* Row 1: Tournament + series badge */}
+      <div className="text-xs uppercase tracking-widest text-gray-600 mb-2 flex items-center gap-2 flex-wrap">
+        <span>{match.tournament}</span>
+        {match.seriesLabel && (
+          <span className="text-xs px-1.5 py-0.5 rounded border border-gray-800 text-gray-600">{match.seriesLabel}</span>
         )}
+        {match.bestOf && <span>· BO{match.bestOf}</span>}
       </div>
 
       {/* Row 2: Teams + score */}
-      <div className="flex items-center gap-2 mb-2">
-        <p className={[
-          "flex-1 text-right font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
-          dimA ? "text-gray-600" : "text-white"
-        ].join(" ")}>
-          {match.teamA}
-        </p>
-        <div className="shrink-0 flex flex-col items-center w-24">
+      <div className="flex items-center gap-4 sm:gap-8">
+        <div className="flex items-center flex-1 justify-end min-w-0">
+          <p className={[
+            "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
+            dimA ? "text-gray-500" : "text-white"
+          ].join(" ")}>
+            {match.teamA}
+          </p>
+        </div>
+        <div className="flex-shrink-0 flex flex-col items-center">
           {hasScore && !spoilerFree ? (
-            <span className="font-black tabular-nums text-3xl sm:text-4xl text-white leading-none">
-              <span className={dimA ? "text-gray-600" : ""}>{scoreA}</span>
-              <span className="text-gray-700 font-light mx-1">–</span>
-              <span className={dimB ? "text-gray-600" : ""}>{scoreB}</span>
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={["font-display font-black text-4xl sm:text-5xl tabular-nums leading-none", dimA ? "text-gray-500" : "text-white"].join(" ")}>{scoreA}</span>
+              <span className="text-gray-700 text-xl font-medium">–</span>
+              <span className={["font-display font-black text-4xl sm:text-5xl tabular-nums leading-none", dimB ? "text-gray-500" : "text-white"].join(" ")}>{scoreB}</span>
+            </div>
           ) : (
             <span className="text-gray-600 text-sm">vs</span>
           )}
           {match.currentGame && (
-            <span className="flex items-center gap-1 mt-0.5 text-xs text-red-400">
+            <div className="flex items-center gap-1 mt-1.5">
               <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-              G{match.currentGame}
-            </span>
+              <span className="text-red-400 text-xs">G{match.currentGame} in progress</span>
+            </div>
           )}
         </div>
-        <p className={[
-          "flex-1 font-display text-2xl sm:text-3xl font-black uppercase tracking-wide leading-none truncate",
-          dimB ? "text-gray-600" : "text-white"
-        ].join(" ")}>
-          {match.teamB}
-        </p>
+        <div className="flex items-center flex-1 min-w-0">
+          <p className={[
+            "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
+            dimB ? "text-gray-500" : "text-gray-400"
+          ].join(" ")}>
+            {match.teamB}
+          </p>
+        </div>
       </div>
 
-      {/* Row 3: Completed game chips */}
-      {completedGames.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-1">
-          {completedGames.map(g => (
-            g.matchId ? (
-              <button
-                key={g.position}
-                type="button"
-                onClick={() => {
-                  onSelectMatchId?.(g.matchId)
-                  trackEvent("live_game_details_click", { matchId: g.matchId, game: g.position })
-                }}
-                className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-400 hover:border-purple-500 hover:text-purple-300 hover:bg-purple-900/20 transition-colors"
-              >
-                <PlayIcon />
-                <span>G{g.position}</span>
-                {g.winnerName && !spoilerFree && <span className="font-semibold">{g.winnerName}</span>}
-              </button>
-            ) : (
-              <span key={g.position} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-gray-800 text-gray-600">
-                G{g.position}
-                {g.winnerName && !spoilerFree && <span>{g.winnerName}</span>}
-              </span>
-            )
-          ))}
-        </div>
-      )}
+      {/* Row 3: Watch button(s) + completed game chips */}
+      <div className="mt-3 flex items-center gap-3 flex-wrap">
+        {match.streams?.map((s, i) => (
+          <a
+            key={i}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackEvent("stream_click", { channel: s.label, match: `${match.teamA} vs ${match.teamB}` })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap"
+          >
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.64 5.93h1.43v4.28h-1.43m3.93-4.28H17v4.28h-1.43M7 2L3.43 5.57v12.86h4.28V22l3.58-3.57h2.85L20.57 12V2m-1.43 9.29l-2.85 2.85h-2.86l-2.5 2.5v-2.5H7.71V3.43h11.43z" /></svg>
+            Watch · {s.label}
+          </a>
+        ))}
+        {completedGames.map(g => (
+          g.matchId ? (
+            <button
+              key={g.position}
+              type="button"
+              onClick={() => { onSelectMatchId?.(g.matchId); trackEvent("live_game_details_click", { matchId: g.matchId, game: g.position }) }}
+              className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800 text-gray-500 hover:bg-purple-900/40 hover:text-purple-300 transition-colors"
+            >
+              <PlayIcon />
+              G{g.position}
+              {g.winnerName && !spoilerFree && <span className="text-green-400">{g.winnerName}</span>}
+            </button>
+          ) : (
+            <span key={g.position} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800 text-gray-600">
+              G{g.position}
+            </span>
+          )
+        ))}
+      </div>
     </div>
   )
 }
@@ -385,38 +361,40 @@ function UpcomingRow({ match }) {
 }
 
 // ── Date section header ──────────────────────────────────────────────────────
-function DateHeader({ label }) {
+// Matches prototype: big faded watermark on left, horizontal line, small date on right
+function DateHeader({ label, dateStr }) {
+  const showDateStr = dateStr && dateStr !== label
   return (
-    <div className="relative flex items-center py-3 px-1">
-      <span className="absolute left-0 text-6xl font-black uppercase select-none pointer-events-none text-white/[0.04] tracking-wider leading-none">
+    <div className="flex items-center gap-4 pt-3 pb-1 overflow-hidden">
+      <span className="font-display font-black text-5xl text-white/[0.06] leading-none flex-shrink-0 select-none pointer-events-none uppercase">
         {label}
       </span>
-      <div className="flex-1 h-px bg-gray-800/60" />
-      <span className="text-xs uppercase tracking-widest text-gray-600 font-bold shrink-0 px-3">{label}</span>
-      <div className="flex-1 h-px bg-gray-800/60" />
+      <div className="flex-1 h-px bg-gray-800" />
+      {showDateStr && (
+        <span className="text-xs text-gray-700 font-semibold uppercase tracking-widest flex-shrink-0">
+          {dateStr}
+        </span>
+      )}
     </div>
   )
 }
 
 // ── Section label ────────────────────────────────────────────────────────────
-function SectionLabel({ children, color = "gray", dot = false }) {
-  const borderColors = {
-    red: "border-red-500",
-    blue: "border-blue-500",
-    gray: "border-gray-600",
-    green: "border-emerald-500",
+// live: red text + pulsing dot, no border-t (first section)
+// others: gray text + border-t above
+function SectionLabel({ children, color = "gray", count }) {
+  if (color === "red") {
+    return (
+      <div className="flex items-center gap-2 py-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+        <span className="text-xs font-bold uppercase tracking-[4px] text-red-500">{children}</span>
+        {count != null && <span className="text-xs font-semibold text-red-500/50 tabular-nums">· {count}</span>}
+      </div>
+    )
   }
   return (
-    <div className="flex items-center mb-2">
-      <h2 className={`text-xs font-bold uppercase tracking-widest text-gray-500 pl-2 border-l-2 ${borderColors[color]}`}>
-        {dot && (
-          <span className="inline-flex items-center gap-2">
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${color === "red" ? "bg-red-500 animate-pulse" : "bg-blue-500"}`} />
-            {children}
-          </span>
-        )}
-        {!dot && children}
-      </h2>
+    <div className="flex items-center gap-2 pt-5 pb-3 border-t border-gray-800/50">
+      <span className="text-xs font-bold uppercase tracking-[4px] text-gray-600">{children}</span>
     </div>
   )
 }
@@ -642,7 +620,7 @@ function PreviewPage() {
     const key = getDayKey(s.startTime)
     const last = dayGroups[dayGroups.length - 1]
     if (!last || last.key !== key) {
-      dayGroups.push({ key, label: getDateLabel(s.startTime), series: [s] })
+      dayGroups.push({ key, label: getDateLabel(s.startTime), dateStr: getDateStr(s.startTime), series: [s] })
     } else {
       last.series.push(s)
     }
@@ -680,93 +658,122 @@ function PreviewPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
-      {/* ── Header — full-width, matches production SiteHeader layout ── */}
-      <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800/80 px-4 sm:px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-3">
-        <a href="/" className="flex items-center gap-3 min-w-0 shrink-0">
-          <img src="/favicon.png" alt="Spectate Esports" className="h-10 w-10 flex-shrink-0" />
-          <div className="min-w-0 hidden sm:block">
-            <p className="font-display text-xl font-black uppercase tracking-widest text-white truncate leading-none">
-              Spectate <span className="text-red-500">Esports</span>
-            </p>
-            <p className="text-gray-600 text-xs uppercase tracking-widest mt-0.5">
-              Pro Dota 2 replays.
-            </p>
-          </div>
-        </a>
+      {/* ── Header — max-w-4xl constrained, matches prototype ── */}
+      <header className="border-b border-gray-800 sticky top-0 z-40 bg-gray-950">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+          <a href="/" className="flex items-center gap-2.5 flex-shrink-0">
+            <img src="/favicon.png" alt="Spectate Esports" className="h-8 w-8" />
+            <div className="hidden sm:block">
+              <p className="font-display font-black text-lg uppercase tracking-widest leading-none">
+                Spectate <span className="text-red-500">Esports</span>
+              </p>
+              <p className="text-xs text-gray-600 uppercase tracking-widest leading-none mt-0.5">Pro Dota 2 replays</p>
+            </div>
+          </a>
 
-        <div className="flex items-center gap-3">
-          <nav className="hidden sm:flex items-center gap-4">
-            <a href="/tournaments" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Tournaments</a>
-            <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">About</a>
-            <a href="/calendar" className="text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Calendar</a>
+          <div className="flex-1" />
+
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <a href="/tournaments" className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Tournaments</a>
+            <a href="/calendar" className="hidden sm:block text-xs font-semibold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Calendar</a>
+
+            <button
+              type="button"
+              onClick={handleSpoilerToggle}
+              id="spoiler-btn"
+              title={spoilerFree ? "Spoiler-free mode on" : "Enable spoiler-free mode"}
+              className={[
+                "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-semibold uppercase tracking-widest transition-colors",
+                spoilerFree
+                  ? "bg-red-600 border-red-600 text-white"
+                  : "border-gray-800 text-gray-500 hover:text-white hover:border-gray-600"
+              ].join(" ")}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {spoilerFree
+                  ? <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} x1="1" y1="1" x2="23" y2="23"/></>
+                  : <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></>
+                }
+              </svg>
+              <span>Spoilers</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleThemeToggle}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              className="p-2 rounded border border-gray-800 text-gray-500 hover:text-white hover:border-gray-600 transition-colors"
+            >
+              {isDark ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+              )}
+            </button>
           </nav>
-
-          <button
-            type="button"
-            onClick={handleSpoilerToggle}
-            title={spoilerFree ? "Spoiler-free mode on — scores hidden" : "Enable spoiler-free mode"}
-            aria-label={spoilerFree ? "Disable spoiler-free mode" : "Enable spoiler-free mode"}
-            className={"p-2 rounded border transition-colors " + (spoilerFree
-              ? "bg-red-600 border-red-600 text-white"
-              : "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500")}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-              {spoilerFree
-                ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
-                : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
-              }
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleThemeToggle}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="p-2 rounded border border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors"
-          >
-            {isDark ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            )}
-          </button>
         </div>
       </header>
 
       {/* ── Main content ── */}
-      <main className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-6 flex-1 w-full pb-24 sm:pb-6">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-5 pb-24 sm:pb-6 flex flex-col gap-4">
 
-        {/* Search bar */}
-        <div className="relative">
-          <input
-            ref={searchInputRef}
-            type="search"
-            placeholder="Search teams or tournaments..."
-            className="w-full bg-gray-800/60 border border-gray-700/50 rounded-full px-5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 focus:bg-gray-800"
-            onKeyDown={e => {
-              if (e.key === "Enter" && e.target.value.trim()) {
-                window.location.href = "/?q=" + encodeURIComponent(e.target.value.trim())
-              }
-            }}
-          />
-        </div>
+        {/* Search */}
+        <input
+          ref={searchInputRef}
+          type="search"
+          placeholder="Search teams or tournaments..."
+          className="w-full bg-gray-800/60 border border-gray-700/50 rounded-full px-5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 focus:bg-gray-800"
+          onKeyDown={e => {
+            if (e.key === "Enter" && e.target.value.trim()) {
+              window.location.href = "/?q=" + encodeURIComponent(e.target.value.trim())
+            }
+          }}
+        />
 
         {/* Tournament Hub */}
         <TournamentHub spoilerFree={spoilerFree} />
 
+        {/* ── Today at a Glance strip ── */}
+        {!initialLoading && !liveLoading && (dayGroups[0]?.key === new Date().toDateString() || liveMatches.length > 0) && (
+          <div className="flex items-center overflow-x-auto gap-3 border border-gray-800 rounded bg-gray-900 px-4 py-3 [scrollbar-width:none] [-webkit-scrollbar:none]">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-600 flex-shrink-0 mr-1">Today</span>
+            {liveMatches.length > 0 && (
+              <div className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold bg-red-500/10 border border-red-500/30 rounded px-2.5 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                <span className="text-red-400 whitespace-nowrap">{liveMatches.length} {liveMatches.length === 1 ? "match" : "matches"} live</span>
+              </div>
+            )}
+            {(dayGroups[0]?.key === new Date().toDateString() ? dayGroups[0].series : []).map(s => {
+              const { radiantWins, direWins } = getSeriesWins(s)
+              return (
+                <div key={s.id} className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold bg-gray-800 rounded px-2.5 py-1.5 cursor-pointer hover:bg-gray-700 transition-colors" onClick={() => handleSelectMatch(s.games[0])}>
+                  <span className="text-white whitespace-nowrap">{s.games[0].radiantTeam}</span>
+                  {!spoilerFree && (
+                    <>
+                      <span className="font-display font-black text-sm text-white tabular-nums">{radiantWins}</span>
+                      <span className="text-gray-700 font-normal mx-0.5">–</span>
+                      <span className="font-display font-black text-sm text-gray-500 tabular-nums">{direWins}</span>
+                    </>
+                  )}
+                  <span className="text-gray-500 whitespace-nowrap">{s.games[0].direTeam}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* ── Live Now ── */}
         {!liveLoading && liveMatches.length > 0 && (
           <div>
-            <SectionLabel color="red" dot>Live Now</SectionLabel>
-            <div className="rounded-xl border border-red-900/40 bg-gray-900/60 overflow-hidden">
+            <SectionLabel color="red" count={liveMatches.length}>Live Now</SectionLabel>
+            <div>
               {liveMatches.map(match => (
                 <LiveCard
                   key={match.id}
@@ -782,8 +789,8 @@ function PreviewPage() {
         {/* ── Coming Up ── */}
         {!liveLoading && upcomingMatches.length > 0 && (
           <div>
-            <SectionLabel color="blue" dot>Coming Up</SectionLabel>
-            <div className="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden divide-y divide-gray-800/60">
+            <SectionLabel>Coming Up</SectionLabel>
+            <div>
               {upcomingMatches.slice(0, 5).map(match => (
                 <UpcomingRow key={match.id} match={match} />
               ))}
@@ -791,35 +798,41 @@ function PreviewPage() {
           </div>
         )}
 
-        {/* ── Live loading skeleton ── */}
+        {/* ── Live/upcoming loading skeleton ── */}
         {liveLoading && (
-          <div className="flex flex-col gap-2">
-            <div className="h-2.5 w-24 bg-gray-800 rounded animate-pulse" />
-            <div className="rounded-xl border border-gray-800 overflow-hidden">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="px-4 py-4 border-b border-gray-800 last:border-0 animate-pulse">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-2 w-24 bg-gray-800 rounded" />
-                    <div className="h-6 w-16 bg-gray-800 rounded" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-5 bg-gray-800 rounded" />
-                    <div className="w-12 h-6 bg-gray-800 rounded" />
-                    <div className="flex-1 h-5 bg-gray-800 rounded" />
-                  </div>
-                </div>
-              ))}
+          <div>
+            <div className="flex items-center gap-2 py-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-800 animate-pulse" />
+              <div className="h-2.5 w-20 bg-gray-800 rounded animate-pulse" />
             </div>
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="py-5 border-b border-gray-800 border-l-4 border-l-gray-800 pl-4 animate-pulse">
+                <div className="h-2 w-32 bg-gray-800 rounded mb-3" />
+                <div className="flex items-center gap-8">
+                  <div className="flex-1 h-8 bg-gray-800 rounded" />
+                  <div className="w-16 h-10 bg-gray-800 rounded" />
+                  <div className="flex-1 h-8 bg-gray-800 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {/* ── Results skeleton ── */}
         {initialLoading && (
-          <div className="flex flex-col gap-3">
-            <DateHeader label="Today" />
-            {[...Array(3)].map((_, i) => <CardSkeleton key={i} />)}
-            <DateHeader label="Yesterday" />
-            {[...Array(2)].map((_, i) => <CardSkeleton key={i} />)}
+          <div>
+            <SectionLabel>Results</SectionLabel>
+            <DateHeader label="Today" dateStr={getDateStr(Date.now() / 1000)} />
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="py-5 border-b border-gray-800 -mx-4 px-4 sm:-mx-6 sm:px-6 animate-pulse">
+                <div className="h-2 w-24 bg-gray-800 rounded mb-3" />
+                <div className="flex items-center gap-8">
+                  <div className="flex-1 h-8 bg-gray-800 rounded" />
+                  <div className="w-16 h-10 bg-gray-800 rounded" />
+                  <div className="flex-1 h-8 bg-gray-800 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -827,23 +840,19 @@ function PreviewPage() {
         {error && (
           <div className="flex items-center justify-center gap-3 py-6 border border-red-900/50 bg-red-950/20 rounded-xl px-4">
             <span className="text-red-400 text-xs uppercase tracking-widest">{error}</span>
-            <button
-              type="button"
-              onClick={loadMatches}
-              className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
-            >
+            <button type="button" onClick={loadMatches} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors">
               Retry
             </button>
           </div>
         )}
 
-        {/* ── Results by day ── */}
+        {/* ── Results by day ── flat rows, no card wrappers ── */}
         {!initialLoading && !error && dayGroups.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <SectionLabel color="gray">Results</SectionLabel>
-            {dayGroups.map((group, gi) => (
-              <div key={group.key} className="flex flex-col gap-3">
-                <DateHeader label={group.label} />
+          <div>
+            <SectionLabel>Results</SectionLabel>
+            {dayGroups.map(group => (
+              <div key={group.key}>
+                <DateHeader label={group.label} dateStr={group.dateStr} />
                 {group.series.map(s => (
                   <ResultCard
                     key={s.id}
@@ -865,14 +874,14 @@ function PreviewPage() {
             type="button"
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className="py-3 text-sm font-semibold uppercase tracking-widest text-gray-500 hover:text-gray-300 border border-gray-800 hover:border-gray-600 rounded-xl transition-colors disabled:opacity-40"
+            className="py-3 text-sm font-semibold uppercase tracking-widest text-gray-600 hover:text-gray-400 border border-gray-800 hover:border-gray-600 rounded transition-colors disabled:opacity-40"
           >
             {loadingMore ? "Loading..." : "Load more results"}
           </button>
         )}
 
         {!initialLoading && !error && (
-          <p className="text-xs text-gray-700 text-center">
+          <p className="text-xs text-gray-700 text-center pb-2">
             Data updates every few minutes · Powered by OpenDota + Twitch
           </p>
         )}
