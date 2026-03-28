@@ -734,10 +734,11 @@ function PreviewPage() {
       {!liveLoading && liveMatches.length > 0 && (() => {
         const first = liveMatches[0]
         const more = liveMatches.length - 1
-        const teamA = first.radiantTeam?.name || "Radiant"
-        const teamB = first.direTeam?.name || "Dire"
-        const scoreA = first.radiantScore ?? ""
-        const scoreB = first.direScore ?? ""
+        const teamA = first.teamA || "Team A"
+        const teamB = first.teamB || "Team B"
+        const seriesParts = first.seriesScore?.split("-")
+        const scoreA = seriesParts?.[0] ?? ""
+        const scoreB = seriesParts?.[1] ?? ""
         const watchUrl = first.streams?.[0]?.rawUrl || null
         return (
           <div className="sticky top-[57px] z-30 border-b border-red-500/40 bg-gray-950/95 backdrop-blur-sm">
