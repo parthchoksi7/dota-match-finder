@@ -363,11 +363,11 @@ function UpcomingRow({ match }) {
 // ── Date section header ──────────────────────────────────────────────────────
 function DateHeader({ label, dateStr, accent = "gray" }) {
   const showDateStr = dateStr && dateStr !== label
-  const watermarkColor = accent === "amber" ? "text-amber-400/[0.07]" : "text-white/[0.06]"
-  const dateColor = accent === "amber" ? "text-amber-600" : "text-gray-700"
+  const labelColor = accent === "amber" ? "text-amber-600" : "text-gray-600"
+  const dateColor = accent === "amber" ? "text-amber-700" : "text-gray-700"
   return (
-    <div className="flex items-center gap-4 pt-3 pb-1 overflow-hidden">
-      <span className={`font-display font-black text-5xl ${watermarkColor} leading-none flex-shrink-0 select-none pointer-events-none uppercase`}>
+    <div className="flex items-center gap-3 pt-3 pb-1">
+      <span className={`text-xs font-bold uppercase tracking-widest flex-shrink-0 ${labelColor}`}>
         {label}
       </span>
       <div className="flex-1 h-px bg-gray-800" />
