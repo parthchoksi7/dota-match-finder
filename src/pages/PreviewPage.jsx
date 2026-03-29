@@ -416,13 +416,14 @@ function DateHeader({ label, dateStr, accent = "gray" }) {
 }
 
 // ── Section label ────────────────────────────────────────────────────────────
-function SectionLabel({ children, color = "gray", count }) {
+function SectionLabel({ children, color = "gray", count, right }) {
   if (color === "red") {
     return (
       <div className="flex items-center gap-2 py-3">
         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
         <span className="text-xs font-bold uppercase tracking-[4px] text-red-500">{children}</span>
         {count != null && <span className="text-xs font-semibold text-red-500/50 tabular-nums">· {count}</span>}
+        {right && <div className="ml-auto">{right}</div>}
       </div>
     )
   }
@@ -432,6 +433,7 @@ function SectionLabel({ children, color = "gray", count }) {
         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
         <span className="text-xs font-bold uppercase tracking-[4px] text-blue-400">{children}</span>
         {count != null && <span className="text-xs font-semibold text-blue-400/40 tabular-nums">· {count}</span>}
+        {right && <div className="ml-auto">{right}</div>}
       </div>
     )
   }
@@ -441,12 +443,14 @@ function SectionLabel({ children, color = "gray", count }) {
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
         <span className="text-xs font-bold uppercase tracking-[4px] text-amber-500">{children}</span>
         {count != null && <span className="text-xs font-semibold text-amber-500/40 tabular-nums">· {count}</span>}
+        {right && <div className="ml-auto">{right}</div>}
       </div>
     )
   }
   return (
     <div className="flex items-center gap-2 pt-5 pb-3 border-t border-gray-800/50">
       <span className="text-xs font-bold uppercase tracking-[4px] text-gray-600">{children}</span>
+      {right && <div className="ml-auto">{right}</div>}
     </div>
   )
 }
@@ -501,6 +505,7 @@ function PreviewPage() {
   })
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
   const [manageTeamsOpen, setManageTeamsOpen] = useState(false)
+  const [starredOnly, setStarredOnly] = useState(false)
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"))
   const [tournamentPills, setTournamentPills] = useState(null)
   const [expandedTournamentId, setExpandedTournamentId] = useState(null)
@@ -1024,27 +1029,53 @@ function PreviewPage() {
         )}
 
         {/* ── Results by day ── flat rows, no card wrappers ── */}
-        {!initialLoading && !error && dayGroups.length > 0 && (
-          <div>
-            <SectionLabel color="amber">Results</SectionLabel>
-            {dayGroups.map((group, i) => (
-              <div key={group.key}>
-                <DateHeader label={group.label} dateStr={group.dateStr} accent={i === 0 ? "amber" : "gray"} />
-                {group.series.map(s => (
-                  <ResultCard
-                    key={s.id}
-                    series={s}
-                    onSelectGame={handleSelectMatch}
-                    spoilerFree={spoilerFree}
-                    followedTeams={followedTeams}
-                    isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
-                    onToggleFollow={handleToggleFollow}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
+        {!initialLoading && !error && dayGroups.length > 0 && (() => {
+          const isStarred = s => s.games.some(g =>
+            followedTeams.includes(g.radiantTeam) || followedTeams.includes(g.direTeam)
+          )
+          const visibleGroups = starredOnly
+            ? dayGroups.map(g => ({ ...g, series: g.series.filter(isStarred) })).filter(g => g.series.length > 0)
+            : dayGroups
+          const starFilter = followedTeams.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setStarredOnly(p => !p)}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded border transition-colors ${
+                starredOnly
+                  ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                  : "border-gray-800 text-gray-600 hover:text-amber-400 hover:border-amber-500/50"
+              }`}
+            >
+              <StarIcon filled={starredOnly} />
+              Starred
+            </button>
+          ) : null
+          return (
+            <div>
+              <SectionLabel color="amber" right={starFilter}>Results</SectionLabel>
+              {starredOnly && visibleGroups.length === 0 ? (
+                <p className="text-xs text-gray-700 uppercase tracking-widest py-6 text-center">No starred matches in the current results</p>
+              ) : (
+                visibleGroups.map((group, i) => (
+                  <div key={group.key}>
+                    <DateHeader label={group.label} dateStr={group.dateStr} accent={i === 0 ? "amber" : "gray"} />
+                    {group.series.map(s => (
+                      <ResultCard
+                        key={s.id}
+                        series={s}
+                        onSelectGame={handleSelectMatch}
+                        spoilerFree={spoilerFree}
+                        followedTeams={followedTeams}
+                        isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                        onToggleFollow={handleToggleFollow}
+                      />
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          )
+        })()}
 
         {/* ── Load more ── */}
         {nextMatchId && !initialLoading && (
