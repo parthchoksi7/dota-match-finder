@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import MatchDrawer from "../components/MatchDrawer"
 import TournamentHub from "../components/TournamentHub"
+import ManageTeamsModal from "../components/ManageTeamsModal"
 import {
   fetchProMatches,
   findTwitchVod,
