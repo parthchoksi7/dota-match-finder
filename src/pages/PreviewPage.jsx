@@ -361,17 +361,18 @@ function UpcomingRow({ match }) {
 }
 
 // ── Date section header ──────────────────────────────────────────────────────
-// Matches prototype: big faded watermark on left, horizontal line, small date on right
-function DateHeader({ label, dateStr }) {
+function DateHeader({ label, dateStr, accent = "gray" }) {
   const showDateStr = dateStr && dateStr !== label
+  const watermarkColor = accent === "amber" ? "text-amber-400/[0.07]" : "text-white/[0.06]"
+  const dateColor = accent === "amber" ? "text-amber-600" : "text-gray-700"
   return (
     <div className="flex items-center gap-4 pt-3 pb-1 overflow-hidden">
-      <span className="font-display font-black text-5xl text-white/[0.06] leading-none flex-shrink-0 select-none pointer-events-none uppercase">
+      <span className={`font-display font-black text-5xl ${watermarkColor} leading-none flex-shrink-0 select-none pointer-events-none uppercase`}>
         {label}
       </span>
       <div className="flex-1 h-px bg-gray-800" />
       {showDateStr && (
-        <span className="text-xs text-gray-700 font-semibold uppercase tracking-widest flex-shrink-0">
+        <span className={`text-xs ${dateColor} font-semibold uppercase tracking-widest flex-shrink-0`}>
           {dateStr}
         </span>
       )}
@@ -380,8 +381,6 @@ function DateHeader({ label, dateStr }) {
 }
 
 // ── Section label ────────────────────────────────────────────────────────────
-// live: red text + pulsing dot, no border-t (first section)
-// others: gray text + border-t above
 function SectionLabel({ children, color = "gray", count }) {
   if (color === "red") {
     return (
@@ -389,6 +388,24 @@ function SectionLabel({ children, color = "gray", count }) {
         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
         <span className="text-xs font-bold uppercase tracking-[4px] text-red-500">{children}</span>
         {count != null && <span className="text-xs font-semibold text-red-500/50 tabular-nums">· {count}</span>}
+      </div>
+    )
+  }
+  if (color === "blue") {
+    return (
+      <div className="flex items-center gap-2 pt-5 pb-3 border-t border-gray-800/50">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+        <span className="text-xs font-bold uppercase tracking-[4px] text-blue-400">{children}</span>
+        {count != null && <span className="text-xs font-semibold text-blue-400/40 tabular-nums">· {count}</span>}
+      </div>
+    )
+  }
+  if (color === "amber") {
+    return (
+      <div className="flex items-center gap-2 pt-5 pb-3 border-t border-gray-800/50">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+        <span className="text-xs font-bold uppercase tracking-[4px] text-amber-500">{children}</span>
+        {count != null && <span className="text-xs font-semibold text-amber-500/40 tabular-nums">· {count}</span>}
       </div>
     )
   }
@@ -894,7 +911,7 @@ function PreviewPage() {
         {/* ── Coming Up ── */}
         {!liveLoading && upcomingMatches.length > 0 && (
           <div>
-            <SectionLabel>Coming Up</SectionLabel>
+            <SectionLabel color="blue">Coming Up</SectionLabel>
             <div>
               {upcomingMatches.slice(0, 5).map(match => (
                 <UpcomingRow key={match.id} match={match} />
@@ -954,10 +971,10 @@ function PreviewPage() {
         {/* ── Results by day ── flat rows, no card wrappers ── */}
         {!initialLoading && !error && dayGroups.length > 0 && (
           <div>
-            <SectionLabel>Results</SectionLabel>
-            {dayGroups.map(group => (
+            <SectionLabel color="amber">Results</SectionLabel>
+            {dayGroups.map((group, i) => (
               <div key={group.key}>
-                <DateHeader label={group.label} dateStr={group.dateStr} />
+                <DateHeader label={group.label} dateStr={group.dateStr} accent={i === 0 ? "amber" : "gray"} />
                 {group.series.map(s => (
                   <ResultCard
                     key={s.id}
