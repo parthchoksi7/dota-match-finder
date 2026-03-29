@@ -110,8 +110,22 @@ function PlayIcon() {
   )
 }
 
+// ── Star icon ─────────────────────────────────────────────────────────────────
+function StarIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 20 20" className="w-3.5 h-3.5" aria-hidden="true">
+      <path
+        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth={filled ? "0" : "1.5"}
+      />
+    </svg>
+  )
+}
+
 // ── Result card (B+ style) — flat list row, matches prototype ────────────────
-function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandFinal }) {
+function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandFinal, onToggleFollow }) {
   const game1 = series.games[0]
   const radiantTeam = game1.radiantTeam
   const direTeam = game1.direTeam
@@ -153,7 +167,17 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
 
       {/* Teams + Score */}
       <div className="flex items-center gap-4 sm:gap-8">
-        <div className="flex items-center flex-1 justify-end min-w-0">
+        <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
+          {onToggleFollow && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onToggleFollow(radiantTeam) }}
+              className={`flex-shrink-0 p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 ${followedTeams?.includes(radiantTeam) ? "text-amber-400 opacity-100" : "text-gray-700 hover:text-amber-400"}`}
+              aria-label={followedTeams?.includes(radiantTeam) ? `Unfollow ${radiantTeam}` : `Follow ${radiantTeam}`}
+            >
+              <StarIcon filled={!!followedTeams?.includes(radiantTeam)} />
+            </button>
+          )}
           <p className={[
             "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
             radiantDim ? "text-gray-500" : "text-white"
@@ -172,13 +196,23 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
             <span className="text-gray-600 text-sm">vs</span>
           )}
         </div>
-        <div className="flex items-center flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <p className={[
             "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
             direDim ? "text-gray-500" : "text-gray-400"
           ].join(" ")}>
             {direTeam}
           </p>
+          {onToggleFollow && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onToggleFollow(direTeam) }}
+              className={`flex-shrink-0 p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 ${followedTeams?.includes(direTeam) ? "text-amber-400 opacity-100" : "text-gray-700 hover:text-amber-400"}`}
+              aria-label={followedTeams?.includes(direTeam) ? `Unfollow ${direTeam}` : `Follow ${direTeam}`}
+            >
+              <StarIcon filled={!!followedTeams?.includes(direTeam)} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -465,11 +499,22 @@ function PreviewPage() {
     try { return localStorage.getItem("spoilerFree") === "true" } catch { return false }
   })
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
+  const [manageTeamsOpen, setManageTeamsOpen] = useState(false)
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"))
   const [tournamentPills, setTournamentPills] = useState(null)
   const [expandedTournamentId, setExpandedTournamentId] = useState(null)
 
   const searchInputRef = useRef(null)
+
+  function handleToggleFollow(teamName) {
+    setFollowedTeamsState(prev => {
+      const isFollowed = prev.includes(teamName)
+      const next = isFollowed ? prev.filter(t => t !== teamName) : [...prev, teamName]
+      persistFollowedTeams(next)
+      trackEvent(isFollowed ? "unfollow_team" : "follow_team", { team_name: teamName, page: "preview" })
+      return next
+    })
+  }
 
   // ── Data fetching ───────────────────────────────────────────────────────────
   const loadMatches = useCallback(() => {
@@ -732,6 +777,15 @@ function PreviewPage() {
 
             <button
               type="button"
+              onClick={() => setManageTeamsOpen(true)}
+              title={followedTeams.length > 0 ? `${followedTeams.length} followed team${followedTeams.length > 1 ? "s" : ""}` : "Follow teams"}
+              className={`p-2 rounded border transition-colors ${followedTeams.length > 0 ? "border-amber-500/50 text-amber-400 hover:border-amber-400" : "border-gray-800 text-gray-500 hover:text-amber-400 hover:border-amber-500/50"}`}
+            >
+              <StarIcon filled={followedTeams.length > 0} />
+            </button>
+
+            <button
+              type="button"
               onClick={handleThemeToggle}
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
               className="p-2 rounded border border-gray-800 text-gray-500 hover:text-white hover:border-gray-600 transition-colors"
@@ -983,6 +1037,7 @@ function PreviewPage() {
                     spoilerFree={spoilerFree}
                     followedTeams={followedTeams}
                     isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                    onToggleFollow={handleToggleFollow}
                   />
                 ))}
               </div>
@@ -1079,6 +1134,13 @@ function PreviewPage() {
           }}
         />
       )}
+
+      <ManageTeamsModal
+        open={manageTeamsOpen}
+        followedTeams={followedTeams}
+        onToggleFollow={handleToggleFollow}
+        onClose={() => setManageTeamsOpen(false)}
+      />
     </div>
   )
 }
