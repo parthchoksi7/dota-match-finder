@@ -75,9 +75,20 @@ export default async function handler(req, res) {
           const psMatches = await psRes.json()
           const psMatch = (psMatches || []).find(m => teamsMatch(m.opponents, radiantTeam, direTeam))
           if (psMatch) {
-            const official = (psMatch.streams_list || []).filter(s => s.official && s.language === 'en' && s.raw_url)
-            const mainStreams = official.filter(s => s.main)
-            const candidate = mainStreams.length === 1 ? mainStreams[0]
+            // Log all streams PandaScore returned so we can debug VOD misses
+            const allStreams = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)
+            console.log(`match-streams PandaScore streams for ${radiantTeam} vs ${direTeam}: [${allStreams.join(', ')}]`)
+
+            // Accept any official Twitch stream (any language) — China/CIS qualifiers
+            // have official streams with language !== 'en' that were previously ignored.
+            const official = (psMatch.streams_list || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
+            const enStreams = official.filter(s => s.language === 'en')
+            const mainEn = enStreams.filter(s => s.main)
+            const mainAny = official.filter(s => s.main)
+            // Preference order: main English > any English > main any-language > first official Twitch
+            const candidate = mainEn.length === 1   ? mainEn[0]
+                            : enStreams.length === 1  ? enStreams[0]
+                            : mainAny.length === 1    ? mainAny[0]
                             : official.length === 1   ? official[0]
                             : null
             if (candidate) {
@@ -86,7 +97,7 @@ export default async function handler(req, res) {
                 result[id] = channel
                 kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(() => {})
               }
-              console.log(`match-streams fuzzy match: ${radiantTeam} vs ${direTeam} → ${channel}`)
+              console.log(`match-streams fuzzy match: ${radiantTeam} vs ${direTeam} → ${channel} (lang=${candidate.language})`)
             }
           }
         }

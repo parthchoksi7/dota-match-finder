@@ -43,11 +43,16 @@ export const CHANNEL_LABELS = {
 export function getTwitchStreams(streamsList, leagueName, serieName) {
   const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
 
-  // Use PandaScore streams_list if available — filters to official English streams only.
+  // Use PandaScore streams_list if available — filters to official Twitch streams (any language).
+  // Language is NOT restricted to English: regional qualifiers (China, CIS) have official
+  // streams with language='zh' or 'ru' that are still the correct VOD source.
   // Exception: for ESL One tournaments, PandaScore consistently returns only esl_dota2 (main hub)
   // even when the actual broadcast is on a sub-channel (esl_dota2earth/storm/ember).
   // In that case, fall through to the static mapping so all sub-channels are shown.
-  const official = (streamsList || []).filter(s => s.official && s.language === 'en' && s.raw_url)
+  const allTwitchOfficial = (streamsList || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
+  // Prefer English streams to preserve existing behaviour for main events; fall back to any language
+  const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')
+  const official = enOfficial.length > 0 ? enOfficial : allTwitchOfficial
   if (official.length > 0) {
     // When multiple concurrent matches share sub-channels (e.g. ESL One, DreamLeague), PandaScore
     // marks exactly one stream main:true per match on the individual endpoint. Narrow to it.
