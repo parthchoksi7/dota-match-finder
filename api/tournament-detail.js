@@ -165,11 +165,21 @@ function mapSeriesTeam(t, qualified) {
 
 async function fetchSeriesRosters(tournamentId, headers) {
   try {
-    const res = await fetch(`${BASE}/tournaments/${tournamentId}/rosters`, { headers })
-    if (!res.ok) return []
+    const url = `${BASE}/tournaments/${tournamentId}/rosters`
+    const res = await fetch(url, { headers })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.warn(`[rosters] ${tournamentId} HTTP ${res.status}: ${body.slice(0, 200)}`)
+      return []
+    }
     const data = await res.json()
-    return Array.isArray(data) ? data : []
-  } catch { return [] }
+    const arr = Array.isArray(data) ? data : []
+    console.log(`[rosters] ${tournamentId} OK — ${arr.length} entries, first has ${arr[0]?.players?.length ?? 'n/a'} players`)
+    return arr
+  } catch (e) {
+    console.warn(`[rosters] ${tournamentId} fetch error: ${e?.message}`)
+    return []
+  }
 }
 
 async function fetchSeriesStandings(tournamentId, headers) {
@@ -212,7 +222,7 @@ function parseRawBracket(bracketsRaw) {
 
 async function handleSeriesDetail(req, res, token) {
   const seriesId = req.query?.id
-  const cacheKey = `tournament:detail:series:v5:${seriesId}`
+  const cacheKey = `tournament:detail:series:v6:${seriesId}`
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
@@ -362,7 +372,11 @@ async function handleSeriesDetail(req, res, token) {
     fetchedAt: new Date().toISOString(),
   }
 
-  const cacheTtl = status === 'completed' ? 60 * 60 * 24 * 30 : SERIES_DETAIL_TTL
+  // Don't use the 30-day TTL if rosters came back empty — retry in 30 min so
+  // we pick up player data once PandaScore publishes it.
+  const hasPlayers = Array.from(teamMap.values()).some(t => t.players.length > 0)
+  const cacheTtl = status === 'completed' && hasPlayers ? 60 * 60 * 24 * 30 : SERIES_DETAIL_TTL
+  console.log(`[series-detail] ${seriesId} caching ${payload.teams.length} teams (hasPlayers=${hasPlayers}) TTL=${cacheTtl}s`)
   kv.set(cacheKey, payload, { ex: cacheTtl }).catch(e => console.error('KV write failed (series-detail):', e?.message || e))
   return res.status(200).json(payload)
 }

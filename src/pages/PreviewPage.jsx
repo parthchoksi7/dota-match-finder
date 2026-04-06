@@ -53,14 +53,19 @@ function getShareUrl(match) {
 function abbrevTournament(name) {
   if (!name) return ""
   const lower = name.toLowerCase()
-  if (lower.includes("dreamleague")) return "DreamLeague"
-  if (lower.includes("esl")) return "ESL"
-  if (lower.includes("pgl")) return "PGL"
-  if (lower.includes("blast")) return "BLAST"
-  if (lower.includes("weplay")) return "WePlay"
-  if (lower.includes("beyond the summit") || lower.includes("bts")) return "BTS"
   if (lower.includes("the international")) return "TI"
-  return name.split(" ").slice(0, 2).join(" ")
+  if (lower.includes("beyond the summit") || lower.includes("bts")) return "BTS"
+  if (lower.includes("dreamleague")) return "DreamLeague"
+  if (lower.includes("weplay")) return "WePlay"
+  // For other names strip the year and stage suffix, keep first 2 words
+  // e.g. "BLAST Slam 2026 — Group Stage" -> "BLAST Slam"
+  //      "PGL Wallachia Season 8 2026"    -> "PGL Wallachia"
+  //      "ESL One Copenhagen 2026"        -> "ESL One"
+  const cleaned = name
+    .replace(/\s*[-–—]\s*.*$/, "")   // remove " — Group Stage" etc.
+    .replace(/\s+\d{4}.*$/, "")      // remove " 2026..." etc.
+    .trim()
+  return cleaned.split(/\s+/).slice(0, 2).join(" ")
 }
 
 function getDateLabel(unixSeconds) {
@@ -163,7 +168,6 @@ function ResultCard({ series, onOpenSeries, spoilerFree, followedTeams, isGrandF
             <span className="text-xs px-1.5 py-0.5 rounded border border-amber-800/40 text-amber-500/80">Grand Final</span>
           )}
         </div>
-        <span className="text-gray-700 tabular-nums">{formatDuration(game1.duration)}</span>
       </div>
 
       {/* Teams + Score — mobile: stacked rows, desktop: side-by-side */}
@@ -269,9 +273,11 @@ function ResultCard({ series, onOpenSeries, spoilerFree, followedTeams, isGrandF
       <div className="mt-3 flex items-center gap-2 flex-wrap">
         {gameSlots.map((game, i) => {
           if (!game) {
-            if (spoilerFree) return null
+            // Spoilers ON: show all slots (don't reveal which games were played)
+            // Spoilers OFF: hide unplayed slots (you can see the score anyway)
+            if (!spoilerFree) return null
             return (
-              <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800 text-gray-600">
+              <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800/40 text-gray-700">
                 G{i + 1}
               </span>
             )
@@ -282,12 +288,17 @@ function ResultCard({ series, onOpenSeries, spoilerFree, followedTeams, isGrandF
             <span
               key={game.id}
               className={[
-                "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded",
+                "inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded",
                 showWinner ? "bg-gray-800/60 text-green-400" : "bg-gray-800 text-gray-500"
               ].join(" ")}
             >
               G{i + 1}
               {showWinner && <span>✓</span>}
+              {game.duration && (
+                <span className={showWinner ? "text-green-600 font-normal" : "text-gray-600 font-normal"}>
+                  {formatDuration(game.duration)}
+                </span>
+              )}
             </span>
           )
         })}
@@ -628,12 +639,9 @@ function PreviewPage() {
 
   // ── Series-centric open (preview only) ─────────────────────────────────────
   function handleOpenSeries(series) {
-    const played = series.games.filter(g => g && !g.unplayed)
-    const deciding = played[played.length - 1] || series.games[0]
-    const decidingIdx = series.games.findIndex(g => g?.id === deciding?.id)
     setSelectedSeries(series)
-    setSelectedGameIndex(decidingIdx >= 0 ? decidingIdx : 0)
-    handleSelectMatch(deciding)
+    setSelectedGameIndex(0)
+    handleSelectMatch(series.games[0])
   }
 
   function handleSwitchGame(game, idx) {
