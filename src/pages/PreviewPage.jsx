@@ -126,7 +126,7 @@ function StarIcon({ filled }) {
 }
 
 // ── Result card (B+ style) — flat list row, matches prototype ────────────────
-function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandFinal, onToggleFollow }) {
+function ResultCard({ series, onOpenSeries, spoilerFree, followedTeams, isGrandFinal, onToggleFollow }) {
   const game1 = series.games[0]
   const radiantTeam = game1.radiantTeam
   const direTeam = game1.direTeam
@@ -143,8 +143,8 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
   return (
     <article
       data-series-id={series.id}
-      onClick={() => onSelectGame(series.games[0])}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGame(series.games[0]) } }}
+      onClick={() => onOpenSeries(series)}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenSeries(series) } }}
       tabIndex={0}
       className={[
         "py-5 border-b border-gray-800 group cursor-pointer hover:bg-gray-900/30",
@@ -166,8 +166,56 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
         <span className="text-gray-700 tabular-nums">{formatDuration(game1.duration)}</span>
       </div>
 
-      {/* Teams + Score */}
-      <div className="flex items-center gap-4 sm:gap-8">
+      {/* Teams + Score — mobile: stacked rows, desktop: side-by-side */}
+
+      {/* Mobile stacked layout */}
+      <div className="block sm:hidden space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {onToggleFollow && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onToggleFollow(radiantTeam) }}
+                className={`flex-shrink-0 p-0.5 rounded transition-colors ${followedTeams?.includes(radiantTeam) ? "text-amber-400" : "text-gray-700 hover:text-amber-400"}`}
+                aria-label={followedTeams?.includes(radiantTeam) ? `Unfollow ${radiantTeam}` : `Follow ${radiantTeam}`}
+              >
+                <StarIcon filled={!!followedTeams?.includes(radiantTeam)} />
+              </button>
+            )}
+            <p className={["font-display font-black text-2xl uppercase leading-none", radiantDim ? "text-gray-500" : "text-white"].join(" ")}>
+              {radiantTeam}
+            </p>
+          </div>
+          {!spoilerFree && (
+            <span className={["font-display font-black text-3xl tabular-nums leading-none flex-shrink-0", radiantDim ? "text-gray-500" : "text-white"].join(" ")}>{radiantWins}</span>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {onToggleFollow && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onToggleFollow(direTeam) }}
+                className={`flex-shrink-0 p-0.5 rounded transition-colors ${followedTeams?.includes(direTeam) ? "text-amber-400" : "text-gray-700 hover:text-amber-400"}`}
+                aria-label={followedTeams?.includes(direTeam) ? `Unfollow ${direTeam}` : `Follow ${direTeam}`}
+              >
+                <StarIcon filled={!!followedTeams?.includes(direTeam)} />
+              </button>
+            )}
+            <p className={["font-display font-black text-2xl uppercase leading-none", direDim ? "text-gray-500" : "text-gray-400"].join(" ")}>
+              {direTeam}
+            </p>
+          </div>
+          {!spoilerFree ? (
+            <span className={["font-display font-black text-3xl tabular-nums leading-none flex-shrink-0", direDim ? "text-gray-500" : "text-white"].join(" ")}>{direWins}</span>
+          ) : (
+            <span className="text-gray-600 text-xs uppercase tracking-widest">vs</span>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop side-by-side layout */}
+      <div className="hidden sm:flex items-center gap-8">
         <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
           {onToggleFollow && (
             <button
@@ -180,7 +228,7 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
             </button>
           )}
           <p className={[
-            "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
+            "font-display font-black text-4xl uppercase leading-none truncate",
             radiantDim ? "text-gray-500" : "text-white"
           ].join(" ")}>
             {radiantTeam}
@@ -189,9 +237,9 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
         <div className="flex-shrink-0 flex items-center gap-1.5">
           {!spoilerFree ? (
             <>
-              <span className={["font-display font-black text-4xl sm:text-5xl tabular-nums leading-none", radiantDim ? "text-gray-500" : "text-white"].join(" ")}>{radiantWins}</span>
+              <span className={["font-display font-black text-5xl tabular-nums leading-none", radiantDim ? "text-gray-500" : "text-white"].join(" ")}>{radiantWins}</span>
               <span className="text-gray-700 text-xl font-medium">–</span>
-              <span className={["font-display font-black text-4xl sm:text-5xl tabular-nums leading-none", direDim ? "text-gray-500" : "text-white"].join(" ")}>{direWins}</span>
+              <span className={["font-display font-black text-5xl tabular-nums leading-none", direDim ? "text-gray-500" : "text-white"].join(" ")}>{direWins}</span>
             </>
           ) : (
             <span className="text-gray-600 text-sm">vs</span>
@@ -199,7 +247,7 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
         </div>
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <p className={[
-            "font-display font-black text-3xl sm:text-4xl uppercase leading-none truncate",
+            "font-display font-black text-4xl uppercase leading-none truncate",
             direDim ? "text-gray-500" : "text-gray-400"
           ].join(" ")}>
             {direTeam}
@@ -221,6 +269,7 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
       <div className="mt-3 flex items-center gap-2 flex-wrap">
         {gameSlots.map((game, i) => {
           if (!game) {
+            if (spoilerFree) return null
             return (
               <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800 text-gray-600">
                 G{i + 1}
@@ -230,25 +279,16 @@ function ResultCard({ series, onSelectGame, spoilerFree, followedTeams, isGrandF
           const gameWinner = game.radiantWin ? game.radiantTeam : game.direTeam
           const showWinner = !spoilerFree && gameWinner
           return (
-            <button
+            <span
               key={game.id}
-              type="button"
-              onClick={e => { e.stopPropagation(); onSelectGame(game) }}
               className={[
-                "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-800",
-                "hover:bg-purple-900/40 hover:text-purple-300 transition-colors",
-                showWinner ? "text-green-400" : "text-gray-500"
+                "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded",
+                showWinner ? "bg-gray-800/60 text-green-400" : "bg-gray-800 text-gray-500"
               ].join(" ")}
             >
-              <PlayIcon />
-              <span>G{i + 1}</span>
-              {showWinner && (
-                <>
-                  <span className="truncate max-w-[72px]">{gameWinner}</span>
-                  <span>✓</span>
-                </>
-              )}
-            </button>
+              G{i + 1}
+              {showWinner && <span>✓</span>}
+            </span>
           )
         })}
       </div>
@@ -490,6 +530,8 @@ function PreviewPage() {
   const [liveLoading, setLiveLoading] = useState(true)
 
   const [selectedMatch, setSelectedMatch] = useState(null)
+  const [selectedSeries, setSelectedSeries] = useState(null)
+  const [selectedGameIndex, setSelectedGameIndex] = useState(0)
   const [expandedSeriesId, setExpandedSeriesId] = useState(null)
 
   const [summary, setSummary] = useState(null)
@@ -584,6 +626,21 @@ function PreviewPage() {
     ids.slice().reverse().forEach((id, i) => { matchGameNumbers[id] = i + 1 })
   })
 
+  // ── Series-centric open (preview only) ─────────────────────────────────────
+  function handleOpenSeries(series) {
+    const played = series.games.filter(g => g && !g.unplayed)
+    const deciding = played[played.length - 1] || series.games[0]
+    const decidingIdx = series.games.findIndex(g => g?.id === deciding?.id)
+    setSelectedSeries(series)
+    setSelectedGameIndex(decidingIdx >= 0 ? decidingIdx : 0)
+    handleSelectMatch(deciding)
+  }
+
+  function handleSwitchGame(game, idx) {
+    setSelectedGameIndex(idx)
+    handleSelectMatch(game)
+  }
+
   // ── Match selection + VOD fetch ─────────────────────────────────────────────
   async function handleSelectMatch(match) {
     setSummary(null)
@@ -676,6 +733,8 @@ function PreviewPage() {
     const scrollY = window.scrollY
     const targetSeriesId = expandedSeriesId
     setSelectedMatch(null)
+    setSelectedSeries(null)
+    setSelectedGameIndex(0)
     setSummary(null)
     setSummaryMatchId(null)
     setSummaryError(null)
@@ -747,8 +806,8 @@ function PreviewPage() {
         <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
           <a href="/" className="flex items-center gap-2.5 flex-shrink-0">
             <img src="/favicon.png" alt="Spectate Esports" className="h-8 w-8" />
-            <div className="hidden sm:block">
-              <p className="font-display font-black text-lg uppercase tracking-widest leading-none">
+            <div className="block">
+              <p className="font-display font-black text-sm sm:text-lg uppercase tracking-widest leading-none">
                 Spectate <span className="text-red-500">Esports</span>
               </p>
             </div>
@@ -1063,7 +1122,7 @@ function PreviewPage() {
                       <ResultCard
                         key={s.id}
                         series={s}
-                        onSelectGame={handleSelectMatch}
+                        onOpenSeries={handleOpenSeries}
                         spoilerFree={spoilerFree}
                         followedTeams={followedTeams}
                         isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
@@ -1135,37 +1194,64 @@ function PreviewPage() {
       </nav>
 
       {/* ── Match Drawer ── */}
-      {selectedMatch && !initialLoading && (
-        <MatchDrawer
-          match={selectedMatch}
-          onDismiss={dismissPanel}
-          summary={summaryMatchId === selectedMatch?.id ? summary : null}
-          summaryLoading={summaryLoading}
-          summaryError={summaryErrorMatchId === selectedMatch?.id ? summaryError : null}
-          cachedSummary={cachedSummaryForSelected}
-          onSummarize={handleSummarize}
-          copyFeedback={copyFeedback}
-          twitchSearchHref={twitchSearchHref}
-          gameNumber={matchGameNumbers[selectedMatch?.id]}
-          seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
-          shareUrl={getShareUrl(selectedMatch)}
-          spoilerFree={spoilerFree}
-          onCopyVod={() => {
-            navigator.clipboard?.writeText(selectedMatch.url)
-            trackEvent("copy_vod", { matchId: selectedMatch.id })
-            setCopyFeedback("vod")
-            setTimeout(() => setCopyFeedback(null), 2000)
-          }}
-          onCopyLink={() => {
-            const url = getShareUrl(selectedMatch)
-            navigator.clipboard?.writeText(url)
-            window.history.replaceState(null, "", "/match/" + getMatchSlug(selectedMatch))
-            trackEvent("share_match", { matchId: selectedMatch.id })
-            setCopyFeedback("link")
-            setTimeout(() => setCopyFeedback(null), 2000)
-          }}
-        />
-      )}
+      {selectedMatch && !initialLoading && (() => {
+        const playedGames = selectedSeries ? selectedSeries.games.filter(g => g && !g.unplayed) : []
+        const gameSwitcher = selectedSeries && playedGames.length > 1 ? (
+          <div className="flex items-center gap-1">
+            {selectedSeries.games.map((game, idx) => {
+              if (!game || game.unplayed) return null
+              const isSelected = idx === selectedGameIndex
+              return (
+                <button
+                  key={game.id}
+                  type="button"
+                  onClick={() => handleSwitchGame(game, idx)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded transition-colors ${
+                    isSelected
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-500 hover:text-gray-300 hover:bg-gray-900"
+                  }`}
+                >
+                  G{idx + 1}
+                </button>
+              )
+            })}
+          </div>
+        ) : null
+
+        return (
+          <MatchDrawer
+            match={selectedMatch}
+            onDismiss={dismissPanel}
+            summary={summaryMatchId === selectedMatch?.id ? summary : null}
+            summaryLoading={summaryLoading}
+            summaryError={summaryErrorMatchId === selectedMatch?.id ? summaryError : null}
+            cachedSummary={cachedSummaryForSelected}
+            onSummarize={handleSummarize}
+            copyFeedback={copyFeedback}
+            twitchSearchHref={twitchSearchHref}
+            gameNumber={matchGameNumbers[selectedMatch?.id]}
+            seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
+            shareUrl={getShareUrl(selectedMatch)}
+            spoilerFree={spoilerFree}
+            gameSwitcher={gameSwitcher}
+            onCopyVod={() => {
+              navigator.clipboard?.writeText(selectedMatch.url)
+              trackEvent("copy_vod", { matchId: selectedMatch.id })
+              setCopyFeedback("vod")
+              setTimeout(() => setCopyFeedback(null), 2000)
+            }}
+            onCopyLink={() => {
+              const url = getShareUrl(selectedMatch)
+              navigator.clipboard?.writeText(url)
+              window.history.replaceState(null, "", "/match/" + getMatchSlug(selectedMatch))
+              trackEvent("share_match", { matchId: selectedMatch.id })
+              setCopyFeedback("link")
+              setTimeout(() => setCopyFeedback(null), 2000)
+            }}
+          />
+        )
+      })()}
 
       <ManageTeamsModal
         open={manageTeamsOpen}

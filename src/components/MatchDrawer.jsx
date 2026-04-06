@@ -19,6 +19,7 @@ function MatchDrawer({
   seriesMatches,
   shareUrl,
   spoilerFree = false,
+  gameSwitcher,
 }) {
   const drawerRef = useRef(null)
   const [scoreRevealed, setScoreRevealed] = useState(false)
@@ -131,6 +132,12 @@ function MatchDrawer({
             ✕
           </button>
         </div>
+
+        {gameSwitcher && (
+          <div className="px-5 py-2.5 border-b border-gray-800 shrink-0">
+            {gameSwitcher}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
 

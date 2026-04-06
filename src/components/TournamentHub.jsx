@@ -395,7 +395,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
               key={tab}
               type="button"
               onClick={() => { setActiveTab(tab); trackEvent('tournament_tab_click', { tab }) }}
-              className={`flex-1 py-1 text-xs font-semibold uppercase tracking-wide rounded transition-colors text-center whitespace-nowrap ${
+              className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wide rounded transition-colors text-center whitespace-nowrap ${
                 activeTab === tab
                   ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                   : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
