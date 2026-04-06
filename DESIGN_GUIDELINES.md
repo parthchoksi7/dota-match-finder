@@ -83,6 +83,7 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 ### Cards / Panels
 - Border: `border border-gray-200 dark:border-gray-800 rounded`
 - No box-shadow (except drawer)
+- **Card background must be explicit**: `bg-white dark:bg-gray-950` on the card wrapper — do not rely on inheritance. Without an explicit background the card is transparent, which breaks segmented controls and other elements that use relative background steps (e.g. `dark:bg-gray-900` tab bar needs a `dark:bg-gray-950` card behind it to be visible).
 - Header background: `bg-gray-100 dark:bg-gray-900`
 - Section dividers: `border-t border-gray-100 dark:border-gray-900`
 

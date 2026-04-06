@@ -2,6 +2,30 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 6, 2026",
+    tag: "fix",
+    title: "Tournament names now show correct capitalisation everywhere",
+    desc: "Names like 'PGL Wallachia season 8' were displaying with a lowercase 's' in tournament pills, the calendar page, and the site header bar. All tournament names are now title-cased at the display layer.",
+  },
+  {
+    date: "Apr 6, 2026",
+    tag: "fix",
+    title: "Tournament tab switcher visible again on the preview page",
+    desc: "The Overview / Standings / Schedule / Heroes tab bar inside an expanded tournament was rendering as unstyled text with no visible background on the dark preview page. The card now has an explicit background so the segmented control looks correct.",
+  },
+  {
+    date: "Apr 6, 2026",
+    tag: "fix",
+    title: "VOD links no longer show the wrong channel for BLAST and other tournaments",
+    desc: "When multiple tournaments were live simultaneously, a match on one channel (e.g. BLAST) could end up showing the VOD link for a completely different stream (e.g. ESL). The fix removes the hardcoded channel fallback entirely — the channel PandaScore recorded for that match is now trusted exclusively.",
+  },
+  {
+    date: "Apr 6, 2026",
+    tag: "improvement",
+    title: "Dark and light mode now work on the preview page",
+    desc: "The /preview page previously used hardcoded dark colors and ignored the theme toggle. It now responds to the sun/moon button in the header the same way the homepage does. Your preference is saved and persists across sessions.",
+  },
+  {
     date: "Apr 5, 2026",
     tag: "fix",
     title: "VOD links now work for China and CIS regional qualifiers",
