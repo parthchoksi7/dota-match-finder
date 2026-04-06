@@ -1211,18 +1211,22 @@ function PreviewPage() {
             {selectedSeries.games.map((game, idx) => {
               if (!game || game.unplayed) return null
               const isSelected = idx === selectedGameIndex
+              const winner = !spoilerFree && game.radiantWin != null
+                ? (game.radiantWin ? game.radiantTeam : game.direTeam)
+                : null
               return (
                 <button
                   key={game.id}
                   type="button"
                   onClick={() => handleSwitchGame(game, idx)}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded transition-colors ${
                     isSelected
                       ? "bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white"
                       : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900"
                   }`}
                 >
-                  G{idx + 1}
+                  <span>G{idx + 1}</span>
+                  {winner && <span className="font-medium normal-case tracking-normal truncate max-w-[80px]">{winner}</span>}
                 </button>
               )
             })}

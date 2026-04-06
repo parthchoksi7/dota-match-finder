@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Apr 6, 2026",
+    tag: "improvement",
+    title: "Game tabs now show the winner name",
+    desc: "The G1 / G2 / G3 switcher inside an open match now shows who won each game — for example 'G1 Parivision' and 'G2 Tundra'. Makes it easier to jump to a specific game without guessing. Hidden in spoiler-free mode.",
+  },
+  {
+    date: "Apr 6, 2026",
     tag: "fix",
     title: "Tournament names now show correct capitalisation everywhere",
     desc: "Names like 'PGL Wallachia season 8' were displaying with a lowercase 's' in tournament pills, the calendar page, and the site header bar. All tournament names are now title-cased at the display layer.",
