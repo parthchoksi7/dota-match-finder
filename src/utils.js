@@ -1,5 +1,10 @@
 import { track } from '@vercel/analytics'
 
+export function toTitleCase(str) {
+  if (!str) return ''
+  return str.replace(/\b\w/g, c => c.toUpperCase())
+}
+
 export function trackEvent(name, props) {
   track(name, props)
   if (typeof window !== 'undefined' && window.gtag) {

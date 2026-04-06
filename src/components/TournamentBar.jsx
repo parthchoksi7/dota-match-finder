@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { track } from '@vercel/analytics'
+import { toTitleCase } from '../utils'
 
 function trackEvent(name, props) {
   track(name, props)
@@ -61,7 +62,7 @@ export default function TournamentBar() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
             )}
             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors truncate max-w-[160px]">
-              {t.name}
+              {toTitleCase(t.name)}
             </span>
             {countdown && (
               <span className="text-xs text-gray-400 dark:text-gray-600 tabular-nums flex-shrink-0">

@@ -207,6 +207,14 @@ These features are intentionally hidden from public documentation. They are gate
 
 ---
 
+## /preview vs Homepage Boundary
+
+`/preview` (`src/pages/PreviewPage.jsx`) and the homepage (`src/App.jsx`, `MatchCard.jsx`, `LatestMatches.jsx`, etc.) are separate design surfaces. Changes requested for `/preview` must NEVER touch homepage components, and vice versa. Shared components (`MatchDrawer.jsx`, `TournamentHub.jsx`, etc.) may only be changed in ways that are backward-compatible and do not alter homepage behaviour.
+
+## VOD Channel Resolution
+
+PandaScore is the authoritative source for Twitch channel attribution. The client-side `findTwitchVod` function in `src/api.js` trusts the `preferredChannel` resolved by the server (`api/match-streams.js` via PandaScore fuzzy match) exclusively - it does NOT fall back to other channels. Do not add hardcoded channel lists or tournament-name-to-channel mappings to `src/api.js`. Channel labels for display belong in `VOD_CHANNEL_LABELS`. Channel routing logic belongs in `api/_shared.js` (`getTwitchStreams`).
+
 ## Notes for Claude Code
 
 - This is a beginner-friendly project - explain technical decisions

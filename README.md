@@ -1,16 +1,66 @@
-# React + Vite
+# Spectate Esports
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Pro Dota 2 match viewer. Find recent results, watch VODs, see drafts, and get AI match summaries.
 
-Currently, two official plugins are available:
+Live at: **https://spectateesports.live**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## What It Does
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Browse recent Tier 1 pro match results grouped into series (BO1/BO2/BO3/BO5)
+- Watch VOD links timestamped to the exact game start via Twitch API
+- View full draft (hero picks, bans, player names, KDA) from OpenDota
+- Generate AI match summaries via Claude Haiku
+- See live matches with series scores and per-game status
+- Upcoming scheduled matches with local timezone display
+- Tournament Hub with standings, bracket, schedule, and hero stats
+- Follow teams to filter results and get calendar feeds
+- Spoiler-free mode hides scores and winner info until you choose to reveal
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React + Vite + Tailwind CSS |
+| Deployment | Vercel (Hobby) |
+| Match data | OpenDota API |
+| Live/tournament data | PandaScore API |
+| VOD search | Twitch Helix API |
+| Cache | Upstash Redis (KV) |
+| AI summaries | Anthropic Claude Haiku |
+| Analytics | Vercel Analytics + GA4 + BigQuery |
+
+## Project Structure
+
+```
+src/
+  pages/          # Full-page views (App routes)
+  components/     # Shared UI components
+  api.js          # All client-side API calls
+  utils.js        # Series grouping, follow teams, event tracking
+api/              # Vercel serverless functions (12 max on Hobby plan)
+  _shared.js      # Shared utilities (NOT deployed as a function)
+public/           # Static assets
+```
+
+See [CONTEXT.md](./CONTEXT.md) for detailed architecture, feature descriptions, and known limitations.
+
+## Local Development
+
+```bash
+npm install
+npm run dev       # starts Vite dev server
+```
+
+Requires `.env.local` with:
+- `VITE_TWITCH_CLIENT_ID`
+- `TWITCH_CLIENT_SECRET`
+- `ANTHROPIC_API_KEY`
+- `PANDASCORE_TOKEN`
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+
+## Deployment
+
+Deployed automatically via Vercel on push to `main`. No manual steps required.

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
-import { trackEvent } from '../utils'
+import { trackEvent, toTitleCase } from '../utils'
 
 const FORMAT_DESCRIPTIONS = {
   'Swiss': {
@@ -77,10 +77,12 @@ function FormatTooltip({ format }) {
 }
 
 function cleanTournamentName(name) {
-  return name
-    .replace(/\s*—\s*.+$/, '')
-    .replace(/\s+\d{4}$/, '')
-    .trim()
+  return toTitleCase(
+    name
+      .replace(/\s*—\s*.+$/, '')
+      .replace(/\s+\d{4}$/, '')
+      .trim()
+  )
 }
 
 function getLeagueLabel(name) {
@@ -360,7 +362,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
         </h2>
       </div>
       <section
-      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden"
+      className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950"
       aria-labelledby="tournament-hub-heading"
       >
 

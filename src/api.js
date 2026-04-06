@@ -121,18 +121,6 @@ async function getTwitchToken() {
   return data.access_token
 }
 
-/** ESL main + sub-channels (Ember/Storm/Earth for concurrent DreamLeague matches). Language re-broadcasts (e.g. esl_dota2_es) omitted. */
-const VOD_CHANNELS = [
-  'esl_dota2',
-  'esl_dota2ember',
-  'esl_dota2storm',
-  'esl_dota2earth',
-  'dota2ti',
-  'beyond_the_summit',
-  'pgl_dota2',
-  'pgl_dota2en2',
-]
-
 /** Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.). */
 export const VOD_CHANNEL_LABELS = {
   esl_dota2: 'ESL',
@@ -143,6 +131,8 @@ export const VOD_CHANNEL_LABELS = {
   beyond_the_summit: 'BTS',
   pgl_dota2: 'PGL',
   pgl_dota2en2: 'PGL EN2',
+  blast_dota2: 'BLAST',
+  weplaydota: 'WePlay',
 }
 
 async function findVodOnChannel(channelName, matchStartTime, headers) {
@@ -169,23 +159,6 @@ async function findVodOnChannel(channelName, matchStartTime, headers) {
   return null
 }
 
-const CHANNEL_GROUPS = {
-  pgl:  ['pgl_dota2', 'pgl_dota2en2'],
-  esl:  ['esl_dota2', 'esl_dota2ember', 'esl_dota2storm', 'esl_dota2earth'],
-  bts:  ['beyond_the_summit'],
-  ti:   ['dota2ti'],
-}
-
-function getChannelGroup(tournamentName) {
-  if (!tournamentName) return null
-  const lower = tournamentName.toLowerCase()
-  if (lower.includes('pgl')) return CHANNEL_GROUPS.pgl
-  if (lower.includes('esl') || lower.includes('dreamleague')) return CHANNEL_GROUPS.esl
-  if (lower.includes('beyond the summit') || lower.includes('bts')) return CHANNEL_GROUPS.bts
-  if (lower.includes('the international')) return CHANNEL_GROUPS.ti
-  return null
-}
-
 /**
  * Look up which Twitch channel(s) streamed the given match IDs.
  * Returns a map of matchId → channel name for matches we have a definitive record for.
@@ -207,54 +180,41 @@ export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam 
 }
 
 /**
- * Find the Twitch VOD for a match by searching all known channels in parallel.
- * If preferredChannel is provided (from our stream mapping), only that channel
- * is searched — giving a single, definitive result with no ambiguity.
- * Falls back to the full group-based search if the preferred channel has no VOD.
+ * Find the Twitch VOD for a match.
+ *
+ * PandaScore is the authoritative source for which channel streamed a match.
+ * - preferredChannel: exact channel resolved from PandaScore via /api/match-streams.
+ *   Searched exclusively — no fallback to other channels if the VOD isn't there yet.
+ * - candidateChannels: channels recorded as live in the same time bucket (ts fallback).
+ *   Searched in parallel; all hits returned so the user can try each one.
  */
-export async function findTwitchVod(matchStartTime, tournamentName, preferredChannel = null, candidateChannels = null) {
+export async function findTwitchVod(matchStartTime, _tournamentName, preferredChannel = null, candidateChannels = null) {
   const token = await getTwitchToken()
   const headers = {
     'Client-ID': import.meta.env.VITE_TWITCH_CLIENT_ID,
     'Authorization': 'Bearer ' + token
   }
 
-  // If we know exactly which channel had this match, search only that one.
+  // PandaScore told us the exact channel — trust it. Don't fall back to other channels
+  // to avoid returning a wrong VOD (e.g. an ESL stream airing at the same time).
   if (preferredChannel) {
     const vod = await findVodOnChannel(preferredChannel, matchStartTime, headers)
     if (vod) return { url: vod.url, channel: vod.channel, allVods: [vod] }
-    // VOD not found on preferred channel (may not be published yet) — fall through
+    return { url: null, channel: null, allVods: [] }
   }
 
-  // Narrow to ts-derived candidate channels if available, otherwise search all known channels.
-  const channelsToSearch = candidateChannels
-    ? VOD_CHANNELS.filter(ch => candidateChannels.includes(ch))
-    : VOD_CHANNELS
+  // No PandaScore match — search channels recorded as live in this time bucket.
+  if (candidateChannels && candidateChannels.length > 0) {
+    const results = await Promise.allSettled(
+      candidateChannels.map(ch => findVodOnChannel(ch, matchStartTime, headers))
+    )
+    const hits = results
+      .filter(r => r.status === 'fulfilled' && r.value != null)
+      .map(r => r.value)
+    if (hits.length > 0) return { url: hits[0].url, channel: hits[0].channel, allVods: hits }
+  }
 
-  const results = await Promise.allSettled(
-    channelsToSearch.map((ch) => findVodOnChannel(ch, matchStartTime, headers))
-  )
-  const hits = results
-    .filter(r => r.status === 'fulfilled' && r.value != null)
-    .map(r => r.value)
-
-  if (hits.length === 0) return { url: null, channel: null, allVods: [] }
-
-  const group = getChannelGroup(tournamentName)
-  const filtered = group ? hits.filter(h => group.includes(h.channel)) : hits
-  const finalHits = filtered.length > 0 ? filtered : hits
-
-  // Primary channel is first in the group definition
-  finalHits.sort((a, b) => {
-    const ai = group ? group.indexOf(a.channel) : -1
-    const bi = group ? group.indexOf(b.channel) : -1
-    if (ai === -1 && bi === -1) return 0
-    if (ai === -1) return 1
-    if (bi === -1) return -1
-    return ai - bi
-  })
-
-  return { url: finalHits[0].url, channel: finalHits[0].channel, allVods: finalHits }
+  return { url: null, channel: null, allVods: [] }
 }
 
 function parseTwitchDuration(duration) {

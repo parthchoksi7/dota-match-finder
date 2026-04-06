@@ -34,7 +34,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/App.jsx` - Main app, state management, search, load more, drawer, spoiler-free toggle, slug URL generation
 - `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, `/calendar` -> Calendar, `/preview` -> PreviewPage, else App
 - `src/api.js` - All API calls: OpenDota, Twitch VOD search, hero fetching, match summaries
-- `src/components/MatchDrawer.jsx` - Slide-in drawer showing match details, VOD links, draft, AI summary
+- `src/components/MatchDrawer.jsx` - Slide-in drawer showing match details, VOD links, draft, AI summary. Accepts optional `gameSwitcher` prop (any React node) rendered in a thin row between the header and the scrollable content area. Used by `/preview` to show in-drawer G1/G2/G3 game tabs; homepage never passes this prop so behaviour is unchanged.
 - `src/components/DraftDisplay.jsx` - Hero picks, bans, player names, KDA
 - `src/components/MatchList.jsx` - Search results list grouped into series
 - `src/components/LatestMatches.jsx` - Homepage latest results with styled header and tournament change dividers
@@ -45,7 +45,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher
 - `src/components/XPostsModal.jsx` - Modal for displaying AI-generated X/Twitter posts per game in a series, plus series summary and downloadable result image
 - `src/components/WatchBadge.jsx` - Watchability badge component
-- `src/pages/PreviewPage.jsx` - **Internal** design preview at `/preview`; NOT indexed (disallowed in robots.txt); dark-only B+ design system with Barlow Condensed fonts, state-sectioned feed (Live Now / Coming Up / Results by date), game chips as play buttons that open MatchDrawer, abbreviated tournament names, followed-team amber accent, mobile bottom nav. Fetches same data as homepage: `/api/live-matches`, `/api/upcoming-matches`, `fetchProMatches`. Reuses `TournamentBar` (collapsed pills, not `TournamentHub`) and `MatchDrawer` as-is. Intentionally diverges from DESIGN_GUIDELINES (dark-only, flat list rows, larger typography) as a design exploration prototype. Follow/manage teams fully wired: star icons on hover next to team names, ManageTeamsModal accessible from header star button, persisted to localStorage. Mobile header always shows "SPECTATE ESPORTS" brand name (responsive `text-sm sm:text-lg`). ResultCard uses a stacked layout on mobile: team name + score on separate rows (full-width names, no truncation), with the original side-by-side layout preserved on `sm+`. In-drawer game switcher: when a series has >1 played game, G1/G2/G3 buttons appear below the drawer header (via `gameSwitcher` prop on MatchDrawer); clicking switches games without closing the drawer. Card click always opens Game 1 (not the last played game). Game chips show per-game duration in non-spoiler mode. Spoiler mode ON shows all slots (G1/G2/G3 for BO3) so game count is not revealed; spoiler mode OFF shows only played games. `abbrevTournament` keeps the event-specific identifier - strips year/stage suffix and takes first 2 words (e.g. "BLAST Slam 2026 - Group Stage" -> "BLAST Slam", "PGL Wallachia Season 8" -> "PGL Wallachia").
+- `src/pages/PreviewPage.jsx` - **Internal** design preview at `/preview`; NOT indexed (disallowed in robots.txt); dark-only design with Helvetica, state-sectioned feed (Live Now / Coming Up / Results by date), abbreviated tournament names, followed-team amber accent, mobile bottom nav. Fetches same data as homepage: `/api/live-matches`, `/api/upcoming-matches`, `fetchProMatches`. Intentionally diverges from DESIGN_GUIDELINES (dark-only, flat list rows, large display typography) as a design exploration. Follow/manage teams fully wired: star icons on hover next to team names, ManageTeamsModal accessible from header star button, persisted to localStorage. Starred-only filter toggle in Results header (amber pill) hides non-followed-team matches. Series-centric drawer: clicking a ResultCard opens the series (not a specific game), defaulting to the deciding game (last played non-unplayed game). `handleOpenSeries(series)` sets `selectedSeries` + `selectedGameIndex` state and calls `handleSelectMatch` on the deciding game. `handleSwitchGame(game, idx)` switches the active game inside the open drawer (reloads VOD + clears summary for the new game). `MatchDrawer` receives a `gameSwitcher` node (G1/G2/G3 tab buttons with winner checkmark + series score) rendered below its header when the series has multiple games. G1/G2/G3 chips on ResultCard are passive `<span>` status badges (green checkmark if that game has a winner in non-spoiler mode); not clickable. `abbrevTournament` keeps the event-specific identifier - strips year/stage suffix and takes first 2 words (e.g. "BLAST Slam 2026 - Group Stage" -> "BLAST Slam", "PGL Wallachia Season 8" -> "PGL Wallachia").
 - `src/pages/AnalyticsPage.jsx` - **Private** analytics chat page at `/analytics`; password-gated; NOT indexed by Google; NOT in sitemap; checks `ANALYTICS_PASSWORD` via `/api/analytics-chat?mode=auth`
 - `src/components/AnalyticsChat.jsx` - Chat UI for the analytics page; passes password in each request; supports suggested questions and conversation history
 - `src/pages/AboutPage.jsx` - React About page (served at `/about`)
@@ -53,7 +53,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/pages/Calendar.jsx` - Calendar feed builder at `/calendar`; team selector with slug autocomplete, generated URL, match preview, tournament feed list with Add to Calendar buttons; fires `calendar_page_view`, `calendar_team_select`, `calendar_team_remove`, `calendar_subscribe_modal_open` GA4 events
 - `src/components/CalendarSubscribeModal.jsx` - Modal with subscription URL + Copy button + per-platform instructions accordion (Google, Apple, Outlook); fires `calendar_url_copy` GA4 event
 - `src/utils/icsGenerator.js` - Client-side ICS utility: `generateCalendar()`, `generateMatchEvent()`, `generateTournamentEvent()`, `formatDateUTC()`, `formatDateOnly()`
-- `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries` — all exported); OpenDota `series_type` values: 0=BO1, 1=BO3, 2=BO5, **3=BO2** (undocumented); BO2 draws (1-1 after 2 games) are explicitly marked complete; `getSeriesLabel` maps seriesType 3 → "BO2"; `trackEvent` (dual Vercel + GA4 tracking) — always import this from utils, never redefine locally in components
+- `src/utils.js` - Series grouping logic (`groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries` — all exported); OpenDota `series_type` values: 0=BO1, 1=BO3, 2=BO5, **3=BO2** (undocumented); BO2 draws (1-1 after 2 games) are explicitly marked complete; `getSeriesLabel` maps seriesType 3 → "BO2"; `trackEvent` (dual Vercel + GA4 tracking) — always import this from utils, never redefine locally in components; `toTitleCase(str)` — capitalizes first letter of each word, used for display-layer tournament name formatting (applied in TournamentHub, PreviewPage pills, TournamentBar, Calendar)
 - `src/components/CopyButton.jsx` - Shared copy-to-clipboard button with "Copied!" confirmation state; used by `XPostsModal` and `RedditPostsModal`
 
 ### Backend (Vercel Serverless)
@@ -165,18 +165,16 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Bracket round labels are normalized in `parseBracketPosition()` (api/tournament-detail.js): "Semifinal 2" -> "Semifinal", "Upper Bracket Quarterfinal 1" -> "Quarterfinal", etc. If a name looks like a team matchup (contains " vs " with no round keywords), the label is cleared to prevent PandaScore match names like "Tundra vs RNX" from appearing as section headers. `BracketFlatView` only renders the round header `<p>` when `label` is truthy.
 - **Completed fallback (Mar 2026)**: `api/tournaments.js` default mode now fetches `/tournaments/past` and returns up to 3 recently completed tier-1 tournaments as `completed[]`. TournamentHub uses priority: running > upcoming > recently completed. When showing a completed event, the label reads "Recently Completed" with a gray border accent. This ensures the hub is never empty during breaks between events. Cache key bumped to `dota2:tournament_list_v4`.
 - **Nav links (Mar 2026)**: "Tournaments" link added to SiteHeader top nav. "View all tournaments" footer link added inside TournamentHub card. Both link to `/tournaments`.
+- **Card background (Apr 2026)**: `<section>` wrapper now has explicit `bg-white dark:bg-gray-950` so the segmented tab control (`dark:bg-gray-900`) and active tab (`dark:bg-gray-800`) have clear contrast on both homepage and /preview.
 
 ### VOD Linking
-- Searches multiple Twitch channels simultaneously using `Promise.allSettled`
-- Returns ALL matching channels (not just first hit) - shown as multiple watch buttons
-- Channels tracked: ESL Main, ESL Ember, ESL Storm, ESL Earth, BTS, PGL, WePlay, DreamLeague, and more
-- **Stream mapping (server-side cron)**: `api/live-matches.js?cron=1` is called every 30 min by GitHub Actions (added as a step in `.github/workflows/auto-tweet.yml`). It fetches running matches from PandaScore and writes `stream:match:{gameMatchId}` (nx:true - write-once, never overwritten) and `stream:ts:{roundedBeginAt}` to KV (14-day TTL). The `nx:true` flag ensures the first recorded channel for a game is preserved for the lifetime of the entry. The client-side poll (`api/live-matches.js`) also writes these entries as a fallback, but without `nx:true`. Cron runs are authenticated via `CRON_SECRET` header. Cache writes only happen for the game currently in `status === 'running'`.
+- PandaScore is the authoritative source for which Twitch channel streamed a match
+- **Stream mapping (server-side cron)**: `api/live-matches.js?cron=1` is called every 30 min by GitHub Actions. It fetches running matches from PandaScore and writes `stream:match:{gameMatchId}` (nx:true - write-once) and `stream:ts:{roundedBeginAt}` (JSON array of active channels) to KV (14-day TTL). Cron runs are authenticated via `CRON_SECRET` header.
 - On drawer open, `fetchMatchStreams(matchIds, startTime, radiantTeam, direTeam)` is called with all sibling game IDs and team names
-- `match-streams.js` resolves channels in order: KV fast path -> PandaScore fuzzy match (team names + time window) -> ts bucket fallback (array of candidate channels). The fuzzy match now accepts any official Twitch stream (any language), preferring English first. All PandaScore streams are logged on each fuzzy match call for future debugging.
-- If all sibling games resolve to the same channel it is used as `preferredChannel` (single Twitch search); otherwise `_candidates` from the ts fallback narrows the search; if neither is set, falls back to full tournament group search
-- `stream:ts:{bucket}` now stores a JSON array of all channels active in that 5-min window (previously a single value, which caused last-write-wins collisions when multiple matches started simultaneously)
-- `cacheRunningStreams` in `live-matches.js` collects all active channels per bucket and writes the array once per bucket, eliminating race conditions
-- When multiple streams were live, an inline note explains the ambiguity
+- `match-streams.js` resolves channels in order: (1) KV fast path `stream:match:{id}`; (2) PandaScore fuzzy match (±1h time window + team name substring matching) - accepts any official Twitch stream (any language), preferring English; (3) ts bucket fallback - returns `_candidates` array of all channels active in that 5-min window
+- `findTwitchVod` in `src/api.js` uses the resolved channel exclusively: if `preferredChannel` is set (from PandaScore), only that channel is searched on Twitch - **no fallback to other channels**. This prevents returning a wrong VOD from an unrelated stream active at the same time (e.g. ESL streaming DreamLeague while a BLAST match was running). If the VOD is not yet on that channel, "No VOD found" is returned. If no `preferredChannel` but `candidateChannels` exist (ts fallback), those channels are searched in parallel and all hits returned.
+- `VOD_CHANNEL_LABELS` in `src/api.js` maps known channel handles to display names (ESL, PGL, BLAST, BTS, WePlay, etc.) for the Watch button labels
+- `stream:ts:{bucket}` stores a JSON array of all channels active in that 5-min window; `cacheRunningStreams` writes the full array per bucket to avoid last-write-wins collisions
 
 ### Draft Display
 - Fetches full match data from OpenDota `/matches/{id}`
@@ -320,7 +318,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ## Known Issues / Limitations
 - Role detection (Carry/Mid/Off/Support) is removed - OpenDota `lane_role` field is unreliable
-- VOD channel selection is best-effort when PandaScore team name fuzzy match fails (e.g. very different name formats); falls back to ts candidate channels or full group search
+- VOD channel selection relies on PandaScore fuzzy match; falls back to ts candidate channels if no match found. If neither resolves the channel, "No VOD found" is shown - this is preferable to returning a wrong channel's stream.
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
@@ -366,11 +364,13 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 ## Design System
 
 A `DESIGN_GUIDELINES.md` file lives at the repo root. Claude should read it before making any UI change. It covers:
-- Typography scale (Barlow Condensed for display, Barlow for body; 3 levels only)
+- Typography scale (system/Helvetica for homepage; 3 levels only)
 - Color palette and token usage (red = accent/CTA only, purple = watch actions only)
 - Spacing scale and component patterns (cards, buttons, tabs, loading states, empty states)
 - Motion rules (drawer slide-in is the signature animation; no competing animations)
 - Information hierarchy within components (What -> Result -> Context -> Actions)
+
+Note: `/preview` (`PreviewPage.jsx`) intentionally diverges from DESIGN_GUIDELINES. It is a dark-only design exploration using flat rows and large display typography. Changes to `/preview` components are exempt from DESIGN_GUIDELINES review. Changes to all other pages/components must follow it.
 
 ### MatchCard visual hierarchy (updated Mar 13, 2026)
 - Winner team name: `font-black` matching winning score weight; size `text-base sm:text-xl`

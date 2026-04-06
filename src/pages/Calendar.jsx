@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import CalendarSubscribeModal from '../components/CalendarSubscribeModal'
-import { trackEvent } from '../utils'
+import { trackEvent, toTitleCase } from '../utils'
 
 // Tier 1 teams with their PandaScore slugs
 const TIER1_TEAMS = [
@@ -381,7 +381,7 @@ export default function Calendar() {
                           <p className="text-xs uppercase tracking-[3px] text-red-500 truncate">{t.leagueName}</p>
                         )}
                         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                          {t.name}
+                          {toTitleCase(t.name)}
                         </p>
                       </div>
                       <button
