@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Apr 5, 2026",
+    tag: "fix",
+    title: "Tournament team rosters no longer always show as unavailable",
+    desc: "Tournament pages were showing 'Roster unavailable' for all teams even when PandaScore had published player data. The cache was being written with empty rosters and then held for 30 days, preventing any retry. Fixed by busting the stale cache and changing the caching strategy to only lock in a long TTL once player data is confirmed present.",
+  },
+  {
+    date: "Apr 5, 2026",
     tag: "improvement",
     title: "Switch between games without closing the match drawer",
     desc: "After opening a match, you can now jump between Game 1, Game 2, and Game 3 using buttons inside the drawer. No more closing and re-clicking.",
