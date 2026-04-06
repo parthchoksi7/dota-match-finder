@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Apr 5, 2026",
     tag: "fix",
+    title: "VOD links now work for China and CIS regional qualifiers",
+    desc: "Stream lookups were filtering for English-language streams only. Official streams for regional qualifiers (China, CIS) are listed by PandaScore with a different language code and were silently discarded, causing those matches to show no VOD. The filter now accepts any official Twitch stream regardless of language, with English still preferred when available.",
+  },
+  {
+    date: "Apr 5, 2026",
+    tag: "fix",
     title: "Tournament team rosters no longer always show as unavailable",
     desc: "Tournament pages were showing 'Roster unavailable' for all teams even when PandaScore had published player data. The cache was being written with empty rosters and then held for 30 days, preventing any retry. Fixed by busting the stale cache and changing the caching strategy to only lock in a long TTL once player data is confirmed present.",
   },
