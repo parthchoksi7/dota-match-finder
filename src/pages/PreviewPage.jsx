@@ -638,6 +638,7 @@ function PreviewPage() {
 
   function handleSwitchGame(game, idx) {
     setSelectedGameIndex(idx)
+    trackEvent("game_switch", { gameIndex: idx + 1, matchId: game?.id, radiantTeam: game?.radiantTeam, direTeam: game?.direTeam })
     handleSelectMatch(game)
   }
 

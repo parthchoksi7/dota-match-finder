@@ -2,6 +2,18 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 5, 2026",
+    tag: "improvement",
+    title: "Switch between games without closing the match drawer",
+    desc: "After opening a match, you can now jump between Game 1, Game 2, and Game 3 using buttons inside the drawer. No more closing and re-clicking.",
+  },
+  {
+    date: "Apr 5, 2026",
+    tag: "improvement",
+    title: "Mobile match results are easier to read",
+    desc: "Team names are no longer cut off on mobile. Each team now gets its own row with the score beside it, so long names display in full.",
+  },
+  {
     date: "Mar 28, 2026",
     tag: "fix",
     title: "Homepage no longer hangs when OpenDota is down",
