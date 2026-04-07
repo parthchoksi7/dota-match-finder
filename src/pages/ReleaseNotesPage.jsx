@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Apr 6, 2026",
+    tag: "fix",
+    title: "Tournament tab bar no longer cramped on mobile",
+    desc: "The Overview / Standings / Schedule / Heroes tabs were competing with a 'Close' text label on narrow screens, leaving very little room for each tab. The close button is now an icon-only X, freeing space for the tabs. Selected tab contrast in dark mode is also improved.",
+  },
+  {
+    date: "Apr 6, 2026",
     tag: "improvement",
     title: "Game tabs now show the winner name",
     desc: "The G1 / G2 / G3 switcher inside an open match now shows who won each game — for example 'G1 Parivision' and 'G2 Tundra'. Makes it easier to jump to a specific game without guessing. Hidden in spoiler-free mode.",
