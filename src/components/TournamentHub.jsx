@@ -367,7 +367,19 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
       >
 
       {/* Tournament name */}
-      <div className="px-4 sm:px-5 pt-4 pb-3">
+      <div className="px-4 sm:px-5 pt-4 pb-3 relative">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-0 right-3 w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        )}
         {getLeagueLabel(tournament.name) && (
           <p className="text-xs uppercase tracking-[4px] text-red-500 mb-1">
             {getLeagueLabel(tournament.name)}
@@ -390,8 +402,8 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
       </div>
 
       {/* Tab bar — segmented control */}
-      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
-        <div className="flex flex-1 w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
           {TABS.map(tab => (
             <button
               key={tab}
@@ -407,18 +419,6 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
             </button>
           ))}
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24">
-              <path d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
