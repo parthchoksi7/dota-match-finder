@@ -6,19 +6,24 @@
 
 /**
  * Returns true if the given PandaScore match/tournament object belongs to a
- * tier-S league (the highest professional tier). Checks match.league.tier
- * rather than tournament names so new events are picked up automatically.
+ * tier-S or tier-A league. Checks match.league.tier rather than tournament
+ * names so new events are picked up automatically.
+ *   tier 's' - elite international LANs (TI, Majors, DreamLeague, ESL One, ...)
+ *   tier 'a' - second-tier professional events (ESL Challenger, regional circuits, ...)
  */
-export const isTier1 = (match) => (match?.league?.tier || '').toLowerCase() === 's'
+export const isTier1 = (match) => {
+  const tier = (match?.league?.tier || '').toLowerCase()
+  return tier === 's' || tier === 'a'
+}
 
 /**
- * Builds a Set of OpenDota league IDs whose tier is "premium" (the OpenDota
- * equivalent of PandaScore tier S: Valve-sponsored DPC events, TI, Majors).
+ * Builds a Set of OpenDota league IDs whose tier is "premium" or "professional"
+ * (the OpenDota equivalents of PandaScore tiers S and A respectively).
  * Pure function; accepts the raw array returned by GET /api/leagues.
  */
 export function buildPremiumLeagueIds(leagues) {
   return new Set(
-    (leagues || []).filter(l => l.tier === 'premium').map(l => l.leagueid)
+    (leagues || []).filter(l => l.tier === 'premium' || l.tier === 'professional').map(l => l.leagueid)
   )
 }
 

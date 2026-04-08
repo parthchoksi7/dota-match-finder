@@ -1,14 +1,16 @@
 /**
  * Unit tests for tier-based filtering functions in api/_shared.js.
  *
- * isTier1            - checks a PandaScore match/tournament object by league.tier === 's'
- * buildPremiumLeagueIds - builds a Set of OpenDota premium league IDs from the leagues list
+ * isTier1            - checks a PandaScore match/tournament object by league.tier ('s' or 'a')
+ * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for 'premium' and 'professional' tiers
  *
  * Both are pure functions with no external dependencies or mocking required.
  *
  * Background:
  *   PandaScore tier 's' = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, ...)
- *   OpenDota 'premium'  = Valve-sponsored DPC events; the direct equivalent of PandaScore tier s
+ *   PandaScore tier 'a' = second-tier professional events (ESL Challenger, regional circuits, ...)
+ *   OpenDota 'premium'      = Valve-sponsored DPC events (equivalent of PandaScore tier s)
+ *   OpenDota 'professional' = second-tier pro events    (equivalent of PandaScore tier a)
  */
 
 import { describe, it, expect } from 'vitest'
@@ -17,16 +19,24 @@ import { isTier1, buildPremiumLeagueIds } from '../api/_shared.js'
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
 
 describe('isTier1', () => {
-  describe('positive cases - tier s', () => {
+  describe('positive cases - tier s and a', () => {
     it('returns true for a match with league.tier === "s"', () => {
       expect(isTier1({ league: { tier: 's' } })).toBe(true)
+    })
+
+    it('returns true for a match with league.tier === "a"', () => {
+      expect(isTier1({ league: { tier: 'a' } })).toBe(true)
     })
 
     it('is case-insensitive (accepts uppercase "S")', () => {
       expect(isTier1({ league: { tier: 'S' } })).toBe(true)
     })
 
-    it('works with a full match object that has extra fields', () => {
+    it('is case-insensitive (accepts uppercase "A")', () => {
+      expect(isTier1({ league: { tier: 'A' } })).toBe(true)
+    })
+
+    it('works with a full tier-s match object that has extra fields', () => {
       const match = {
         id: 123,
         league: { id: 1, name: 'DreamLeague', tier: 's' },
@@ -35,13 +45,19 @@ describe('isTier1', () => {
       }
       expect(isTier1(match)).toBe(true)
     })
+
+    it('works with a full tier-a match object that has extra fields', () => {
+      const match = {
+        id: 456,
+        league: { id: 2, name: 'ESL Challenger', tier: 'a' },
+        serie: { full_name: 'ESL Challenger Season 1' },
+        opponents: [],
+      }
+      expect(isTier1(match)).toBe(true)
+    })
   })
 
-  describe('negative cases - non-s tiers', () => {
-    it('returns false for tier "a" (second professional tier)', () => {
-      expect(isTier1({ league: { tier: 'a' } })).toBe(false)
-    })
-
+  describe('negative cases - tiers below a', () => {
     it('returns false for tier "b"', () => {
       expect(isTier1({ league: { tier: 'b' } })).toBe(false)
     })
@@ -78,22 +94,22 @@ describe('isTier1', () => {
   })
 
   describe('filtering a list of matches', () => {
-    it('correctly keeps only tier-s matches', () => {
+    it('correctly keeps tier-s and tier-a matches, excludes lower tiers', () => {
       const matches = [
         { id: 1, league: { tier: 's' } },
         { id: 2, league: { tier: 'a' } },
-        { id: 3, league: { tier: 's' } },
+        { id: 3, league: { tier: 'b' } },
         { id: 4, league: null },
         { id: 5 },
       ]
       const result = matches.filter(isTier1).map(m => m.id)
-      expect(result).toEqual([1, 3])
+      expect(result).toEqual([1, 2])
     })
 
-    it('returns an empty array when no matches are tier s', () => {
+    it('returns an empty array when no matches are tier s or a', () => {
       const matches = [
-        { id: 1, league: { tier: 'a' } },
-        { id: 2, league: { tier: 'b' } },
+        { id: 1, league: { tier: 'b' } },
+        { id: 2, league: { tier: 'unranked' } },
       ]
       expect(matches.filter(isTier1)).toHaveLength(0)
     })
@@ -104,7 +120,7 @@ describe('isTier1', () => {
 
 describe('buildPremiumLeagueIds', () => {
   describe('correct filtering', () => {
-    it('returns a Set containing only premium-tier league IDs', () => {
+    it('returns a Set containing premium and professional tier league IDs', () => {
       const leagues = [
         { leagueid: 1, tier: 'premium', name: 'The International 2025' },
         { leagueid: 2, tier: 'professional', name: 'BetBoom Dacha' },
@@ -115,19 +131,26 @@ describe('buildPremiumLeagueIds', () => {
       const ids = buildPremiumLeagueIds(leagues)
 
       expect(ids).toBeInstanceOf(Set)
-      expect(ids.size).toBe(2)
+      expect(ids.size).toBe(3)
       expect(ids.has(1)).toBe(true)
+      expect(ids.has(2)).toBe(true)
       expect(ids.has(3)).toBe(true)
     })
 
-    it('excludes professional, amateur, and excluded tiers', () => {
+    it('includes professional tier (ESL Challenger, regional pro circuits)', () => {
       const leagues = [
         { leagueid: 10, tier: 'professional' },
+      ]
+      const ids = buildPremiumLeagueIds(leagues)
+      expect(ids.has(10)).toBe(true)
+    })
+
+    it('excludes amateur and excluded tiers', () => {
+      const leagues = [
         { leagueid: 20, tier: 'amateur' },
         { leagueid: 30, tier: 'excluded' },
       ]
       const ids = buildPremiumLeagueIds(leagues)
-      expect(ids.has(10)).toBe(false)
       expect(ids.has(20)).toBe(false)
       expect(ids.has(30)).toBe(false)
     })
@@ -146,10 +169,10 @@ describe('buildPremiumLeagueIds', () => {
       expect(buildPremiumLeagueIds(undefined)).toEqual(new Set())
     })
 
-    it('returns an empty Set when no leagues have premium tier', () => {
+    it('returns an empty Set when no leagues are premium or professional', () => {
       const leagues = [
-        { leagueid: 1, tier: 'professional' },
-        { leagueid: 2, tier: 'amateur' },
+        { leagueid: 1, tier: 'amateur' },
+        { leagueid: 2, tier: 'excluded' },
       ]
       expect(buildPremiumLeagueIds(leagues)).toEqual(new Set())
     })
@@ -167,11 +190,11 @@ describe('buildPremiumLeagueIds', () => {
   })
 
   describe('used to filter OpenDota promatches', () => {
-    it('filters promatches by leagueid membership', () => {
+    it('filters promatches to include both premium and professional leagues', () => {
       const leagues = [
         { leagueid: 100, tier: 'premium' },
         { leagueid: 200, tier: 'professional' },
-        { leagueid: 300, tier: 'premium' },
+        { leagueid: 300, tier: 'amateur' },
       ]
       const premiumIds = buildPremiumLeagueIds(leagues)
 
@@ -183,10 +206,10 @@ describe('buildPremiumLeagueIds', () => {
       ]
 
       const filtered = promatches.filter(m => premiumIds.has(m.leagueid))
-      expect(filtered.map(m => m.match_id)).toEqual([1, 3])
+      expect(filtered.map(m => m.match_id)).toEqual([1, 2])
     })
 
-    it('returns no matches when no promatches belong to premium leagues', () => {
+    it('excludes promatches from amateur and unknown leagues', () => {
       const leagues = [{ leagueid: 100, tier: 'premium' }]
       const premiumIds = buildPremiumLeagueIds(leagues)
       const promatches = [

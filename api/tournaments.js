@@ -229,12 +229,14 @@ const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
 // Tournament objects from /tournaments/* have tier on their parent league.
 function isTier1(t) {
-  return (t?.league?.tier || '').toLowerCase() === 's'
+  const tier = (t?.league?.tier || '').toLowerCase()
+  return tier === 's' || tier === 'a'
 }
 
 // Series objects from /series/* carry tier directly on the series record.
 function isTier1Series(s) {
-  return (s?.tier || '').toLowerCase() === 's'
+  const tier = (s?.tier || '').toLowerCase()
+  return tier === 's' || tier === 'a'
 }
 
 function buildTournamentName(t) {
@@ -456,7 +458,7 @@ async function fetchSeriesList(token) {
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
   const upTourSRes = await fetch(
-    `https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=s&sort=begin_at&page[size]=20`,
+    `https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=s,a&sort=begin_at&page[size]=20`,
     { headers }
   )
   const upcomingTours = upTourSRes.ok

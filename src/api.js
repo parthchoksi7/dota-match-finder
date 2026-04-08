@@ -11,7 +11,7 @@ async function fetchPremiumLeagueIds() {
   const leagues = await res.json()
   _premiumLeagueIds = new Set(
     (Array.isArray(leagues) ? leagues : [])
-      .filter(l => l.tier === 'premium')
+      .filter(l => l.tier === 'premium' || l.tier === 'professional')
       .map(l => l.leagueid)
   )
   return _premiumLeagueIds
