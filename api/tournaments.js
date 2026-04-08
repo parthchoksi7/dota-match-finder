@@ -375,7 +375,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v5'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v6'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -509,6 +509,8 @@ async function fetchSeriesList(token) {
   const completedFiltered = (past || []).filter(isTier1Series)
   const rescuedToLive = completedFiltered.filter(s => runningTourSerieIds.has(s.id))
   const trulyCompleted = completedFiltered.filter(s => !runningTourSerieIds.has(s.id))
+  console.log(`After isTier1Series filter - live:${(running||[]).filter(isTier1Series).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(isTier1Series).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length}`)
+  console.log(`syntheticUpcoming count: ${syntheticUpcoming.length} | deduplicatedUpcoming: ${deduplicatedUpcoming.length}`)
   if (rescuedToLive.length > 0) {
     console.log(`Rescued ${rescuedToLive.length} series from past→live: ${rescuedToLive.map(s => s.full_name || s.name).join(', ')}`)
   }
