@@ -234,11 +234,6 @@ function isTier1(t) {
   return tier === 's' || tier === 'a'
 }
 
-// Series objects from /series/* carry tier directly on the series record.
-function isTier1Series(s) {
-  const tier = (s?.tier || '').toLowerCase()
-  return tier === 's' || tier === 'a'
-}
 
 function buildTournamentName(t) {
   const league = t.league?.name || ''
@@ -375,7 +370,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v6'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v7'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -427,8 +422,8 @@ async function fetchSeriesList(token) {
   console.log('Series list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  // No filter[tier] on any endpoint -- use large page sizes and rely on client-side
-  // isTier1 / isTier1Series filtering.
+  // No filter[tier] on any endpoint -- use large page sizes and cross-reference
+  // with tournament objects (which have t.tier) to derive tier for series.
   const [runSerRes, upSerRes, pastSerRes, runTourRes] = await Promise.all([
     fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=50`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=50`, { headers }),
@@ -448,27 +443,39 @@ async function fetchSeriesList(token) {
     runTourRes.ok ? runTourRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
   ])
 
-  // Diagnostic: log tier field structure for series objects
-  const allSeriesRaw = [...(running || []), ...(upcoming || []), ...(past || [])]
-  const seriesTiersSeen = [...new Set(allSeriesRaw.slice(0, 15).map(s =>
-    `s.tier=${s.tier ?? 'null'} / s.league?.tier=${s.league?.tier ?? 'null'} / s.videogame_title?.tier=${s.videogame_title?.tier ?? 'null'}`
-  ))]
   console.log(`Series raw counts - running:${(running||[]).length} upcoming:${(upcoming||[]).length} past:${(past||[]).length}`)
-  console.log(`Series tiers sample:`, seriesTiersSeen.slice(0, 8).join(' | '))
 
-  // Build a set of serie_ids that still have active sub-tournaments.
-  // PandaScore sometimes moves a series to /series/past before the final match ends.
+  // Series objects from /dota2/series/* have no tier field (s.tier is always null).
+  // Derive tier by cross-referencing with tournament objects (which have t.tier populated).
+  // Build tier-1 serie_id sets from each tournament list.
+  const tier1RunningSerieIds = new Set(
+    (runningTours || []).filter(isTier1).map(t => t.serie_id || t.serie?.id).filter(Boolean)
+  )
+
+  // All running tournament serie_ids (regardless of tier) - used for the rescue logic.
   const runningTourSerieIds = new Set(
     (runningTours || []).map(t => t.serie_id || t.serie?.id).filter(Boolean)
   )
 
-  // Fetch upcoming at the sub-stage (tournament) level as a fallback - PandaScore
-  // creates series records late, but tournament sub-stage entries appear earlier.
-  const upTourRes = await fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=100`, { headers })
+  // Fetch upcoming and past tournaments in parallel for tier derivation.
+  // Upcoming: also used for syntheticUpcoming fallback (series records appear late).
+  const [upTourRes, pastTourRes] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=100`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=50`, { headers }),
+  ])
   const upcomingTours = upTourRes.ok ? await upTourRes.json().then(d => Array.isArray(d) ? d : []) : []
-  console.log(`Upcoming sub-stage tours (all tiers, client-filtered): ${upcomingTours.length}`)
+  const pastTours = pastTourRes.ok ? await pastTourRes.json().then(d => Array.isArray(d) ? d : []) : []
 
-  // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
+  const tier1UpcomingSerieIds = new Set(
+    (upcomingTours || []).filter(isTier1).map(t => t.serie_id || t.serie?.id).filter(Boolean)
+  )
+  const tier1PastSerieIds = new Set(
+    (pastTours || []).filter(isTier1).map(t => t.serie_id || t.serie?.id).filter(Boolean)
+  )
+
+  console.log(`Tier-1 serie_ids - running:${tier1RunningSerieIds.size} upcoming:${tier1UpcomingSerieIds.size} past:${tier1PastSerieIds.size} | upcomingTours total:${upcomingTours.length} pastTours total:${pastTours.length}`)
+
+  // Group upcoming sub-stage entries by serie_id; skip serie_ids already running.
   const runningIds = new Set((running || []).map(s => s.id))
   const seenSerieIds = new Set()
   const syntheticUpcoming = []
@@ -492,9 +499,9 @@ async function fetchSeriesList(token) {
     })
   }
 
-  // Merge series-level upcoming with synthetic entries; deduplicate by id.
+  // Merge series-level upcoming (filtered by tier-1 serie_id set) with synthetic entries.
   const allUpcoming = [
-    ...(upcoming || []).filter(isTier1Series).map(s => mapSeries(s, 'upcoming')),
+    ...(upcoming || []).filter(s => tier1UpcomingSerieIds.has(s.id)).map(s => mapSeries(s, 'upcoming')),
     ...syntheticUpcoming,
   ]
   const seenUpcomingIds = new Set()
@@ -506,18 +513,17 @@ async function fetchSeriesList(token) {
 
   // Rescue any "past" series that still have running sub-tournaments - PandaScore
   // can move a series to /series/past before the Grand Finals match finishes.
-  const completedFiltered = (past || []).filter(isTier1Series)
+  const completedFiltered = (past || []).filter(s => tier1PastSerieIds.has(s.id))
   const rescuedToLive = completedFiltered.filter(s => runningTourSerieIds.has(s.id))
   const trulyCompleted = completedFiltered.filter(s => !runningTourSerieIds.has(s.id))
-  console.log(`After isTier1Series filter - live:${(running||[]).filter(isTier1Series).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(isTier1Series).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length}`)
-  console.log(`syntheticUpcoming count: ${syntheticUpcoming.length} | deduplicatedUpcoming: ${deduplicatedUpcoming.length}`)
+  console.log(`After tier filter - live:${(running||[]).filter(s => tier1RunningSerieIds.has(s.id)).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(s => tier1UpcomingSerieIds.has(s.id)).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length} | synthetic:${syntheticUpcoming.length} deduped:${deduplicatedUpcoming.length}`)
   if (rescuedToLive.length > 0) {
     console.log(`Rescued ${rescuedToLive.length} series from past→live: ${rescuedToLive.map(s => s.full_name || s.name).join(', ')}`)
   }
 
   const payload = {
     live: [
-      ...(running || []).filter(isTier1Series).map(s => mapSeries(s, 'live')),
+      ...(running || []).filter(s => tier1RunningSerieIds.has(s.id)).map(s => mapSeries(s, 'live')),
       ...rescuedToLive.map(s => mapSeries(s, 'live')),
     ],
     upcoming: deduplicatedUpcoming,
@@ -671,20 +677,29 @@ export default async function handler(req, res) {
       try {
         const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
         const toArr = async (r) => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
-        // Fetch all running+upcoming series and all running+upcoming matches in parallel
-        const [runSerR, upSerR, runMatchR, upMatchR] = await Promise.all([
+        // Fetch series, matches, and tournaments in parallel.
+        // Series objects have no tier field; derive tier from tournament objects (t.tier).
+        const [runSerR, upSerR, runMatchR, upMatchR, runTourR, upTourR] = await Promise.all([
           fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=50`, { headers }),
           fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=50`, { headers }),
           fetch(`${PANDASCORE_BASE}/matches/running?sort=scheduled_at&page[size]=100`, { headers }),
           fetch(`${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=100`, { headers }),
+          fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=50`, { headers }),
+          fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=100`, { headers }),
         ])
-        const [runSer, upSer, runMatch, upMatch] = await Promise.all([
+        const [runSer, upSer, runMatch, upMatch, runTour, upTour] = await Promise.all([
           runSerR.ok ? toArr(runSerR) : Promise.resolve([]),
           upSerR.ok ? toArr(upSerR) : Promise.resolve([]),
           runMatchR.ok ? toArr(runMatchR) : Promise.resolve([]),
           upMatchR.ok ? toArr(upMatchR) : Promise.resolve([]),
+          runTourR.ok ? toArr(runTourR) : Promise.resolve([]),
+          upTourR.ok ? toArr(upTourR) : Promise.resolve([]),
         ])
-        allSeries = [...runSer, ...upSer].filter(isTier1Series)
+        // Build tier-1 serie_id set from tournament objects (which have t.tier populated).
+        const calTier1SerieIds = new Set(
+          [...(runTour || []), ...(upTour || [])].filter(isTier1).map(t => t.serie_id || t.serie?.id).filter(Boolean)
+        )
+        allSeries = [...runSer, ...upSer].filter(s => calTier1SerieIds.has(s.id))
         const tier1SerieIds = new Set(allSeries.map(s => s.id))
         allMatches = [...runMatch, ...upMatch].filter(m => {
           const sid = m.serie_id || m.serie?.id
