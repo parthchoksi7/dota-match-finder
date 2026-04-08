@@ -283,6 +283,25 @@ function mapTournament(t, status) {
   }
 }
 
+// PandaScore does not accept comma-separated values in filter[tier], so we make
+// two parallel requests (one per tier) and merge the results.
+async function fetchByTiers(url, headers) {
+  const [sRes, aRes] = await Promise.all([
+    fetch(`${url}&filter[tier]=s`, { headers }),
+    fetch(`${url}&filter[tier]=a`, { headers }),
+  ])
+  const [sData, aData] = await Promise.all([
+    sRes.ok ? sRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+    aRes.ok ? aRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+  ])
+  const seen = new Set()
+  return [...sData, ...aData].filter(t => {
+    if (seen.has(t.id)) return false
+    seen.add(t.id)
+    return true
+  })
+}
+
 async function fetchTournamentList(token) {
   const cached = await kv.get(KV_LIST_KEY)
   if (cached) {
@@ -293,20 +312,10 @@ async function fetchTournamentList(token) {
   console.log('Tournament list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  const [runningRes, upcomingRes, pastRes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/tournaments/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/past?filter[tier]=s,a&sort=-end_at&page[size]=10`, { headers }),
-  ])
-
-  if (!runningRes.ok || !upcomingRes.ok) {
-    throw new Error(`PandaScore error: ${runningRes.status} / ${upcomingRes.status}`)
-  }
-
   const [running, upcoming, past] = await Promise.all([
-    runningRes.json(),
-    upcomingRes.json(),
-    pastRes.ok ? pastRes.json() : Promise.resolve([]),
+    fetchByTiers(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=10`, headers),
   ])
 
   const list = {
@@ -330,14 +339,9 @@ async function fetchTournamentStatuses(token) {
   console.log('Tournament statuses: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  const [runningRes, upcomingRes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/tournaments/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-  ])
-
   const [running, upcoming] = await Promise.all([
-    runningRes.ok ? runningRes.json() : [],
-    upcomingRes.ok ? upcomingRes.json() : [],
+    fetchByTiers(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, headers),
   ])
 
   const statuses = {}
@@ -429,24 +433,12 @@ async function fetchSeriesList(token) {
   console.log('Series list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  const [runningRes, upcomingRes, pastRes, runningToursRes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/series/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/series/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/series/past?filter[tier]=s,a&sort=-end_at&page[size]=10`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
-  ])
-
-  // All are non-fatal - a PandaScore blip shows empty sections, not an error banner.
-  if (!runningRes.ok) console.warn('PandaScore running series failed:', runningRes.status)
-  if (!upcomingRes.ok) console.warn('PandaScore upcoming series failed:', upcomingRes.status)
-  if (!pastRes.ok) console.warn('PandaScore past series failed:', pastRes.status)
-  if (!runningToursRes.ok) console.warn('PandaScore running tournaments failed:', runningToursRes.status)
-
+  // All fetches are non-fatal - a PandaScore blip shows empty sections, not an error banner.
   const [running, upcoming, past, runningTours] = await Promise.all([
-    runningRes.ok ? runningRes.json() : Promise.resolve([]),
-    upcomingRes.ok ? upcomingRes.json() : Promise.resolve([]),
-    pastRes.ok ? pastRes.json() : Promise.resolve([]),
-    runningToursRes.ok ? runningToursRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+    fetchByTiers(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=20`, headers),
+    fetchByTiers(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=20`, headers),
+    fetchByTiers(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=20`, headers),
   ])
 
   // Build a set of serie_ids that still have active sub-tournaments.
@@ -457,13 +449,10 @@ async function fetchSeriesList(token) {
 
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
-  const upTourSRes = await fetch(
-    `https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=s,a&sort=begin_at&page[size]=20`,
-    { headers }
+  const upcomingTours = await fetchByTiers(
+    `https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&sort=begin_at&page[size]=20`,
+    headers
   )
-  const upcomingTours = upTourSRes.ok
-    ? await upTourSRes.json().then(d => Array.isArray(d) ? d : [])
-    : []
   console.log(`Upcoming sub-stage tours (tier s/a): ${upcomingTours.length}`)
 
   // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
