@@ -220,8 +220,8 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_LIST_KEY = 'dota2:tournament_list_v4'
-const KV_STATUS_KEY = 'dota2:tournament_statuses_v3'
+const KV_LIST_KEY = 'dota2:tournament_list_v5'
+const KV_STATUS_KEY = 'dota2:tournament_statuses_v4'
 const LIST_TTL = 60 * 60 * 6        // 6 hours - catches stage transitions (Group -> Playoffs)
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
