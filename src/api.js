@@ -6,7 +6,9 @@ let _premiumLeagueIds = null
 
 async function fetchPremiumLeagueIds() {
   if (_premiumLeagueIds) return _premiumLeagueIds
-  const leagues = await fetch(`${OPENDOTA_BASE}/leagues`).then(r => r.json())
+  const res = await fetch(`${OPENDOTA_BASE}/leagues`)
+  if (!res.ok) throw new Error(`OpenDota leagues error: ${res.status}`)
+  const leagues = await res.json()
   _premiumLeagueIds = new Set(
     (Array.isArray(leagues) ? leagues : [])
       .filter(l => l.tier === 'premium')
