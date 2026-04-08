@@ -331,11 +331,12 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 Tournaments are filtered using the tier fields exposed by each data source. No hardcoded name lists.
 
-| Data source | Field | Values accepted |
-|---|---|---|
-| PandaScore (matches/tournaments) | `match.league.tier` | `'s'` (elite LANs), `'a'` (second-tier pro) |
-| PandaScore (series) | `series.tier` | `'s'`, `'a'` |
-| OpenDota (leagues/promatches) | `league.tier` | `'premium'` (equivalent of S), `'professional'` (equivalent of A) |
+| Data source | Object type | Tier field | Values accepted |
+|---|---|---|---|
+| PandaScore `/dota2/matches/*` | match | `match.league.tier` | `'s'`, `'a'` |
+| PandaScore `/dota2/tournaments/*` | tournament | `t.tier` (direct, NOT `t.league.tier` which is always null) | `'s'`, `'a'` |
+| PandaScore `/dota2/series/*` | series | `series.tier` (direct) | `'s'`, `'a'` |
+| OpenDota (leagues/promatches) | league | `league.tier` | `'premium'` (equiv S), `'professional'` (equiv A) |
 
 **PandaScore tier S** = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, Riyadh Masters, Premier Series, ...).
 **PandaScore tier A** = second-tier professional events (ESL Challenger, regional circuits, ...).

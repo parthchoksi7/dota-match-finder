@@ -465,6 +465,7 @@ async function fetchSeriesList(token) {
   const seenSerieIds = new Set()
   const syntheticUpcoming = []
   for (const t of (upcomingTours || [])) {
+    if (!isTier1(t)) continue
     const sid = t.serie_id || t.serie?.id
     if (!sid || runningIds.has(sid) || seenSerieIds.has(sid)) continue
     seenSerieIds.add(sid)

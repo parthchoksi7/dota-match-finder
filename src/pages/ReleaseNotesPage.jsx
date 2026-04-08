@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Apr 8, 2026",
+    tag: "fix",
+    title: "Tournament hub and upcoming section restored",
+    desc: "The tournament hub and upcoming tournaments section were showing empty due to a tier field path mismatch in the PandaScore data. Tournament objects carry their tier on a different field than match objects. Fixed the field path so all sections load correctly again.",
+  },
+  {
+    date: "Apr 8, 2026",
     tag: "improvement",
     title: "New tournaments appear automatically without any manual updates",
     desc: "Tournament filtering now uses the tier field from the API instead of a hardcoded list of tournament names. Events at PandaScore tier S and A (and their OpenDota equivalents premium and professional) appear in live matches, upcoming matches, and the tournament hub as soon as they are registered in the API. No more waiting for a name keyword to be added.",
