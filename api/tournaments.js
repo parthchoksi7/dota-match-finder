@@ -285,11 +285,16 @@ function mapTournament(t, status) {
 
 // PandaScore does not accept comma-separated values in filter[tier], so we make
 // two parallel requests (one per tier) and merge the results.
+// Throws if BOTH requests fail so callers that cache results don't poison the cache
+// with an empty array during a PandaScore outage.
 async function fetchByTiers(url, headers) {
   const [sRes, aRes] = await Promise.all([
     fetch(`${url}&filter[tier]=s`, { headers }),
     fetch(`${url}&filter[tier]=a`, { headers }),
   ])
+  if (!sRes.ok && !aRes.ok) {
+    throw new Error(`PandaScore tier fetch failed: ${sRes.status} / ${aRes.status}`)
+  }
   const [sData, aData] = await Promise.all([
     sRes.ok ? sRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
     aRes.ok ? aRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
