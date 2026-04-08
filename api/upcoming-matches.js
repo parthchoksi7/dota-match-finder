@@ -7,7 +7,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_KEY = 'dota2:upcoming_matches_v1'
+const KV_KEY = 'dota2:upcoming_matches_v2'
 const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
@@ -88,10 +88,15 @@ export default async function handler(req, res) {
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
     const data = await response.json()
+    const tiersSeen = [...new Set((data || []).slice(0, 20).map(m =>
+      `league.tier=${m.league?.tier ?? 'null'} (${m.league?.name ?? '?'})`
+    ))]
+    console.log(`Upcoming raw: ${(data||[]).length} matches | tiers: ${tiersSeen.join(' | ')}`)
     const matches = (data || [])
       .filter(m => isTier1(m))
       .filter(m => m.opponents?.length === 2)
       .map(mapMatch)
+    console.log(`Upcoming after tier filter: ${matches.length}`)
 
     const payload = { matches, fetchedAt: new Date().toISOString() }
 
