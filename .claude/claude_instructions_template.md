@@ -177,7 +177,7 @@ Before deploying to production:
 
 1. ✅ Run regression tests (`npm test`)
 2. ✅ **Code review**: re-read every modified file as an independent reviewer (see §7 above); fix all issues found
-3. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded
+3. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded. **CRITICAL: if you add a new query parameter to any external API URL, manually verify that the parameter is accepted by that exact endpoint before shipping** - mocked unit tests do not catch 400/404 responses from the real API. PandaScore note: `filter[tier]` only works on the generic `/tournaments` endpoint, not on game-specific `/dota2/*` endpoints.
 4. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
 5. ✅ Verify API rate limits won't be exceeded
 6. ✅ Test on mobile viewport

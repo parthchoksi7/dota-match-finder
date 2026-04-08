@@ -33,6 +33,7 @@ All tests must pass before pushing to production. The test suite covers:
 Run through this before every production deploy:
 
 - [ ] `npm test` passes (all tests green)
+- [ ] **Any new or changed API URL was manually hit against the real API** (or confirmed against official docs) before shipping. Mocked unit tests do not prove an endpoint accepts a given parameter -- a 400/404 from the real API only surfaces in production if this step is skipped. Specifically: if you add a new query parameter to a PandaScore URL, verify it works on that exact endpoint path (game-specific `/dota2/*` and generic `/tournaments?filter[videogame]=dota-2` behave differently).
 - [ ] `ls api/*.js | wc -l` outputs 12 or fewer (Vercel function limit)
 - [ ] All new user interactions have GA4 `trackEvent` calls — search for `onClick`, `onSubmit`, `onChange` in changed files
 - [ ] `trackEvent` is imported from `../utils`, never defined locally in a component
