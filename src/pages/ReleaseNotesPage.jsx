@@ -5,7 +5,7 @@ const RELEASES = [
     date: "Apr 8, 2026",
     tag: "improvement",
     title: "New tournaments appear automatically without any manual updates",
-    desc: "Tournament filtering now uses the tier field from the API instead of a hardcoded list of tournament names. Any new Tier 1 (PandaScore tier S / OpenDota premium) event will appear in live matches, upcoming matches, and the tournament hub as soon as it is registered in the API. No more waiting for a name keyword to be added.",
+    desc: "Tournament filtering now uses the tier field from the API instead of a hardcoded list of tournament names. Events at PandaScore tier S and A (and their OpenDota equivalents premium and professional) appear in live matches, upcoming matches, and the tournament hub as soon as they are registered in the API. No more waiting for a name keyword to be added.",
   },
   {
     date: "Apr 6, 2026",

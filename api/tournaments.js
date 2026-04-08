@@ -464,7 +464,7 @@ async function fetchSeriesList(token) {
   const upcomingTours = upTourSRes.ok
     ? await upTourSRes.json().then(d => Array.isArray(d) ? d : [])
     : []
-  console.log(`Upcoming sub-stage tours (tier s): ${upcomingTours.length}`)
+  console.log(`Upcoming sub-stage tours (tier s/a): ${upcomingTours.length}`)
 
   // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
   const runningIds = new Set((running || []).map(s => s.id))

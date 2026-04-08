@@ -74,7 +74,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/og.js` - OG image/metadata generation for share card URLs. Also handles series result images via `?mode=series` (1200x630 PNG with winner, score, tournament, format using satori + resvg; used in X posts modal as downloadable PNG). Merged from `og.js` + `og-series.js` to stay within the 12-function Vercel limit.
 - `api/tournaments.js` - Multi-mode tournament endpoint. Default: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs. `?mode=calendar-team&teams=slug1,slug2`: .ics team calendar feed (resolves slugs, fetches running+upcoming+past 7d matches, caches 30min under `calendar:matches:{sorted_slugs}`). `?mode=calendar-tournament&series={id}`: .ics tournament feed (all-day VEVENT for series + match VEVENTs, caches 30min under `calendar:series:{id}`). Both calendar modes return `text/calendar` not JSON.
 - `api/match-streams.js` - See description above
-- `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `isTier1(match)` (checks `match.league.tier === 's'`), `buildPremiumLeagueIds(leagues)` (pure, returns a `Set` of OpenDota premium league IDs), and `getPremiumLeagueIds()` (async, cached). Also exports `getTwitchStreams(streamsList, leagueName, serieName)` used by `upcoming-matches.js`; filters to official Twitch streams, prefers English but falls back to any language so regional qualifiers (China/CIS) are not silently dropped.
+- `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `isTier1(match)` (checks `match.league.tier === 's'` or `'a'`), `buildPremiumLeagueIds(leagues)` (pure, returns a `Set` of OpenDota premium+professional league IDs), and `getPremiumLeagueIds()` (async, cached). Also exports `getTwitchStreams(streamsList, leagueName, serieName)` used by `upcoming-matches.js`; filters to official Twitch streams, prefers English but falls back to any language so regional qualifiers (China/CIS) are not silently dropped.
 
 ### Config
 - `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/calendar` -> `/`, `/analytics` -> `/`, `/preview` -> `/` (internal design preview, disallowed in robots.txt)
@@ -99,7 +99,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Match Discovery
 - Fetches pro matches from OpenDota `/promatches` endpoint
-- Filters to premium-tier tournaments using OpenDota league tier (`tier === 'premium'`) — equivalent to PandaScore tier S
+- Filters to premium and professional-tier tournaments using OpenDota league tier (`tier === 'premium'` or `'professional'`) — equivalent to PandaScore tiers S and A
 - Fetches one page of promatches (~100 results); `fetchPremiumLeagueIds()` resolves the allowed league ID set (cached per session via `/api/leagues`)
 - Groups individual games into series (BO1/BO2/BO3/BO5) — OpenDota series_type 3 = BO2 (undocumented); BO2 draws (1-1) are also explicitly marked complete
 - Search filters `allMatches` live so load more updates results automatically
@@ -114,7 +114,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Live Matches (PandaScore)
 - `api/live-matches.js` calls PandaScore `/dota2/matches/running`
-- Filters to tier-S tournaments by checking `match.league.tier === 's'` on each PandaScore match object; maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
+- Filters to tier-S and tier-A tournaments by checking `match.league.tier === 's' || 'a'` on each PandaScore match object; maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
 - `seriesScore` - derived from `m.results` (per-team win counts mapped by team ID)
 - `currentGame` - position of the game with `status === 'running'`
 - `games` - array of `{position, status, winnerName, matchId}` where `matchId` is `external_identifier` (OpenDota match ID)
@@ -331,18 +331,20 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 Tournaments are filtered using the tier fields exposed by each data source. No hardcoded name lists.
 
-| Data source | Field | Value for top tier |
+| Data source | Field | Values accepted |
 |---|---|---|
-| PandaScore (matches/tournaments) | `match.league.tier` | `'s'` |
-| PandaScore (series) | `series.tier` | `'s'` |
-| OpenDota (leagues/promatches) | `league.tier` | `'premium'` |
+| PandaScore (matches/tournaments) | `match.league.tier` | `'s'` (elite LANs), `'a'` (second-tier pro) |
+| PandaScore (series) | `series.tier` | `'s'`, `'a'` |
+| OpenDota (leagues/promatches) | `league.tier` | `'premium'` (equivalent of S), `'professional'` (equivalent of A) |
 
 **PandaScore tier S** = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, Riyadh Masters, Premier Series, ...).
-**OpenDota premium** = Valve-sponsored DPC events; the direct equivalent of PandaScore tier S.
+**PandaScore tier A** = second-tier professional events (ESL Challenger, regional circuits, ...).
+**OpenDota premium** = Valve-sponsored DPC events; equivalent of PandaScore tier S.
+**OpenDota professional** = second-tier pro events; equivalent of PandaScore tier A.
 
 Key exports in `api/_shared.js`:
-- `isTier1(match)` - checks `match.league.tier === 's'` for PandaScore objects
-- `buildPremiumLeagueIds(leagues)` - pure function; builds a `Set<leagueid>` of premium OpenDota leagues
+- `isTier1(match)` - checks `match.league.tier === 's' || 'a'` for PandaScore objects
+- `buildPremiumLeagueIds(leagues)` - pure function; builds a `Set<leagueid>` of premium+professional OpenDota leagues
 - `getPremiumLeagueIds()` - async; fetches `/api/leagues`, caches result in memory
 
 ---
