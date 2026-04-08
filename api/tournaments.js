@@ -227,6 +227,10 @@ const LIST_TTL = 60 * 60 * 6        // 6 hours — catches stage transitions (Gr
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
+// filter[tier] returns 400 on game-specific endpoints; use the generic base with
+// filter[videogame]=dota-2 for any fetch that needs filter[tier] support.
+const PANDASCORE_GENERIC_DOTA = 'https://api.pandascore.co/tournaments'
+const DOTA2_VG = 'filter[videogame]=dota-2'
 
 // Tournament objects from /tournaments/* have tier on their parent league.
 function isTier1(t) {
@@ -295,9 +299,9 @@ async function fetchTournamentList(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [running, upcoming, past] = await Promise.all([
-    fetchByTiers(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/past?${DOTA2_VG}&sort=-end_at&page[size]=10`, headers),
   ])
 
   const list = {
@@ -322,8 +326,8 @@ async function fetchTournamentStatuses(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [running, upcoming] = await Promise.all([
-    fetchByTiers(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
+    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
   ])
 
   const statuses = {}
@@ -415,12 +419,25 @@ async function fetchSeriesList(token) {
   console.log('Series list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  // All fetches are non-fatal - a PandaScore blip shows empty sections, not an error banner.
-  const [running, upcoming, past, runningTours] = await Promise.all([
-    fetchByTiers(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=20`, headers),
-    fetchByTiers(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=20`, headers),
-    fetchByTiers(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=20`, headers),
+  // Series endpoints (/dota2/series/*) do not support filter[tier] -- use plain
+  // fetches with a large page size and rely on client-side isTier1Series filtering.
+  // Running tournaments use the generic endpoint where filter[tier] is supported.
+  const [runSerRes, upSerRes, pastSerRes, runningTours] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=20`, { headers }),
+    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=20`, headers),
+  ])
+
+  const toArr = async (res) => {
+    if (!res.ok) { console.warn('PandaScore series fetch failed:', res.status); return [] }
+    const d = await res.json()
+    return Array.isArray(d) ? d : []
+  }
+  const [running, upcoming, past] = await Promise.all([
+    toArr(runSerRes),
+    toArr(upSerRes),
+    toArr(pastSerRes),
   ])
 
   // Build a set of serie_ids that still have active sub-tournaments.
@@ -432,7 +449,7 @@ async function fetchSeriesList(token) {
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
   const upcomingTours = await fetchByTiers(
-    `https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&sort=begin_at&page[size]=20`,
+    `${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=20`,
     headers
   )
   console.log(`Upcoming sub-stage tours (tier s/a): ${upcomingTours.length}`)
