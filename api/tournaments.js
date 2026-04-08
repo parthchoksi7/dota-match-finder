@@ -230,7 +230,8 @@ const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 const TIER1_KEYWORDS = [
   'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
   'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters'
+  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters',
+  'premier series',
 ]
 
 function isTier1(leagueName, serieName) {
