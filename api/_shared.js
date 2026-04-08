@@ -6,15 +6,15 @@
 
 /**
  * Returns true if the given PandaScore MATCH object is tier S or A.
- * Match objects from /dota2/matches/* carry tier on match.league.tier.
- * NOTE: tournament objects from /dota2/tournaments/* carry tier directly
- * on t.tier (not t.league.tier). Use the local isTier1(t) in tournaments.js
- * for those.
+ * Match objects from /dota2/matches/* carry tier on match.tournament.tier.
+ * (match.league.tier and match.serie.tier are always null.)
+ * NOTE: tournament objects from /dota2/tournaments/* also carry tier on t.tier.
+ * Use the local isTier1(t) in tournaments.js for those.
  *   tier 's' - elite international LANs (TI, Majors, DreamLeague, ESL One, ...)
  *   tier 'a' - second-tier professional events (ESL Challenger, regional circuits, ...)
  */
 export const isTier1 = (match) => {
-  const tier = (match?.league?.tier || '').toLowerCase()
+  const tier = (match?.tournament?.tier || match?.league?.tier || '').toLowerCase()
   return tier === 's' || tier === 'a'
 }
 
