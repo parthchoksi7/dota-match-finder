@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
-import { fetchByTiers } from './_shared.js'
 dotenv.config({ path: '.env.local' })
 
 // ─── iCal helpers (used by calendar modes) ────────────────────────────────────
@@ -298,10 +297,18 @@ async function fetchTournamentList(token) {
   console.log('Tournament list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
+  const [runningRes, upcomingRes, pastRes] = await Promise.all([
+    fetch(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_GENERIC_DOTA}/past?${DOTA2_VG}&sort=-end_at&page[size]=20`, { headers }),
+  ])
+  if (!runningRes.ok || !upcomingRes.ok) {
+    throw new Error(`PandaScore error: ${runningRes.status} / ${upcomingRes.status}`)
+  }
   const [running, upcoming, past] = await Promise.all([
-    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/past?${DOTA2_VG}&sort=-end_at&page[size]=10`, headers),
+    runningRes.json(),
+    upcomingRes.json(),
+    pastRes.ok ? pastRes.json() : Promise.resolve([]),
   ])
 
   const list = {
@@ -325,9 +332,13 @@ async function fetchTournamentStatuses(token) {
   console.log('Tournament statuses: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
+  const [runningRes, upcomingRes] = await Promise.all([
+    fetch(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
+  ])
   const [running, upcoming] = await Promise.all([
-    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
-    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=10`, headers),
+    runningRes.ok ? runningRes.json() : Promise.resolve([]),
+    upcomingRes.ok ? upcomingRes.json() : Promise.resolve([]),
   ])
 
   const statuses = {}
@@ -419,14 +430,13 @@ async function fetchSeriesList(token) {
   console.log('Series list: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  // Series endpoints (/dota2/series/*) do not support filter[tier] -- use plain
-  // fetches with a large page size and rely on client-side isTier1Series filtering.
-  // Running tournaments use the generic endpoint where filter[tier] is supported.
-  const [runSerRes, upSerRes, pastSerRes, runningTours] = await Promise.all([
+  // No filter[tier] on any endpoint -- use large page sizes and rely on client-side
+  // isTier1 / isTier1Series filtering.
+  const [runSerRes, upSerRes, pastSerRes, runTourRes] = await Promise.all([
     fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=50`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=50`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=20`, { headers }),
-    fetchByTiers(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=20`, headers),
+    fetch(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
   ])
 
   const toArr = async (res) => {
@@ -434,10 +444,11 @@ async function fetchSeriesList(token) {
     const d = await res.json()
     return Array.isArray(d) ? d : []
   }
-  const [running, upcoming, past] = await Promise.all([
+  const [running, upcoming, past, runningTours] = await Promise.all([
     toArr(runSerRes),
     toArr(upSerRes),
     toArr(pastSerRes),
+    runTourRes.ok ? runTourRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
   ])
 
   // Build a set of serie_ids that still have active sub-tournaments.
@@ -448,11 +459,9 @@ async function fetchSeriesList(token) {
 
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
-  const upcomingTours = await fetchByTiers(
-    `${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=20`,
-    headers
-  )
-  console.log(`Upcoming sub-stage tours (tier s/a): ${upcomingTours.length}`)
+  const upTourRes = await fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=100`, { headers })
+  const upcomingTours = upTourRes.ok ? await upTourRes.json().then(d => Array.isArray(d) ? d : []) : []
+  console.log(`Upcoming sub-stage tours (all tiers, client-filtered): ${upcomingTours.length}`)
 
   // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
   const runningIds = new Set((running || []).map(s => s.id))
