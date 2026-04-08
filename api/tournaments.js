@@ -222,7 +222,7 @@ const kv = new Redis({
 
 const KV_LIST_KEY = 'dota2:tournament_list_v4'
 const KV_STATUS_KEY = 'dota2:tournament_statuses_v3'
-const LIST_TTL = 60 * 60 * 6        // 6 hours — catches stage transitions (Group → Playoffs)
+const LIST_TTL = 60 * 60 * 6        // 6 hours - catches stage transitions (Group -> Playoffs)
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
@@ -249,7 +249,7 @@ function buildTournamentName(t) {
   const stage = t.name || ''
   if (league && serie) {
     const base = serie.toLowerCase().includes(league.toLowerCase()) ? serie : `${league} ${serie}`
-    return `${base}${stage && stage !== 'Season' ? ` — ${stage}` : ''}`
+    return `${base}${stage && stage !== 'Season' ? ` - ${stage}` : ''}`
   }
   return league || serie || stage || 'Unknown'
 }
@@ -457,7 +457,7 @@ async function fetchSeriesList(token) {
     (runningTours || []).map(t => t.serie_id || t.serie?.id).filter(Boolean)
   )
 
-  // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
+  // Fetch upcoming at the sub-stage (tournament) level as a fallback - PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
   const upTourRes = await fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=100`, { headers })
   const upcomingTours = upTourRes.ok ? await upTourRes.json().then(d => Array.isArray(d) ? d : []) : []
@@ -498,7 +498,7 @@ async function fetchSeriesList(token) {
     return true
   })
 
-  // Rescue any "past" series that still have running sub-tournaments — PandaScore
+  // Rescue any "past" series that still have running sub-tournaments - PandaScore
   // can move a series to /series/past before the Grand Finals match finishes.
   const completedFiltered = (past || []).filter(isTier1Series)
   const rescuedToLive = completedFiltered.filter(s => runningTourSerieIds.has(s.id))
@@ -550,7 +550,7 @@ async function fetchGrandFinalMatchIds(token) {
 
   // Step 1: Find recent Grand Final tournament stages by name.
   // Using the /tournaments endpoint with search[name] is more reliable than
-  // scanning the last N past matches — those 100 matches can cover just a few
+  // scanning the last N past matches - those 100 matches can cover just a few
   // days and older Grand Finals simply won't appear.
   const tourRes = await fetch(
     `${PANDASCORE_BASE}/tournaments/past?search[name]=Grand+Final&sort=-end_at&page[size]=15`,
@@ -648,7 +648,7 @@ export default async function handler(req, res) {
   }
 
   // All-tournaments calendar feed (?mode=calendar-all)
-  // One subscription URL — every running/upcoming tournament and their matches appear automatically.
+  // One subscription URL - every running/upcoming tournament and their matches appear automatically.
   if (req.query?.mode === 'calendar-all') {
     const cacheKey = 'calendar:all'
     if (req.query?.bust === '1') { try { await kv.del(cacheKey) } catch {} }
@@ -771,7 +771,7 @@ export default async function handler(req, res) {
     return res.status(200).send(icsContent)
   }
 
-  // Grand Finals mode — returns OpenDota match IDs for Grand Final games
+  // Grand Finals mode - returns OpenDota match IDs for Grand Final games
   if (req.query?.mode === 'grand-finals') {
     if (req.query?.bust === '1') {
       await kv.del(KV_GF_KEY).catch(() => {})
@@ -787,7 +787,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // Series list mode — for /tournaments page and TournamentBar
+  // Series list mode - for /tournaments page and TournamentBar
   if (req.query?.mode === 'series') {
     if (req.query?.bust === '1') {
       await kv.del(KV_SERIES_KEY).catch(() => {})
@@ -802,7 +802,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // Default mode — existing TournamentHub behavior (tournament sub-stages)
+  // Default mode - existing TournamentHub behavior (tournament sub-stages)
   if (req.query?.bust === '1') {
     await kv.del(KV_LIST_KEY)
     await kv.del(KV_STATUS_KEY)
