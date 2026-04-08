@@ -15,6 +15,7 @@ const TIER1_KEYWORDS = [
   'ewc',
   'esports world cup',
   'riyadh masters',
+  'premier series',
 ]
 
 function isTier1League(leagueName) {
