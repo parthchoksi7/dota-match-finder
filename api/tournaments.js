@@ -448,6 +448,14 @@ async function fetchSeriesList(token) {
     runTourRes.ok ? runTourRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
   ])
 
+  // Diagnostic: log tier field structure for series objects
+  const allSeriesRaw = [...(running || []), ...(upcoming || []), ...(past || [])]
+  const seriesTiersSeen = [...new Set(allSeriesRaw.slice(0, 15).map(s =>
+    `s.tier=${s.tier ?? 'null'} / s.league?.tier=${s.league?.tier ?? 'null'} / s.videogame_title?.tier=${s.videogame_title?.tier ?? 'null'}`
+  ))]
+  console.log(`Series raw counts - running:${(running||[]).length} upcoming:${(upcoming||[]).length} past:${(past||[]).length}`)
+  console.log(`Series tiers sample:`, seriesTiersSeen.slice(0, 8).join(' | '))
+
   // Build a set of serie_ids that still have active sub-tournaments.
   // PandaScore sometimes moves a series to /series/past before the final match ends.
   const runningTourSerieIds = new Set(
