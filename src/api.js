@@ -1,67 +1,52 @@
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
-const TIER1_KEYWORDS = [
-  'dreamleague',
-  'esl one',
-  'esl challenger',
-  'pgl wallachia',
-  'pgl',
-  'beyond the summit',
-  'weplay',
-  'starladder',
-  'the international',
-  'blast slam',
-  'blast',
-  'fissure',
-  'ewc',
-  'esports world cup',
-  'riyadh masters',
-  'premier series',
-]
 
-function isTier1League(leagueName) {
-  if (!leagueName) return false
-  const lower = leagueName.toLowerCase()
-  return TIER1_KEYWORDS.some(k => lower.includes(k))
+// Module-level cache — persists for the browser session so successive
+// "load more" calls skip the /api/leagues round-trip.
+let _premiumLeagueIds = null
+
+async function fetchPremiumLeagueIds() {
+  if (_premiumLeagueIds) return _premiumLeagueIds
+  const leagues = await fetch(`${OPENDOTA_BASE}/leagues`).then(r => r.json())
+  _premiumLeagueIds = new Set(
+    (Array.isArray(leagues) ? leagues : [])
+      .filter(l => l.tier === 'premium')
+      .map(l => l.leagueid)
+  )
+  return _premiumLeagueIds
 }
+
 export async function fetchProMatches(lastMatchId = null) {
-  const TARGET_TIER1 = 20 // fetch until we have at least 20 tier 1 matches per call
-  const MAX_PAGES = 8
+  const premiumIds = await fetchPremiumLeagueIds()
 
-  let allTier1 = []
-  let cursor = lastMatchId
-  let pages = 0
+  const url = lastMatchId
+    ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${lastMatchId}`
+    : `${OPENDOTA_BASE}/promatches`
 
-  while (allTier1.length < TARGET_TIER1 && pages < MAX_PAGES) {
-    const url = cursor
-      ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${cursor}`
-      : `${OPENDOTA_BASE}/promatches`
-
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000)
-    let res
-    try {
-      res = await fetch(url, { signal: controller.signal })
-    } finally {
-      clearTimeout(timeoutId)
-    }
-    if (!res.ok) throw new Error(`OpenDota promatches error: ${res.status}`)
-    const data = await res.json()
-
-    if (!Array.isArray(data) || data.length === 0) break
-
-    const tier1 = data.filter(m => isTier1League(m.league_name))
-    allTier1 = allTier1.concat(tier1)
-    cursor = data[data.length - 1].match_id
-    pages++
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  let res
+  try {
+    res = await fetch(url, { signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId)
   }
+  if (!res.ok) throw new Error(`OpenDota promatches error: ${res.status}`)
+  const data = await res.json()
+
+  if (!Array.isArray(data) || data.length === 0) {
+    return { matches: [], nextMatchId: lastMatchId }
+  }
+
+  const allMatches = data.filter(m => premiumIds.has(m.leagueid))
+  const cursor = data[data.length - 1].match_id
 
   // Drop the last series only if it is genuinely incomplete (could be cut off by pagination).
   // Never drop series_id=0 (standalone BO1s) and never drop a series that already has a winner.
-  const last = allTier1[allTier1.length - 1]
+  const last = allMatches[allMatches.length - 1]
   const lastSeriesId = last?.series_id
-  let filtered = allTier1
+  let filtered = allMatches
   if (lastSeriesId != null && lastSeriesId !== 0) {
-    const lastSeriesGames = allTier1.filter(m => m.series_id === lastSeriesId)
+    const lastSeriesGames = allMatches.filter(m => m.series_id === lastSeriesId)
     const seriesType = lastSeriesGames[0]?.series_type
     const winsNeeded = seriesType === 2 ? 3 : seriesType === 0 ? 1 : 2
     const teamWins = {}
@@ -71,7 +56,7 @@ export async function fetchProMatches(lastMatchId = null) {
     }
     const maxWins = Math.max(0, ...Object.values(teamWins))
     if (maxWins < winsNeeded) {
-      filtered = allTier1.filter(m => m.series_id !== lastSeriesId)
+      filtered = allMatches.filter(m => m.series_id !== lastSeriesId)
     }
   }
 

@@ -4,20 +4,39 @@
  * It does NOT count toward the 12-function limit.
  */
 
-export const TIER1_KEYWORDS = [
-  'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
-  'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters',
-  'premier series',
-]
+/**
+ * Returns true if the given PandaScore match/tournament object belongs to a
+ * tier-S league (the highest professional tier). Checks match.league.tier
+ * rather than tournament names so new events are picked up automatically.
+ */
+export const isTier1 = (match) => (match?.league?.tier || '').toLowerCase() === 's'
 
 /**
- * Returns true if any of the given name strings contain a Tier 1 keyword.
- * Accepts one or two arguments: isTier1(leagueName) or isTier1(leagueName, serieName)
+ * Builds a Set of OpenDota league IDs whose tier is "premium" — the OpenDota
+ * equivalent of PandaScore tier S (Valve-sponsored DPC events, TI, Majors).
+ * Pure function; accepts the raw array returned by GET /api/leagues.
  */
-export const isTier1 = (...names) => {
-  const lower = names.filter(Boolean).join(' ').toLowerCase()
-  return TIER1_KEYWORDS.some(k => lower.includes(k))
+export function buildPremiumLeagueIds(leagues) {
+  return new Set(
+    (leagues || []).filter(l => l.tier === 'premium').map(l => l.leagueid)
+  )
+}
+
+// Module-level cache so successive calls within the same Lambda warm-up
+// (or browser session for client-side consumers) skip the network round-trip.
+let _premiumLeagueIds = null
+
+/**
+ * Fetches the OpenDota league list and returns a Set of premium-tier league IDs.
+ * Result is cached in memory for the lifetime of the process/session.
+ */
+export async function getPremiumLeagueIds() {
+  if (_premiumLeagueIds) return _premiumLeagueIds
+  const res = await fetch('https://api.opendota.com/api/leagues')
+  if (!res.ok) throw new Error(`OpenDota leagues error: ${res.status}`)
+  const leagues = await res.json()
+  _premiumLeagueIds = buildPremiumLeagueIds(leagues)
+  return _premiumLeagueIds
 }
 
 export const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
