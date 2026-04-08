@@ -1,6 +1,6 @@
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
 
-// Module-level cache — persists for the browser session so successive
+// Module-level cache; persists for the browser session so successive
 // "load more" calls skip the /api/leagues round-trip.
 let _premiumLeagueIds = null
 

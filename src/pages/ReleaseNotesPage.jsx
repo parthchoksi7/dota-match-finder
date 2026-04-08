@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 8, 2026",
+    tag: "improvement",
+    title: "New tournaments appear automatically without any manual updates",
+    desc: "Tournament filtering now uses the tier field from the API instead of a hardcoded list of tournament names. Any new Tier 1 (PandaScore tier S / OpenDota premium) event will appear in live matches, upcoming matches, and the tournament hub as soon as it is registered in the API. No more waiting for a name keyword to be added.",
+  },
+  {
     date: "Apr 6, 2026",
     tag: "fix",
     title: "Tournament tab bar no longer cramped on mobile",

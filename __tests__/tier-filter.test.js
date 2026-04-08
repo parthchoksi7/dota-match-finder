@@ -1,14 +1,14 @@
 /**
  * Unit tests for tier-based filtering functions in api/_shared.js.
  *
- * isTier1            — checks a PandaScore match/tournament object by league.tier === 's'
- * buildPremiumLeagueIds — builds a Set of OpenDota premium league IDs from the leagues list
+ * isTier1            - checks a PandaScore match/tournament object by league.tier === 's'
+ * buildPremiumLeagueIds - builds a Set of OpenDota premium league IDs from the leagues list
  *
  * Both are pure functions with no external dependencies or mocking required.
  *
  * Background:
- *   PandaScore tier 's' = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, …)
- *   OpenDota 'premium'  = Valve-sponsored DPC events — the direct equivalent of PandaScore tier s
+ *   PandaScore tier 's' = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, ...)
+ *   OpenDota 'premium'  = Valve-sponsored DPC events; the direct equivalent of PandaScore tier s
  */
 
 import { describe, it, expect } from 'vitest'
@@ -17,7 +17,7 @@ import { isTier1, buildPremiumLeagueIds } from '../api/_shared.js'
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
 
 describe('isTier1', () => {
-  describe('positive cases — tier s', () => {
+  describe('positive cases - tier s', () => {
     it('returns true for a match with league.tier === "s"', () => {
       expect(isTier1({ league: { tier: 's' } })).toBe(true)
     })
@@ -37,7 +37,7 @@ describe('isTier1', () => {
     })
   })
 
-  describe('negative cases — non-s tiers', () => {
+  describe('negative cases - non-s tiers', () => {
     it('returns false for tier "a" (second professional tier)', () => {
       expect(isTier1({ league: { tier: 'a' } })).toBe(false)
     })

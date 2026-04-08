@@ -13,8 +13,8 @@ npm test -- --coverage      # With coverage report
 ```
 
 All tests must pass before pushing to production. The test suite covers:
-- `__tests__/tier-filter.test.js` — Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'`) and `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` set)
-- `__tests__/auto-tweet.test.js` — Auto-tweet cron: `winsNeeded`, `seriesComplete`, `seriesResult` (including BO2 draws)
+- `__tests__/tier-filter.test.js` - Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'`) and `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` set)
+- `__tests__/auto-tweet.test.js` - Auto-tweet cron: `winsNeeded`, `seriesComplete`, `seriesResult` (including BO2 draws)
 - `__tests__/icsGenerator.test.js` — ICS calendar generation
 - `src/__tests__/utils.test.js` — Frontend utils: `formatDuration`, `formatRelativeTime`, `getSeriesLabel`, `groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries`, `getSeriesWins`, `trackEvent`
 - `src/__tests__/my-teams.test.js` — My Teams follow/unfollow system

@@ -12,8 +12,8 @@
 export const isTier1 = (match) => (match?.league?.tier || '').toLowerCase() === 's'
 
 /**
- * Builds a Set of OpenDota league IDs whose tier is "premium" — the OpenDota
- * equivalent of PandaScore tier S (Valve-sponsored DPC events, TI, Majors).
+ * Builds a Set of OpenDota league IDs whose tier is "premium" (the OpenDota
+ * equivalent of PandaScore tier S: Valve-sponsored DPC events, TI, Majors).
  * Pure function; accepts the raw array returned by GET /api/leagues.
  */
 export function buildPremiumLeagueIds(leagues) {

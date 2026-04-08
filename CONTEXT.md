@@ -74,7 +74,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `api/og.js` - OG image/metadata generation for share card URLs. Also handles series result images via `?mode=series` (1200x630 PNG with winner, score, tournament, format using satori + resvg; used in X posts modal as downloadable PNG). Merged from `og.js` + `og-series.js` to stay within the 12-function Vercel limit.
 - `api/tournaments.js` - Multi-mode tournament endpoint. Default: sub-stage list for TournamentHub. `?mode=series`: series list for /tournaments page. `?mode=grand-finals`: Grand Final OpenDota match IDs. `?mode=calendar-team&teams=slug1,slug2`: .ics team calendar feed (resolves slugs, fetches running+upcoming+past 7d matches, caches 30min under `calendar:matches:{sorted_slugs}`). `?mode=calendar-tournament&series={id}`: .ics tournament feed (all-day VEVENT for series + match VEVENTs, caches 30min under `calendar:series:{id}`). Both calendar modes return `text/calendar` not JSON.
 - `api/match-streams.js` - See description above
-- `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `TIER1_KEYWORDS` (array) and `isTier1(...names)` (variadic — accepts 1 or 2 name strings). All API files that need tier 1 filtering import from here. When adding a new tournament to the tier 1 list, update only this file. Also exports `getTwitchStreams(streamsList, leagueName, serieName)` used by `upcoming-matches.js` — filters to official Twitch streams, prefers English but falls back to any language so regional qualifiers (China/CIS) are not silently dropped.
+- `api/_shared.js` - **Shared utility module** (NOT a serverless function; Vercel ignores `_` prefixed files). Exports `isTier1(match)` (checks `match.league.tier === 's'`), `buildPremiumLeagueIds(leagues)` (pure, returns a `Set` of OpenDota premium league IDs), and `getPremiumLeagueIds()` (async, cached). Also exports `getTwitchStreams(streamsList, leagueName, serieName)` used by `upcoming-matches.js`; filters to official Twitch streams, prefers English but falls back to any language so regional qualifiers (China/CIS) are not silently dropped.
 
 ### Config
 - `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/calendar` -> `/`, `/analytics` -> `/`, `/preview` -> `/` (internal design preview, disallowed in robots.txt)
@@ -329,7 +329,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ## Tier Filtering Strategy
 
-Tournaments are filtered using the tier fields exposed by each data source — no hardcoded name lists.
+Tournaments are filtered using the tier fields exposed by each data source. No hardcoded name lists.
 
 | Data source | Field | Value for top tier |
 |---|---|---|
@@ -337,13 +337,13 @@ Tournaments are filtered using the tier fields exposed by each data source — n
 | PandaScore (series) | `series.tier` | `'s'` |
 | OpenDota (leagues/promatches) | `league.tier` | `'premium'` |
 
-**PandaScore tier S** = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, Riyadh Masters, Premier Series, …).  
-**OpenDota premium** = Valve-sponsored DPC events — the direct equivalent of PandaScore tier S.
+**PandaScore tier S** = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, Riyadh Masters, Premier Series, ...).
+**OpenDota premium** = Valve-sponsored DPC events; the direct equivalent of PandaScore tier S.
 
 Key exports in `api/_shared.js`:
-- `isTier1(match)` — checks `match.league.tier === 's'` for PandaScore objects
-- `buildPremiumLeagueIds(leagues)` — pure function; builds a `Set<leagueid>` of premium OpenDota leagues
-- `getPremiumLeagueIds()` — async; fetches `/api/leagues`, caches result in memory
+- `isTier1(match)` - checks `match.league.tier === 's'` for PandaScore objects
+- `buildPremiumLeagueIds(leagues)` - pure function; builds a `Set<leagueid>` of premium OpenDota leagues
+- `getPremiumLeagueIds()` - async; fetches `/api/leagues`, caches result in memory
 
 ---
 

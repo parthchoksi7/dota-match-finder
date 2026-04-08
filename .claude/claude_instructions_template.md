@@ -69,12 +69,12 @@ This applies to: className edits, new components, loading/empty/error states, an
 
 After making any code change, do a fresh independent read of **every modified file** as if you are seeing the code for the first time. Assume the author made mistakes. Actively look for:
 
-- **Logic errors** — wrong field name, inverted condition, wrong object passed to a function, off-by-one
-- **Missing `res.ok` checks** — always check `res.ok` before calling `.json()` on a fetch response; a non-2xx response that passes silently to `.json()` can populate a cache with garbage data
-- **Poisoned caches** — a module-level or KV cache set to a bad value (empty `Set`, `null`, error object) on API failure will persist silently until process restart, causing all downstream data to be hidden or wrong
-- **Broken imports** — a removed or renamed export still imported elsewhere; catch with `grep -r` across the whole repo, not just the touched files
-- **Inconsistency between server and client versions** — the same helper duplicated in `api/_shared.js` and `src/api.js` must behave identically (same error handling, same field names, same fallback values)
-- **Stale comments and documentation** — comments that contradict the new code; `CONTEXT.md`, `QA_PROCESS.md` sections that still describe old behavior
+- **Logic errors**: wrong field name, inverted condition, wrong object passed to a function, off-by-one
+- **Missing `res.ok` checks**: always check `res.ok` before calling `.json()` on a fetch response; a non-2xx response that passes silently to `.json()` can populate a cache with garbage data
+- **Poisoned caches**: a module-level or KV cache set to a bad value (empty `Set`, `null`, error object) on API failure will persist silently until process restart, causing all downstream data to be hidden or wrong
+- **Broken imports**: a removed or renamed export still imported elsewhere; catch with `grep -r` across the whole repo, not just the touched files
+- **Inconsistency between server and client versions**: the same helper duplicated in `api/_shared.js` and `src/api.js` must behave identically (same error handling, same field names, same fallback values)
+- **Stale comments and documentation**: comments that contradict the new code; `CONTEXT.md`, `QA_PROCESS.md` sections that still describe old behavior
 
 Use the `Explore` subagent to read and report on each modified file, then fix every issue before committing.
 
@@ -176,9 +176,9 @@ Use the `Explore` subagent to read and report on each modified file, then fix ev
 Before deploying to production:
 
 1. ✅ Run regression tests (`npm test`)
-2. ✅ **Code review** — re-read every modified file as an independent reviewer (see §7 above); fix all issues found
-3. ✅ **QA step** (beyond unit tests) — run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded
-4. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js` — never define locally)
+2. ✅ **Code review**: re-read every modified file as an independent reviewer (see §7 above); fix all issues found
+3. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded
+4. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
 5. ✅ Verify API rate limits won't be exceeded
 6. ✅ Test on mobile viewport
 7. ✅ Update `CONTEXT.md` with changes
