@@ -7,7 +7,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-import { PANDASCORE_BASE, STREAM_TTL } from './_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
@@ -79,25 +79,20 @@ export default async function handler(req, res) {
             const allStreams = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)
             console.log(`match-streams PandaScore streams for ${radiantTeam} vs ${direTeam}: [${allStreams.join(', ')}]`)
 
-            // Accept any official Twitch stream (any language) — China/CIS qualifiers
-            // have official streams with language !== 'en' that were previously ignored.
-            const official = (psMatch.streams_list || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
-            const enStreams = official.filter(s => s.language === 'en')
-            const mainEn = enStreams.filter(s => s.main)
-            const mainAny = official.filter(s => s.main)
-            // Preference order: main English > any English > main any-language > first official Twitch
-            const candidate = mainEn.length === 1   ? mainEn[0]
-                            : enStreams.length === 1  ? enStreams[0]
-                            : mainAny.length === 1    ? mainAny[0]
-                            : official.length === 1   ? official[0]
-                            : null
-            if (candidate) {
-              const channel = candidate.raw_url.replace('https://www.twitch.tv/', '')
+            // Use getTwitchStreams — same logic as live/upcoming matches:
+            // prefers English, falls back to any-language official, then static mapping.
+            const streams = getTwitchStreams(
+              psMatch.streams_list,
+              psMatch.league?.name,
+              psMatch.serie?.full_name || psMatch.serie?.name
+            )
+            if (streams.length > 0) {
+              const channel = streams[0].url.replace('https://www.twitch.tv/', '')
               for (const id of missingIds) {
                 result[id] = channel
                 kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(() => {})
               }
-              console.log(`match-streams fuzzy match: ${radiantTeam} vs ${direTeam} → ${channel} (lang=${candidate.language})`)
+              console.log(`match-streams fuzzy: ${radiantTeam} vs ${direTeam} → ${channel}`)
             }
           }
         }
