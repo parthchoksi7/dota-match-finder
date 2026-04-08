@@ -294,9 +294,9 @@ async function fetchTournamentList(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [runningRes, upcomingRes, pastRes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=10`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/past?filter[tier]=s,a&sort=-end_at&page[size]=10`, { headers }),
   ])
 
   if (!runningRes.ok || !upcomingRes.ok) {
@@ -331,8 +331,8 @@ async function fetchTournamentStatuses(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [runningRes, upcomingRes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=10`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=10`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
   ])
 
   const [running, upcoming] = await Promise.all([
@@ -430,10 +430,10 @@ async function fetchSeriesList(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [runningRes, upcomingRes, pastRes, runningToursRes] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=10`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/upcoming?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/series/past?filter[tier]=s,a&sort=-end_at&page[size]=10`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?filter[tier]=s,a&sort=begin_at&page[size]=20`, { headers }),
   ])
 
   // All are non-fatal - a PandaScore blip shows empty sections, not an error banner.
