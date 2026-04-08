@@ -5,9 +5,11 @@
  */
 
 /**
- * Returns true if the given PandaScore match/tournament object belongs to a
- * tier-S or tier-A league. Checks match.league.tier rather than tournament
- * names so new events are picked up automatically.
+ * Returns true if the given PandaScore MATCH object is tier S or A.
+ * Match objects from /dota2/matches/* carry tier on match.league.tier.
+ * NOTE: tournament objects from /dota2/tournaments/* carry tier directly
+ * on t.tier (not t.league.tier). Use the local isTier1(t) in tournaments.js
+ * for those.
  *   tier 's' - elite international LANs (TI, Majors, DreamLeague, ESL One, ...)
  *   tier 'a' - second-tier professional events (ESL Challenger, regional circuits, ...)
  */

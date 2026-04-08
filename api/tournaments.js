@@ -227,9 +227,10 @@ const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-// Tournament objects from /tournaments/* have tier on their parent league.
+// Tournament objects from /dota2/tournaments/* have tier directly on the object
+// (t.tier), not on the nested league. t.league.tier is always null.
 function isTier1(t) {
-  const tier = (t?.league?.tier || '').toLowerCase()
+  const tier = (t?.tier || '').toLowerCase()
   return tier === 's' || tier === 'a'
 }
 
@@ -306,13 +307,6 @@ async function fetchTournamentList(token) {
     upcomingRes.json(),
     pastRes.ok ? pastRes.json() : Promise.resolve([]),
   ])
-
-  // Diagnostic: log raw counts and every distinct tier value seen so we know
-  // what PandaScore is returning before isTier1 filters it.
-  const allRaw = [...(running || []), ...(upcoming || []), ...(past || [])]
-  const tiersSeen = [...new Set(allRaw.map(t => `league.tier=${t.league?.tier ?? 'null'} / t.tier=${t.tier ?? 'null'}`))]
-  console.log(`PandaScore raw counts - running:${(running||[]).length} upcoming:${(upcoming||[]).length} past:${(past||[]).length}`)
-  console.log(`Tiers seen (sample):`, tiersSeen.slice(0, 10).join(' | '))
 
   const list = {
     ongoing: (running || []).filter(isTier1).map(t => mapTournament(t, 'running')),
