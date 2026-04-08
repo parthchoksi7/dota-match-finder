@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Apr 8, 2026",
     tag: "fix",
+    title: "Upcoming matches and VOD links restored for Premier Series and similar events",
+    desc: "The homepage upcoming matches section was empty and completed match VOD links were missing for events like Premier Series 2026. Root cause: PandaScore places the tier field in different locations depending on the object type - matches use tournament.tier, tournament sub-stages use t.tier directly, and series objects have no tier field at all. All three tier lookups are now reading the correct field. Completed match VOD lookup also now uses the same stream-finding logic as live and upcoming matches.",
+  },
+  {
+    date: "Apr 8, 2026",
+    tag: "fix",
     title: "Tournament hub and upcoming section restored",
     desc: "The tournament hub and upcoming tournaments section were showing empty due to a tier field path mismatch in the PandaScore data. Tournament objects carry their tier on a different field than match objects. Fixed the field path so all sections load correctly again.",
   },
