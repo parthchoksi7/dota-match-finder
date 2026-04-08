@@ -89,7 +89,7 @@ export default async function handler(req, res) {
 
     const data = await response.json()
     const matches = (data || [])
-      .filter(m => isTier1(m.league?.name, m.serie?.full_name))
+      .filter(m => isTier1(m))
       .filter(m => m.opponents?.length === 2)
       .map(mapMatch)
 

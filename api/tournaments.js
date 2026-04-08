@@ -227,24 +227,14 @@ const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-const TIER1_KEYWORDS = [
-  'dreamleague', 'esl one', 'esl challenger', 'pgl wallachia', 'pgl',
-  'beyond the summit', 'weplay', 'starladder', 'the international',
-  'blast slam', 'blast', 'fissure', 'ewc', 'esports world cup', 'riyadh masters'
-]
-
-function isTier1(leagueName, serieName) {
-  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
-  return TIER1_KEYWORDS.some(k => lower.includes(k))
+// Tournament objects from /tournaments/* have tier on their parent league.
+function isTier1(t) {
+  return (t?.league?.tier || '').toLowerCase() === 's'
 }
 
-// For series objects: accept keyword match OR PandaScore tier 's'/'a' so upcoming
-// events with slightly different names still show up.
+// Series objects from /series/* carry tier directly on the series record.
 function isTier1Series(s) {
-  const name = ((s.league?.name || '') + ' ' + (s.full_name || s.name || '')).toLowerCase()
-  const hasKeyword = TIER1_KEYWORDS.some(k => name.includes(k))
-  const tier = (s.tier || s.tournaments?.[0]?.tier || '').toLowerCase()
-  return hasKeyword || tier === 's' || tier === 'a'
+  return (s?.tier || '').toLowerCase() === 's'
 }
 
 function buildTournamentName(t) {
@@ -318,9 +308,9 @@ async function fetchTournamentList(token) {
   ])
 
   const list = {
-    ongoing: (running || []).filter(t => isTier1(t.league?.name, t.serie?.full_name)).map(t => mapTournament(t, 'running')),
-    upcoming: (upcoming || []).filter(t => isTier1(t.league?.name, t.serie?.full_name)).slice(0, 5).map(t => mapTournament(t, 'upcoming')),
-    completed: (past || []).filter(t => isTier1(t.league?.name, t.serie?.full_name)).slice(0, 3).map(t => mapTournament(t, 'completed')),
+    ongoing: (running || []).filter(isTier1).map(t => mapTournament(t, 'running')),
+    upcoming: (upcoming || []).filter(isTier1).slice(0, 5).map(t => mapTournament(t, 'upcoming')),
+    completed: (past || []).filter(isTier1).slice(0, 3).map(t => mapTournament(t, 'completed')),
     fetchedAt: new Date().toISOString(),
   }
 
@@ -353,13 +343,13 @@ async function fetchTournamentStatuses(token) {
   const newRunning = []
 
   for (const t of (running || [])) {
-    if (isTier1(t.league?.name, t.serie?.full_name)) {
+    if (isTier1(t)) {
       statuses[t.id] = 'running'
       newRunning.push(t)
     }
   }
   for (const t of (upcoming || [])) {
-    if (isTier1(t.league?.name, t.serie?.full_name)) statuses[t.id] = 'upcoming'
+    if (isTier1(t)) statuses[t.id] = 'upcoming'
   }
 
   // Merge any newly-running tournaments into the list cache so stage transitions
@@ -465,17 +455,14 @@ async function fetchSeriesList(token) {
 
   // Fetch upcoming at the sub-stage (tournament) level as a fallback — PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
-  // Fetch tier s and a separately (comma syntax is unreliable on some plan tiers).
-  const [upTourSRes, upTourARes] = await Promise.all([
-    fetch(`https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=s&sort=begin_at&page[size]=20`, { headers }),
-    fetch(`https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=a&sort=begin_at&page[size]=20`, { headers }),
-  ])
-  const [upTourS, upTourA] = await Promise.all([
-    upTourSRes.ok ? upTourSRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-    upTourARes.ok ? upTourARes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
-  ])
-  const upcomingTours = [...upTourS, ...upTourA]
-  console.log(`Upcoming sub-stage tours: ${upcomingTours.length} (s:${upTourS.length} a:${upTourA.length})`)
+  const upTourSRes = await fetch(
+    `https://api.pandascore.co/tournaments/upcoming?filter[videogame]=dota-2&filter[tier]=s&sort=begin_at&page[size]=20`,
+    { headers }
+  )
+  const upcomingTours = upTourSRes.ok
+    ? await upTourSRes.json().then(d => Array.isArray(d) ? d : [])
+    : []
+  console.log(`Upcoming sub-stage tours (tier s): ${upcomingTours.length}`)
 
   // Group sub-stage entries by serie_id; skip any serie_id already in the running list.
   const runningIds = new Set((running || []).map(s => s.id))

@@ -180,7 +180,7 @@ export default async function handler(req, res) {
       const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers })
       if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
       const data = await response.json()
-      const tier1 = (data || []).filter(m => isTier1(m.league?.name, m.serie?.full_name) && m.opponents?.length === 2)
+      const tier1 = (data || []).filter(m => isTier1(m) && m.opponents?.length === 2)
       await enrichMultiStreamMatches(tier1, headers)
       const written = await cacheRunningStreams(tier1)
       console.log(`live-matches cron: ${written} stream writes`)
@@ -216,7 +216,7 @@ export default async function handler(req, res) {
 
     const data = await response.json()
     const tier1Raw = (data || [])
-      .filter(m => isTier1(m.league?.name, m.serie?.full_name))
+      .filter(m => isTier1(m))
       .filter(m => m.opponents?.length === 2)
     await enrichMultiStreamMatches(tier1Raw, headers)
     const matches = tier1Raw.map(mapMatch)

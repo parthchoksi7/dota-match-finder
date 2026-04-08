@@ -215,8 +215,7 @@ function buildMentions(team1, team2, tournament) {
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
-import { isTier1 } from './_shared.js'
-export { isTier1 }
+import { getPremiumLeagueIds } from './_shared.js'
 
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1
@@ -283,13 +282,16 @@ async function runAutoTweet(req, res) {
     return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
   }
 
-  const odRes = await fetch('https://api.opendota.com/api/promatches')
+  const [odRes, premiumIds] = await Promise.all([
+    fetch('https://api.opendota.com/api/promatches'),
+    getPremiumLeagueIds(),
+  ])
   if (!odRes.ok) return res.status(502).json({ error: 'OpenDota unavailable' })
   const raw = await odRes.json()
   if (!Array.isArray(raw)) return res.status(502).json({ error: 'Bad OpenDota response' })
 
-  const tier1 = raw.filter(m => isTier1(m.league_name))
-  if (!tier1.length) return res.status(200).json({ tweeted: 0, message: 'No tier 1 matches' })
+  const tier1 = raw.filter(m => premiumIds.has(m.leagueid))
+  if (!tier1.length) return res.status(200).json({ tweeted: 0, message: 'No premium-tier matches' })
 
   // Group matches into series
   const seriesMap = {}

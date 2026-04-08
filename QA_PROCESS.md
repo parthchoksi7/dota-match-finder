@@ -13,7 +13,8 @@ npm test -- --coverage      # With coverage report
 ```
 
 All tests must pass before pushing to production. The test suite covers:
-- `__tests__/auto-tweet.test.js` — Auto-tweet cron: `isTier1`, `winsNeeded`, `seriesComplete`, `seriesResult` (including BO2 draws)
+- `__tests__/tier-filter.test.js` - Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'`) and `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` set)
+- `__tests__/auto-tweet.test.js` - Auto-tweet cron: `winsNeeded`, `seriesComplete`, `seriesResult` (including BO2 draws)
 - `__tests__/icsGenerator.test.js` — ICS calendar generation
 - `src/__tests__/utils.test.js` — Frontend utils: `formatDuration`, `formatRelativeTime`, `getSeriesLabel`, `groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries`, `getSeriesWins`, `trackEvent`
 - `src/__tests__/my-teams.test.js` — My Teams follow/unfollow system
@@ -121,6 +122,7 @@ For features that touch core match data, series grouping, or new API integration
 | Auto-tweet changes | Manually trigger workflow; check @SpectateDota2 |
 | Calendar changes | Subscribe URL generates; .ics downloads; events appear in calendar app |
 | Search changes | Search and clear both work; query is tracked in GA4 |
+| Tier filter changes | At least one known tier-S event (e.g. DreamLeague, PGL, Premier Series) appears in live/upcoming/tournaments; a known non-tier-S event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results |
 
 ---
 

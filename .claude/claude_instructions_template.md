@@ -65,7 +65,20 @@ This applies to: className edits, new components, loading/empty/error states, an
   - User interactions (clicks, inputs, navigation)
 - Use existing testing framework (React Testing Library + Vitest/Jest)
 
-### 7. Regression Testing
+### 7. Code Review (as a completely different developer)
+
+After making any code change, do a fresh independent read of **every modified file** as if you are seeing the code for the first time. Assume the author made mistakes. Actively look for:
+
+- **Logic errors**: wrong field name, inverted condition, wrong object passed to a function, off-by-one
+- **Missing `res.ok` checks**: always check `res.ok` before calling `.json()` on a fetch response; a non-2xx response that passes silently to `.json()` can populate a cache with garbage data
+- **Poisoned caches**: a module-level or KV cache set to a bad value (empty `Set`, `null`, error object) on API failure will persist silently until process restart, causing all downstream data to be hidden or wrong
+- **Broken imports**: a removed or renamed export still imported elsewhere; catch with `grep -r` across the whole repo, not just the touched files
+- **Inconsistency between server and client versions**: the same helper duplicated in `api/_shared.js` and `src/api.js` must behave identically (same error handling, same field names, same fallback values)
+- **Stale comments and documentation**: comments that contradict the new code; `CONTEXT.md`, `QA_PROCESS.md` sections that still describe old behavior
+
+Use the `Explore` subagent to read and report on each modified file, then fix every issue before committing.
+
+### 8. Regression Testing
 - Make a calculated decision on whether to run the full test suite based on the scope of changes. You are the expert - use your judgement.
 - Run regression (`npm test`) when:
   - Changes touch shared utilities, API handlers, or components used across multiple pages
@@ -163,14 +176,15 @@ This applies to: className edits, new components, loading/empty/error states, an
 Before deploying to production:
 
 1. ✅ Run regression tests (`npm test`)
-2. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js` — never define locally)
-3. ✅ Verify API rate limits won't be exceeded
-4. ✅ Test on mobile viewport
-5. ✅ Update `CONTEXT.md` with changes
-6. ✅ Update About page
-7. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
-8. ✅ Run through relevant scenarios in `QA_PROCESS.md`
-9. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
+2. ✅ **Code review**: re-read every modified file as an independent reviewer (see §7 above); fix all issues found
+3. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded
+4. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
+5. ✅ Verify API rate limits won't be exceeded
+6. ✅ Test on mobile viewport
+7. ✅ Update `CONTEXT.md` with changes
+8. ✅ Update About page
+9. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
+10. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
 
 ---
 

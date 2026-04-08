@@ -1,46 +1,18 @@
 /**
  * Unit tests for the auto-tweet (cron) utility functions exported from
- * api/draft-posts.js: isTier1, winsNeeded, seriesComplete, seriesResult.
+ * api/draft-posts.js: winsNeeded, seriesComplete, seriesResult.
  *
  * These are pure functions with no external dependencies, so no mocking needed.
+ * Tier-filtering logic is tested separately in __tests__/tier-filter.test.js.
  */
 
 import { describe, it, expect } from 'vitest'
-import { isTier1, winsNeeded, seriesComplete, seriesResult } from '../api/draft-posts.js'
+import { winsNeeded, seriesComplete, seriesResult } from '../api/draft-posts.js'
 
 // Helper to build a minimal OpenDota match record
 function makeGame({ radiant_win = true, radiant_name = 'Team A', dire_name = 'Team B' } = {}) {
   return { radiant_win, radiant_name, dire_name }
 }
-
-// ── isTier1 ──────────────────────────────────────────────────────────────────
-
-describe('isTier1', () => {
-  it('returns true for known tier 1 league names', () => {
-    expect(isTier1('DreamLeague Season 25')).toBe(true)
-    expect(isTier1('ESL One Birmingham')).toBe(true)
-    expect(isTier1('PGL Wallachia Season 3')).toBe(true)
-    expect(isTier1('The International 2025')).toBe(true)
-    expect(isTier1('BLAST Slam')).toBe(true)
-    expect(isTier1('WePlay Esports')).toBe(true)
-  })
-
-  it('is case-insensitive', () => {
-    expect(isTier1('dreamleague season 25')).toBe(true)
-    expect(isTier1('DREAMLEAGUE SEASON 25')).toBe(true)
-  })
-
-  it('returns false for non-tier-1 leagues', () => {
-    expect(isTier1('Some Random League')).toBe(false)
-    expect(isTier1('BetBoom Dacha')).toBe(false)
-  })
-
-  it('returns false for null or empty input', () => {
-    expect(isTier1(null)).toBe(false)
-    expect(isTier1('')).toBe(false)
-    expect(isTier1(undefined)).toBe(false)
-  })
-})
 
 // ── winsNeeded ───────────────────────────────────────────────────────────────
 
