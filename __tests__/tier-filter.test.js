@@ -13,8 +13,8 @@
  *   OpenDota 'professional' = second-tier pro events    (equivalent of PandaScore tier a)
  */
 
-import { describe, it, expect } from 'vitest'
-import { isTier1, buildPremiumLeagueIds } from '../api/_shared.js'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { isTier1, buildPremiumLeagueIds, fetchByTiers } from '../api/_shared.js'
 
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
 
@@ -217,6 +217,127 @@ describe('buildPremiumLeagueIds', () => {
         { match_id: 2, leagueid: 888 },
       ]
       expect(promatches.filter(m => premiumIds.has(m.leagueid))).toHaveLength(0)
+    })
+  })
+})
+
+// ── fetchByTiers (PandaScore dual-tier fetch helper) ─────────────────────────
+//
+// These tests catch the bug where filter[tier]=s,a was used instead of two
+// separate requests. PandaScore treats comma-separated values as a literal
+// string, returning zero results. The fix fires two parallel requests and merges.
+
+describe('fetchByTiers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function okResponse(data) {
+    return { ok: true, status: 200, json: () => Promise.resolve(data) }
+  }
+
+  function errResponse(status = 503) {
+    return { ok: false, status }
+  }
+
+  describe('fetch URL construction - must NOT use comma-separated filter values', () => {
+    it('fires exactly two fetch calls for a single fetchByTiers call', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(okResponse([]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      await fetchByTiers('https://api.pandascore.co/dota2/tournaments/upcoming?sort=begin_at&page[size]=10', {})
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('calls fetch with filter[tier]=s in the first request', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(okResponse([]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      await fetchByTiers('https://api.pandascore.co/dota2/series/upcoming?sort=begin_at&page[size]=20', {})
+
+      expect(mockFetch.mock.calls[0][0]).toContain('filter[tier]=s')
+    })
+
+    it('calls fetch with filter[tier]=a in the second request', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(okResponse([]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      await fetchByTiers('https://api.pandascore.co/dota2/series/upcoming?sort=begin_at&page[size]=20', {})
+
+      expect(mockFetch.mock.calls[1][0]).toContain('filter[tier]=a')
+    })
+
+    it('never uses a comma-separated filter value like filter[tier]=s,a', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(okResponse([]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      await fetchByTiers('https://api.pandascore.co/dota2/tournaments/upcoming?sort=begin_at&page[size]=10', {})
+
+      for (const call of mockFetch.mock.calls) {
+        expect(call[0]).not.toMatch(/filter\[tier\]=.*,/)
+      }
+    })
+  })
+
+  describe('result merging', () => {
+    it('combines results from both tier requests into one array', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce(okResponse([{ id: 1 }, { id: 2 }]))
+        .mockResolvedValueOnce(okResponse([{ id: 3 }]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      const result = await fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
+      expect(result.map(r => r.id)).toEqual([1, 2, 3])
+    })
+
+    it('deduplicates entries with the same id appearing in both responses', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce(okResponse([{ id: 1 }, { id: 2 }]))
+        .mockResolvedValueOnce(okResponse([{ id: 2 }, { id: 3 }]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      const result = await fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
+      expect(result).toHaveLength(3)
+      expect(result.map(r => r.id)).toEqual([1, 2, 3])
+    })
+
+    it('returns empty array when both responses return empty arrays', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(okResponse([]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      const result = await fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
+      expect(result).toEqual([])
+    })
+
+    it('treats a non-array API response as empty (does not throw)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(okResponse({ error: 'unexpected' }))
+      vi.stubGlobal('fetch', mockFetch)
+
+      const result = await fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('error handling', () => {
+    it('returns only the successful tier results when one request fails', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce(errResponse(503))
+        .mockResolvedValueOnce(okResponse([{ id: 10 }]))
+      vi.stubGlobal('fetch', mockFetch)
+
+      const result = await fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe(10)
+    })
+
+    it('throws if both tier requests fail so callers do not cache empty results', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(errResponse(503))
+      vi.stubGlobal('fetch', mockFetch)
+
+      await expect(
+        fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
+      ).rejects.toThrow('PandaScore tier fetch failed')
     })
   })
 })

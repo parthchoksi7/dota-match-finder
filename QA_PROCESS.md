@@ -13,7 +13,7 @@ npm test -- --coverage      # With coverage report
 ```
 
 All tests must pass before pushing to production. The test suite covers:
-- `__tests__/tier-filter.test.js` - Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'` or `'a'`) and `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` or `'professional'` set)
+- `__tests__/tier-filter.test.js` - Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'` or `'a'`), `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` or `'professional'` set), and `fetchByTiers` (verifies two separate fetch calls are made with individual filter values -- never comma-separated -- and that results are merged/deduplicated correctly)
 - `__tests__/auto-tweet.test.js` - Auto-tweet cron: `winsNeeded`, `seriesComplete`, `seriesResult` (including BO2 draws)
 - `__tests__/icsGenerator.test.js` — ICS calendar generation
 - `src/__tests__/utils.test.js` — Frontend utils: `formatDuration`, `formatRelativeTime`, `getSeriesLabel`, `groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries`, `getSeriesWins`, `trackEvent`
@@ -122,7 +122,7 @@ For features that touch core match data, series grouping, or new API integration
 | Auto-tweet changes | Manually trigger workflow; check @SpectateDota2 |
 | Calendar changes | Subscribe URL generates; .ics downloads; events appear in calendar app |
 | Search changes | Search and clear both work; query is tracked in GA4 |
-| Tier filter changes | At least one known tier-S or tier-A event (e.g. DreamLeague, PGL, Premier Series, ESL Challenger) appears in live/upcoming/tournaments; a known non-pro event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results |
+| Tier filter changes | At least one known tier-S or tier-A event (e.g. DreamLeague, PGL, Premier Series, ESL Challenger) appears in live/upcoming/tournaments; a known non-pro event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results. Any new `filter[param]=value` added to a PandaScore URL must be tested for multi-value support before using comma-separated syntax -- write a unit test that mocks `fetch` and asserts the URL contains the expected single-value parameter |
 
 ---
 

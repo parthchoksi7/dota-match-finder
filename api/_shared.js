@@ -44,6 +44,34 @@ export async function getPremiumLeagueIds() {
   return _premiumLeagueIds
 }
 
+/**
+ * Fires two parallel PandaScore requests (one for tier=s, one for tier=a) and
+ * returns a merged, deduplicated array. PandaScore does not accept comma-separated
+ * values in filter[tier] -- "s,a" is treated as a literal string, returning nothing.
+ * Throws if BOTH requests fail so callers that cache results don't poison the cache.
+ * @param {string} url - base URL already containing a '?' query string
+ * @param {object} headers - Authorization + Accept headers for PandaScore
+ */
+export async function fetchByTiers(url, headers) {
+  const [sRes, aRes] = await Promise.all([
+    fetch(`${url}&filter[tier]=s`, { headers }),
+    fetch(`${url}&filter[tier]=a`, { headers }),
+  ])
+  if (!sRes.ok && !aRes.ok) {
+    throw new Error(`PandaScore tier fetch failed: ${sRes.status} / ${aRes.status}`)
+  }
+  const [sData, aData] = await Promise.all([
+    sRes.ok ? sRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+    aRes.ok ? aRes.json().then(d => Array.isArray(d) ? d : []) : Promise.resolve([]),
+  ])
+  const seen = new Set()
+  return [...sData, ...aData].filter(t => {
+    if (seen.has(t.id)) return false
+    seen.add(t.id)
+    return true
+  })
+}
+
 export const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
 export const STREAM_TTL = 60 * 60 * 24 * 14 // 14 days
