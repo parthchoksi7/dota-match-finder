@@ -226,10 +226,6 @@ const LIST_TTL = 60 * 60 * 6        // 6 hours - catches stage transitions (Grou
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
-// filter[tier] returns 400 on game-specific endpoints; use the generic base with
-// filter[videogame]=dota-2 for any fetch that needs filter[tier] support.
-const PANDASCORE_GENERIC_DOTA = 'https://api.pandascore.co/tournaments'
-const DOTA2_VG = 'filter[videogame]=dota-2'
 
 // Tournament objects from /tournaments/* have tier on their parent league.
 function isTier1(t) {
@@ -298,9 +294,9 @@ async function fetchTournamentList(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [runningRes, upcomingRes, pastRes] = await Promise.all([
-    fetch(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
-    fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
-    fetch(`${PANDASCORE_GENERIC_DOTA}/past?${DOTA2_VG}&sort=-end_at&page[size]=20`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=20`, { headers }),
   ])
   if (!runningRes.ok || !upcomingRes.ok) {
     throw new Error(`PandaScore error: ${runningRes.status} / ${upcomingRes.status}`)
@@ -333,8 +329,8 @@ async function fetchTournamentStatuses(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const [runningRes, upcomingRes] = await Promise.all([
-    fetch(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
-    fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=50`, { headers }),
   ])
   const [running, upcoming] = await Promise.all([
     runningRes.ok ? runningRes.json() : Promise.resolve([]),
@@ -436,7 +432,7 @@ async function fetchSeriesList(token) {
     fetch(`${PANDASCORE_BASE}/series/running?sort=begin_at&page[size]=50`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/upcoming?sort=begin_at&page[size]=50`, { headers }),
     fetch(`${PANDASCORE_BASE}/series/past?sort=-end_at&page[size]=20`, { headers }),
-    fetch(`${PANDASCORE_GENERIC_DOTA}/running?${DOTA2_VG}&sort=begin_at&page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/running?sort=begin_at&page[size]=50`, { headers }),
   ])
 
   const toArr = async (res) => {
@@ -459,7 +455,7 @@ async function fetchSeriesList(token) {
 
   // Fetch upcoming at the sub-stage (tournament) level as a fallback - PandaScore
   // creates series records late, but tournament sub-stage entries appear earlier.
-  const upTourRes = await fetch(`${PANDASCORE_GENERIC_DOTA}/upcoming?${DOTA2_VG}&sort=begin_at&page[size]=100`, { headers })
+  const upTourRes = await fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=100`, { headers })
   const upcomingTours = upTourRes.ok ? await upTourRes.json().then(d => Array.isArray(d) ? d : []) : []
   console.log(`Upcoming sub-stage tours (all tiers, client-filtered): ${upcomingTours.length}`)
 
