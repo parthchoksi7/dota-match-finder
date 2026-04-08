@@ -370,7 +370,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v7'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v8'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -475,14 +475,17 @@ async function fetchSeriesList(token) {
 
   console.log(`Tier-1 serie_ids - running:${tier1RunningSerieIds.size} upcoming:${tier1UpcomingSerieIds.size} past:${tier1PastSerieIds.size} | upcomingTours total:${upcomingTours.length} pastTours total:${pastTours.length}`)
 
-  // Group upcoming sub-stage entries by serie_id; skip serie_ids already running.
-  const runningIds = new Set((running || []).map(s => s.id))
+  // Group upcoming sub-stage entries by serie_id.
+  // Only skip a serie_id if it will actually appear in the live section (tier1RunningSerieIds),
+  // not just because the series object exists in the running list (runningIds would be wrong
+  // here because series objects have no tier info - a "running" series with no tier-1 running
+  // tournaments would be blocked from upcoming but also absent from live).
   const seenSerieIds = new Set()
   const syntheticUpcoming = []
   for (const t of (upcomingTours || [])) {
     if (!isTier1(t)) continue
     const sid = t.serie_id || t.serie?.id
-    if (!sid || runningIds.has(sid) || seenSerieIds.has(sid)) continue
+    if (!sid || tier1RunningSerieIds.has(sid) || seenSerieIds.has(sid)) continue
     seenSerieIds.add(sid)
     syntheticUpcoming.push({
       id: sid,
