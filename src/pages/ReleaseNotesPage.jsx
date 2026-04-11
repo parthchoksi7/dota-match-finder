@@ -2,6 +2,18 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 6, 2026",
+    tag: "improvement",
+    title: "Cleaner homepage - only top-tier tournaments shown",
+    desc: "The homepage now shows significantly fewer, higher-quality matches. OpenDota's professional tier was too broad, including many lower-tier regional events. The feed is now filtered against PandaScore's tier S and A league names (e.g. DreamLeague, ESL One, PGL, BLAST) using substring matching. Falls back to the previous OpenDota filter if PandaScore is unavailable, so the homepage never breaks.",
+    items: [
+      "Homepage shows only tier S and tier A events from PandaScore.",
+      "Filter is based on league names fetched live from PandaScore (cached 2 hours) - no hardcoded keyword lists.",
+      "Graceful fallback: if PandaScore names cannot be fetched, OpenDota premium tier filter is used automatically.",
+      "Cache can be busted via /api/tournaments?mode=tier1-leagues&bust=1.",
+    ],
+  },
+  {
     date: "Apr 8, 2026",
     tag: "fix",
     title: "Upcoming matches and VOD links restored for Premier Series and similar events",

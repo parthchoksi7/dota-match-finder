@@ -543,6 +543,61 @@ async function fetchSeriesList(token) {
   return payload
 }
 
+// ── Tier 1 league names mode (?mode=tier1-leagues) ──────────────────────────
+// Returns the unique PandaScore league names for Tier S/A tournaments.
+// Used by src/api.js to filter OpenDota promatches to only Tier 1 events,
+// replacing the broader OpenDota "professional" tier classification.
+
+const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
+const TIER1_NAMES_TTL = 60 * 60 * 2 // 2 hours
+
+async function fetchTier1LeagueNames(token) {
+  try {
+    const cached = await kv.get(KV_TIER1_NAMES_KEY)
+    if (cached) {
+      console.log('tier1-leagues: serving from KV cache')
+      return cached
+    }
+  } catch (err) {
+    console.warn('tier1-leagues KV read failed:', err?.message)
+  }
+
+  console.log('tier1-leagues: fetching from PandaScore')
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  const toArr = async res => {
+    if (!res.ok) return []
+    const d = await res.json()
+    return Array.isArray(d) ? d : []
+  }
+
+  // Fetch running, upcoming, and recent past (30 entries = ~6 months) tournaments.
+  // Past window is intentionally small to avoid including leagues that were
+  // temporarily Tier A years ago but are no longer relevant.
+  const [runRes, upRes, pastRes] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/tournaments/running?page[size]=50`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/upcoming?sort=begin_at&page[size]=100`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/past?sort=-end_at&page[size]=30`, { headers }),
+  ])
+  const [run, up, past] = await Promise.all([toArr(runRes), toArr(upRes), toArr(pastRes)])
+
+  // isTier1 here is the LOCAL function (checks t?.tier directly on tournament objects).
+  // min-length guard (>= 4 chars) prevents accidental broad matches from short org names.
+  const names = [...new Set(
+    [...run, ...up, ...past]
+      .filter(isTier1)
+      .map(t => t.league?.name)
+      .filter(n => n && n.length >= 4)
+  )]
+
+  console.log(`tier1-leagues: ${names.length} names — ${names.join(', ')}`)
+
+  // Never cache an empty result — would poison the filter until TTL expires.
+  if (names.length > 0) {
+    kv.set(KV_TIER1_NAMES_KEY, names, { ex: TIER1_NAMES_TTL }).catch(() => {})
+  }
+  return names
+}
+
 // ── Grand Finals mode (?mode=grand-finals) ──────────────────────────────────
 // Returns OpenDota match IDs (via PandaScore game.external_identifier) for
 // recently completed Grand Final series. Used by LatestMatches/MyTeamsSection
@@ -795,6 +850,16 @@ export default async function handler(req, res) {
     res.setHeader('Content-Disposition', `inline; filename="dota2-tournament-${seriesId}.ics"`)
     res.setHeader('Cache-Control', 'public, max-age=1800')
     return res.status(200).send(icsContent)
+  }
+
+  // Tier 1 league names mode - returns PandaScore tier S/A league names for client-side filtering
+  if (req.query?.mode === 'tier1-leagues') {
+    if (req.query?.bust === '1') {
+      try { await kv.del(KV_TIER1_NAMES_KEY) } catch {}
+      console.log('tier1-leagues cache cleared')
+    }
+    const names = await fetchTier1LeagueNames(token)
+    return res.status(200).json({ names })
   }
 
   // Grand Finals mode - returns OpenDota match IDs for Grand Final games

@@ -1,8 +1,23 @@
+import { matchesTier1Names } from './utils'
+
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
 
-// Module-level cache; persists for the browser session so successive
-// "load more" calls skip the /api/leagues round-trip.
+// Module-level caches; persist for the browser session so successive
+// "load more" calls skip network round-trips.
+let _tier1LeagueNames = null
 let _premiumLeagueIds = null
+
+async function fetchTier1LeagueNames() {
+  if (_tier1LeagueNames !== null) return _tier1LeagueNames
+  try {
+    const res = await fetch('/api/tournaments?mode=tier1-leagues')
+    if (res.ok) {
+      const data = await res.json()
+      _tier1LeagueNames = (data.names || []).map(n => n.toLowerCase())
+    }
+  } catch {}
+  return _tier1LeagueNames || []
+}
 
 async function fetchPremiumLeagueIds() {
   if (_premiumLeagueIds) return _premiumLeagueIds
@@ -18,20 +33,28 @@ async function fetchPremiumLeagueIds() {
 }
 
 export async function fetchProMatches(lastMatchId = null) {
-  const premiumIds = await fetchPremiumLeagueIds()
-
   const url = lastMatchId
     ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${lastMatchId}`
     : `${OPENDOTA_BASE}/promatches`
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+  // Fetch tier1 names and premium IDs in parallel with the promatches request.
+  // Both are cached after the first call so load-more incurs no extra latency.
   let res
-  try {
-    res = await fetch(url, { signal: controller.signal })
-  } finally {
-    clearTimeout(timeoutId)
-  }
+  const [tier1Names, premiumIds] = await Promise.all([
+    fetchTier1LeagueNames(),
+    fetchPremiumLeagueIds(),
+    (async () => {
+      try {
+        res = await fetch(url, { signal: controller.signal })
+      } finally {
+        clearTimeout(timeoutId)
+      }
+    })(),
+  ])
+
   if (!res.ok) throw new Error(`OpenDota promatches error: ${res.status}`)
   const data = await res.json()
 
@@ -39,7 +62,11 @@ export async function fetchProMatches(lastMatchId = null) {
     return { matches: [], nextMatchId: lastMatchId }
   }
 
-  const allMatches = data.filter(m => premiumIds.has(m.leagueid))
+  const allMatches = data.filter(m => {
+    const nameMatch = matchesTier1Names(m.league_name, tier1Names)
+    if (nameMatch !== null) return nameMatch   // PandaScore tier S/A filter
+    return premiumIds.has(m.leagueid)          // fallback: OpenDota premium/professional
+  })
   const cursor = data[data.length - 1].match_id
 
   // Drop the last series only if it is genuinely incomplete (could be cut off by pagination).

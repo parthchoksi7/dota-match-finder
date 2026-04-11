@@ -15,6 +15,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { isTier1, buildPremiumLeagueIds, fetchByTiers } from '../api/_shared.js'
+import { matchesTier1Names } from '../src/utils.js'
 
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
 
@@ -338,6 +339,115 @@ describe('fetchByTiers', () => {
       await expect(
         fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
       ).rejects.toThrow('PandaScore tier fetch failed')
+    })
+  })
+})
+
+// ── matchesTier1Names (PandaScore name filter for OpenDota promatches) ────────
+
+describe('matchesTier1Names', () => {
+  const names = ['dreamleague', 'esl one', 'pgl wallachia', 'blast']
+
+  describe('positive matches', () => {
+    it('returns true when league_name contains a tier1 name', () => {
+      expect(matchesTier1Names('DreamLeague Season 25', names)).toBe(true)
+      expect(matchesTier1Names('ESL One Bangkok 2025', names)).toBe(true)
+      expect(matchesTier1Names('PGL Wallachia Season 8', names)).toBe(true)
+      expect(matchesTier1Names('BLAST Slam VII', names)).toBe(true)
+    })
+
+    it('is case-insensitive', () => {
+      expect(matchesTier1Names('DREAMLEAGUE SEASON 25', names)).toBe(true)
+      expect(matchesTier1Names('esl one birmingham 2026', names)).toBe(true)
+    })
+
+    it('matches when league name appears in the middle of a longer string', () => {
+      expect(matchesTier1Names('Valve The International 2025', ['the international'])).toBe(true)
+    })
+  })
+
+  describe('negative matches', () => {
+    it('returns false for non-matching lower-tier leagues', () => {
+      expect(matchesTier1Names('BetBoom Dacha', names)).toBe(false)
+      expect(matchesTier1Names('BTS Pro Series', names)).toBe(false)
+      expect(matchesTier1Names('Dota 2 Champions League', names)).toBe(false)
+    })
+
+    it('does not false-positive on a league that contains "esl" but not "esl one"', () => {
+      expect(matchesTier1Names('ESL Meisterschaft', names)).toBe(false)
+      expect(matchesTier1Names('ESL Amateur Open', names)).toBe(false)
+    })
+  })
+
+  describe('min-length guard (names shorter than 4 chars are skipped)', () => {
+    it('treats a list of only short names as effectively empty, returning null', () => {
+      const shortNames = ['esl', 'pgl']  // both 3 chars
+      expect(matchesTier1Names('ESL One Bangkok', shortNames)).toBe(null)
+    })
+
+    it('uses valid long names and ignores short names in a mixed list', () => {
+      const mixed = ['esl', 'dreamleague']  // 'esl' skipped, 'dreamleague' used
+      expect(matchesTier1Names('DreamLeague Season 25', mixed)).toBe(true)
+      expect(matchesTier1Names('ESL One Bangkok', mixed)).toBe(false)
+    })
+  })
+
+  describe('fallback sentinel: returns null when names list is empty or absent', () => {
+    it('returns null for an empty array', () => {
+      expect(matchesTier1Names('DreamLeague Season 25', [])).toBe(null)
+    })
+
+    it('returns null for null', () => {
+      expect(matchesTier1Names('DreamLeague Season 25', null)).toBe(null)
+    })
+
+    it('returns null for undefined', () => {
+      expect(matchesTier1Names('DreamLeague Season 25', undefined)).toBe(null)
+    })
+  })
+
+  describe('graceful handling of bad leagueName input', () => {
+    it('returns false (not null or throw) for null leagueName', () => {
+      expect(matchesTier1Names(null, names)).toBe(false)
+    })
+
+    it('returns false for undefined leagueName', () => {
+      expect(matchesTier1Names(undefined, names)).toBe(false)
+    })
+
+    it('returns false for empty string leagueName', () => {
+      expect(matchesTier1Names('', names)).toBe(false)
+    })
+  })
+
+  describe('integration: used to filter OpenDota promatches', () => {
+    it('correctly keeps tier1 matches and drops lower-tier ones', () => {
+      const tier1Names = ['dreamleague', 'esl one', 'pgl wallachia']
+      const promatches = [
+        { match_id: 1, league_name: 'DreamLeague Season 25' },
+        { match_id: 2, league_name: 'ESL One Bangkok 2025' },
+        { match_id: 3, league_name: 'BetBoom Dacha' },
+        { match_id: 4, league_name: 'Dota 2 Champions League' },
+        { match_id: 5, league_name: 'PGL Wallachia Season 8' },
+      ]
+      const filtered = promatches.filter(m => matchesTier1Names(m.league_name, tier1Names) === true)
+      expect(filtered.map(m => m.match_id)).toEqual([1, 2, 5])
+    })
+
+    it('falls back correctly when tier1Names is empty (null sentinel)', () => {
+      // Simulate: PandaScore unavailable, use OpenDota premiumIds instead
+      const tier1Names = []
+      const premiumIds = new Set([100, 200])
+      const promatches = [
+        { match_id: 1, league_name: 'DreamLeague Season 25', leagueid: 100 },
+        { match_id: 2, league_name: 'Some Amateur League', leagueid: 300 },
+      ]
+      const filtered = promatches.filter(m => {
+        const nameMatch = matchesTier1Names(m.league_name, tier1Names)
+        if (nameMatch !== null) return nameMatch
+        return premiumIds.has(m.leagueid)
+      })
+      expect(filtered.map(m => m.match_id)).toEqual([1])
     })
   })
 })
