@@ -12,7 +12,7 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, getTwitchStreams } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -84,12 +84,18 @@ export default async function handler(req, res) {
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
     const url = `${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=50&range[scheduled_at]=${now.toISOString()},${cutoff}`
 
-    const response = await fetch(url, { headers })
+    // Fetch tier1 names alongside matches — used as a fallback when PandaScore
+    // hasn't assigned a tier to a new series yet (e.g. DreamLeague S29 at launch).
+    const [response, tier1Names] = await Promise.all([
+      fetch(url, { headers }),
+      kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
+    ])
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
+    const names = Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []
     const data = await response.json()
     const matches = (data || [])
-      .filter(m => isTier1(m))
+      .filter(m => isTier1(m) || isTier1ByName(m, names))
       .filter(m => m.opponents?.length === 2)
       .map(mapMatch)
 

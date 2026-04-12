@@ -19,6 +19,25 @@ export const isTier1 = (match) => {
 }
 
 /**
+ * Fallback tier check using league names cached in KV by ?mode=tier1-leagues.
+ * PandaScore sometimes creates new series (e.g. DreamLeague S29) before assigning
+ * a tier to the tournament object — isTier1() returns false even for top-tier events.
+ * This check uses the league name against the already-cached tier S/A name list.
+ * Call only when isTier1(m) is false and match.tournament.tier is null/empty.
+ * @param {object} match - PandaScore match object
+ * @param {string[]} tier1Names - array of lowercase league names from KV cache
+ */
+export const isTier1ByName = (match, tier1Names) => {
+  if (!tier1Names || tier1Names.length === 0) return false
+  const leagueName = (match?.league?.name || '').toLowerCase()
+  if (!leagueName) return false
+  return tier1Names.some(n => n.length >= 4 && leagueName.includes(n))
+}
+
+/** KV key for the tier1 league names cache (written by api/tournaments.js ?mode=tier1-leagues) */
+export const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
+
+/**
  * Builds a Set of OpenDota league IDs whose tier is "premium" or "professional"
  * (the OpenDota equivalents of PandaScore tiers S and A respectively).
  * Pure function; accepts the raw array returned by GET /api/leagues.

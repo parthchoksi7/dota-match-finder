@@ -10,7 +10,7 @@ const kv = new Redis({
 const KV_KEY = 'dota2:live_matches_v2'
 const TTL = 60 * 2 // 2 minutes
 
-import { isTier1, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -179,8 +179,12 @@ export default async function handler(req, res) {
       const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
       const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers })
       if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
-      const data = await response.json()
-      const tier1 = (data || []).filter(m => isTier1(m) && m.opponents?.length === 2)
+      const [data, tier1NamesCron] = await Promise.all([
+        response.json(),
+        kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
+      ])
+      const namesCron = Array.isArray(tier1NamesCron) ? tier1NamesCron.map(n => n.toLowerCase()) : []
+      const tier1 = (data || []).filter(m => (isTier1(m) || isTier1ByName(m, namesCron)) && m.opponents?.length === 2)
       await enrichMultiStreamMatches(tier1, headers)
       const written = await cacheRunningStreams(tier1)
       console.log(`live-matches cron: ${written} stream writes`)
@@ -211,12 +215,16 @@ export default async function handler(req, res) {
   try {
     console.log('Live matches: fetching from PandaScore')
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-    const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers })
+    const [response, tier1Names] = await Promise.all([
+      fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers }),
+      kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
+    ])
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
+    const names = Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []
     const data = await response.json()
     const tier1Raw = (data || [])
-      .filter(m => isTier1(m))
+      .filter(m => isTier1(m) || isTier1ByName(m, names))
       .filter(m => m.opponents?.length === 2)
     await enrichMultiStreamMatches(tier1Raw, headers)
     const matches = tier1Raw.map(mapMatch)
