@@ -372,7 +372,7 @@ async function fetchTournamentStatuses(token) {
 // Used by /tournaments page and TournamentBar. Fetches PandaScore series
 // (not individual sub-stages) so fans see "PGL Wallachia S7" as one entry.
 
-const KV_SERIES_KEY = 'tournaments:dota2:series_list_v8'
+const KV_SERIES_KEY = 'tournaments:dota2:series_list_v9'
 const SERIES_TTL = 60 * 60 // 1 hour
 
 function formatPrizePool(prize) {
@@ -504,9 +504,15 @@ async function fetchSeriesList(token) {
     })
   }
 
-  // Merge series-level upcoming (filtered by tier-1 serie_id set) with synthetic entries.
+  // Merge series-level upcoming with synthetic entries.
+  // A series passes if it is in the tier-1 tournament set OR if its league name
+  // matches a known major brand - the latter catches series that exist in
+  // /series/upcoming before PandaScore has created their tournament sub-stages.
   const allUpcoming = [
-    ...(upcoming || []).filter(s => tier1UpcomingSerieIds.has(s.id)).map(s => mapSeries(s, 'upcoming')),
+    ...(upcoming || []).filter(s =>
+      tier1UpcomingSerieIds.has(s.id) ||
+      isTier1ByFields(null, s.league?.name)
+    ).map(s => mapSeries(s, 'upcoming')),
     ...syntheticUpcoming,
   ]
   const seenUpcomingIds = new Set()
@@ -521,14 +527,18 @@ async function fetchSeriesList(token) {
   const completedFiltered = (past || []).filter(s => tier1PastSerieIds.has(s.id))
   const rescuedToLive = completedFiltered.filter(s => runningTourSerieIds.has(s.id))
   const trulyCompleted = completedFiltered.filter(s => !runningTourSerieIds.has(s.id))
-  console.log(`After tier filter - live:${(running||[]).filter(s => tier1RunningSerieIds.has(s.id)).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(s => tier1UpcomingSerieIds.has(s.id)).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length} | synthetic:${syntheticUpcoming.length} deduped:${deduplicatedUpcoming.length}`)
+  console.log(`After tier filter - live:${(running||[]).filter(s => tier1RunningSerieIds.has(s.id) || isTier1ByFields(null, s.league?.name)).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(s => tier1UpcomingSerieIds.has(s.id) || isTier1ByFields(null, s.league?.name)).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length} | synthetic:${syntheticUpcoming.length} deduped:${deduplicatedUpcoming.length}`)
   if (rescuedToLive.length > 0) {
     console.log(`Rescued ${rescuedToLive.length} series from past→live: ${rescuedToLive.map(s => s.full_name || s.name).join(', ')}`)
   }
 
   const payload = {
     live: [
-      ...(running || []).filter(s => tier1RunningSerieIds.has(s.id)).map(s => mapSeries(s, 'live')),
+      // Same dual check as allUpcoming: tier-1 tournament set OR known major brand league name.
+      ...(running || []).filter(s =>
+        tier1RunningSerieIds.has(s.id) ||
+        isTier1ByFields(null, s.league?.name)
+      ).map(s => mapSeries(s, 'live')),
       ...rescuedToLive.map(s => mapSeries(s, 'live')),
     ],
     upcoming: deduplicatedUpcoming,

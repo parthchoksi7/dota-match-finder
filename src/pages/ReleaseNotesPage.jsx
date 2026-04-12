@@ -4,8 +4,32 @@ const RELEASES = [
   {
     date: "Apr 12, 2026",
     tag: "fix",
-    title: "DreamLeague Season 29 qualifiers now visible in tournaments and match sections",
-    desc: "DreamLeague Season 29 closed qualifiers were not appearing in the tournament page or live/upcoming match sections. PandaScore assigns a lower API tier to qualifier sub-stages of major events even when the main event is top-tier. The fix adds a league-name keyword check as a fallback: if a tournament's league name matches a known major brand (DreamLeague, PGL, ESL One, BLAST, WePlay, The International), it passes the tier filter regardless of the API tier value. The keyword list is centralised in a single place shared by all three tier-filter locations — match objects, tournament objects, and the stream cache — so no future qualifier stage of a known major can slip through. The change does not affect unrelated amateur or semi-pro events.",
+    title: "All DreamLeague S29 regional qualifier series now appear in the Tournaments tab",
+    desc: "Only the SEA qualifier was showing in the Tournaments tab. WEU, NA, and other regional qualifier series were missing because PandaScore sometimes creates a series in /series/upcoming before it creates the tournament sub-stages that the filter depended on. The fix adds a direct league-name check as a fallback so any DreamLeague, PGL, ESL One, or other major-brand series is included regardless of whether its tournament sub-stages exist yet.",
+  },
+  {
+    date: "Apr 12, 2026",
+    tag: "fix",
+    title: "Stream caching now works for DreamLeague and other tier1 events even on cold start",
+    desc: "Stream channel caching for live matches was silently skipped for events like DreamLeague qualifier matches when the tier1 names cache in Redis was cold (e.g. after a fresh flush). The fix merges a hardcoded permanent list of tier1 organizers (DreamLeague, ESL One, PGL, BLAST, etc.) into the filter so it always catches these events, regardless of whether the KV cache has been pre-warmed.",
+  },
+  {
+    date: "Apr 12, 2026",
+    tag: "fix",
+    title: "DreamLeague S29 and newly created tournaments now appear in upcoming and live sections",
+    desc: "When PandaScore creates a new series (e.g. DreamLeague Season 29), it sometimes doesn't assign a tier to the tournament object immediately. The tier check was returning null, causing all matches to be silently filtered out - even for well-known Tier 1 events. The fix uses the league name as a fallback, cross-referencing against the same cached tier S/A name list used by the homepage results filter.",
+  },
+  {
+    date: "Apr 6, 2026",
+    tag: "improvement",
+    title: "Cleaner homepage - only top-tier tournaments shown",
+    desc: "The homepage now shows significantly fewer, higher-quality matches. OpenDota's professional tier was too broad, including many lower-tier regional events. The feed is now filtered against PandaScore's tier S and A league names (e.g. DreamLeague, ESL One, PGL, BLAST) using substring matching. Falls back to the previous OpenDota filter if PandaScore is unavailable, so the homepage never breaks.",
+    items: [
+      "Homepage shows only tier S and tier A events from PandaScore.",
+      "Filter is based on league names fetched live from PandaScore (cached 2 hours) - no hardcoded keyword lists.",
+      "Graceful fallback: if PandaScore names cannot be fetched, OpenDota premium tier filter is used automatically.",
+      "Cache can be busted via /api/tournaments?mode=tier1-leagues&bust=1.",
+    ],
   },
   {
     date: "Apr 8, 2026",
