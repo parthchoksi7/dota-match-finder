@@ -115,7 +115,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Live Matches (PandaScore)
 - `api/live-matches.js` calls PandaScore `/dota2/matches/running`
-- Filters to tier-S and tier-A tournaments by checking `match.league.tier === 's' || 'a'` on each PandaScore match object; maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
+- Filters to tier-S and tier-A tournaments using `isTier1(m) || isTier1ByName(m, names)`. Primary: checks `match.tournament.tier`. Fallback: checks `match.league.name` against KV-cached tier1 names — handles newly-created series where PandaScore hasn't assigned a tier yet (e.g. DreamLeague S29 at launch). Maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
 - `seriesScore` - derived from `m.results` (per-team win counts mapped by team ID)
 - `currentGame` - position of the game with `status === 'running'`
 - `games` - array of `{position, status, winnerName, matchId}` where `matchId` is `external_identifier` (OpenDota match ID)
@@ -125,7 +125,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Spoiler-free mode: hides series score (shows "vs"), hides winner names in chips, disables team dimming
 
 ### Upcoming Matches (PandaScore)
-- `api/upcoming-matches.js` fetches next 72h of scheduled matches
+- `api/upcoming-matches.js` fetches next 72h of scheduled matches; tier-filters using same `isTier1(m) || isTier1ByName(m, names)` pattern as live-matches (same fallback for newly-created series with no tier assigned)
 - Displayed with scheduled time in user's local timezone
 - Searchable by team or tournament name (shared search bar with live section)
 - Shows first 2 by default, "Show N more" button to expand all
@@ -345,7 +345,9 @@ Tournaments are filtered using the tier fields exposed by each data source. No h
 **OpenDota professional** = second-tier pro events; equivalent of PandaScore tier A.
 
 Key exports in `api/_shared.js`:
-- `isTier1(match)` - checks `match.league.tier === 's' || 'a'` for PandaScore objects
+- `isTier1(match)` - checks `match.tournament.tier` (primary field for match objects) then `match.league.tier` for 's' or 'a'
+- `isTier1ByName(match, tier1Names)` - **fallback** for when PandaScore hasn't assigned a tier to a newly-created series yet. Checks `match.league.name` against the cached tier1 names array (same list used by `matchesTier1Names`). Used in `live-matches.js` and `upcoming-matches.js` as `isTier1(m) || isTier1ByName(m, names)`. Names are fetched from KV under `KV_TIER1_NAMES_KEY`.
+- `KV_TIER1_NAMES_KEY` - exported constant `'dota2:tier1_league_names_v1'` so all consumers read from the same KV key
 - `buildPremiumLeagueIds(leagues)` - pure function; builds a `Set<leagueid>` of premium+professional OpenDota leagues
 - `getPremiumLeagueIds()` - async; fetches `/api/leagues`, caches result in memory
 

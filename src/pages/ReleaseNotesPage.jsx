@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 12, 2026",
+    tag: "fix",
+    title: "DreamLeague S29 and newly created tournaments now appear in upcoming and live sections",
+    desc: "When PandaScore creates a new series (e.g. DreamLeague Season 29), it sometimes doesn't assign a tier to the tournament object immediately. The tier check was returning null, causing all matches to be silently filtered out - even for well-known Tier 1 events. The fix uses the league name as a fallback, cross-referencing against the same cached tier S/A name list used by the homepage results filter.",
+  },
+  {
     date: "Apr 6, 2026",
     tag: "improvement",
     title: "Cleaner homepage - only top-tier tournaments shown",
