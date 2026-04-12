@@ -635,24 +635,30 @@ async function fetchGrandFinalMatchIds(token) {
   console.log('Grand finals: fetching from PandaScore')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
-  // Step 1: Find recent Grand Final tournament stages by name.
-  // Using the /tournaments endpoint with search[name] is more reliable than
-  // scanning the last N past matches - those 100 matches can cover just a few
-  // days and older Grand Finals simply won't appear.
-  const tourRes = await fetch(
-    `${PANDASCORE_BASE}/tournaments/past?search[name]=Grand+Final&sort=-end_at&page[size]=15`,
-    { headers }
-  )
-  if (!tourRes.ok) throw new Error(`PandaScore tournaments error: ${tourRes.status}`)
-  const tournaments = await tourRes.json()
+  // Step 1: Find recent championship tournament stages.
+  // Run two searches in parallel — different leagues name the stage differently
+  // ("Grand Final" for DreamLeague/ESL, "Finals" for Premier Series, etc.).
+  // search[name] is a substring match so we filter by regex afterwards to avoid
+  // including "Upper Bracket Final", "Semifinal", etc.
+  const toArr = async r => { if (!r.ok) return []; const d = await r.json(); return Array.isArray(d) ? d : [] }
+  const [res1, res2] = await Promise.all([
+    fetch(`${PANDASCORE_BASE}/tournaments/past?search[name]=Grand+Final&sort=-end_at&page[size]=15`, { headers }),
+    fetch(`${PANDASCORE_BASE}/tournaments/past?search[name]=Finals&sort=-end_at&page[size]=15`, { headers }),
+  ])
+  if (!res1.ok && !res2.ok) throw new Error(`PandaScore tournaments error: ${res1.status} / ${res2.status}`)
+  const [t1, t2] = await Promise.all([toArr(res1), toArr(res2)])
 
-  console.log(`Grand finals: found ${tournaments.length} Grand Final tournament stages`)
+  // Deduplicate by ID, then keep only championship-round stages.
+  // Accepts: "Final", "Finals", "Grand Final", "Grand Finals" (case-insensitive).
+  // Rejects: "Upper Bracket Final", "Lower Bracket Final", "Semifinal", etc.
+  const seen = new Set()
+  const tournaments = [...t1, ...t2].filter(t => {
+    if (seen.has(t.id)) return false
+    seen.add(t.id)
+    return /^(grand )?finals?$/i.test((t.name || '').trim())
+  })
 
-  if (!tournaments.length) {
-    const empty = { matchIds: [], fetchedAt: new Date().toISOString() }
-    await kv.set(KV_GF_KEY, empty, { ex: GF_TTL }).catch(() => {})
-    return empty
-  }
+  console.log(`Grand finals: found ${tournaments.length} championship stages`)
 
   // Step 2: Fetch the matches for each Grand Final stage in parallel.
   // Each match has games[].external_identifier which is the OpenDota match_id.
