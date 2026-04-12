@@ -5,18 +5,42 @@
  */
 
 /**
- * Returns true if the given PandaScore MATCH object is tier S or A.
+ * Known top-tier league name keywords. Single source of truth for the league-name override.
+ *
+ * PandaScore inconsistently assigns lower tiers to qualifier stages of major events
+ * (e.g. DreamLeague Season 29 closed qualifiers receive a lower API tier even though
+ * the main event is tier 's'). Any tournament or match whose league.name contains one
+ * of these keywords is treated as tier 1 regardless of the API tier value, so qualifiers
+ * for known major events are never silently excluded.
+ */
+export const TIER1_LEAGUE_KEYWORDS = ['dreamleague', 'pgl', 'esl one', 'blast', 'weplay', 'the international']
+
+/**
+ * Core tier-1 decision used by both match and tournament adapters below.
+ * Accepts the raw tier string and league name from whichever object type the caller holds.
+ *
+ * @param {string|null} tier       - PandaScore tier field ('s', 'a', 'b', ...)
+ * @param {string|null} leagueName - league.name (e.g. "DreamLeague", "PGL Wallachia")
+ */
+export function isTier1ByFields(tier, leagueName) {
+  const t = (tier || '').toLowerCase()
+  if (t === 's' || t === 'a') return true
+  return TIER1_LEAGUE_KEYWORDS.some(k => (leagueName || '').toLowerCase().includes(k))
+}
+
+/**
+ * Returns true if the given PandaScore MATCH object is tier 1.
  * Match objects from /dota2/matches/* carry tier on match.tournament.tier.
  * (match.league.tier and match.serie.tier are always null.)
- * NOTE: tournament objects from /dota2/tournaments/* also carry tier on t.tier.
- * Use the local isTier1(t) in tournaments.js for those.
+ * NOTE: tournament objects from /dota2/tournaments/* carry tier on t.tier directly.
+ * Use isTier1ByFields(t?.tier, t?.league?.name) as a one-liner adapter for those
+ * (tournaments.js does this via its local isTier1 wrapper).
  *   tier 's' - elite international LANs (TI, Majors, DreamLeague, ESL One, ...)
  *   tier 'a' - second-tier professional events (ESL Challenger, regional circuits, ...)
+ *   lower tier + known league name - qualifier stages of major events (league-name override)
  */
-export const isTier1 = (match) => {
-  const tier = (match?.tournament?.tier || match?.league?.tier || '').toLowerCase()
-  return tier === 's' || tier === 'a'
-}
+export const isTier1 = (match) =>
+  isTier1ByFields(match?.tournament?.tier || match?.league?.tier, match?.league?.name)
 
 /**
  * Builds a Set of OpenDota league IDs whose tier is "premium" or "professional"

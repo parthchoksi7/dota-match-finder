@@ -7,7 +7,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_KEY = 'dota2:upcoming_matches_v4'
+const KV_KEY = 'dota2:upcoming_matches_v5'
 const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'

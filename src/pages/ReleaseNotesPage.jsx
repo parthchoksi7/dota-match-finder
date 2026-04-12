@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 12, 2026",
+    tag: "fix",
+    title: "DreamLeague Season 29 qualifiers now visible in tournaments and match sections",
+    desc: "DreamLeague Season 29 closed qualifiers were not appearing in the tournament page or live/upcoming match sections. PandaScore assigns a lower API tier to qualifier sub-stages of major events even when the main event is top-tier. The fix adds a league-name keyword check as a fallback: if a tournament's league name matches a known major brand (DreamLeague, PGL, ESL One, BLAST, WePlay, The International), it passes the tier filter regardless of the API tier value. The keyword list is centralised in a single place shared by all three tier-filter locations — match objects, tournament objects, and the stream cache — so no future qualifier stage of a known major can slip through. The change does not affect unrelated amateur or semi-pro events.",
+  },
+  {
     date: "Apr 8, 2026",
     tag: "fix",
     title: "Upcoming matches and VOD links restored for Premier Series and similar events",

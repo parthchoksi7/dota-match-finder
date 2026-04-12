@@ -7,7 +7,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_KEY = 'dota2:live_matches_v2'
+const KV_KEY = 'dota2:live_matches_v3'
 const TTL = 60 * 2 // 2 minutes
 
 import { isTier1, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL } from './_shared.js'
