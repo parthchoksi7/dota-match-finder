@@ -178,3 +178,19 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   ]
   return []
 }
+
+// Permanent tier1 league organizers -- always included regardless of PandaScore
+// tier assignment state. Covers the case where PandaScore creates a new series
+// before assigning a tier to its tournament object (e.g. DreamLeague S29 SEA qualifier
+// showing tournament.tier = "c" while still being a DreamLeague broadcast event).
+// Exported so live-matches.js can merge this into its names array as a cold-KV fallback.
+export const PERMANENT_TIER1_NAMES = [
+  'DreamLeague',
+  'ESL One',
+  'PGL',
+  'BLAST',
+  'The International',
+  'Beyond The Summit',
+  'WePlay',
+  'Riyadh Masters',
+]

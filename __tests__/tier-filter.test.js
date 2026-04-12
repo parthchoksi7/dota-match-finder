@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { isTier1, buildPremiumLeagueIds, fetchByTiers } from '../api/_shared.js'
+import { isTier1, isTier1ByName, buildPremiumLeagueIds, fetchByTiers, PERMANENT_TIER1_NAMES } from '../api/_shared.js'
 import { matchesTier1Names } from '../src/utils.js'
 
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
@@ -448,6 +448,79 @@ describe('matchesTier1Names', () => {
         return premiumIds.has(m.leagueid)
       })
       expect(filtered.map(m => m.match_id)).toEqual([1])
+    })
+  })
+})
+
+// ── PERMANENT_TIER1_NAMES (hardcoded fallback list in api/_shared.js) ─────────
+//
+// These tests verify the export itself and the cold-KV merge pattern used in
+// live-matches.js and upcoming-matches.js. The merge ensures DreamLeague
+// qualifier matches (tournament.tier = "c") always pass isTier1ByName even
+// when KV_TIER1_NAMES_KEY has never been populated.
+
+describe('PERMANENT_TIER1_NAMES', () => {
+  describe('export shape', () => {
+    it('is exported as a non-empty array', () => {
+      expect(Array.isArray(PERMANENT_TIER1_NAMES)).toBe(true)
+      expect(PERMANENT_TIER1_NAMES.length).toBeGreaterThan(0)
+    })
+
+    it('includes DreamLeague', () => {
+      expect(PERMANENT_TIER1_NAMES).toContain('DreamLeague')
+    })
+
+    it('includes ESL One', () => {
+      expect(PERMANENT_TIER1_NAMES).toContain('ESL One')
+    })
+
+    it('all names except the known 3-char "PGL" exception are at least 4 chars (isTier1ByName guard)', () => {
+      // "PGL" is 3 chars and will be skipped by isTier1ByName's n.length >= 4 guard.
+      // PGL matches rely on the KV cache being warm. All other hardcoded names meet the guard.
+      const shortNames = PERMANENT_TIER1_NAMES.filter(n => n.length < 4)
+      expect(shortNames).toEqual(['PGL'])
+    })
+  })
+
+  describe('cold-KV fallback: isTier1ByName with hardcoded names', () => {
+    it('returns true for a DreamLeague qualifier match with tournament.tier="c" when using hardcoded names', () => {
+      const match = { league: { name: 'DreamLeague' }, tournament: { tier: 'c' } }
+      const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
+      expect(isTier1ByName(match, names)).toBe(true)
+    })
+
+    it('returns false for a non-tier1 league even with hardcoded names', () => {
+      const match = { league: { name: 'Some Amateur Open' }, tournament: { tier: 'c' } }
+      const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
+      expect(isTier1ByName(match, names)).toBe(false)
+    })
+
+    it('merged array always contains dreamleague when KV is cold (null)', () => {
+      const kvNames = null
+      const merged = [...new Set([
+        ...(Array.isArray(kvNames) ? kvNames.map(n => n.toLowerCase()) : []),
+        ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+      ])]
+      expect(merged).toContain('dreamleague')
+    })
+
+    it('merged array deduplicates when KV already contains the same names', () => {
+      const kvNames = ['DreamLeague', 'ESL One', 'SomeDynamicLeague']
+      const merged = [...new Set([
+        ...kvNames.map(n => n.toLowerCase()),
+        ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+      ])]
+      const count = merged.filter(n => n === 'dreamleague').length
+      expect(count).toBe(1)
+    })
+
+    it('isTier1 still returns false for tier-c so isTier1ByName is the only rescue path', () => {
+      const match = { league: { name: 'DreamLeague', tier: null }, tournament: { tier: 'c' } }
+      expect(isTier1(match)).toBe(false)
+      const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
+      expect(isTier1ByName(match, names)).toBe(true)
+      // Confirm combined guard passes
+      expect(isTier1(match) || isTier1ByName(match, names)).toBe(true)
     })
   })
 })

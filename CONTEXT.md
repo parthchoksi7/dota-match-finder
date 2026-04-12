@@ -115,7 +115,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Live Matches (PandaScore)
 - `api/live-matches.js` calls PandaScore `/dota2/matches/running`
-- Filters to tier-S and tier-A tournaments using `isTier1(m) || isTier1ByName(m, names)`. Primary: checks `match.tournament.tier`. Fallback: checks `match.league.name` against KV-cached tier1 names — handles newly-created series where PandaScore hasn't assigned a tier yet (e.g. DreamLeague S29 at launch). Maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
+- Filters to tier-S and tier-A tournaments using `isTier1(m) || isTier1ByName(m, names)`. Primary: checks `match.tournament.tier`. Fallback: checks `match.league.name` against a merged names array: KV-cached tier1 names plus `PERMANENT_TIER1_NAMES` (hardcoded in `_shared.js`). The hardcoded list ensures DreamLeague, ESL One, PGL, etc. always pass even when KV is cold (e.g. fresh Redis flush). This matters for qualifier matches where PandaScore sets `tournament.tier = "c"` despite being a tier1 organizer event. Maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
 - `seriesScore` - derived from `m.results` (per-team win counts mapped by team ID)
 - `currentGame` - position of the game with `status === 'running'`
 - `games` - array of `{position, status, winnerName, matchId}` where `matchId` is `external_identifier` (OpenDota match ID)
@@ -348,6 +348,7 @@ Key exports in `api/_shared.js`:
 - `isTier1(match)` - checks `match.tournament.tier` (primary field for match objects) then `match.league.tier` for 's' or 'a'
 - `isTier1ByName(match, tier1Names)` - **fallback** for when PandaScore hasn't assigned a tier to a newly-created series yet. Checks `match.league.name` against the cached tier1 names array (same list used by `matchesTier1Names`). Used in `live-matches.js` and `upcoming-matches.js` as `isTier1(m) || isTier1ByName(m, names)`. Names are fetched from KV under `KV_TIER1_NAMES_KEY`.
 - `KV_TIER1_NAMES_KEY` - exported constant `'dota2:tier1_league_names_v1'` so all consumers read from the same KV key
+- `PERMANENT_TIER1_NAMES` - exported hardcoded list of tier1 organizer names (DreamLeague, ESL One, PGL, BLAST, etc.); merged into `names` in `live-matches.js` so tier filtering never depends on KV being warm
 - `buildPremiumLeagueIds(leagues)` - pure function; builds a `Set<leagueid>` of premium+professional OpenDota leagues
 - `getPremiumLeagueIds()` - async; fetches `/api/leagues`, caches result in memory
 

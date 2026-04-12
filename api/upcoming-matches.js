@@ -12,7 +12,7 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -92,7 +92,10 @@ export default async function handler(req, res) {
     ])
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
-    const names = Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []
+    const names = [...new Set([
+      ...(Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []),
+      ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+    ])]
     const data = await response.json()
     const matches = (data || [])
       .filter(m => isTier1(m) || isTier1ByName(m, names))

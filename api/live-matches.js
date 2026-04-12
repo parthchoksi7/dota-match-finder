@@ -10,7 +10,7 @@ const kv = new Redis({
 const KV_KEY = 'dota2:live_matches_v2'
 const TTL = 60 * 2 // 2 minutes
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -183,7 +183,11 @@ export default async function handler(req, res) {
         response.json(),
         kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
       ])
-      const namesCron = Array.isArray(tier1NamesCron) ? tier1NamesCron.map(n => n.toLowerCase()) : []
+      const hardcoded = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
+      const namesCron = [...new Set([
+        ...(Array.isArray(tier1NamesCron) ? tier1NamesCron.map(n => n.toLowerCase()) : []),
+        ...hardcoded,
+      ])]
       const tier1 = (data || []).filter(m => (isTier1(m) || isTier1ByName(m, namesCron)) && m.opponents?.length === 2)
       await enrichMultiStreamMatches(tier1, headers)
       const written = await cacheRunningStreams(tier1)
@@ -221,7 +225,10 @@ export default async function handler(req, res) {
     ])
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
 
-    const names = Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []
+    const names = [...new Set([
+      ...(Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []),
+      ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+    ])]
     const data = await response.json()
     const tier1Raw = (data || [])
       .filter(m => isTier1(m) || isTier1ByName(m, names))
