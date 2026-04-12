@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { isTier1, isTier1ByName, buildPremiumLeagueIds, fetchByTiers, PERMANENT_TIER1_NAMES } from '../api/_shared.js'
+import { isTier1, isTier1ByFields, isTier1ByName, buildPremiumLeagueIds, fetchByTiers, PERMANENT_TIER1_NAMES } from '../api/_shared.js'
 import { matchesTier1Names } from '../src/utils.js'
 
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
@@ -113,6 +113,95 @@ describe('isTier1', () => {
         { id: 2, league: { tier: 'unranked' } },
       ]
       expect(matches.filter(isTier1)).toHaveLength(0)
+    })
+  })
+})
+
+// ── isTier1ByFields (core tier decision — used by both match and tournament adapters) ──
+
+describe('isTier1ByFields', () => {
+  describe('tier-based acceptance', () => {
+    it('returns true for tier "s"', () => {
+      expect(isTier1ByFields('s', null)).toBe(true)
+    })
+
+    it('returns true for tier "a"', () => {
+      expect(isTier1ByFields('a', null)).toBe(true)
+    })
+
+    it('is case-insensitive for tier', () => {
+      expect(isTier1ByFields('S', null)).toBe(true)
+      expect(isTier1ByFields('A', null)).toBe(true)
+    })
+  })
+
+  describe('league-name keyword override (for misclassified qualifier stages of major events)', () => {
+    it('returns true for league "DreamLeague Season 29 Qualifiers" even with a lower API tier', () => {
+      expect(isTier1ByFields('b', 'DreamLeague Season 29 Qualifiers')).toBe(true)
+    })
+
+    it('returns true for league "PGL Wallachia" with a lower API tier', () => {
+      expect(isTier1ByFields('b', 'PGL Wallachia')).toBe(true)
+    })
+
+    it('returns true for league "BLAST Slam" with a lower API tier', () => {
+      expect(isTier1ByFields('b', 'BLAST Slam')).toBe(true)
+    })
+
+    it('returns true for league "WePlay Academy League" with a lower API tier', () => {
+      expect(isTier1ByFields('b', 'WePlay Academy League')).toBe(true)
+    })
+
+    it('returns true for league "ESL One Malaysia" with a lower API tier', () => {
+      expect(isTier1ByFields('b', 'ESL One Malaysia')).toBe(true)
+    })
+
+    it('returns true for league "The International" with a lower API tier', () => {
+      expect(isTier1ByFields('b', 'The International')).toBe(true)
+    })
+
+    it('returns true when tier is null/missing but league name matches a known brand', () => {
+      expect(isTier1ByFields(null, 'DreamLeague')).toBe(true)
+    })
+
+    it('keyword match is case-insensitive', () => {
+      expect(isTier1ByFields('b', 'DREAMLEAGUE Season 29')).toBe(true)
+    })
+  })
+
+  describe('rejection — no tier and no keyword match', () => {
+    it('returns false for a lower API tier with an unrecognised league name', () => {
+      expect(isTier1ByFields('b', 'random amateur league')).toBe(false)
+    })
+
+    it('returns false for a lower API tier with null league name', () => {
+      expect(isTier1ByFields('b', null)).toBe(false)
+    })
+
+    it('returns false for null tier and null league name', () => {
+      expect(isTier1ByFields(null, null)).toBe(false)
+    })
+
+    it('returns false for an empty tier and non-matching league name', () => {
+      expect(isTier1ByFields('', 'Epic League')).toBe(false)
+    })
+  })
+
+  describe('isTier1 match adapter uses isTier1ByFields — league-name override via match object', () => {
+    it('returns true for a match with a lower tournament tier but known league name', () => {
+      const match = {
+        tournament: { tier: 'b' },
+        league: { name: 'DreamLeague Season 29 Qualifiers' },
+      }
+      expect(isTier1(match)).toBe(true)
+    })
+
+    it('returns false for a match with a lower tournament tier and unknown league name', () => {
+      const match = {
+        tournament: { tier: 'b' },
+        league: { name: 'Amateur Open 2026' },
+      }
+      expect(isTier1(match)).toBe(false)
     })
   })
 })
@@ -514,12 +603,14 @@ describe('PERMANENT_TIER1_NAMES', () => {
       expect(count).toBe(1)
     })
 
-    it('isTier1 still returns false for tier-c so isTier1ByName is the only rescue path', () => {
+    it('isTier1 now returns true for known league names even with a lower API tier (TIER1_LEAGUE_KEYWORDS override); isTier1ByName remains an additional path for dynamic name lists', () => {
       const match = { league: { name: 'DreamLeague', tier: null }, tournament: { tier: 'c' } }
-      expect(isTier1(match)).toBe(false)
+      // isTier1 now returns true because 'dreamleague' is in TIER1_LEAGUE_KEYWORDS
+      expect(isTier1(match)).toBe(true)
+      // isTier1ByName also returns true for the same reason (dynamic name list path)
       const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
       expect(isTier1ByName(match, names)).toBe(true)
-      // Confirm combined guard passes
+      // Combined guard still passes
       expect(isTier1(match) || isTier1ByName(match, names)).toBe(true)
     })
   })

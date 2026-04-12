@@ -2,6 +2,8 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
+import { isTier1ByFields } from './_shared.js'
+
 // ─── iCal helpers (used by calendar modes) ────────────────────────────────────
 
 const CRLF = '\r\n'
@@ -220,18 +222,18 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_LIST_KEY = 'dota2:tournament_list_v6'
+const KV_LIST_KEY = 'dota2:tournament_list_v7'
 const KV_STATUS_KEY = 'dota2:tournament_statuses_v5'
 const LIST_TTL = 60 * 60 * 6        // 6 hours - catches stage transitions (Group -> Playoffs)
 const STATUS_TTL = 60 * 60 * 4      // 4 hours
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-// Tournament objects from /dota2/tournaments/* have tier directly on the object
-// (t.tier), not on the nested league. t.league.tier is always null.
+// Adapter for tournament objects from /dota2/tournaments/* (tier on t.tier directly,
+// not on t.league.tier which is always null). Delegates to the centralised
+// isTier1ByFields in _shared.js so the league-name keyword override is applied here too.
 function isTier1(t) {
-  const tier = (t?.tier || '').toLowerCase()
-  return tier === 's' || tier === 'a'
+  return isTier1ByFields(t?.tier, t?.league?.name)
 }
 
 
