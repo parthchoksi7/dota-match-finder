@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Apr 12, 2026",
     tag: "fix",
+    title: "Qualifier matches no longer show a VOD from the wrong game",
+    desc: "Qualifier series without a confirmed stream source (e.g. DreamLeague S29 lower-bracket games where PandaScore has no external identifier) were sometimes showing a Twitch VOD from a concurrent match on a shared sub-channel. The ts-bucket fallback that caused this has been removed. These matches now correctly show \"No VOD found\" instead of a misleading link.",
+  },
+  {
+    date: "Apr 12, 2026",
+    tag: "fix",
     title: "Stream caching now works for DreamLeague and other tier1 events even on cold start",
     desc: "Stream channel caching for live matches was silently skipped for events like DreamLeague qualifier matches when the tier1 names cache in Redis was cold (e.g. after a fresh flush). The fix merges a hardcoded permanent list of tier1 organizers (DreamLeague, ESL One, PGL, BLAST, etc.) into the filter so it always catches these events, regardless of whether the KV cache has been pre-warmed.",
   },

@@ -173,7 +173,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - **Stream mapping (server-side cron)**: `api/live-matches.js?cron=1` is called every 30 min by GitHub Actions. It fetches running matches from PandaScore and writes `stream:match:{gameMatchId}` (nx:true - write-once) and `stream:ts:{roundedBeginAt}` (JSON array of active channels) to KV (14-day TTL). Cron runs are authenticated via `CRON_SECRET` header.
 - On drawer open, `fetchMatchStreams(matchIds, startTime, radiantTeam, direTeam)` is called with all sibling game IDs and team names
 - `match-streams.js` resolves channels in order: (1) KV fast path `stream:match:{id}`; (2) PandaScore fuzzy match (±1h time window + team name substring matching) - accepts any official Twitch stream (any language), preferring English; (3) ts bucket fallback - returns `_candidates` array of all channels active in that 5-min window
-- `findTwitchVod` in `src/api.js` uses the resolved channel exclusively: if `preferredChannel` is set (from PandaScore), only that channel is searched on Twitch - **no fallback to other channels**. This prevents returning a wrong VOD from an unrelated stream active at the same time (e.g. ESL streaming DreamLeague while a BLAST match was running). If the VOD is not yet on that channel, "No VOD found" is returned. If no `preferredChannel` but `candidateChannels` exist (ts fallback), those channels are searched in parallel and all hits returned.
+- `findTwitchVod` in `src/api.js` uses the resolved channel exclusively: if `preferredChannel` is set (from PandaScore), only that channel is searched on Twitch - **no fallback to other channels**. This prevents returning a wrong VOD from an unrelated stream active at the same time (e.g. ESL streaming DreamLeague while a BLAST match was running). If the VOD is not yet on that channel, or if no `preferredChannel` is available, "No VOD found" is returned. The `_candidates` ts-bucket array is still returned by the backend but is no longer acted on by the frontend - in multi-channel qualifier blocks it reliably pointed to concurrent matches on shared ESL sub-channels.
 - `VOD_CHANNEL_LABELS` in `src/api.js` maps known channel handles to display names (ESL, PGL, BLAST, BTS, WePlay, etc.) for the Watch button labels
 - `stream:ts:{bucket}` stores a JSON array of all channels active in that 5-min window; `cacheRunningStreams` writes the full array per bucket to avoid last-write-wins collisions
 
@@ -319,7 +319,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ## Known Issues / Limitations
 - Role detection (Carry/Mid/Off/Support) is removed - OpenDota `lane_role` field is unreliable
-- VOD channel selection relies on PandaScore fuzzy match; falls back to ts candidate channels if no match found. If neither resolves the channel, "No VOD found" is shown - this is preferable to returning a wrong channel's stream.
+- VOD channel selection relies on PandaScore fuzzy match. If no match is found (e.g. qualifier series where PandaScore has no `external_identifier` and team names don't fuzzy-match), "No VOD found" is shown. The ts-bucket fallback is no longer used for VOD search - it was returning VODs from concurrent matches on shared channels.
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
