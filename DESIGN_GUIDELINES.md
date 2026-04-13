@@ -190,6 +190,29 @@ Homepage sections use **floating labels** — a small `<h2>` rendered *above* th
 - `mb-2` gap between label and the card below
 - Live sections keep the pulsing red dot inline in the label text
 - `justify-between` when a right-slot is needed (Manage button, result count)
+- **Count right-slot:** `text-xs text-gray-500 dark:text-gray-500 tabular-nums`. Show only when `count > 1` — a single item carries no useful count signal. Use a bare number with no label suffix; the section heading already provides context.
+
+### Inline count pill (collapsed list)
+
+Used when a flex-wrap toolbar (e.g. TournamentBar) needs to represent a collapsed group as a single interactive element rather than listing all items inline.
+
+**Pattern:**
+```jsx
+<button className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-colors flex-shrink-0">
+  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{count} live</span>
+  <svg className={`w-3 h-3 text-gray-400 transition-transform duration-150 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`} ...>
+    <path d="M19 9l-7 7-7-7" />  {/* same path used in TeamRoster, TournamentDetail */}
+  </svg>
+</button>
+```
+
+**Rules:**
+- Only collapse when group has `> 1` items — a single item needs no pill
+- Ghost border style (`border-gray-300/700`) — do NOT use the full secondary button background
+- Chevron: `w-3 h-3`, path `M19 9l-7 7-7-7`, `rotate-180` when expanded, `transition-transform duration-150`
+- Expanded items render inline after the pill in the same flex-wrap row — no layout container change needed
+- Track expand/collapse events: `trackEvent('*_toggle', { action: 'expand' | 'collapse', count })`
 
 ### Live indicators
 - Pulsing red dot: `inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse`

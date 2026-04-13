@@ -184,7 +184,12 @@ Before deploying to production:
 7. ✅ Update `CONTEXT.md` with changes
 8. ✅ Update About page
 9. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
-10. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
+10. ✅ **Bust KV caches affected by the change** — after any deploy that modifies tier filtering, stream caching, or tournament data logic, bust the relevant caches:
+    - Tier-1 league names (homepage match filter): `curl "https://spectateesports.live/api/tournaments?mode=tier1-leagues&bust=1"`
+    - Live matches: `curl "https://spectateesports.live/api/live-matches?bust=1"`
+    - Tournament list: `curl "https://spectateesports.live/api/tournaments?bust=1"`
+    - Only bust what the change actually affects — not all caches every time.
+11. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
 
 ---
 
@@ -228,6 +233,14 @@ These features are intentionally hidden from public documentation. They are gate
 ## VOD Channel Resolution
 
 PandaScore is the authoritative source for Twitch channel attribution. The client-side `findTwitchVod` function in `src/api.js` trusts the `preferredChannel` resolved by the server (`api/match-streams.js` via PandaScore fuzzy match) exclusively - it does NOT fall back to other channels. Do not add hardcoded channel lists or tournament-name-to-channel mappings to `src/api.js`. Channel labels for display belong in `VOD_CHANNEL_LABELS`. Channel routing logic belongs in `api/_shared.js` (`getTwitchStreams`).
+
+## KV Cache Poisoning Risk
+
+Several KV entries are written on first miss and served on every subsequent hit until TTL expires. A stale value written by old code persists even after a new deployment because the function returns immediately on cache hit without re-validating. **After any deploy that touches tier filtering or stream caching logic, always bust the affected KV caches** (see deployment checklist item 10). Known sensitive keys:
+
+- `dota2:tier1_league_names_v1` (2h TTL) — written by `api/tournaments.js?mode=tier1-leagues`; controls which matches appear on the homepage. If this has fewer than ~8 entries, DreamLeague and other major events will be missing from results.
+- `dota2:live_matches_v3` (30s TTL) — low risk due to short TTL
+- `dota2:tournament_list_v7` (6h TTL) — written by `api/tournaments.js`; high risk if stale after structural changes
 
 ## Notes for Claude Code
 

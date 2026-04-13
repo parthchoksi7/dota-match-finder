@@ -25,7 +25,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ### Frontend
 - `src/pages/Tournaments.jsx` - Tournament list page at `/tournaments`; fetches from `/api/series-list`; shows live/upcoming/completed sections; fires `tournament_list_view` GA4 event
 - `src/pages/TournamentDetail.jsx` - Tournament detail page at `/tournament/:seriesId`; fetches from `/api/series-detail`; shows header, AI summary, teams+rosters, stages+standings, VOD search links
-- `src/components/TournamentBar.jsx` - Compact homepage bar (below search) showing live tournaments with pulse dot and upcoming with countdown; fetches from `/api/series-list`; max 3 items
+- `src/components/TournamentBar.jsx` - Compact homepage bar (below search) showing live tournaments and 1 upcoming with countdown; fetches from `/api/series-list`. When >1 live tournaments: shows a collapsed ghost-bordered count pill ("N live" + chevron) instead of listing them inline; pill expands inline on click to show all live tournaments. Fires `tournament_bar_live_toggle` GA4 event on expand/collapse.
 - `src/components/TournamentCard.jsx` - Card used on /tournaments list page; shows status badge, date range, prize pool, stage pills
 - `src/components/TeamRoster.jsx` - Collapsible team card showing logo, region badge, qualification status, player list with nationality flags
 - `src/components/RegionBreakdown.jsx` - Region summary pills (WEU/EEU/CN/SEA/NA/SA) for teams section
@@ -38,7 +38,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/DraftDisplay.jsx` - Hero picks, bans, player names, KDA
 - `src/components/MatchList.jsx` - Search results list grouped into series
 - `src/components/LatestMatches.jsx` - Homepage latest results with styled header and tournament change dividers
-- `src/components/UpcomingMatches.jsx` - Live Now + Upcoming Matches sections (separate bordered boxes, polls every 2 min)
+- `src/components/UpcomingMatches.jsx` - Live Now + Upcoming Matches sections (separate bordered boxes, polls every 2 min). Live Now heading shows a right-aligned match count when >1 matches are live.
 - `src/components/MatchCard.jsx` - Individual series card with expand/collapse; each game row shows "Match Details" CTA (opens drawer with VOD, draft, AI summary); fires `game_click` + `card_vod_click` GA4 events on game row click; unplayed slots hidden in normal mode, shown as interactive placeholders in spoiler-free mode
 - `src/components/SearchBar.jsx` - Search input (no suggestions)
 - `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage

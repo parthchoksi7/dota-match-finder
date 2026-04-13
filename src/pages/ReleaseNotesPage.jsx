@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Apr 12, 2026",
+    tag: "improvement",
+    title: "Tournament bar and Live Now show match counts",
+    desc: "When multiple tournaments are running simultaneously, the tournament bar now collapses them into a single pill showing the count. Click to expand and see all live tournaments inline. The Live Now section heading also shows a match count when more than one match is live.",
+  },
+  {
+    date: "Apr 12, 2026",
     tag: "fix",
     title: "Qualifier matches no longer show a VOD from the wrong game",
     desc: "Qualifier series without a confirmed stream source (e.g. DreamLeague S29 lower-bracket games where PandaScore has no external identifier) were sometimes showing a Twitch VOD from a concurrent match on a shared sub-channel. The ts-bucket fallback that caused this has been removed. These matches now correctly show \"No VOD found\" instead of a misleading link.",
