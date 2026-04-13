@@ -165,7 +165,7 @@ function mapSeriesTeam(t, qualified) {
 
 async function fetchSeriesRosters(tournamentId, headers) {
   try {
-    const url = `${BASE}/tournaments/${tournamentId}/rosters`
+    const url = `${BASE}/dota2/tournaments/${tournamentId}/rosters`
     const res = await fetch(url, { headers })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
