@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 13, 2026",
+    tag: "fix",
+    title: "Tournament team rosters now show player names instead of \"Roster unavailable\"",
+    desc: "Player names were never appearing on tournament detail pages because the rosters API call was hitting the generic PandaScore endpoint (/tournaments/{id}/rosters) instead of the Dota 2-specific one (/dota2/tournaments/{id}/rosters). The generic endpoint returns team metadata only - no players array. The Dota 2-specific endpoint includes the full player list. Switching to the correct endpoint fixes roster display for all tournaments where PandaScore has player data published.",
+  },
+  {
     date: "Apr 12, 2026",
     tag: "improvement",
     title: "Live Tournaments section collapses when multiple events are running",
