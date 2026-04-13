@@ -275,10 +275,9 @@ function App() {
 
     const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
     const uniqueChannels = [...new Set(resolvedChannels)]
-    const candidateChannels = streamMap._candidates || null
     const preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null
 
-    const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel, candidateChannels)
+    const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
     setSelectedMatch({
       ...match,
       loadingVod: false,

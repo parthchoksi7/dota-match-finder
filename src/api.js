@@ -200,10 +200,8 @@ export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam 
  * PandaScore is the authoritative source for which channel streamed a match.
  * - preferredChannel: exact channel resolved from PandaScore via /api/match-streams.
  *   Searched exclusively — no fallback to other channels if the VOD isn't there yet.
- * - candidateChannels: channels recorded as live in the same time bucket (ts fallback).
- *   Searched in parallel; all hits returned so the user can try each one.
  */
-export async function findTwitchVod(matchStartTime, _tournamentName, preferredChannel = null, candidateChannels = null) {
+export async function findTwitchVod(matchStartTime, _tournamentName, preferredChannel = null) {
   const token = await getTwitchToken()
   const headers = {
     'Client-ID': import.meta.env.VITE_TWITCH_CLIENT_ID,
@@ -215,18 +213,6 @@ export async function findTwitchVod(matchStartTime, _tournamentName, preferredCh
   if (preferredChannel) {
     const vod = await findVodOnChannel(preferredChannel, matchStartTime, headers)
     if (vod) return { url: vod.url, channel: vod.channel, allVods: [vod] }
-    return { url: null, channel: null, allVods: [] }
-  }
-
-  // No PandaScore match — search channels recorded as live in this time bucket.
-  if (candidateChannels && candidateChannels.length > 0) {
-    const results = await Promise.allSettled(
-      candidateChannels.map(ch => findVodOnChannel(ch, matchStartTime, headers))
-    )
-    const hits = results
-      .filter(r => r.status === 'fulfilled' && r.value != null)
-      .map(r => r.value)
-    if (hits.length > 0) return { url: hits[0].url, channel: hits[0].channel, allVods: hits }
   }
 
   return { url: null, channel: null, allVods: [] }
