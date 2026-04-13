@@ -10,8 +10,8 @@ const RELEASES = [
   {
     date: "Apr 12, 2026",
     tag: "improvement",
-    title: "Live Tournaments section collapses when multiple events are running",
-    desc: "When more than one tournament is live, the Live Tournaments section collapses to a compact list of all running event names with links. Click the chevron to expand and see the full tournament hub. A count badge appears inline in the section heading. The Live Now section heading also shows an inline count badge when multiple matches are live at once.",
+    title: "Switch between live tournaments with a chip picker",
+    desc: "When more than one tournament is running simultaneously, a compact chip bar appears above the tournament hub. Clicking a chip instantly switches the hub to show that tournament's standings, schedule, and bracket — no page navigation needed. Chip labels adapt automatically: DreamLeague regional qualifiers show WEU / EEU / CN / SEA / NA / SA; mixed organizers (ESL + PGL + DreamLeague) show the league name; and events with the same org running in multiple regions show both (ESL WEU, ESL EEU). The chip bar scrolls horizontally on mobile so it never wraps.",
   },
   {
     date: "Apr 12, 2026",

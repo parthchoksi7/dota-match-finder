@@ -214,6 +214,49 @@ Used when a flex-wrap toolbar (e.g. TournamentBar) needs to represent a collapse
 - Expanded items render inline after the pill in the same flex-wrap row — no layout container change needed
 - Track expand/collapse events: `trackEvent('*_toggle', { action: 'expand' | 'collapse', count })`
 
+### Scrollable tournament chip picker
+
+Used when a section can display content for one of N items and N is variable (e.g. multiple live tournaments). The chip bar sits between the section label and the content panel.
+
+**Pattern:**
+```jsx
+{items.length > 1 && (
+  <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{ scrollbarWidth: 'none' }}>
+    {items.map(item => {
+      const isActive = (selectedId || items[0]?.id) === item.id
+      return (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => setSelectedId(item.id)}
+          className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${
+            isActive
+              ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 shadow-sm'
+              : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-transparent hover:border-gray-300 dark:hover:border-gray-700'
+          }`}
+        >
+          {label}
+        </button>
+      )
+    })}
+  </div>
+)}
+```
+
+**Rules:**
+- `overflow-x-auto` + `flex-shrink-0` on chips — horizontally scrollable on mobile, no wrapping
+- `scrollbarWidth: 'none'` inline style removes the scrollbar track on desktop
+- `pb-1` prevents clipping of chip borders during scroll
+- Active chip: elevated appearance (`bg-white dark:bg-gray-800 border shadow-sm`) — distinct from ghost hover
+- Inactive chip: ghost with transparent border → colored on hover — never use filled background
+- Label sizing: `tracking-wide` maximum (not `tracking-widest`) for chip labels — chips must stay compact
+- First item is always pre-selected with no explicit initial state — `selectedId || items[0]?.id`
+- **Adaptive labels** for live tournament chips via `getTabLabel(tournament, allOngoing)`:
+  - All same org (e.g. 6 DreamLeague qualifiers) → region abbreviation: `WEU`, `EEU`, `CN`, `SEA`, `NA`, `SA`
+  - Different orgs, each unique → league name only: `ESL`, `PGL`, `DreamLeague`
+  - Mixed (same org appears multiple times with different regions) → `"League Region"`: `ESL WEU`, `ESL EEU`
+- Do NOT use this pattern for fixed-count tab bars (2–4 items) — use the segmented control pattern instead
+
 ### Live indicators
 - Pulsing red dot: `inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse`
 - Only used for genuinely live/running states — never as decoration

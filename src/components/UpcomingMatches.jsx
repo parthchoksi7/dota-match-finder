@@ -210,7 +210,7 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
 
                   {/* Row 3: Completed game chips */}
                   {completedGames.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    <div className="flex flex-wrap gap-1.5 mt-0.5 justify-center">
                       {completedGames.map(g => (
                         g.matchId ? (
                           <button

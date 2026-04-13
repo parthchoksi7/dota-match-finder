@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
 import { trackEvent, toTitleCase } from '../utils'
 
@@ -95,6 +95,31 @@ function getLeagueLabel(name) {
   if (/the international/i.test(name)) return 'The International'
   if (/beyond the summit|bts/i.test(name)) return 'Beyond The Summit'
   return null
+}
+
+function extractRegion(name) {
+  const n = name.toLowerCase()
+  if (n.includes('western europe')) return 'WEU'
+  if (n.includes('eastern europe')) return 'EEU'
+  if (n.includes('southeast asia')) return 'SEA'
+  if (n.includes('north america')) return 'NA'
+  if (n.includes('south america')) return 'SA'
+  if (n.includes('china')) return 'CN'
+  if (n.includes('europe')) return 'EU'
+  if (n.includes('asia')) return 'Asia'
+  return null
+}
+
+function getTabLabel(tournament, allOngoing) {
+  const leagueLabel = getLeagueLabel(tournament.name)
+  const region = extractRegion(tournament.name)
+  const allSameLeague = allOngoing.every(t => getLeagueLabel(t.name) === leagueLabel)
+
+  if (allSameLeague) {
+    return region || leagueLabel || cleanTournamentName(tournament.name).split(' ').slice(0, 2).join(' ')
+  }
+  if (leagueLabel && region) return `${leagueLabel} ${region}`
+  return leagueLabel || region || cleanTournamentName(tournament.name).split(' ').slice(0, 2).join(' ')
 }
 
 function StandingsTable({ standings }) {
@@ -226,8 +251,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
   const [stageCache, setStageCache] = useState({})   // { [stageId]: detail }
   const [activeStageId, setActiveStageId] = useState(null)
   const [stageLoading, setStageLoading] = useState(false)
-  const [hubCollapsed, setHubCollapsed] = useState(false)
-  const hasAutoCollapsed = useRef(false)
+  const [selectedOngoingId, setSelectedOngoingId] = useState(null)
 
   useEffect(() => {
     fetch('/api/tournaments')
@@ -237,22 +261,14 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // Auto-collapse when multiple tournaments are live (only fires once — ref guards against re-collapsing after user manually expands)
-  useEffect(() => {
-    if (hasAutoCollapsed.current) return
-    if (data?.ongoing?.length > 1) {
-      setHubCollapsed(true)
-      hasAutoCollapsed.current = true
-    }
-  }, [data])
-
   const ongoing = data?.ongoing || []
   const upcoming = data?.upcoming || []
   const completed = data?.completed || []
   const allTournaments = [...ongoing, ...upcoming, ...completed]
+  const activeTournamentId = selectedOngoingId || ongoing[0]?.id
   const tournament = tournamentId
     ? (allTournaments.find(t => t.id === tournamentId) || null)
-    : (ongoing[0] || upcoming[0] || completed[0] || null)
+    : (ongoing.find(t => t.id === activeTournamentId) || upcoming[0] || completed[0] || null)
   const isOngoing = tournament ? ongoing.some(t => t.id === tournament.id) : false
   const isCompleted = tournament ? (!isOngoing && !upcoming.some(t => t.id === tournament.id)) : false
 
@@ -359,7 +375,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center mb-2">
         <h2
           id="tournament-hub-heading"
           className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-emerald-500" : "border-blue-500"}`}
@@ -376,57 +392,35 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
             </span>
           ) : isCompleted ? "Recently Completed" : "Upcoming Tournament"}
         </h2>
-        {ongoing.length > 1 && (
-          <button
-            type="button"
-            onClick={() => {
-              const next = !hubCollapsed
-              setHubCollapsed(next)
-              trackEvent('tournament_hub_collapse_toggle', { action: next ? 'collapse' : 'expand', count: ongoing.length })
-            }}
-            className="inline-flex items-center px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-colors flex-shrink-0"
-            aria-label={hubCollapsed ? 'Expand tournament list' : 'Collapse tournament list'}
-          >
-            <svg
-              className={`w-3 h-3 text-gray-400 transition-transform duration-150 flex-shrink-0 ${!hubCollapsed ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        )}
       </div>
-      {hubCollapsed ? (
-        <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950" aria-labelledby="tournament-hub-heading">
-          <div className="divide-y divide-gray-100 dark:divide-gray-900">
-            {ongoing.map(t => {
-              const leagueLabel = getLeagueLabel(t.name)
-              return (
-                <a
-                  key={t.id}
-                  href={`/tournament/${t.serieId || t.id}`}
-                  className="flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors group min-h-[44px]"
-                  onClick={() => trackEvent('tournament_hub_collapsed_click', { tournament_name: t.name })}
-                >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                  {leagueLabel && (
-                    <span className="text-xs uppercase tracking-[4px] text-red-500 flex-shrink-0 hidden sm:block">
-                      {leagueLabel}
-                    </span>
-                  )}
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white truncate min-w-0">
-                    {cleanTournamentName(t.name)}
-                  </span>
-                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-600 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </a>
-              )
-            })}
-          </div>
-        </section>
-      ) : (
+      {/* Chip bar — only when multiple live tournaments */}
+      {ongoing.length > 1 && !tournamentId && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{ scrollbarWidth: 'none' }}>
+          {ongoing.map(t => {
+            const label = getTabLabel(t, ongoing)
+            const isActive = (selectedOngoingId || ongoing[0]?.id) === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  setSelectedOngoingId(t.id)
+                  setActiveStageId(null)
+                  trackEvent('tournament_hub_region_select', { label, tournament_name: t.name })
+                }}
+                className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-transparent hover:border-gray-300 dark:hover:border-gray-700'
+                }`}
+              >
+                <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
       <section
       className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950"
       aria-labelledby="tournament-hub-heading"
@@ -716,7 +710,6 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
         </a>
       </div>
     </section>
-      )}
     </div>
   )
 }
