@@ -137,18 +137,18 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
     <div className="flex flex-col gap-4" aria-labelledby="matches-schedule-heading">
       {filteredLive.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center mb-2">
             <h2 id="matches-schedule-heading" className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-red-500">
               <span className="inline-flex items-center gap-2">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 Live Now
+                {filteredLive.length > 1 && (
+                  <span className="text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
+                    {filteredLive.length}
+                  </span>
+                )}
               </span>
             </h2>
-            {filteredLive.length > 1 && (
-              <span className="text-xs text-gray-500 dark:text-gray-500 tabular-nums">
-                {filteredLive.length}
-              </span>
-            )}
           </div>
           <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden">
           <div className="divide-y divide-gray-200 dark:divide-gray-800">

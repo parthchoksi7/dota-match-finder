@@ -4,8 +4,8 @@ const RELEASES = [
   {
     date: "Apr 12, 2026",
     tag: "improvement",
-    title: "Tournament bar and Live Now show match counts",
-    desc: "When multiple tournaments are running simultaneously, the tournament bar now collapses them into a single pill showing the count. Click to expand and see all live tournaments inline. The Live Now section heading also shows a match count when more than one match is live.",
+    title: "Live Tournaments section collapses when multiple events are running",
+    desc: "When more than one tournament is live, the Live Tournaments section collapses to a compact list of all running event names with links. Click the chevron to expand and see the full tournament hub. A count badge appears inline in the section heading. The Live Now section heading also shows an inline count badge when multiple matches are live at once.",
   },
   {
     date: "Apr 12, 2026",

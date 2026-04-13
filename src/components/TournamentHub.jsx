@@ -226,6 +226,8 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
   const [stageCache, setStageCache] = useState({})   // { [stageId]: detail }
   const [activeStageId, setActiveStageId] = useState(null)
   const [stageLoading, setStageLoading] = useState(false)
+  const [hubCollapsed, setHubCollapsed] = useState(false)
+  const hasAutoCollapsed = useRef(false)
 
   useEffect(() => {
     fetch('/api/tournaments')
@@ -234,6 +236,15 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  // Auto-collapse when multiple tournaments are live (only fires once — ref guards against re-collapsing after user manually expands)
+  useEffect(() => {
+    if (hasAutoCollapsed.current) return
+    if (data?.ongoing?.length > 1) {
+      setHubCollapsed(true)
+      hasAutoCollapsed.current = true
+    }
+  }, [data])
 
   const ongoing = data?.ongoing || []
   const upcoming = data?.upcoming || []
@@ -348,7 +359,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
 
   return (
     <div>
-      <div className="flex items-center mb-2">
+      <div className="flex items-center justify-between mb-2">
         <h2
           id="tournament-hub-heading"
           className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-emerald-500" : "border-blue-500"}`}
@@ -356,11 +367,66 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
           {isOngoing ? (
             <span className="inline-flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              Live Tournament
+              {ongoing.length > 1 ? 'Live Tournaments' : 'Live Tournament'}
+              {ongoing.length > 1 && (
+                <span className="text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
+                  {ongoing.length}
+                </span>
+              )}
             </span>
           ) : isCompleted ? "Recently Completed" : "Upcoming Tournament"}
         </h2>
+        {ongoing.length > 1 && (
+          <button
+            type="button"
+            onClick={() => {
+              const next = !hubCollapsed
+              setHubCollapsed(next)
+              trackEvent('tournament_hub_collapse_toggle', { action: next ? 'collapse' : 'expand', count: ongoing.length })
+            }}
+            className="inline-flex items-center px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-colors flex-shrink-0"
+            aria-label={hubCollapsed ? 'Expand tournament list' : 'Collapse tournament list'}
+          >
+            <svg
+              className={`w-3 h-3 text-gray-400 transition-transform duration-150 flex-shrink-0 ${!hubCollapsed ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
       </div>
+      {hubCollapsed ? (
+        <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950" aria-labelledby="tournament-hub-heading">
+          <div className="divide-y divide-gray-100 dark:divide-gray-900">
+            {ongoing.map(t => {
+              const leagueLabel = getLeagueLabel(t.name)
+              return (
+                <a
+                  key={t.id}
+                  href={`/tournament/${t.id}`}
+                  className="flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors group min-h-[44px]"
+                  onClick={() => trackEvent('tournament_hub_collapsed_click', { tournament_name: t.name })}
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  {leagueLabel && (
+                    <span className="text-xs uppercase tracking-[4px] text-red-500 flex-shrink-0 hidden sm:block">
+                      {leagueLabel}
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white truncate min-w-0">
+                    {cleanTournamentName(t.name)}
+                  </span>
+                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-600 ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+      ) : (
       <section
       className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950"
       aria-labelledby="tournament-hub-heading"
@@ -650,6 +716,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
         </a>
       </div>
     </section>
+      )}
     </div>
   )
 }
