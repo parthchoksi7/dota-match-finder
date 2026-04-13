@@ -394,33 +394,46 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
         </h2>
       </div>
       {/* Chip bar — only when multiple live tournaments */}
-      {ongoing.length > 1 && !tournamentId && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{ scrollbarWidth: 'none' }}>
-          {ongoing.map(t => {
-            const label = getTabLabel(t, ongoing)
-            const isActive = (selectedOngoingId || ongoing[0]?.id) === t.id
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => {
-                  setSelectedOngoingId(t.id)
-                  setActiveStageId(null)
-                  trackEvent('tournament_hub_region_select', { label, tournament_name: t.name })
-                }}
-                className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${
-                  isActive
-                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-transparent hover:border-gray-300 dark:hover:border-gray-700'
-                }`}
-              >
-                <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                {label}
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {ongoing.length > 1 && !tournamentId && (() => {
+        const sharedLeague = (() => {
+          const first = getLeagueLabel(ongoing[0]?.name)
+          return first && ongoing.every(t => getLeagueLabel(t.name) === first) ? first : null
+        })()
+        return (
+          <div className="flex items-center gap-2 mb-2">
+            {sharedLeague && (
+              <span className="flex-shrink-0 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                {sharedLeague}
+              </span>
+            )}
+            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {ongoing.map(t => {
+                const label = getTabLabel(t, ongoing)
+                const isActive = (selectedOngoingId || ongoing[0]?.id) === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedOngoingId(t.id)
+                      setActiveStageId(null)
+                      trackEvent('tournament_hub_region_select', { label, tournament_name: t.name })
+                    }}
+                    className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-transparent hover:border-gray-300 dark:hover:border-gray-700'
+                    }`}
+                  >
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
       <section
       className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950"
       aria-labelledby="tournament-hub-heading"
