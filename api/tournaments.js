@@ -267,6 +267,7 @@ function mapTournament(t, status) {
   const serieName = t.serie?.full_name || t.serie?.name || ''
   return {
     id: t.id,
+    serieId: t.serie_id || t.serie?.id || null,
     name,
     shortname: leagueName || name,
     startdate: t.begin_at || null,

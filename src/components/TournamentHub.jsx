@@ -405,7 +405,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
               return (
                 <a
                   key={t.id}
-                  href={`/tournament/${t.id}`}
+                  href={`/tournament/${t.serieId || t.id}`}
                   className="flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors group min-h-[44px]"
                   onClick={() => trackEvent('tournament_hub_collapsed_click', { tournament_name: t.name })}
                 >
