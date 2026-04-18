@@ -49,11 +49,8 @@ export default function SearchSuggestions({ allMatches = [], onSearch }) {
   // Build suggestion chips: live tournament first, then unique winning teams.
   const chips = []
   if (liveTournament) {
-    chips.push({
-      type: 'tournament',
-      label: toTitleCase(abbrevTournament(liveTournament.name) || liveTournament.leagueName || liveTournament.name),
-      query: liveTournament.leagueName || liveTournament.name,
-    })
+    const label = toTitleCase(abbrevTournament(liveTournament.name) || liveTournament.leagueName || liveTournament.name)
+    chips.push({ type: 'tournament', label, query: label })
   }
   const seenTeams = new Set()
   for (const m of allMatches) {
