@@ -21,15 +21,18 @@ async function fetchTier1LeagueNames() {
 
 async function fetchPremiumLeagueIds() {
   if (_premiumLeagueIds) return _premiumLeagueIds
-  const res = await fetch(`${OPENDOTA_BASE}/leagues`)
-  if (!res.ok) throw new Error(`OpenDota leagues error: ${res.status}`)
-  const leagues = await res.json()
-  _premiumLeagueIds = new Set(
-    (Array.isArray(leagues) ? leagues : [])
-      .filter(l => l.tier === 'premium' || l.tier === 'professional')
-      .map(l => l.leagueid)
-  )
-  return _premiumLeagueIds
+  try {
+    const res = await fetch(`${OPENDOTA_BASE}/leagues`)
+    if (res.ok) {
+      const leagues = await res.json()
+      _premiumLeagueIds = new Set(
+        (Array.isArray(leagues) ? leagues : [])
+          .filter(l => l.tier === 'premium' || l.tier === 'professional')
+          .map(l => l.leagueid)
+      )
+    }
+  } catch {}
+  return _premiumLeagueIds || new Set()
 }
 
 export async function fetchProMatches(lastMatchId = null) {

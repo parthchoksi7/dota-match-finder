@@ -324,6 +324,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - VOD channel selection relies on PandaScore fuzzy match. If no match is found (e.g. qualifier series where PandaScore has no `external_identifier` and team names don't fuzzy-match), "No VOD found" is shown. The ts-bucket fallback is no longer used for VOD search - it was returning VODs from concurrent matches on shared channels.
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
+- `fetchPremiumLeagueIds` in `src/api.js` now fails gracefully (returns empty Set) when OpenDota `/leagues` is down, so the homepage still loads via the PandaScore tier1 name filter
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
 - Tournament bracket parsing relies on PandaScore naming conventions ("Round N", "Upper Bracket Semifinal", etc.) for proper round labels. If PandaScore changes naming, rounds fall back to generic "Round N" numbering. Match-named rounds (e.g. "Tundra vs RNX") are detected and shown with no section header.
 - PandaScore plan limitation: `GET /dota2/series/{id}` and `GET /dota2/series/{id}/matches` return 404/validation errors on the current plan tier. Use `filter[id]` on `/dota2/series/running|upcoming|past` and `filter[serie_id]` on `/dota2/matches/running|upcoming|past` instead (pattern used in `tournament-detail.js` and `calendar-tournament` mode)

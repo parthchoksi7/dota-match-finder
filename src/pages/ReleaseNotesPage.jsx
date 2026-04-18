@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 18, 2026",
+    tag: "fix",
+    title: "Homepage no longer breaks when OpenDota's league endpoint is down",
+    desc: "If OpenDota's /leagues endpoint returns an error (e.g. during an outage or rate-limiting), the match loader now falls back gracefully to the PandaScore tier1 name filter instead of showing \"Could not load matches\". Previously a single failing prefetch call would take down the entire homepage.",
+  },
+  {
     date: "Apr 17, 2026",
     tag: "improvement",
     title: "Search suggestions replace the tournament bar below the search field",
