@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 17, 2026",
+    tag: "improvement",
+    title: "Search suggestions replace the tournament bar below the search field",
+    desc: "The compact tournament bar below the search input has been replaced with a smarter suggestions panel. It shows your recent searches (up to 5, with individual remove buttons and a clear-all option) and contextual suggestions: the live tournament (if one is running) followed by the winning teams from the most recent matches. Clicking any suggestion runs the search and populates the search bar instantly.",
+  },
+  {
     date: "Apr 13, 2026",
     tag: "fix",
     title: "Tournament team rosters now show player names instead of \"Roster unavailable\"",

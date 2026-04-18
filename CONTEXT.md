@@ -25,7 +25,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ### Frontend
 - `src/pages/Tournaments.jsx` - Tournament list page at `/tournaments`; fetches from `/api/series-list`; shows live/upcoming/completed sections; fires `tournament_list_view` GA4 event
 - `src/pages/TournamentDetail.jsx` - Tournament detail page at `/tournament/:seriesId`; fetches from `/api/series-detail`; shows header, AI summary, teams+rosters, stages+standings, VOD search links
-- `src/components/TournamentBar.jsx` - Compact homepage bar (below search) showing live tournaments and 1 upcoming with countdown; fetches from `/api/series-list`. When >1 live tournaments: shows a collapsed ghost-bordered count pill ("N live" + chevron) instead of listing them inline; pill expands inline on click to show all live tournaments. Fires `tournament_bar_live_toggle` GA4 event on expand/collapse.
+- `src/components/SearchSuggestions.jsx` - Replaces TournamentBar below the search bar on the homepage. Shows two sections: (1) **Recent** — last 5 searches from `localStorage` key `dota-recent-searches`, with individual × remove buttons and a "Clear all" action; (2) **Suggestions** — live tournament (red pulse dot + "Live" badge) followed by unique winning teams from the most recent completed matches (trophy icon, tournament sublabel). Clicking any item fires the search and saves to recents. Exports `addRecentSearch(query)` called by `App.jsx handleSearch` to persist every search automatically. Only renders when at least one section has items.
 - `src/components/TournamentCard.jsx` - Card used on /tournaments list page; shows status badge, date range, prize pool, stage pills
 - `src/components/TeamRoster.jsx` - Collapsible team card showing logo, region badge, qualification status, player list with nationality flags
 - `src/components/RegionBreakdown.jsx` - Region summary pills (WEU/EEU/CN/SEA/NA/SA) for teams section
@@ -40,7 +40,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/LatestMatches.jsx` - Homepage latest results with styled header and tournament change dividers
 - `src/components/UpcomingMatches.jsx` - Live Now + Upcoming Matches sections (separate bordered boxes, polls every 2 min). Live Now heading shows a right-aligned match count when >1 matches are live.
 - `src/components/MatchCard.jsx` - Individual series card with expand/collapse; each game row shows "Match Details" CTA (opens drawer with VOD, draft, AI summary); fires `game_click` + `card_vod_click` GA4 events on game row click; unplayed slots hidden in normal mode, shown as interactive placeholders in spoiler-free mode
-- `src/components/SearchBar.jsx` - Search input (no suggestions)
+- `src/components/SearchBar.jsx` - Search input. Exposes `{ focus(), setValue(v) }` via `useImperativeHandle` ref so parent can populate the input when a suggestion is clicked.
 - `src/components/SiteHeader.jsx` - Shared site header used by all pages; manages theme toggle; accepts optional `spoilerFree`/`onSpoilerToggle` props for homepage
 - `src/components/TournamentHub.jsx` - Tournament section with Overview/Standings/Schedule/Heroes tabs, format badge, event stage pipeline, horizontal bracket tree, stage switcher. When `ongoing.length > 1`: shows a horizontally-scrollable chip bar above the hub for switching between live tournaments; chips use adaptive labels via `getTabLabel()` — same org → region abbreviations (WEU/EEU/CN/SEA/NA/SA), different orgs → league names (ESL/PGL/DreamLeague), mixed → "League Region"; first tournament is pre-selected (no explicit state needed); section header shows "Live Tournaments" + inline count badge. Fires `tournament_hub_region_select` GA4 event on chip click. `extractRegion(name)` and `getLeagueLabel(name)` helpers drive the adaptive label logic.
 - `src/components/XPostsModal.jsx` - Modal for displaying AI-generated X/Twitter posts per game in a series, plus series summary and downloadable result image
@@ -257,6 +257,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Filtering is done client-side in `App.jsx`: `allMatches` is filtered by the search query against team names and tournament name (case-insensitive substring match)
 - Load More loads additional pages from OpenDota and appends to `allMatches`; search re-filters automatically since it reads from the full `allMatches` array
 - Searching also filters `UpcomingMatches` (passed as `searchQuery` prop) against live/upcoming match team names
+- **Recent searches**: every search is saved to `localStorage` key `dota-recent-searches` (up to 5, deduped, original case) via `addRecentSearch()` in `App.jsx handleSearch`. Displayed in `SearchSuggestions` below the search bar.
+- **Suggestion clicks**: `handleSuggestionSelect(query)` in `App.jsx` calls `searchInputRef.current?.setValue(query)` (populates the SearchBar input) then `handleSearch(query)`. Fires `suggestion_click` GA4 event.
 
 ### Theme Toggle
 - Dark/light mode stored in `localStorage` under key `"theme"`; default is `"dark"`

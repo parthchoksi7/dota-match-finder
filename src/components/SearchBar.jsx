@@ -10,6 +10,7 @@ function SearchBar(
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
+    setValue: (v) => setQuery(v),
   }))
 
   useEffect(() => {

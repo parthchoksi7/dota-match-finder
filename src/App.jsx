@@ -7,7 +7,7 @@ import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import TournamentHub from "./components/TournamentHub"
-import TournamentBar from "./components/TournamentBar"
+import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
@@ -220,13 +220,20 @@ function App() {
   function handleSearch(query) {
     setLoading(true)
     setSelectedMatch(null)
-    const q = query.trim().toLowerCase()
+    const trimmed = query.trim()
+    const q = trimmed.toLowerCase()
+    addRecentSearch(trimmed)
     setSearchQuery(q)
     trackEvent("search", { query: q })
     setTimeout(() => {
       setLoading(false)
       setSearched(true)
     }, 300)
+  }
+
+  function handleSuggestionSelect(query) {
+    searchInputRef.current?.setValue(query)
+    handleSearch(query)
   }
 
   function handleClearSearch() {
@@ -569,7 +576,9 @@ function App() {
           initialQuery={initialSearchQuery}
         />
 
-        {!initialLoading && !searched && <TournamentBar />}
+        {!initialLoading && !searched && (
+          <SearchSuggestions allMatches={allMatches} onSearch={handleSuggestionSelect} />
+        )}
 
 {initialLoading && (
           <div
