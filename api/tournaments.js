@@ -561,6 +561,7 @@ const PERMANENT_TIER1_NAMES = [
   'DreamLeague',
   'ESL One',
   'PGL',
+  'PGL Wallachia',
   'BLAST',
   'The International',
   'Beyond The Summit',
@@ -598,11 +599,11 @@ async function fetchTier1LeagueNames(token) {
   const [run, up, past] = await Promise.all([toArr(runRes), toArr(upRes), toArr(pastRes)])
 
   // isTier1 here is the LOCAL function (checks t?.tier directly on tournament objects).
-  // min-length guard (>= 4 chars) prevents accidental broad matches from short org names.
+  // min-length guard (>= 3 chars) prevents accidental broad matches from short org names.
   const dynamicNames = [...run, ...up, ...past]
     .filter(isTier1)
     .map(t => t.league?.name)
-    .filter(n => n && n.length >= 4)
+    .filter(n => n && n.length >= 3)
 
   // Merge permanent + dynamic; Set deduplicates when PandaScore also returns the same name.
   const names = [...new Set([...PERMANENT_TIER1_NAMES, ...dynamicNames])]

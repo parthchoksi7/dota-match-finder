@@ -150,11 +150,11 @@ export function setFollowedTeams(teams) {
  * Returns true if leagueName contains any of the tier1Names substrings.
  * Returns null (not false) when tier1Names is empty — callers should fall back
  * to their own filter instead of treating it as a definitive "not tier 1".
- * Enforces a minimum name length of 4 to avoid accidental broad matches.
+ * Enforces a minimum name length of 3 to avoid accidental broad matches.
  */
 export function matchesTier1Names(leagueName, tier1Names) {
   if (!tier1Names || tier1Names.length === 0) return null
-  const validNames = tier1Names.filter(n => n.length >= 4)
+  const validNames = tier1Names.filter(n => n.length >= 3)
   if (validNames.length === 0) return null  // all names too short — use fallback
   const lower = (leagueName || '').toLowerCase()
   return validNames.some(n => lower.includes(n))

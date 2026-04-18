@@ -4,6 +4,18 @@ const RELEASES = [
   {
     date: "Apr 18, 2026",
     tag: "fix",
+    title: "PGL Wallachia and other PGL events now show up under Latest Results",
+    desc: "Two issues were silently hiding PGL-family tournaments from the homepage results feed. (1) The filter composition short-circuited on the PandaScore name check: if the cache had any valid tier1 names but none matched an OpenDota match's league name, the OpenDota premium fallback was skipped entirely. (2) The hardcoded \"PGL\" entry in the permanent tier1 list was 3 characters but the min-length guard required 4, so it was silently dropped at load time. The filter is now a pure OR of three rules (OpenDota premium OR PandaScore tier S/A OR permanent list), the min-length guard was lowered to 3, and \"PGL Wallachia\" was added to the permanent list as a specific safety net.",
+    items: [
+      "Homepage Latest Results filter is now a pure OR of OpenDota premium tier and PandaScore tier S/A name match.",
+      "OpenDota tier filter tightened to premium only (professional tier was too broad; tier A events are still covered via the PandaScore name cache).",
+      "Min-length guard lowered from 4 to 3 so the generic \"PGL\" catch-all works for PGL Arlington, PGL Stockholm, PGL Wallachia, and future PGL events.",
+      "Cache can be busted via /api/tournaments?mode=tier1-leagues&bust=1.",
+    ],
+  },
+  {
+    date: "Apr 18, 2026",
+    tag: "fix",
     title: "Homepage no longer breaks when OpenDota's league endpoint is down",
     desc: "If OpenDota's /leagues endpoint returns an error (e.g. during an outage or rate-limiting), the match loader now falls back gracefully to the PandaScore tier1 name filter instead of showing \"Could not load matches\". Previously a single failing prefetch call would take down the entire homepage.",
   },

@@ -13,7 +13,7 @@ npm test -- --coverage      # With coverage report
 ```
 
 All tests must pass before pushing to production. The test suite covers:
-- `__tests__/tier-filter.test.js` - Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'` or `'a'`), `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` or `'professional'` set), and `fetchByTiers` (verifies two separate fetch calls are made with individual filter values -- never comma-separated -- and that results are merged/deduplicated correctly)
+- `__tests__/tier-filter.test.js` - Tier filtering: `isTier1` (PandaScore match objects, `league.tier === 's'` or `'a'`), `buildPremiumLeagueIds` (OpenDota `tier === 'premium'` only; professional excluded), and `fetchByTiers` (verifies two separate fetch calls are made with individual filter values -- never comma-separated -- and that results are merged/deduplicated correctly)
 - `__tests__/auto-tweet.test.js` - Auto-tweet cron: `winsNeeded`, `seriesComplete`, `seriesResult` (including BO2 draws)
 - `__tests__/icsGenerator.test.js` — ICS calendar generation
 - `src/__tests__/utils.test.js` — Frontend utils: `formatDuration`, `formatRelativeTime`, `getSeriesLabel`, `groupIntoSeries`, `isSeriesComplete`, `winsRequiredForSeries`, `getSeriesWins`, `trackEvent`

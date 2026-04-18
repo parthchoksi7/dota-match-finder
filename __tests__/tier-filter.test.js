@@ -2,15 +2,15 @@
  * Unit tests for tier-based filtering functions in api/_shared.js.
  *
  * isTier1            - checks a PandaScore match/tournament object by league.tier ('s' or 'a')
- * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for 'premium' and 'professional' tiers
+ * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for the 'premium' tier only
  *
  * Both are pure functions with no external dependencies or mocking required.
  *
  * Background:
  *   PandaScore tier 's' = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, ...)
  *   PandaScore tier 'a' = second-tier professional events (ESL Challenger, regional circuits, ...)
- *   OpenDota 'premium'      = Valve-sponsored DPC events (equivalent of PandaScore tier s)
- *   OpenDota 'professional' = second-tier pro events    (equivalent of PandaScore tier a)
+ *   OpenDota 'premium'  = Valve-sponsored DPC events (equivalent of PandaScore tier s)
+ *   Professional-tier events are covered via the PandaScore tier-s/a name cache, not this Set.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -210,7 +210,7 @@ describe('isTier1ByFields', () => {
 
 describe('buildPremiumLeagueIds', () => {
   describe('correct filtering', () => {
-    it('returns a Set containing premium and professional tier league IDs', () => {
+    it('returns a Set containing only premium tier league IDs', () => {
       const leagues = [
         { leagueid: 1, tier: 'premium', name: 'The International 2025' },
         { leagueid: 2, tier: 'professional', name: 'BetBoom Dacha' },
@@ -221,18 +221,17 @@ describe('buildPremiumLeagueIds', () => {
       const ids = buildPremiumLeagueIds(leagues)
 
       expect(ids).toBeInstanceOf(Set)
-      expect(ids.size).toBe(3)
+      expect(ids.size).toBe(2)
       expect(ids.has(1)).toBe(true)
-      expect(ids.has(2)).toBe(true)
       expect(ids.has(3)).toBe(true)
     })
 
-    it('includes professional tier (ESL Challenger, regional pro circuits)', () => {
+    it('excludes professional tier (covered by PandaScore name cache instead)', () => {
       const leagues = [
         { leagueid: 10, tier: 'professional' },
       ]
       const ids = buildPremiumLeagueIds(leagues)
-      expect(ids.has(10)).toBe(true)
+      expect(ids.has(10)).toBe(false)
     })
 
     it('excludes amateur and excluded tiers', () => {
@@ -259,10 +258,11 @@ describe('buildPremiumLeagueIds', () => {
       expect(buildPremiumLeagueIds(undefined)).toEqual(new Set())
     })
 
-    it('returns an empty Set when no leagues are premium or professional', () => {
+    it('returns an empty Set when no leagues are premium', () => {
       const leagues = [
         { leagueid: 1, tier: 'amateur' },
         { leagueid: 2, tier: 'excluded' },
+        { leagueid: 3, tier: 'professional' },
       ]
       expect(buildPremiumLeagueIds(leagues)).toEqual(new Set())
     })
@@ -280,7 +280,7 @@ describe('buildPremiumLeagueIds', () => {
   })
 
   describe('used to filter OpenDota promatches', () => {
-    it('filters promatches to include both premium and professional leagues', () => {
+    it('filters promatches to include only premium leagues', () => {
       const leagues = [
         { leagueid: 100, tier: 'premium' },
         { leagueid: 200, tier: 'professional' },
@@ -296,7 +296,7 @@ describe('buildPremiumLeagueIds', () => {
       ]
 
       const filtered = promatches.filter(m => premiumIds.has(m.leagueid))
-      expect(filtered.map(m => m.match_id)).toEqual([1, 2])
+      expect(filtered.map(m => m.match_id)).toEqual([1])
     })
 
     it('excludes promatches from amateur and unknown leagues', () => {
@@ -468,16 +468,21 @@ describe('matchesTier1Names', () => {
     })
   })
 
-  describe('min-length guard (names shorter than 4 chars are skipped)', () => {
+  describe('min-length guard (names shorter than 3 chars are skipped)', () => {
     it('treats a list of only short names as effectively empty, returning null', () => {
-      const shortNames = ['esl', 'pgl']  // both 3 chars
+      const shortNames = ['es', 'pg']  // both 2 chars
       expect(matchesTier1Names('ESL One Bangkok', shortNames)).toBe(null)
     })
 
     it('uses valid long names and ignores short names in a mixed list', () => {
-      const mixed = ['esl', 'dreamleague']  // 'esl' skipped, 'dreamleague' used
+      const mixed = ['es', 'dreamleague']  // 'es' skipped, 'dreamleague' used
       expect(matchesTier1Names('DreamLeague Season 25', mixed)).toBe(true)
       expect(matchesTier1Names('ESL One Bangkok', mixed)).toBe(false)
+    })
+
+    it('accepts 3-char names like "pgl" so generic PGL catch-all works', () => {
+      expect(matchesTier1Names('PGL Wallachia Season 8', ['pgl'])).toBe(true)
+      expect(matchesTier1Names('PGL Arlington Major', ['pgl'])).toBe(true)
     })
   })
 
@@ -524,7 +529,8 @@ describe('matchesTier1Names', () => {
     })
 
     it('falls back correctly when tier1Names is empty (null sentinel)', () => {
-      // Simulate: PandaScore unavailable, use OpenDota premiumIds instead
+      // Simulate: PandaScore unavailable, use OpenDota premiumIds instead.
+      // Production filter (src/api.js) is pure OR: premium first, then name match.
       const tier1Names = []
       const premiumIds = new Set([100, 200])
       const promatches = [
@@ -532,9 +538,8 @@ describe('matchesTier1Names', () => {
         { match_id: 2, league_name: 'Some Amateur League', leagueid: 300 },
       ]
       const filtered = promatches.filter(m => {
-        const nameMatch = matchesTier1Names(m.league_name, tier1Names)
-        if (nameMatch !== null) return nameMatch
-        return premiumIds.has(m.leagueid)
+        if (premiumIds.has(m.leagueid)) return true
+        return matchesTier1Names(m.league_name, tier1Names) === true
       })
       expect(filtered.map(m => m.match_id)).toEqual([1])
     })
@@ -563,11 +568,13 @@ describe('PERMANENT_TIER1_NAMES', () => {
       expect(PERMANENT_TIER1_NAMES).toContain('ESL One')
     })
 
-    it('all names except the known 3-char "PGL" exception are at least 4 chars (isTier1ByName guard)', () => {
-      // "PGL" is 3 chars and will be skipped by isTier1ByName's n.length >= 4 guard.
-      // PGL matches rely on the KV cache being warm. All other hardcoded names meet the guard.
-      const shortNames = PERMANENT_TIER1_NAMES.filter(n => n.length < 4)
-      expect(shortNames).toEqual(['PGL'])
+    it('all names are at least 3 chars (isTier1ByName guard)', () => {
+      const shortNames = PERMANENT_TIER1_NAMES.filter(n => n.length < 3)
+      expect(shortNames).toEqual([])
+    })
+
+    it('includes "PGL Wallachia" as a specific catch-all for that series', () => {
+      expect(PERMANENT_TIER1_NAMES).toContain('PGL Wallachia')
     })
   })
 

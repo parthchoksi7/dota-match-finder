@@ -55,20 +55,20 @@ export const isTier1ByName = (match, tier1Names) => {
   if (!tier1Names || tier1Names.length === 0) return false
   const leagueName = (match?.league?.name || '').toLowerCase()
   if (!leagueName) return false
-  return tier1Names.some(n => n.length >= 4 && leagueName.includes(n))
+  return tier1Names.some(n => n.length >= 3 && leagueName.includes(n))
 }
 
 /** KV key for the tier1 league names cache (written by api/tournaments.js ?mode=tier1-leagues) */
 export const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
 
 /**
- * Builds a Set of OpenDota league IDs whose tier is "premium" or "professional"
- * (the OpenDota equivalents of PandaScore tiers S and A respectively).
+ * Builds a Set of OpenDota league IDs whose tier is "premium"
+ * (the OpenDota equivalent of PandaScore tier S).
  * Pure function; accepts the raw array returned by GET /api/leagues.
  */
 export function buildPremiumLeagueIds(leagues) {
   return new Set(
-    (leagues || []).filter(l => l.tier === 'premium' || l.tier === 'professional').map(l => l.leagueid)
+    (leagues || []).filter(l => l.tier === 'premium').map(l => l.leagueid)
   )
 }
 
@@ -212,6 +212,7 @@ export const PERMANENT_TIER1_NAMES = [
   'DreamLeague',
   'ESL One',
   'PGL',
+  'PGL Wallachia',
   'BLAST',
   'The International',
   'Beyond The Summit',

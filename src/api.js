@@ -27,7 +27,7 @@ async function fetchPremiumLeagueIds() {
       const leagues = await res.json()
       _premiumLeagueIds = new Set(
         (Array.isArray(leagues) ? leagues : [])
-          .filter(l => l.tier === 'premium' || l.tier === 'professional')
+          .filter(l => l.tier === 'premium')
           .map(l => l.leagueid)
       )
     }
@@ -66,9 +66,8 @@ export async function fetchProMatches(lastMatchId = null) {
   }
 
   const allMatches = data.filter(m => {
-    const nameMatch = matchesTier1Names(m.league_name, tier1Names)
-    if (nameMatch !== null) return nameMatch   // PandaScore tier S/A filter
-    return premiumIds.has(m.leagueid)          // fallback: OpenDota premium/professional
+    if (premiumIds.has(m.leagueid)) return true                      // rule 1: OpenDota premium
+    return matchesTier1Names(m.league_name, tier1Names) === true     // rules 2+3: PandaScore tier s/a OR permanent list
   })
   const cursor = data[data.length - 1].match_id
 
