@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 19, 2026",
+    tag: "fix",
+    title: "Tournament hero stats now match the correct season instead of a previous one",
+    desc: "The league-matching function in the tournament heroes API was treating \"season\" as a stop word and discarding single-digit season numbers like \"8\" as too short. This caused \"PGL Wallachia Season 8\" to match identically to \"PGL Wallachia Season 7\", so the API returned stats and a game count from the wrong season. Single-digit numeric tokens are now preserved so the correct season is always selected.",
+  },
+  {
     date: "Apr 18, 2026",
     tag: "fix",
     title: "PGL Wallachia and other PGL events now show up under Latest Results",

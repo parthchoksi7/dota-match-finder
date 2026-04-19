@@ -18,7 +18,7 @@ const HEROES_TTL = 60 * 60 * 24
 function findLeague(leagues, search) {
   if (!search || !leagues?.length) return null
   const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
-  const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => t.length > 1 && !STOP.has(t))
+  const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
   const searchTokens = new Set(tokens(search))
 
   let best = null, bestScore = 0

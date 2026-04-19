@@ -328,6 +328,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
 - Tournament bracket parsing relies on PandaScore naming conventions ("Round N", "Upper Bracket Semifinal", etc.) for proper round labels. If PandaScore changes naming, rounds fall back to generic "Round N" numbering. Match-named rounds (e.g. "Tundra vs RNX") are detected and shown with no section header.
 - PandaScore plan limitation: `GET /dota2/series/{id}` and `GET /dota2/series/{id}/matches` return 404/validation errors on the current plan tier. Use `filter[id]` on `/dota2/series/running|upcoming|past` and `filter[serie_id]` on `/dota2/matches/running|upcoming|past` instead (pattern used in `tournament-detail.js` and `calendar-tournament` mode)
+- `findLeague` in `api/tournament-heroes.js` uses token overlap to match a series name to an OpenDota league. Single-digit season numbers (e.g. "8") are now preserved as tokens so Season 8 is never mis-matched to Season 7. After deploying fixes to this function, bust the affected tournament's KV cache with `?bust=1`
 
 ---
 
