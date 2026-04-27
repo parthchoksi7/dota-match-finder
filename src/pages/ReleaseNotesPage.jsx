@@ -4,8 +4,14 @@ const RELEASES = [
   {
     date: "Apr 25, 2026",
     tag: "improvement",
-    title: "G1/G2/G3 game switcher on expanded match cards",
-    desc: "When a multi-game series is expanded, a G1/G2/G3 switcher appears at the top of the game list. The active chip highlights whichever game is currently open in the drawer. Click any chip to jump directly to that game.",
+    title: "G1/G2/G3 game switcher inside the match drawer",
+    desc: "When a multi-game series is open in the side panel, a G1/G2/G3 switcher appears below the header. The active chip highlights the current game. Click any chip to jump directly to that game without closing the panel.",
+  },
+  {
+    date: "Apr 25, 2026",
+    tag: "fix",
+    title: "Watch Replay no longer expands the series card",
+    desc: "Clicking Watch Replay on a collapsed card and then closing the drawer was incorrectly leaving the card expanded. The card now stays collapsed as expected.",
   },
   {
     date: "Apr 25, 2026",

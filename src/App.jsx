@@ -268,7 +268,7 @@ function App() {
       tournament: match.tournament,
     })
 
-    if (match.seriesId) setExpandedSeriesId(String(match.seriesId))
+    if (match.seriesId && !match._skipExpand) setExpandedSeriesId(String(match.seriesId))
     setSelectedMatch({ ...match, loadingVod: true })
 
     // Fetch streams for all games in the series so we can check consistency.
@@ -544,6 +544,29 @@ function App() {
 
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
+  const seriesGames = selectedMatch?.seriesId
+    ? (seriesMatchMap[selectedMatch.seriesId] || []).slice().reverse().map(id => allMatches.find(m => m.id === id)).filter(Boolean)
+    : []
+
+  const gameSwitcher = seriesGames.length > 1 ? (
+    <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+      {seriesGames.map((game, idx) => (
+        <button
+          key={game.id}
+          type="button"
+          onClick={() => handleSelectMatch(game)}
+          className={`px-2.5 py-1 text-xs font-bold rounded transition-colors ${
+            game.id === selectedMatch?.id
+              ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+              : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          G{idx + 1}
+        </button>
+      ))}
+    </div>
+  ) : null
+
   // Build the shareable slug URL for SEO and sharing
   function getShareUrl(match) {
     if (typeof window === "undefined") return ""
@@ -651,7 +674,6 @@ function App() {
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
               expandedSeriesId={expandedSeriesId}
-              selectedGameId={selectedMatch?.id}
             />
           </>
         )}
@@ -670,7 +692,6 @@ function App() {
               onToggleFollow={handleToggleFollow}
               spoilerFree={spoilerFree}
               expandedSeriesId={expandedSeriesId}
-              selectedGameId={selectedMatch?.id}
               grandFinalMatchIds={grandFinalMatchIds}
             />
             <LatestMatches
@@ -682,7 +703,6 @@ function App() {
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
               expandedSeriesId={expandedSeriesId}
-              selectedGameId={selectedMatch?.id}
               grandFinalMatchIds={grandFinalMatchIds}
             />
           </div>
@@ -767,6 +787,7 @@ function App() {
           seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
           shareUrl={getShareUrl(selectedMatch)}
           spoilerFree={spoilerFree}
+          gameSwitcher={gameSwitcher}
           onCopyVod={() => {
             navigator.clipboard?.writeText(selectedMatch.url)
             trackEvent("copy_vod", {
