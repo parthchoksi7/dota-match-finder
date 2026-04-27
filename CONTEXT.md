@@ -34,7 +34,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/App.jsx` - Main app, state management, search, load more, drawer, spoiler-free toggle, slug URL generation
 - `src/main.jsx` - Entry point; path-based routing: `/about` -> AboutPage, `/release-notes` -> ReleaseNotesPage, `/calendar` -> Calendar, `/preview` -> PreviewPage, else App
 - `src/api.js` - All API calls: OpenDota, Twitch VOD search, hero fetching, match summaries
-- `src/components/MatchDrawer.jsx` - Slide-in drawer showing match details, VOD links, draft, AI summary. Accepts `gameSwitcher` prop (any React node) rendered in a row below the header. On the homepage, `App.jsx` builds a G1/G2/G3 segmented control from `seriesMatchMap` and passes it as `gameSwitcher`; clicking a chip calls `handleSelectMatch` to switch games. Active chip = `selectedMatch?.id`. Only shown for multi-game series. Fires `game_switcher_click` GA4 event.
+- `src/components/MatchDrawer.jsx` - Slide-in drawer showing match details, VOD links, draft, AI summary. Accepts `gameSwitcher` prop (any React node) rendered in a row below the header. On the homepage, `App.jsx` builds a G1/G2/G3 segmented control from `seriesMatchMap` and passes it as `gameSwitcher`; each chip shows the game number plus the winning team name (e.g. "G1 Nigma Galaxy") in muted tertiary text; winner names are hidden when `spoilerFree` is true; clicking a chip calls `handleSelectMatch` to switch games. Active chip = `selectedMatch?.id`. Only shown for multi-game series.
 - `src/components/DraftDisplay.jsx` - Hero picks, bans, player names, KDA
 - `src/components/MatchList.jsx` - Search results list grouped into series
 - `src/components/LatestMatches.jsx` - Homepage latest results with styled header and tournament change dividers
