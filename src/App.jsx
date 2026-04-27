@@ -550,20 +550,30 @@ function App() {
 
   const gameSwitcher = seriesGames.length > 1 ? (
     <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
-      {seriesGames.map((game, idx) => (
-        <button
-          key={game.id}
-          type="button"
-          onClick={() => handleSelectMatch(game)}
-          className={`px-2.5 py-1 text-xs font-bold rounded transition-colors ${
-            game.id === selectedMatch?.id
-              ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-              : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          G{idx + 1}
-        </button>
-      ))}
+      {seriesGames.map((game, idx) => {
+        const winner = !spoilerFree
+          ? (game.radiantWin ? game.radiantTeam : game.direTeam)
+          : null
+        return (
+          <button
+            key={game.id}
+            type="button"
+            onClick={() => handleSelectMatch(game)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors ${
+              game.id === selectedMatch?.id
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            G{idx + 1}
+            {winner && (
+              <span className="font-normal text-gray-500 dark:text-gray-500 min-w-0 max-w-[80px] truncate">
+                {winner}
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   ) : null
 

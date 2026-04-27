@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Apr 25, 2026",
     tag: "improvement",
+    title: "Game switcher shows winner names",
+    desc: "The G1/G2/G3 switcher in the match drawer now shows the winning team next to each game number (e.g. G1 Nigma Galaxy). Winner names are hidden when spoiler-free mode is on.",
+  },
+  {
+    date: "Apr 25, 2026",
+    tag: "improvement",
     title: "G1/G2/G3 game switcher inside the match drawer",
     desc: "When a multi-game series is open in the side panel, a G1/G2/G3 switcher appears below the header. The active chip highlights the current game. Click any chip to jump directly to that game without closing the panel.",
   },
