@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -q 'git push'; then content=$(cat /Users/parthchoksi/ai-projects/dota-match-finder/.claude/claude_instructions_template.md 2>/dev/null); prefix='BEFORE PUSHING: You MUST review and verify every item in the deployment checklist below. Do not proceed with the push until all applicable items are confirmed.\n\n'; full_msg=\"${prefix}${content}\"; jq -n --arg ctx \"$full_msg\" '{hookSpecificOutput: {hookEventName: \"PreToolUse\", additionalContext: $ctx}}'; fi",
+            "statusMessage": "Checking deployment checklist..."
+          }
+        ]
+      }
+    ]
+  }
+}

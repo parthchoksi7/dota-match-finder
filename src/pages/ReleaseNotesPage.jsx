@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "Apr 25, 2026",
+    tag: "fix",
+    title: "Live tournament count no longer shows an extra phantom tournament",
+    desc: "When a tournament transitions from upcoming to running, a status refresh was adding it to the live list while the original cached list still held it as upcoming. Both copies ended up in the live array with the same ID, causing the count badge to show 4 instead of 3 and making two chips highlight at once when clicking one. Duplicate entries are now removed before rendering.",
+  },
+  {
     date: "Apr 19, 2026",
     tag: "fix",
     title: "Tournament hero stats now match the correct season instead of a previous one",
