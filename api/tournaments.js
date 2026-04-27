@@ -929,7 +929,7 @@ export default async function handler(req, res) {
     const list = await fetchTournamentList(token)
     const statuses = await fetchTournamentStatuses(token)
 
-    const allTournaments = [...list.ongoing, ...list.upcoming]
+    const allTournaments = [...new Map([...list.ongoing, ...list.upcoming].map(t => [t.id, t])).values()]
     const withFreshStatus = allTournaments.map(t => ({
       ...t,
       status: statuses[t.id] || t.status,
