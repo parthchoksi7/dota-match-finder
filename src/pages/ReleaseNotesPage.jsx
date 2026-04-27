@@ -4,6 +4,12 @@ const RELEASES = [
   {
     date: "Apr 25, 2026",
     tag: "improvement",
+    title: "G1/G2/G3 game switcher on expanded match cards",
+    desc: "When a multi-game series is expanded, a G1/G2/G3 switcher appears at the top of the game list. The active chip highlights whichever game is currently open in the drawer. Click any chip to jump directly to that game.",
+  },
+  {
+    date: "Apr 25, 2026",
+    tag: "improvement",
     title: "Watch Replay button on every match card",
     desc: "A purple Watch Replay button now appears on each collapsed match card. Click it to jump straight into the VOD for Game 1 of the series without expanding the card first.",
   },

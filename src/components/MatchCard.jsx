@@ -25,6 +25,7 @@ function MatchCard({
   followedTeams,
   onToggleFollow,
   expandedSeriesId = null,
+  selectedGameId = null,
   isGrandFinal = false,
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
@@ -232,6 +233,40 @@ function MatchCard({
           id={`series-games-${series.id}`}
           className={`border-t ${isGrandFinal ? "border-amber-200 dark:border-amber-800/50" : "border-gray-200 dark:border-gray-800"}`}
         >
+          {/* Game switcher — only when series has multiple games */}
+          {gameSlots.filter(Boolean).length > 1 && (
+            <div className={`px-4 py-2 flex items-center gap-2 border-b ${isGrandFinal ? "border-amber-200 dark:border-amber-800/50" : "border-gray-200 dark:border-gray-800"}`}>
+              <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+                {gameSlots.map((game, i) => {
+                  if (!game && !spoilerFree) return null
+                  const isActive = game?.id === selectedGameId
+                  return (
+                    <button
+                      key={game ? game.id : `switcher-empty-${i}`}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (game) {
+                          trackEvent("game_switcher_click", { gameNumber: i + 1, matchId: game.id, tournament: series.tournament })
+                          onSelectGame(game)
+                        } else {
+                          onSelectGame({ unplayed: true, gameNumber: i + 1, radiantTeam, direTeam, tournament: series.tournament })
+                        }
+                      }}
+                      className={`px-2.5 py-1 text-xs font-bold rounded transition-colors ${
+                        isActive
+                          ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      }`}
+                    >
+                      G{i + 1}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {gameSlots.map((game, i) => {
             // In non-spoiler mode, unplayed slots are hidden
             if (!game && !spoilerFree) return null

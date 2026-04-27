@@ -651,6 +651,7 @@ function App() {
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
               expandedSeriesId={expandedSeriesId}
+              selectedGameId={selectedMatch?.id}
             />
           </>
         )}
@@ -669,6 +670,7 @@ function App() {
               onToggleFollow={handleToggleFollow}
               spoilerFree={spoilerFree}
               expandedSeriesId={expandedSeriesId}
+              selectedGameId={selectedMatch?.id}
               grandFinalMatchIds={grandFinalMatchIds}
             />
             <LatestMatches
@@ -680,6 +682,7 @@ function App() {
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
               expandedSeriesId={expandedSeriesId}
+              selectedGameId={selectedMatch?.id}
               grandFinalMatchIds={grandFinalMatchIds}
             />
           </div>
