@@ -202,10 +202,26 @@ function MatchCard({
         </div>
 
         {!expanded && (
-          <div className="px-4 pb-3 pt-0">
+          <div className="px-4 pb-3 pt-0 flex items-center justify-between gap-3">
             <span className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wider">
               {spoilerFree ? "Click to expand" : `${series.games.length} game${series.games.length !== 1 ? "s" : ""} - click to expand`}
             </span>
+            {series.games[0] && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  trackEvent("watch_replay_click", { matchId: series.games[0].id, tournament: series.tournament, radiantTeam, direTeam })
+                  onSelectGame(series.games[0])
+                }}
+                className="focus-ring flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+              >
+                <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3" aria-hidden="true">
+                  <path d="M3 2.5a.5.5 0 0 1 .765-.424l10 5.5a.5.5 0 0 1 0 .848l-10 5.5A.5.5 0 0 1 3 13.5v-11z"/>
+                </svg>
+                Watch Replay
+              </button>
+            )}
           </div>
         )}
       </div>

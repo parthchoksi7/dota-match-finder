@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "Apr 25, 2026",
+    tag: "improvement",
+    title: "Watch Replay button on every match card",
+    desc: "A purple Watch Replay button now appears on each collapsed match card. Click it to jump straight into the VOD for Game 1 of the series without expanding the card first.",
+  },
+  {
+    date: "Apr 25, 2026",
     tag: "fix",
     title: "Live tournament count no longer shows an extra phantom tournament",
     desc: "When a tournament transitions from upcoming to running, a status refresh was adding it to the live list while the original cached list still held it as upcoming. Both copies ended up in the live array with the same ID, causing the count badge to show 4 instead of 3 and making two chips highlight at once when clicking one. Duplicate entries are now removed before rendering.",
