@@ -195,7 +195,7 @@ function MatchDrawer({
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
             <div className="space-y-1">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                Watch
+                Watch Full Match Replay
               </p>
               {allVods.length > 1 && (
                 <p className="text-xs text-gray-400 dark:text-gray-600">
