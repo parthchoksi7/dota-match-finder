@@ -159,7 +159,7 @@ function BracketSection({ label, rounds }) {
 export function HorizontalBracket({ bracket }) {
   if (!bracket || bracket.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
-      No bracket yet.
+      No bracket yet
     </p>
   )
 
@@ -200,7 +200,7 @@ export function HorizontalBracket({ bracket }) {
 export function BracketFlatView({ bracket }) {
   if (!bracket || bracket.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
-      No bracket yet.
+      No bracket yet
     </p>
   )
 

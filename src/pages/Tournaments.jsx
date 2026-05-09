@@ -127,7 +127,7 @@ export default function Tournaments() {
             {live.length === 0 && upcoming.length === 0 && completed.length === 0 && (
               <div className="py-8 text-center">
                 <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-                  No Tier 1 tournaments found.
+                  No Tier 1 tournaments found
                 </p>
               </div>
             )}

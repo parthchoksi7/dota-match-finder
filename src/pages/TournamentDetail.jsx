@@ -89,7 +89,7 @@ function AISummary({ seriesData }) {
         setLoading(false)
       })
       .catch(() => {
-        setError('Summary unavailable.')
+        setError('Summary unavailable')
         setLoading(false)
       })
   }
@@ -265,7 +265,7 @@ function HeroStatsSection({ stageId, seriesName, isCompleted }) {
           )}
           {!loading && !heroes?.heroes?.length && (
             <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest py-2 text-center">
-              No hero data available.
+              No hero data available
             </p>
           )}
           {!loading && heroes?.heroes?.length > 0 && (
@@ -368,7 +368,7 @@ export default function TournamentDetail() {
       })
       .catch(err => {
         if (err.message === 'not_found') {
-          setError('Tournament not found.')
+          setError('Tournament not found')
         } else {
           setError('Tournament data is temporarily unavailable. Check back shortly.')
         }

@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 w-full max-w-sm">
           <h1 className="text-lg font-semibold mb-1">Analytics</h1>
-          <p className="text-gray-400 text-sm mb-6">Enter the password to continue.</p>
+          <p className="text-gray-400 text-sm mb-6">Enter the password to continue</p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
               type="password"

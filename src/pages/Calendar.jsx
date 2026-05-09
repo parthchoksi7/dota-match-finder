@@ -281,7 +281,7 @@ export default function Calendar() {
               </div>
             ) : (
               <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-4">
-                Add teams above to generate your calendar URL.
+                Add teams above to generate your calendar URL
               </p>
             )}
           </div>
@@ -302,7 +302,7 @@ export default function Calendar() {
                 </div>
               ) : previewMatches.length === 0 ? (
                 <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-4">
-                  No upcoming matches found.
+                  No upcoming matches found
                 </p>
               ) : (
                 previewMatches.map((m, i) => (

@@ -125,7 +125,7 @@ function getTabLabel(tournament, allOngoing) {
 function StandingsTable({ standings }) {
   if (!standings || standings.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
-      No standings yet.
+      No standings yet
     </p>
   )
 
@@ -571,7 +571,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
             </div>
           ) : isPlayoffStage ? (
             <div className="px-4 sm:px-5 py-8 text-center">
-              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No standings for bracket stages.</p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No standings for bracket stages</p>
               {detail?.eventStages?.some(s => !PLAYOFF_FORMATS.has(s.format) && s.id !== activeStageId) && (
                 <button
                   type="button"
@@ -649,7 +649,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
             </div>
           ) : !heroStats?.heroes?.length ? (
             <p className="py-6 text-center text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-              No picks yet.
+              No picks yet
             </p>
           ) : (
             <div>

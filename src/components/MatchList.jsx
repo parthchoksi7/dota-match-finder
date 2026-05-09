@@ -17,7 +17,7 @@ function MatchList({ matches, onSelect, onDraftPosts, onDraftRedditPosts, loadin
     return (
       <div role="status" aria-live="polite" className="py-8 text-center">
         <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-          Nothing matched.
+          Nothing matched
         </p>
         {onClearSearch && (
           <button

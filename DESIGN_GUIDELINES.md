@@ -158,7 +158,8 @@ Two distinct tab patterns exist - use the right one for the context:
 ### Empty states
 - Always include: a single line of dry, direct copy explaining the state
 - Optional: one action (retry, clear search) - never more than one
-- Tone: confident, not apologetic. "Nothing matched." not "Sorry, no matches found."
+- Tone: confident, not apologetic. "Nothing matched" not "Sorry, no matches found"
+- Punctuation: no period at the end of single-line copy. "Nothing matched" not "Nothing matched."
 - Style: `text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center`
 - Wrapper padding: `py-8` for full-section empty states, `py-4` for inline/compact states
 - Action button: ghost variant (`border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600`), `mt-4` below the copy line

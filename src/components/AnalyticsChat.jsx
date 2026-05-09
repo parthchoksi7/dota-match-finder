@@ -66,7 +66,7 @@ export default function AnalyticsChat() {
       setMessages(prev => [...prev, { role: 'assistant', text: data.reply }]);
       setHistory(data.history || []);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Failed to connect to analytics service.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Failed to connect to analytics service' }]);
     } finally {
       setLoading(false);
     }

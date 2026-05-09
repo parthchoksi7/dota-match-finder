@@ -587,7 +587,7 @@ function PreviewPage() {
         setInitialLoading(false)
       })
       .catch(() => {
-        setError("Failed to load matches.")
+        setError("Failed to load matches")
         setInitialLoading(false)
       })
   }, [])

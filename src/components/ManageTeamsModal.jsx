@@ -64,7 +64,7 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
         <div className="px-5 py-4">
           {followedTeams.length === 0 ? (
             <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-6">
-              No teams followed yet.
+              No teams followed yet
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-gray-100 dark:divide-gray-800">
