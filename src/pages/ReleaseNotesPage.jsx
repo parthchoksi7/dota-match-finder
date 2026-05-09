@@ -3,6 +3,17 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "May 9, 2026",
+    tag: "new",
+    title: "Install Spectate Esports as an app on your phone",
+    desc: "Spectate Esports is now a Progressive Web App. On Android, an Install button appears at the bottom of the screen and adds the site to your home screen with one tap. On iPhone, use Safari's Share menu and tap Add to Home Screen. Once installed, the app launches full-screen with no browser bar and continues to work offline by serving cached match data from your last visit. No app store, no account, no install size to worry about.",
+    items: [
+      "Service worker caches the app shell, latest match data, and OpenDota responses so the app keeps working without a connection.",
+      "Auto-updates in the background whenever a new version is deployed - no manual refresh needed.",
+      "Install banner can be dismissed and will not reappear (preference saved per device).",
+    ],
+  },
+  {
+    date: "May 9, 2026",
     tag: "fix",
     title: "Group A always shown before Group B in tournament stages",
     desc: "Stage tabs in the Tournament Hub now sort group stages alphabetically by letter (Group A, Group B, ...) regardless of their start dates. Previously, Group B could appear first if it started earlier.",

@@ -79,6 +79,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ### Config
 - `vercel.json` - Rewrites: `/sitemap.xml` -> `/api/sitemap`, `/match/:matchId` -> `/`, `/about` -> `/`, `/release-notes` -> `/`, `/tournaments` -> `/`, `/tournament/:seriesId` -> `/`, `/calendar` -> `/`, `/analytics` -> `/`, `/preview` -> `/` (internal design preview, disallowed in robots.txt)
 - `middleware.js` - Edge middleware: intercepts `/match/*` requests, injects per-match OG meta tags server-side
+- `vite.config.js` - Vite build config; includes `vite-plugin-pwa` (`VitePWA`) for Progressive Web App support. Generates `dist/sw.js` (Workbox service worker), `dist/manifest.webmanifest`, and `dist/registerSW.js` on every build. `registerType: 'autoUpdate'` so the service worker silently updates when a new deploy lands. Workbox runtime caching: `/api/*` and OpenDota responses use `NetworkFirst` (24h and 1h TTL respectively); PNG images use `CacheFirst` (30d). Large media (`logo*.png`, `og-image.png`) excluded from precache via `globIgnores`. Manifest declares `pwa-192.png` and `pwa-512.png` (generated from favicon.png via `sips`); `theme_color` and `background_color` are `#030712` (gray-950) to match the dark surface.
 
 ---
 
@@ -317,6 +318,16 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Release Notes at `/release-notes` - served by `src/pages/ReleaseNotesPage.jsx` via same pattern
 - Both pages use `SiteHeader` (shared component) — identical header across all pages
 - Old `.html` files in `public/` are superseded but not deleted
+
+### Progressive Web App (May 2026)
+- Configured via `vite-plugin-pwa` in `vite.config.js`. Generates `dist/sw.js` (Workbox service worker), `dist/manifest.webmanifest`, and `dist/registerSW.js` on every build. `registerType: 'autoUpdate'` silently activates new versions on next page load - no user-facing update prompt.
+- Manifest: `name="Spectate Esports"`, `short_name="Spectate"`, `display="standalone"`, `theme_color` and `background_color` `#030712` (gray-950 - matches the dark site surface). Icons: `/pwa-192.png` and `/pwa-512.png` generated from `public/favicon.png` via `sips -z 192 192` / `sips -z 512 512`. The third icon entry uses `purpose: 'maskable'` for Android adaptive icons.
+- Workbox precache: HTML, JS, CSS bundles only. Large images (`logo*.png` 1.7MB, `og-image.png` 340KB) explicitly excluded via `globIgnores` to keep precache small.
+- Workbox runtime caching: `/api/*` (Vercel functions) -> `NetworkFirst`, 24h TTL, cache name `api-cache`. OpenDota -> `NetworkFirst`, 1h TTL, cache name `opendota-cache`. PNG images -> `CacheFirst`, 30d TTL, cache name `image-cache`.
+- `index.html` adds `<meta name="theme-color" content="#030712" />`. The manifest link tag is auto-injected by the plugin - do not add it manually.
+- `src/components/InstallPrompt.jsx` renders a fixed bottom banner. On Android Chrome, listens for `beforeinstallprompt`, shows an Install button that triggers the native dialog. On iOS Safari (UA sniffed), shows a static hint: "Tap Share then Add to Home Screen". Hidden when `matchMedia('(display-mode: standalone)')` is true (already installed) or when `localStorage['pwa-install-dismissed']='1'` (user previously dismissed). Mounted in `App.jsx` near the top of the main render. Fires GA events: `pwa_prompt_show`, `pwa_prompt_dismiss`, `pwa_install_click`, `pwa_install_outcome` (with outcome `accepted`/`dismissed`).
+- Verification: build with `npm run build`, serve with `npm run preview`, then in DevTools: Application -> Service Workers shows "activated and is running"; Application -> Manifest shows the app metadata; Cache Storage shows `workbox-precache-v2-...`, `api-cache`, `opendota-cache`, `image-cache` after navigation.
+- iOS push notifications NOT implemented - requires APNs/FCM backend; out of scope.
 
 ---
 

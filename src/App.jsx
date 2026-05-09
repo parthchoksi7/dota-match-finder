@@ -12,6 +12,7 @@ import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
+import InstallPrompt from "./components/InstallPrompt"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
@@ -585,6 +586,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col overflow-x-hidden">
+      <InstallPrompt />
       <SiteHeader
         spoilerFree={spoilerFree}
         onSpoilerToggle={() => {
