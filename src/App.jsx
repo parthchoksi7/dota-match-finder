@@ -605,7 +605,7 @@ function App() {
           initialLoadComplete={!initialLoading}
           onClearSearch={handleClearSearch}
           disabled={initialLoading}
-          errorId={error ? "app-error" : undefined}
+          errorId={undefined}
           initialQuery={initialSearchQuery}
         />
 
@@ -626,24 +626,6 @@ function App() {
           </div>
         )}
 
-        {error && (
-          <div
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 py-6 border border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded px-4"
-            role="alert"
-            id="app-error"
-          >
-            <span className="text-red-600 dark:text-red-400 text-xs uppercase tracking-widest">
-              {error}
-            </span>
-            <button
-              type="button"
-              onClick={loadMatches}
-              className="focus-ring px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        )}
 
         {!initialLoading && searched && (
           <>
@@ -688,7 +670,7 @@ function App() {
           </>
         )}
 
-        {!initialLoading && !searched && !error && (
+        {!initialLoading && !searched && (
           <div className="flex flex-col gap-6">
             <TournamentHub spoilerFree={spoilerFree} />
             <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
@@ -714,6 +696,8 @@ function App() {
               onToggleFollow={handleToggleFollow}
               expandedSeriesId={expandedSeriesId}
               grandFinalMatchIds={grandFinalMatchIds}
+              error={error}
+              onRetry={loadMatches}
             />
           </div>
         )}

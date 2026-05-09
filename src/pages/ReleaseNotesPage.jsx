@@ -2,6 +2,12 @@ import SiteHeader from "../components/SiteHeader"
 
 const RELEASES = [
   {
+    date: "May 9, 2026",
+    tag: "improvement",
+    title: "Partial data shown when one API is down",
+    desc: "If OpenDota is temporarily unavailable, live and upcoming match sections (from PandaScore) still load normally. Past results show an inline error with a Retry button instead of hiding the whole page.",
+  },
+  {
     date: "Apr 25, 2026",
     tag: "improvement",
     title: "Game switcher shows winner names",

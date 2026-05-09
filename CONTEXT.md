@@ -326,6 +326,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Twitch VODs expire after 60 days - old matches will show "No VOD found"
 - Search only searches already-loaded matches - user must click "Load more matches" to expand search
 - `fetchPremiumLeagueIds` in `src/api.js` now fails gracefully (returns empty Set) when OpenDota `/leagues` is down, so the homepage still loads via the PandaScore tier1 name filter
+- **API resilience**: Error handling is scoped per section. If OpenDota is down, `LatestMatches` shows an inline error with a Retry button while `TournamentHub` and `UpcomingMatches` (PandaScore) continue to render normally. If PandaScore is down, `TournamentHub` and `UpcomingMatches` silently return null (hiding themselves) while `LatestMatches` renders historical OpenDota data normally.
 - Live match KV cache must be busted after deploying new fields: `/api/live-matches?bust=1`
 - Tournament bracket parsing relies on PandaScore naming conventions ("Round N", "Upper Bracket Semifinal", etc.) for proper round labels. If PandaScore changes naming, rounds fall back to generic "Round N" numbering. Match-named rounds (e.g. "Tundra vs RNX") are detected and shown with no section header.
 - PandaScore plan limitation: `GET /dota2/series/{id}` and `GET /dota2/series/{id}/matches` return 404/validation errors on the current plan tier. Use `filter[id]` on `/dota2/series/running|upcoming|past` and `filter[serie_id]` on `/dota2/matches/running|upcoming|past` instead (pattern used in `tournament-detail.js` and `calendar-tournament` mode)

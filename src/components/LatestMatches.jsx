@@ -19,11 +19,39 @@ function getDayKey(unixSeconds) {
   return d.toDateString()
 }
 
-function LatestMatches({ matches, onSelectMatch, onDraftPosts, onDraftRedditPosts, spoilerFree = false, followedTeams, onToggleFollow, expandedSeriesId, grandFinalMatchIds = new Set() }) {
-  if (!matches || matches.length === 0) return null
-
-  const allSeries = groupIntoSeries(matches)
+function LatestMatches({ matches, onSelectMatch, onDraftPosts, onDraftRedditPosts, spoilerFree = false, followedTeams, onToggleFollow, expandedSeriesId, grandFinalMatchIds = new Set(), error = null, onRetry }) {
+  const allSeries = groupIntoSeries(matches || [])
   const completeSeries = allSeries.filter(isSeriesComplete)
+
+  if (error) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center mb-2">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-gray-400 dark:border-gray-600">
+            Latest results
+          </h2>
+        </div>
+        <div
+          className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-4 border border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded"
+          role="alert"
+        >
+          <span className="text-red-600 dark:text-red-400 text-xs uppercase tracking-widest">
+            Could not load past matches — OpenDota may be temporarily down
+          </span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="focus-ring shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   if (completeSeries.length === 0) return null
 
   return (
