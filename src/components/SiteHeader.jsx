@@ -7,6 +7,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
     try { return localStorage.getItem("theme") || "dark" } catch { return "dark" }
   })
   const [isStandalone, setIsStandalone] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark")
@@ -16,6 +17,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
   useEffect(() => {
     if (typeof window === "undefined") return
     setIsStandalone(window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true)
+    setIsDesktop(window.matchMedia("(hover: hover) and (pointer: fine)").matches)
   }, [])
 
   const showSpoiler = typeof onSpoilerToggle === "function"
@@ -33,7 +35,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
           </p>
         </div>
       </a>
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 sm:gap-4">
         <a href="/tournaments" onClick={() => trackEvent('nav_tournaments_click', {})} className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Tournaments</a>
         <a href="/about" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
         <a href="/release-notes" className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
@@ -45,7 +47,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
         </a>
-        {!isStandalone && (
+        {!isStandalone && !isDesktop && (
           <button
             type="button"
             onClick={() => {
