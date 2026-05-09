@@ -1,15 +1,22 @@
 import { useState, useEffect } from "react"
 import { trackEvent } from "../utils"
+import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
 
 export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem("theme") || "dark" } catch { return "dark" }
   })
+  const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark")
     try { localStorage.setItem("theme", theme) } catch {}
   }, [theme])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    setIsStandalone(window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true)
+  }, [])
 
   const showSpoiler = typeof onSpoilerToggle === "function"
 
@@ -38,6 +45,24 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
         </a>
+        {!isStandalone && (
+          <button
+            type="button"
+            onClick={() => {
+              trackEvent("pwa_install_icon_click", {})
+              window.dispatchEvent(new Event(PWA_SHOW_EVENT))
+            }}
+            aria-label="Install as app"
+            title="Install Spectate Esports on your home screen"
+            className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+        )}
         {showSpoiler && (
           <button
             type="button"

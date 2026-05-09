@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "May 9, 2026",
+    tag: "improvement",
+    title: "Persistent install icon in the header",
+    desc: "Added a download icon to the site header that opens the install banner on demand. Previously the banner only appeared once on first visit and disappeared permanently after dismissing it - if you changed your mind later, there was no way to bring it back. The icon is hidden once the app is installed.",
+  },
+  {
+    date: "May 9, 2026",
     tag: "new",
     title: "Install Spectate Esports as an app on your phone",
     desc: "Spectate Esports is now a Progressive Web App. On Android, an Install button appears at the bottom of the screen and adds the site to your home screen with one tap. On iPhone, use Safari's Share menu and tap Add to Home Screen. Once installed, the app launches full-screen with no browser bar and continues to work offline by serving cached match data from your last visit. No app store, no account, no install size to worry about.",

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { trackEvent } from "../utils"
 
 const DISMISSED_KEY = "pwa-install-dismissed"
+export const SHOW_EVENT = "pwa-show-prompt"
 
 function isIOS() {
   if (typeof navigator === "undefined") return false
@@ -20,23 +21,39 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    if (localStorage.getItem(DISMISSED_KEY) || isInStandaloneMode()) return
+    if (isInStandaloneMode()) return
 
-    if (isIOS()) {
-      setIosHint(true)
+    const ios = isIOS()
+    setIosHint(ios)
+
+    const dismissed = localStorage.getItem(DISMISSED_KEY)
+
+    if (ios && !dismissed) {
       setShow(true)
-      trackEvent("pwa_prompt_show", { platform: "ios" })
-      return
+      trackEvent("pwa_prompt_show", { platform: "ios", trigger: "auto" })
     }
 
-    const handler = (e) => {
+    const installPromptHandler = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      setShow(true)
-      trackEvent("pwa_prompt_show", { platform: "android" })
+      if (!localStorage.getItem(DISMISSED_KEY)) {
+        setShow(true)
+        trackEvent("pwa_prompt_show", { platform: "android", trigger: "auto" })
+      }
     }
-    window.addEventListener("beforeinstallprompt", handler)
-    return () => window.removeEventListener("beforeinstallprompt", handler)
+
+    const manualShowHandler = () => {
+      setShow(true)
+      trackEvent("pwa_prompt_show", { platform: ios ? "ios" : "android", trigger: "manual" })
+    }
+
+    window.addEventListener("beforeinstallprompt", installPromptHandler)
+    window.addEventListener(SHOW_EVENT, manualShowHandler)
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", installPromptHandler)
+      window.removeEventListener(SHOW_EVENT, manualShowHandler)
+    }
   }, [])
 
   function dismiss() {
@@ -57,21 +74,22 @@ export default function InstallPrompt() {
 
   if (!show) return null
 
+  const canInstallNatively = !iosHint && !!deferredPrompt
+  const hintText = iosHint
+    ? "Tap Share then Add to Home Screen"
+    : canInstallNatively
+      ? "Works offline, no app store needed"
+      : 'Open your browser menu and tap "Install app"'
+
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm">
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded px-3 py-3 flex items-center gap-3">
         <img src="/favicon.png" alt="" className="w-8 h-8 rounded flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-900 dark:text-white">Add to Home Screen</p>
-          {iosHint ? (
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
-              Tap Share then Add to Home Screen
-            </p>
-          ) : (
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">Works offline, no app store needed</p>
-          )}
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{hintText}</p>
         </div>
-        {!iosHint && (
+        {canInstallNatively && (
           <button
             onClick={install}
             className="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3 rounded transition-colors min-h-[44px]"

@@ -8,11 +8,13 @@
  * - On Android, shows the Install button when beforeinstallprompt fires
  * - Dismiss button hides the banner and persists the dismissed flag
  * - Install button calls the deferred prompt and tracks outcome
+ * - Manual trigger via SHOW_EVENT re-shows the banner even after dismiss
+ * - Manual trigger without a deferred prompt falls back to a generic browser-menu hint
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import InstallPrompt from '../components/InstallPrompt'
+import InstallPrompt, { SHOW_EVENT } from '../components/InstallPrompt'
 
 vi.mock('../utils', () => ({ trackEvent: vi.fn() }))
 
@@ -137,5 +139,35 @@ describe('InstallPrompt - dismiss', () => {
     render(<InstallPrompt />)
     fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
     expect(localStorage.getItem('pwa-install-dismissed')).toBe('1')
+  })
+})
+
+describe('InstallPrompt - manual trigger (SHOW_EVENT)', () => {
+  it('re-shows the banner after a previous dismiss', async () => {
+    setUserAgent(IOS_UA)
+    localStorage.setItem('pwa-install-dismissed', '1')
+    render(<InstallPrompt />)
+
+    expect(screen.queryByText('Add to Home Screen')).not.toBeInTheDocument()
+
+    await act(async () => {
+      window.dispatchEvent(new Event(SHOW_EVENT))
+    })
+
+    expect(screen.getByText('Add to Home Screen')).toBeInTheDocument()
+    expect(screen.getByText(/Tap Share then Add to Home Screen/i)).toBeInTheDocument()
+  })
+
+  it('falls back to a generic browser-menu hint when no deferred prompt is available', async () => {
+    setUserAgent(ANDROID_UA)
+    render(<InstallPrompt />)
+
+    await act(async () => {
+      window.dispatchEvent(new Event(SHOW_EVENT))
+    })
+
+    expect(screen.getByText('Add to Home Screen')).toBeInTheDocument()
+    expect(screen.getByText(/Open your browser menu/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^install$/i })).not.toBeInTheDocument()
   })
 })
