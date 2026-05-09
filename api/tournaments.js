@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields } from './_shared.js'
+import { isTier1ByFields, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES } from './_shared.js'
 
 // ─── iCal helpers (used by calendar modes) ────────────────────────────────────
 
@@ -232,8 +232,12 @@ const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 // Adapter for tournament objects from /dota2/tournaments/* (tier on t.tier directly,
 // not on t.league.tier which is always null). Delegates to the centralised
 // isTier1ByFields in _shared.js so the league-name keyword override is applied here too.
+// Also checks SHARED_PERMANENT_TIER1_NAMES so manually whitelisted organizers (e.g. 1win Essence)
+// appear in the TournamentHub regardless of their PandaScore tier.
 function isTier1(t) {
-  return isTier1ByFields(t?.tier, t?.league?.name)
+  if (isTier1ByFields(t?.tier, t?.league?.name)) return true
+  const leagueName = (t?.league?.name || '').toLowerCase()
+  return SHARED_PERMANENT_TIER1_NAMES.some(n => leagueName.includes(n.toLowerCase()))
 }
 
 

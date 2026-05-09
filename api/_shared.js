@@ -218,4 +218,5 @@ export const PERMANENT_TIER1_NAMES = [
   'Beyond The Summit',
   'WePlay',
   'Riyadh Masters',
+  '1win Essence',
 ]
