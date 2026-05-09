@@ -494,6 +494,9 @@ export default async function handler(req, res) {
         const now = new Date()
         eventStages = stages
           .sort((a, b) => {
+            const groupA = (a.name || '').match(/\bGroup\s+([A-Za-z])\b/)?.[1]?.toUpperCase()
+            const groupB = (b.name || '').match(/\bGroup\s+([A-Za-z])\b/)?.[1]?.toUpperCase()
+            if (groupA && groupB) return groupA.localeCompare(groupB)
             const ta = a.begin_at ? new Date(a.begin_at).getTime() : Infinity
             const tb = b.begin_at ? new Date(b.begin_at).getTime() : Infinity
             if (ta !== tb) return ta - tb

@@ -3,6 +3,12 @@ import SiteHeader from "../components/SiteHeader"
 const RELEASES = [
   {
     date: "May 9, 2026",
+    tag: "fix",
+    title: "Group A always shown before Group B in tournament stages",
+    desc: "Stage tabs in the Tournament Hub now sort group stages alphabetically by letter (Group A, Group B, ...) regardless of their start dates. Previously, Group B could appear first if it started earlier.",
+  },
+  {
+    date: "May 9, 2026",
     tag: "improvement",
     title: "Partial data shown when one API is down",
     desc: "If OpenDota is temporarily unavailable, live and upcoming match sections (from PandaScore) still load normally. Past results show an inline error with a Retry button instead of hiding the whole page.",
