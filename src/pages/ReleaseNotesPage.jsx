@@ -782,7 +782,7 @@ const TAG_LABELS = { new: "New", improvement: "Improvement", fix: "Fix" }
 
 function ReleaseNotesPage() {
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col font-mono">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
       <SiteHeader />
 
       <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full">
