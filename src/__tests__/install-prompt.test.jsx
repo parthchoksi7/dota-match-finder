@@ -92,7 +92,7 @@ describe('InstallPrompt - iOS Safari', () => {
 })
 
 describe('InstallPrompt - iOS Chrome', () => {
-  it('shows the open-in-Safari tip when SHOW_EVENT is dispatched on iOS Chrome', async () => {
+  it('shows the install guide when SHOW_EVENT is dispatched on iOS Chrome', async () => {
     setUserAgent(IOS_CHROME_UA)
     render(<InstallPrompt />)
 
@@ -100,8 +100,8 @@ describe('InstallPrompt - iOS Chrome', () => {
       window.dispatchEvent(new Event(SHOW_EVENT))
     })
 
-    expect(screen.getByText(/Open in Safari to Install/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /copy link/i })).toBeInTheDocument()
+    expect(screen.getByText(/Tap the Share button/i)).toBeInTheDocument()
+    expect(screen.getByText(/Install in 3 quick steps/i)).toBeInTheDocument()
   })
 })
 

@@ -34,9 +34,9 @@ export default function InstallPrompt() {
     const chrome = isIOSChrome()
     const dismissed = localStorage.getItem(DISMISSED_KEY)
 
-    if (safari && !dismissed) {
+    if ((safari || chrome) && !dismissed) {
       setMode("ios-guide")
-      trackEvent("pwa_prompt_show", { platform: "ios_safari", trigger: "auto" })
+      trackEvent("pwa_prompt_show", { platform: safari ? "ios_safari" : "ios_chrome", trigger: "auto" })
     }
 
     const installPromptHandler = (e) => {
@@ -53,7 +53,7 @@ export default function InstallPrompt() {
         setMode("ios-guide")
         trackEvent("pwa_prompt_show", { platform: "ios_safari", trigger: "manual" })
       } else if (chrome) {
-        setMode("ios-chrome")
+        setMode("ios-guide")
         trackEvent("pwa_prompt_show", { platform: "ios_chrome", trigger: "manual" })
       } else {
         setMode("android")
@@ -144,10 +144,10 @@ function IOSSafariGuide({ onDismiss }) {
 
         <div className="px-5 py-5 space-y-5">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Install in 3 quick steps using Safari:
+            Install in 3 quick steps:
           </p>
 
-          <Step number={1} title='Tap the Share button' subtitle="At the bottom of your Safari browser">
+          <Step number={1} title='Tap the Share button' subtitle="At the bottom of your browser">
             <SafariShareIcon />
           </Step>
 
