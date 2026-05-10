@@ -16,6 +16,11 @@ function isIOSChrome() {
   return /iphone|ipad|ipod/i.test(ua) && /crios/i.test(ua)
 }
 
+function isDesktop() {
+  if (typeof window === "undefined") return false
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches
+}
+
 function isInStandaloneMode() {
   if (typeof window === "undefined") return false
   return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true
@@ -23,7 +28,7 @@ function isInStandaloneMode() {
 
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
-  // mode: null | 'ios-guide' | 'ios-chrome' | 'android'
+  // mode: null | 'ios-guide' | 'ios-chrome' | 'android' | 'desktop'
   const [mode, setMode] = useState(null)
 
   useEffect(() => {
@@ -55,6 +60,9 @@ export default function InstallPrompt() {
       } else if (chrome) {
         setMode("ios-guide")
         trackEvent("pwa_prompt_show", { platform: "ios_chrome", trigger: "manual" })
+      } else if (isDesktop()) {
+        setMode("desktop")
+        trackEvent("pwa_prompt_show", { platform: "desktop", trigger: "manual" })
       } else {
         setMode("android")
         trackEvent("pwa_prompt_show", { platform: "android", trigger: "manual" })
@@ -87,6 +95,7 @@ export default function InstallPrompt() {
 
   if (mode === "ios-guide") return <IOSSafariGuide onDismiss={dismiss} />
   if (mode === "ios-chrome") return <IOSChromeTip onDismiss={dismiss} />
+  if (mode === "desktop") return <DesktopInstallTip onDismiss={dismiss} />
   if (mode !== "android") return null
 
   return (
@@ -233,6 +242,56 @@ function IOSChromeTip({ onDismiss }) {
           <p className="text-xs text-gray-400 dark:text-gray-600 text-center">
             Then open Safari and paste in the address bar
           </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DesktopInstallTip({ onDismiss }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onDismiss} aria-hidden="true" />
+      <div className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-2xl shadow-xl">
+
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <img src="/favicon.png" alt="Spectate Esports" className="w-9 h-9 rounded-xl flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">Spectate Esports</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 leading-tight">Install on your phone</p>
+            </div>
+          </div>
+          <button
+            onClick={onDismiss}
+            aria-label="Close"
+            className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 w-8 h-8 flex items-center justify-center text-2xl leading-none flex-shrink-0"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="px-5 py-5 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            Installing adds Spectate Esports to your home screen so it opens instantly — no browser bar, works offline, and you can enable live match notifications.
+          </p>
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">On iPhone or iPad</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Open <span className="font-semibold text-gray-900 dark:text-white">spectateesports.live</span> in Safari, tap the Share button, then tap <span className="font-semibold text-gray-900 dark:text-white">Add to Home Screen</span>.</p>
+          </div>
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">On Android</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Open <span className="font-semibold text-gray-900 dark:text-white">spectateesports.live</span> in Chrome, tap the menu (⋮), then tap <span className="font-semibold text-gray-900 dark:text-white">Add to Home Screen</span>.</p>
+          </div>
+        </div>
+
+        <div className="px-5 pb-6">
+          <button
+            onClick={onDismiss}
+            className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 font-semibold text-sm rounded-xl py-3.5 transition-colors"
+          >
+            Got it
+          </button>
         </div>
       </div>
     </div>
