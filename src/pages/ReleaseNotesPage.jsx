@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 10, 2026",
     tag: "new",
+    title: "Pull to refresh in the app",
+    desc: "On the installed app, pull down from the top of the screen to reload the latest matches. A spinner appears as you pull and spins while refreshing. Only active in the installed app — the browser already has its own pull-to-refresh.",
+  },
+  {
+    date: "May 10, 2026",
+    tag: "new",
     title: "Push notifications for live matches",
     desc: "Follow a team and get a browser notification the moment they go live. Works on Android Chrome and on iOS Safari when the app is installed to the home screen (iOS 16.4+). Enable alerts from the My Teams section — a single tap asks for permission and subscribes you instantly. Notifications are sent automatically when live matches are detected.",
   },
