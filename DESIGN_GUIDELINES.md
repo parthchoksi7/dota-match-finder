@@ -146,6 +146,37 @@ Two distinct tab patterns exist - use the right one for the context:
 - Confirmed state: `border-green-600 text-green-600 dark:border-green-500 dark:text-green-500`, label changes to "Copied!" for 2 seconds
 - Always use Tailwind classes for colors, never inline `style` props
 
+### Pull-to-refresh indicator (standalone PWA only)
+
+- Only rendered in `display-mode: standalone` — never in browser (browser has native pull-to-refresh)
+- A floating pill anchored to the top of the viewport, centered horizontally: `fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none`
+- Pill: `bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full p-2 shadow-md`
+- **Pull phase**: refresh icon (`w-5 h-5 text-gray-500 dark:text-gray-400`) rotates proportionally to pull distance via inline `style={{ transform: rotate(Xdeg) }}`; translateY animates the pill down from above the viewport
+- **Loading phase**: same refresh icon with `animate-spin` class; pill stays visible at full translateY
+- Threshold: 72px — must pull past this to trigger a refresh
+- Icon: circular arrow (refresh icon), not a down-arrow. Same icon for both phases (pull = static/rotating by gesture, loading = spinning)
+
+### Inline feature callout card (My Teams)
+
+Used for opt-in features surfaced inline within the My Teams section (calendar sync, push notifications).
+
+```jsx
+<div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded mb-3">
+  <div className="flex items-center gap-2 min-w-0">
+    {/* 16×16 icon, text-gray-400 dark:text-gray-600, flex-shrink-0 */}
+    <div className="min-w-0">
+      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug">{title}</p>
+      <p className="text-xs text-gray-400 dark:text-gray-600 leading-snug">{subtitle}</p>
+    </div>
+  </div>
+  {/* action: primary dark/light button OR success state */}
+</div>
+```
+
+- Action button (not yet enabled): `bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 px-3 py-1.5 text-xs font-semibold rounded whitespace-nowrap`
+- Success state (already enabled): `text-green-600 dark:text-green-500 text-xs font-semibold flex items-center gap-1` with a 14×14 checkmark icon
+- `mb-3` between cards; no dividers between them
+
 ### Loading states
 - **Inline spinners:** `w-4 h-4 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin`
 - **Skeleton loaders:** Use `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` blocks that mirror the actual content shape

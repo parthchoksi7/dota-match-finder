@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { getFollowedTeams, setFollowedTeams, groupIntoSeries, isSeriesComplete } from '../utils'
+import { isPushSupported, getPushPermission } from '../utils/push'
 
 // ── localStorage helpers ───────────────────────────────────────────────────
 
@@ -183,5 +184,39 @@ describe('follow toggle logic', () => {
   it('preserves order of remaining teams when removing', () => {
     const result = toggleFollowedTeam(['Spirit', 'OG', 'Tundra'], 'OG')
     expect(result).toEqual(['Spirit', 'Tundra'])
+  })
+})
+
+// ── push notification utils ────────────────────────────────────────────────
+
+describe('isPushSupported', () => {
+  it('returns false when Notification is not in window', () => {
+    const original = window.Notification
+    delete window.Notification
+    expect(isPushSupported()).toBe(false)
+    window.Notification = original
+  })
+
+  it('returns false when PushManager is not in window', () => {
+    const original = window.PushManager
+    delete window.PushManager
+    expect(isPushSupported()).toBe(false)
+    if (original) window.PushManager = original
+  })
+
+  it('returns false when serviceWorker is not in navigator', () => {
+    const original = navigator.serviceWorker
+    Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true })
+    expect(isPushSupported()).toBe(false)
+    Object.defineProperty(navigator, 'serviceWorker', { value: original, configurable: true })
+  })
+})
+
+describe('getPushPermission', () => {
+  it('returns "unsupported" when Notification is not available', () => {
+    const original = window.Notification
+    delete window.Notification
+    expect(getPushPermission()).toBe('unsupported')
+    window.Notification = original
   })
 })

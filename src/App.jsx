@@ -674,13 +674,11 @@ function App() {
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full p-2 shadow-md">
             <svg
               className={`w-5 h-5 text-gray-500 dark:text-gray-400 ${refreshing ? 'animate-spin' : ''}`}
-              style={!refreshing ? { transform: `rotate(${(pullDistance / THRESHOLD) * 180}deg)` } : undefined}
+              style={!refreshing ? { transform: `rotate(${(pullDistance / THRESHOLD) * 360}deg)` } : undefined}
               viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
             >
-              {refreshing
-                ? <><path d="M21 12a9 9 0 1 1-6.219-8.56" /></>
-                : <><path d="M12 5v14M5 12l7 7 7-7" /></>
-              }
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              <polyline points="15 4 21 4 21 10" />
             </svg>
           </div>
         </div>
