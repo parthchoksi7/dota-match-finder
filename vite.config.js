@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       manifest: {
         name: 'Spectate Esports',
         short_name: 'Spectate',
@@ -21,26 +24,9 @@ export default defineConfig({
           { src: '/pwa-512.jpg', sizes: '512x512', type: 'image/jpeg', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html}'],
         globIgnores: ['**/logo*.png', '**/og-image.png'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache', expiration: { maxAgeSeconds: 86400 } },
-          },
-          {
-            urlPattern: /^https:\/\/api\.opendota\.com\//,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'opendota-cache', expiration: { maxAgeSeconds: 3600 } },
-          },
-          {
-            urlPattern: /\.png$/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'image-cache', expiration: { maxAgeSeconds: 2592000 } },
-          },
-        ],
       },
     }),
   ],
