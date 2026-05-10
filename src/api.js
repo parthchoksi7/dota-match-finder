@@ -21,8 +21,10 @@ async function fetchTier1LeagueNames() {
 
 async function fetchPremiumLeagueIds() {
   if (_premiumLeagueIds) return _premiumLeagueIds
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000)
   try {
-    const res = await fetch(`${OPENDOTA_BASE}/leagues`)
+    const res = await fetch(`${OPENDOTA_BASE}/leagues`, { signal: controller.signal })
     if (res.ok) {
       const leagues = await res.json()
       _premiumLeagueIds = new Set(
@@ -31,7 +33,9 @@ async function fetchPremiumLeagueIds() {
           .map(l => l.leagueid)
       )
     }
-  } catch {}
+  } catch {} finally {
+    clearTimeout(timeoutId)
+  }
   return _premiumLeagueIds || new Set()
 }
 
@@ -41,7 +45,7 @@ export async function fetchProMatches(lastMatchId = null) {
     : `${OPENDOTA_BASE}/promatches`
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  const timeoutId = setTimeout(() => controller.abort(), 25000)
 
   // Fetch tier1 names and premium IDs in parallel with the promatches request.
   // Both are cached after the first call so load-more incurs no extra latency.

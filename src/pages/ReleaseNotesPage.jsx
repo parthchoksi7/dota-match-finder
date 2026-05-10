@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 10, 2026",
+    tag: "fix",
+    title: "Matches now load reliably on first visit",
+    desc: "OpenDota has been responding more slowly than usual, causing the match list to fail on first load and only succeed after a refresh. Increased the fetch timeout and added a faster service worker cache fallback so the site loads correctly on the first visit.",
+  },
+  {
+    date: "May 10, 2026",
     tag: "improvement",
     title: "Dismissible My Teams cards + alerts in Settings",
     desc: "The \"Sync to your calendar\" and \"Live match alerts\" cards in My Teams can now be dismissed with ×. The calendar card hides permanently once dismissed. The push alerts card auto-hides once you enable notifications and can be dismissed before that if you're not interested. A persistent \"Live match alerts\" row now lives in Settings → Stay updated, so you can always check your notification status or enable alerts later.",
@@ -856,7 +862,7 @@ const RELEASES = [
 const TAG_STYLES = {
   new: "text-green-500 border-green-500/30 bg-green-500/5",
   improvement: "text-blue-400 border-blue-400/30 bg-blue-400/5",
-  fix: "text-gray-500 border-gray-700 bg-transparent",
+  fix: "text-gray-500 border-gray-300 dark:border-gray-700 bg-transparent",
 }
 
 const TAG_LABELS = { new: "New", improvement: "Improvement", fix: "Fix" }
@@ -877,7 +883,7 @@ function ReleaseNotesPage() {
           {RELEASES.map((r, i) => (
             <div key={i} className="grid grid-cols-[120px_1fr] sm:grid-cols-[120px_1fr] gap-x-8 pb-10 max-sm:grid-cols-1 max-sm:gap-y-2">
               <div className="pt-0.5">
-                <p className="text-[10px] uppercase tracking-[3px] text-gray-500 dark:text-gray-600 whitespace-nowrap">{r.date}</p>
+                <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 whitespace-nowrap">{r.date}</p>
                 <span className={`inline-block mt-2 text-[9px] font-bold uppercase tracking-[2px] px-1.5 py-0.5 rounded-sm border ${TAG_STYLES[r.tag]}`}>
                   {TAG_LABELS[r.tag]}
                 </span>
@@ -888,7 +894,7 @@ function ReleaseNotesPage() {
                 {r.items && (
                   <ul className="mt-2 flex flex-col gap-1.5">
                     {r.items.map((item, j) => (
-                      <li key={j} className="text-xs text-gray-500 dark:text-gray-600 leading-relaxed pl-3.5 relative before:content-['—'] before:absolute before:left-0 before:text-gray-500 dark:before:text-gray-600">
+                      <li key={j} className="text-xs text-gray-500 dark:text-gray-600 leading-relaxed pl-3 relative before:content-['-'] before:absolute before:left-0 before:text-gray-400 dark:before:text-gray-600">
                         {item}
                       </li>
                     ))}

@@ -15,11 +15,12 @@ registerRoute(
   })
 )
 
-// OpenDota API: NetworkFirst, 1-hour fallback
+// OpenDota API: NetworkFirst, fall back to cache after 10s, 1-hour TTL
 registerRoute(
   ({ url }) => url.origin === 'https://api.opendota.com',
   new NetworkFirst({
     cacheName: 'opendota-cache',
+    networkTimeoutSeconds: 10,
     plugins: [new ExpirationPlugin({ maxAgeSeconds: 3600 })],
   })
 )
