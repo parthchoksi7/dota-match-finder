@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 9, 2026",
+    tag: "fix",
+    title: "Settings icon removed from mobile header",
+    desc: "The gear icon in the top-right corner was a duplicate of the More tab in the bottom bar - both opened the same settings panel. The gear now only appears on desktop where the bottom tab bar is not shown. Mobile header is now cleaner: just the logo and the spoiler toggle.",
+  },
+  {
+    date: "May 9, 2026",
+    tag: "fix",
+    title: "Site logo no longer cut off on small phones",
+    desc: "On phones narrower than 640px the brand name was being truncated to SPECTATE ESP... The mobile header now shows only the shield logo - the wordmark and tagline appear on tablets and desktops where there is space for them.",
+  },
+  {
+    date: "May 9, 2026",
     tag: "improvement",
     title: "Redesigned navigation",
     desc: "The header was rebuilt from first principles. The cluttered row of seven items (Tournaments, About, What's New, Calendar, Install, Spoiler, Theme) is gone. The new header has just a logo, a Tournaments link, the Spoiler toggle, and a Settings cog that opens a panel with everything else (Theme, Calendar feeds, Install app, About, What's New). On mobile, a new bottom tab bar (Home / Tournaments / More) puts primary destinations in the thumb zone, matching how sports apps like theScore and Sofascore are designed.",
