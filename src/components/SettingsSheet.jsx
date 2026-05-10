@@ -19,12 +19,19 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   const onClose = () => setIsOpen(false)
 
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("theme") || "dark" } catch { return "dark" }
+    try { return localStorage.getItem("theme") || "system" } catch { return "system" }
   })
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
     try { localStorage.setItem("theme", theme) } catch {}
+    if (theme === "system") {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)")
+      const apply = () => document.documentElement.classList.toggle("dark", mq.matches)
+      apply()
+      mq.addEventListener("change", apply)
+      return () => mq.removeEventListener("change", apply)
+    }
+    document.documentElement.classList.toggle("dark", theme === "dark")
   }, [theme])
 
   useEffect(() => {
@@ -42,8 +49,7 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
 
   if (!isOpen) return null
 
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark"
+  function selectTheme(next) {
     trackEvent("theme_toggle", { theme: next, source: "settings_sheet" })
     setTheme(next)
   }
@@ -93,9 +99,25 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
               </span>
             </SettingsRow>
           )}
-          <SettingsRow onClick={toggleTheme} label="Theme">
-            <span className="text-xs text-gray-500 dark:text-gray-500 capitalize">{theme}</span>
-          </SettingsRow>
+          <div className="flex items-center justify-between px-2 py-3 min-h-[44px]">
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">Theme</span>
+            <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+              {["light", "dark", "system"].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => selectTheme(t)}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors capitalize ${
+                    theme === t
+                      ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <SettingsGroupLabel>Stay updated</SettingsGroupLabel>
           <SettingsRow as="a" href="/calendar" label="Add to Google / Apple Calendar" sublabel="Google, Apple, Outlook" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>

@@ -86,19 +86,41 @@ describe('SettingsSheet - spoiler row', () => {
 })
 
 describe('SettingsSheet - theme row', () => {
-  it('reflects theme stored in localStorage', async () => {
-    localStorage.setItem('theme', 'light')
+  it('renders all three theme options', async () => {
     render(<SettingsSheet />)
     await openSheet()
-    expect(screen.getByText('light')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'light' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'dark' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'system' })).toBeInTheDocument()
   })
 
-  it('toggles theme when clicked', async () => {
+  it('selects light theme when light button is clicked', async () => {
+    render(<SettingsSheet />)
+    await openSheet()
+    fireEvent.click(screen.getByRole('button', { name: 'light' }))
+    expect(localStorage.getItem('theme')).toBe('light')
+  })
+
+  it('selects dark theme when dark button is clicked', async () => {
+    render(<SettingsSheet />)
+    await openSheet()
+    fireEvent.click(screen.getByRole('button', { name: 'dark' }))
+    expect(localStorage.getItem('theme')).toBe('dark')
+  })
+
+  it('defaults to system when no theme in localStorage', async () => {
+    render(<SettingsSheet />)
+    await openSheet()
+    const systemBtn = screen.getByRole('button', { name: 'system' })
+    expect(systemBtn.className).toContain('bg-white')
+  })
+
+  it('reflects dark theme stored in localStorage', async () => {
     localStorage.setItem('theme', 'dark')
     render(<SettingsSheet />)
     await openSheet()
-    fireEvent.click(screen.getByText('Theme').closest('button'))
-    expect(localStorage.getItem('theme')).toBe('light')
+    const darkBtn = screen.getByRole('button', { name: 'dark' })
+    expect(darkBtn.className).toContain('bg-white')
   })
 })
 

@@ -1,8 +1,10 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
+  <meta charset="UTF-8" />
     <!-- Developer opt-out: run localStorage.setItem('notrack','1') in console once per device -->
   <script>if (new URLSearchParams(location.search).get('notrack')==='1') localStorage.setItem('notrack','1'); if (localStorage.getItem('notrack') === '1') window['ga-disable-G-XM3M9BCBWD'] = true;</script>
+  <script>(function(){var t=localStorage.getItem('theme')||'system';var dark=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);if(dark)document.documentElement.classList.add('dark');})()</script>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-XM3M9BCBWD"></script>
   <script>
@@ -12,7 +14,6 @@
 
     gtag('config', 'G-XM3M9BCBWD');
   </script>
-  <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
