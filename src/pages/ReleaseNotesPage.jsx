@@ -5,6 +5,19 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 9, 2026",
+    tag: "improvement",
+    title: "Calendar sync is now front-and-center",
+    desc: "Subscribing your Dota 2 match schedule to Google Calendar, Apple Calendar, or Outlook is now one click — no more copy-pasting URLs. Entry points are everywhere: a button in the tournament section header, a link below each live tournament, a sync card in My Teams, a nudge the first time you follow a team, and a clearer label in Settings.",
+    items: [
+      "One-click provider buttons: Add to Google Calendar, Add to Apple Calendar, Add to Outlook.",
+      "Tournament Hub: \"Add to Calendar\" in the section header (all tournaments) and below each tournament name (that tournament only).",
+      "My Teams: inline sync card with provider names replaces the old tiny text link.",
+      "First-follow nudge: after starring your first team, an inline prompt lets you set up calendar sync in one tap.",
+      "Settings sheet: renamed to \"Add to Google / Apple Calendar\" with a Google, Apple, Outlook sublabel.",
+    ],
+  },
+  {
+    date: "May 9, 2026",
     tag: "fix",
     title: "Settings icon removed from mobile header",
     desc: "The gear icon in the top-right corner was a duplicate of the More tab in the bottom bar - both opened the same settings panel. The gear now only appears on desktop where the bottom tab bar is not shown. Mobile header is now cleaner: just the logo and the spoiler toggle.",

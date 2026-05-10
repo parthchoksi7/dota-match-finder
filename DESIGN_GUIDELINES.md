@@ -378,6 +378,30 @@ Metadata (dates, formats, round numbers) should never visually compete with prim
 
 ---
 
+## Inline Feature Callout (Sync Card)
+
+Used to surface a persistent, contextual action inside a section without a modal. Example: "Sync to your calendar" card in My Teams.
+
+- Container: `flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded`
+- Place between the section header row and the section content
+- Primary action button: `bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-3 py-1.5 text-xs font-semibold rounded`
+- Sub-label: `text-xs text-gray-400 dark:text-gray-600`
+- Never use red here — this is a feature affordance, not an alert
+
+---
+
+## Inline Nudge (Post-Action Prompt)
+
+One-time contextual prompt triggered by a user action (e.g. following their first team). Appears inline in the content flow — not a modal, not a toast.
+
+- Border: `border border-blue-200 dark:border-blue-900` — blue signals informational, not urgent
+- Background: `bg-white dark:bg-gray-900`
+- Always provide an X dismiss button (`aria-label="Dismiss"`) in the top-right corner
+- Store dismissal in `localStorage` so it never reappears after the user acts on it or closes it
+- Copy must mention the specific context (team name, feature) — never generic
+
+---
+
 ## What to Avoid
 
 - Adding sections "just in case" — every section needs a job
