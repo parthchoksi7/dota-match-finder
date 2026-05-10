@@ -271,10 +271,11 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - **Suggestion clicks**: `handleSuggestionSelect(query)` in `App.jsx` calls `searchInputRef.current?.setValue(query)` (populates the SearchBar input) then `handleSearch(query)`. Fires `suggestion_click` GA4 event.
 
 ### Theme Toggle
-- Dark/light mode stored in `localStorage` under key `"theme"`; default is `"dark"`
-- Managed in `SettingsSheet.jsx` (moved from SiteHeader.jsx in May 2026 redesign) via `useState` initializer reading from `localStorage`
-- Toggles `dark` class on `document.documentElement` via `useEffect`
-- Theme toggle fires `theme_toggle` GA4 event with `{ theme, source: 'settings_sheet' }`
+- Three options: `"light"` | `"dark"` | `"system"`. Stored in `localStorage["theme"]`; default is `"system"` for new users.
+- Managed in `SettingsSheet.jsx` via `useState` + `useEffect`. System mode listens to `window.matchMedia("(prefers-color-scheme: dark)")` and updates `document.documentElement.classList` in real time when the OS switches (e.g. scheduled dark mode). The `change` listener is cleaned up on effect re-run.
+- `index.html` contains an inline script (before React loads) that reads `localStorage["theme"]` and applies `class="dark"` to `<html>` immediately, preventing a flash of wrong theme on page load/refresh. System mode in this script also checks `matchMedia("(prefers-color-scheme: dark)").matches`.
+- Settings UI: 3-button segmented control (Light / Dark / System) using the standard segmented control pattern.
+- Theme change fires `theme_toggle` GA4 event with `{ theme, source: 'settings_sheet' }`.
 
 ### Navigation Architecture (May 2026 redesign)
 

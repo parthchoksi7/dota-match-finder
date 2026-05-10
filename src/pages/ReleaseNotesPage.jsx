@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 10, 2026",
+    tag: "improvement",
+    title: "System theme follows your phone's dark/light schedule",
+    desc: "Theme now has three options: Light, Dark, and System. System mode automatically follows your device's appearance setting — if your phone switches to dark mode at sunset, the app follows instantly. System is now the default for new users. Switch in Settings → Theme.",
+  },
+  {
+    date: "May 10, 2026",
     tag: "new",
     title: "Pull to refresh in the app",
     desc: "On the installed app, pull down from the top of the screen to reload the latest matches. A spinner appears as you pull and spins while refreshing. Only active in the installed app — the browser already has its own pull-to-refresh.",
