@@ -65,6 +65,8 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   }
 
   const showSpoilerRow = typeof onSpoilerToggle === "function"
+  const isInstalled = typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true)
 
   return (
     <>
@@ -123,9 +125,11 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           <SettingsRow as="a" href="/calendar" label="Add to Google / Apple Calendar" sublabel="Google, Apple, Outlook" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>
             <Arrow />
           </SettingsRow>
-          <SettingsRow onClick={handleInstall} label="Install as app">
-            <Arrow />
-          </SettingsRow>
+          {!isInstalled && (
+            <SettingsRow onClick={handleInstall} label="Install as app">
+              <Arrow />
+            </SettingsRow>
+          )}
 
           <SettingsGroupLabel>Info</SettingsGroupLabel>
           <SettingsRow as="a" href="/about" label="About">
