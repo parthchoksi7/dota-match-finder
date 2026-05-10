@@ -259,7 +259,7 @@ function App() {
     setMatches([])
     setSelectedMatch(null)
     setError(null)
-    setTimeout(() => searchInputRef.current?.focus(), 0)
+    setTimeout(() => { if (window.matchMedia('(hover: hover)').matches) searchInputRef.current?.focus() }, 0)
   }
 
   async function handleSelectMatch(match) {
@@ -514,7 +514,9 @@ function App() {
           return
         }
       }
-      searchInputRef.current?.focus({ preventScroll: true })
+      if (window.matchMedia('(hover: hover)').matches) {
+        searchInputRef.current?.focus({ preventScroll: true })
+      }
       window.scrollTo(0, scrollY)
     }, 0)
   }
