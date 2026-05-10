@@ -292,6 +292,8 @@ The header was redesigned from first principles in May 2026 because the additive
 
 **Mobile brand**: phones (< 640px / below `sm:`) show the shield logo only; the wordmark and tagline are wrapped in `hidden sm:block` and only appear at `sm:` and up. Don't try to fit both the shield and a long wordmark on phones - it forces tracking and font compromises that cause truncation (e.g. "SPECTATE ESP..."). The shield is the brand on mobile; the browser tab title carries the verbal name. The logo bumps from `h-10` on mobile to `sm:h-12` on desktop so it carries proper visual weight when standing alone. The brand `<a>` keeps an `aria-label="Spectate Esports - Home"` so screen readers still announce the brand correctly when only the icon is rendered.
 
+**Settings entry point**: the gear icon in the header uses `hidden md:inline-flex` — it is visible only on `md:` and up (desktop), where the bottom tab bar is hidden. On mobile, the "More" tab in the bottom tab bar is the sole entry point to `SettingsSheet`. Do not show both — duplicate entry points for the same action create confusion about which is authoritative.
+
 ### Bottom tab bar (mobile primary nav)
 
 Fixed-bottom tab bar shown on mobile (`md:hidden`). Lives in `src/components/BottomTabBar.jsx`. Three tabs: **Home**, **Tournaments**, **More**.

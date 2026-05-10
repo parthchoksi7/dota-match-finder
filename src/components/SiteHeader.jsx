@@ -68,7 +68,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
             onClick={openSettings}
             aria-label="Open settings"
             title="Settings"
-            className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+            className="hidden md:inline-flex items-center justify-center focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
