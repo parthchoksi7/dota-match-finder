@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 9, 2026",
+    tag: "fix",
+    title: "Live tournament chip now shows the organizer name",
+    desc: "The search suggestion chip for the live tournament was showing generic phrases like \"Season 1\" instead of the organizer name. It now shows just the organizer identifier - PGL, ESL, 1Win, BLAST, etc.",
+  },
+  {
+    date: "May 9, 2026",
     tag: "improvement",
     title: "Calendar sync is now front-and-center",
     desc: "Subscribing your Dota 2 match schedule to Google Calendar, Apple Calendar, or Outlook is now one click — no more copy-pasting URLs. Entry points are everywhere: a button in the tournament section header, a link below each live tournament, a sync card in My Teams, a nudge the first time you follow a team, and a clearer label in Settings.",

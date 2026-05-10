@@ -13,19 +13,6 @@ export function addRecentSearch(query) {
   } catch {}
 }
 
-// Abbreviate a long tournament name to fit in a chip. Strips trailing stage
-// markers ("- Group Stage", "Season 8 2026") and caps to first 2 words.
-function abbrevTournament(name) {
-  if (!name) return ''
-  const cleaned = name
-    .replace(/\s*[-–—:]\s*(group stage|playoffs|main event|qualifier).*$/i, '')
-    .replace(/\s+season\s+\d+.*$/i, '')
-    .replace(/\s+\d{4}.*$/i, '')
-    .trim()
-  const words = cleaned.split(/\s+/)
-  return words.slice(0, 2).join(' ')
-}
-
 export default function SearchSuggestions({ allMatches = [], onSearch }) {
   const [recent, setRecent] = useState([])
   const [liveTournament, setLiveTournament] = useState(null)
@@ -49,7 +36,8 @@ export default function SearchSuggestions({ allMatches = [], onSearch }) {
   // Build suggestion chips: live tournament first, then unique winning teams.
   const chips = []
   if (liveTournament) {
-    const label = toTitleCase(abbrevTournament(liveTournament.name) || liveTournament.leagueName || liveTournament.name)
+    const source = liveTournament.leagueName || liveTournament.name || ''
+    const label = toTitleCase(source.split(/\s+/)[0] || liveTournament.name)
     chips.push({ type: 'tournament', label, query: label })
   }
   const seenTeams = new Set()
