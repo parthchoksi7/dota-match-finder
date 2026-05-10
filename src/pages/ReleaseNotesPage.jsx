@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 10, 2026",
     tag: "improvement",
+    title: "Dismissible My Teams cards + alerts in Settings",
+    desc: "The \"Sync to your calendar\" and \"Live match alerts\" cards in My Teams can now be dismissed with ×. The calendar card hides permanently once dismissed. The push alerts card auto-hides once you enable notifications and can be dismissed before that if you're not interested. A persistent \"Live match alerts\" row now lives in Settings → Stay updated, so you can always check your notification status or enable alerts later.",
+  },
+  {
+    date: "May 10, 2026",
+    tag: "improvement",
     title: "Clearer install instructions on desktop",
     desc: "Clicking \"Install as app\" on a desktop browser now shows a focused guide explaining what installing means and how to do it on iPhone or Android. Previously it showed mobile-centric instructions that made no sense on desktop.",
   },
