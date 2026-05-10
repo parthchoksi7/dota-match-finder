@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 10, 2026",
     tag: "improvement",
+    title: "Clearer install instructions on desktop",
+    desc: "Clicking \"Install as app\" on a desktop browser now shows a focused guide explaining what installing means and how to do it on iPhone or Android. Previously it showed mobile-centric instructions that made no sense on desktop.",
+  },
+  {
+    date: "May 10, 2026",
+    tag: "improvement",
     title: "System theme follows your phone's dark/light schedule",
     desc: "Theme now has three options: Light, Dark, and System. System mode automatically follows your device's appearance setting — if your phone switches to dark mode at sunset, the app follows instantly. System is now the default for new users. Switch in Settings → Theme.",
   },
