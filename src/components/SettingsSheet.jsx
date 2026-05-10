@@ -98,7 +98,7 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           </SettingsRow>
 
           <SettingsGroupLabel>Stay updated</SettingsGroupLabel>
-          <SettingsRow as="a" href="/calendar" label="Calendar feeds" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>
+          <SettingsRow as="a" href="/calendar" label="Add to Google / Apple Calendar" sublabel="Google, Apple, Outlook" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>
             <Arrow />
           </SettingsRow>
           <SettingsRow onClick={handleInstall} label="Install as app">
@@ -126,11 +126,16 @@ function SettingsGroupLabel({ children }) {
   )
 }
 
-function SettingsRow({ as = "button", href, onClick, label, children }) {
+function SettingsRow({ as = "button", href, onClick, label, sublabel, children }) {
   const className = "w-full flex items-center justify-between px-2 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-left min-h-[44px]"
   const content = (
     <>
-      <span className="text-sm font-semibold text-gray-900 dark:text-white">{label}</span>
+      <span className="flex flex-col min-w-0">
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">{label}</span>
+        {sublabel && (
+          <span className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">{sublabel}</span>
+        )}
+      </span>
       {children}
     </>
   )

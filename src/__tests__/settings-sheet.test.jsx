@@ -103,10 +103,10 @@ describe('SettingsSheet - theme row', () => {
 })
 
 describe('SettingsSheet - links', () => {
-  it('renders Calendar feeds as a link to /calendar', async () => {
+  it('renders calendar link to /calendar', async () => {
     render(<SettingsSheet />)
     await openSheet()
-    const link = screen.getByText('Calendar feeds').closest('a')
+    const link = screen.getByText('Add to Google / Apple Calendar').closest('a')
     expect(link).toHaveAttribute('href', '/calendar')
   })
 

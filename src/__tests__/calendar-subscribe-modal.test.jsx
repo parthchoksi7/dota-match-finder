@@ -4,6 +4,7 @@
  * Covers:
  * - Does not render when isOpen=false
  * - Renders heading and label when isOpen=true
+ * - One-click provider buttons (Google, Apple, Outlook) open correct URLs
  * - Shows the subscription URL in the input
  * - Copy button calls clipboard API and shows "Copied!" feedback
  * - Platform accordion items expand and collapse on click
@@ -32,6 +33,47 @@ function renderModal(props = {}) {
     />
   )
 }
+
+// ── Provider buttons ──────────────────────────────────────────────────────────
+
+describe('CalendarSubscribeModal — provider buttons', () => {
+  beforeEach(() => {
+    vi.spyOn(window, 'open').mockImplementation(() => null)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('shows one-click provider buttons for Google, Apple, and Outlook', () => {
+    renderModal()
+    expect(screen.getByRole('button', { name: /Add to Google Calendar/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Add to Apple Calendar/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Add to Outlook/ })).toBeInTheDocument()
+  })
+
+  it('Google Calendar button opens calendar.google.com with webcal cid', () => {
+    renderModal()
+    fireEvent.click(screen.getByRole('button', { name: /Add to Google Calendar/ }))
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining('calendar.google.com'),
+      '_blank',
+      'noopener'
+    )
+    const calledUrl = window.open.mock.calls[0][0]
+    expect(calledUrl).toContain('cid=')
+    expect(calledUrl).toContain(encodeURIComponent('webcal://'))
+  })
+
+  it('Outlook button opens outlook.live.com URL', () => {
+    renderModal()
+    fireEvent.click(screen.getByRole('button', { name: /Add to Outlook/ }))
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining('outlook.live.com/calendar/0/addfromweb'),
+      '_blank',
+      'noopener'
+    )
+  })
+})
 
 // ── Visibility ────────────────────────────────────────────────────────────────
 

@@ -18,6 +18,7 @@ import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
+const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
 
 function getSummaryFromCache(matchId) {
   if (typeof window === "undefined" || !matchId) return null
@@ -121,14 +122,27 @@ function App() {
 
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
   const [manageTeamsOpen, setManageTeamsOpen] = useState(false)
+  const [showCalendarNudge, setShowCalendarNudge] = useState(false)
 
   function handleToggleFollow(teamName) {
     setFollowedTeamsState(prev => {
       const isFollowed = prev.includes(teamName)
       const next = isFollowed ? prev.filter(t => t !== teamName) : [...prev, teamName]
       setFollowedTeams(next)
+      if (!isFollowed && (next.length === 1 || next.length === 2)) {
+        try {
+          if (!localStorage.getItem(CALENDAR_NUDGE_DISMISSED_KEY)) {
+            setShowCalendarNudge(true)
+          }
+        } catch {}
+      }
       return next
     })
+  }
+
+  function dismissCalendarNudge() {
+    setShowCalendarNudge(false)
+    try { localStorage.setItem(CALENDAR_NUDGE_DISMISSED_KEY, '1') } catch {}
   }
   const searchInputRef = useRef(null)
 
@@ -677,6 +691,51 @@ function App() {
         {!initialLoading && !searched && (
           <div className="flex flex-col gap-6">
             <TournamentHub spoilerFree={spoilerFree} />
+            {showCalendarNudge && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-start justify-between gap-3 px-4 py-3 bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-900 rounded"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white leading-snug">
+                      Add your teams to your calendar
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                      Get match schedules for {followedTeams.join(', ')} in Google Calendar, Apple Calendar, or Outlook — auto-updates as new matches are scheduled.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trackEvent('calendar_nudge_click', { followed_count: followedTeams.length })
+                        dismissCalendarNudge()
+                        window.location.href = '/calendar'
+                      }}
+                      className="mt-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Set up calendar sync →
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissCalendarNudge}
+                  aria-label="Dismiss"
+                  className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors mt-0.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
             <MyTeamsSection
               matches={allMatches}
