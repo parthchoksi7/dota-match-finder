@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import LatestMatches from "./components/LatestMatches"
@@ -70,6 +70,65 @@ function getMatchIdFromUrl() {
   const hashMatch = hash?.match(/^#match-(\d+)/)
   if (hashMatch) return hashMatch[1]
   return null
+}
+
+function usePullToRefresh(onRefresh) {
+  const [pullDistance, setPullDistance] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const startY = useRef(null)
+  const pullingRef = useRef(0)
+  const isRefreshing = useRef(false)
+  const THRESHOLD = 72
+
+  const isStandalone = useMemo(() =>
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true),
+  [])
+
+  useEffect(() => {
+    if (!isStandalone) return
+
+    function onTouchStart(e) {
+      if (window.scrollY === 0) startY.current = e.touches[0].clientY
+    }
+
+    function onTouchMove(e) {
+      if (startY.current === null || window.scrollY > 0) return
+      const delta = e.touches[0].clientY - startY.current
+      if (delta > 0) {
+        pullingRef.current = Math.min(delta, THRESHOLD * 1.5)
+        setPullDistance(pullingRef.current)
+      }
+    }
+
+    function onTouchEnd() {
+      if (pullingRef.current >= THRESHOLD && !isRefreshing.current) {
+        isRefreshing.current = true
+        setRefreshing(true)
+        setPullDistance(0)
+        pullingRef.current = 0
+        Promise.resolve(onRefresh()).finally(() => {
+          isRefreshing.current = false
+          setRefreshing(false)
+        })
+      } else {
+        pullingRef.current = 0
+        setPullDistance(0)
+      }
+      startY.current = null
+    }
+
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onTouchEnd)
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [isStandalone, onRefresh])
+
+  return { pullDistance, refreshing, THRESHOLD }
 }
 
 function App() {
@@ -160,6 +219,8 @@ function App() {
         setInitialLoading(false)
       })
   }, [])
+
+  const { pullDistance, refreshing, THRESHOLD } = usePullToRefresh(loadMatches)
 
   // Read ?q= param from URL so "Find VODs" links from tournament detail pages work
   const initialSearchQuery = typeof window !== "undefined"
@@ -605,6 +666,25 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col overflow-x-hidden">
       <InstallPrompt />
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none"
+          style={{ transform: `translateY(${refreshing ? 56 : Math.min(pullDistance * 0.6, 56)}px)` }}
+        >
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full p-2 shadow-md">
+            <svg
+              className={`w-5 h-5 text-gray-500 dark:text-gray-400 ${refreshing ? 'animate-spin' : ''}`}
+              style={!refreshing ? { transform: `rotate(${(pullDistance / THRESHOLD) * 180}deg)` } : undefined}
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            >
+              {refreshing
+                ? <><path d="M21 12a9 9 0 1 1-6.219-8.56" /></>
+                : <><path d="M12 5v14M5 12l7 7 7-7" /></>
+              }
+            </svg>
+          </div>
+        </div>
+      )}
       <SiteHeader
         spoilerFree={spoilerFree}
         onSpoilerToggle={() => {
