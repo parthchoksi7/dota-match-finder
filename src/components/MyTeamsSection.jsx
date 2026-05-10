@@ -57,7 +57,13 @@ function MyTeamsSection({
   grandFinalMatchIds = new Set(),
 }) {
   const [calendarModalOpen, setCalendarModalOpen] = useState(false)
+  const [calendarDismissed, setCalendarDismissed] = useState(
+    () => !!localStorage.getItem('calendar-card-dismissed')
+  )
   const [pushPermission, setPushPermission] = useState(() => getPushPermission())
+  const [pushCardDismissed, setPushCardDismissed] = useState(
+    () => !!localStorage.getItem('push-card-dismissed')
+  )
   const [subscribing, setSubscribing] = useState(false)
   const sectionViewFired = useRef(false)
   const pushSupported = isPushSupported()
@@ -84,6 +90,18 @@ function MyTeamsSection({
   const calendarUrl = followedTeams.length > 0
     ? `https://spectateesports.live/api/tournaments?mode=calendar-team&teams=${followedTeams.map(teamNameToSlug).join(',')}`
     : ''
+
+  function handleDismissCalendar() {
+    localStorage.setItem('calendar-card-dismissed', '1')
+    setCalendarDismissed(true)
+    trackEvent("calendar_card_dismissed")
+  }
+
+  function handleDismissPushCard() {
+    localStorage.setItem('push-card-dismissed', '1')
+    setPushCardDismissed(true)
+    trackEvent("push_card_dismissed")
+  }
 
   async function handleEnableNotifications() {
     setSubscribing(true)
@@ -123,36 +141,48 @@ function MyTeamsSection({
         </button>
       </div>
 
-      <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400 dark:text-gray-600 flex-shrink-0" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug">
-              Sync to your calendar
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-600 leading-snug">
-              Google Calendar, Apple Calendar, Outlook
-            </p>
+      {!calendarDismissed && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400 dark:text-gray-600 flex-shrink-0" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug">
+                Sync to your calendar
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 leading-snug">
+                Google Calendar, Apple Calendar, Outlook
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent("calendar_subscribe_modal_open", { source: "my_teams" })
+                setCalendarModalOpen(true)
+              }}
+              className="px-3 py-1.5 text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 rounded transition-colors whitespace-nowrap"
+            >
+              Sync now →
+            </button>
+            <button
+              type="button"
+              onClick={handleDismissCalendar}
+              aria-label="Dismiss"
+              className="w-8 h-8 flex items-center justify-center text-lg text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 transition-colors"
+            >
+              ×
+            </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            trackEvent("calendar_subscribe_modal_open", { source: "my_teams" })
-            setCalendarModalOpen(true)
-          }}
-          className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 rounded transition-colors whitespace-nowrap"
-        >
-          Sync now →
-        </button>
-      </div>
+      )}
 
-      {pushSupported && pushPermission !== 'denied' && (
+      {pushSupported && pushPermission === 'default' && !pushCardDismissed && (
         <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded mb-3">
           <div className="flex items-center gap-2 min-w-0">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400 dark:text-gray-600 flex-shrink-0" aria-hidden="true">
@@ -164,25 +194,28 @@ function MyTeamsSection({
                 Live match alerts
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-600 leading-snug">
-                {pushPermission === 'granted' ? 'Notify me when my teams go live' : 'Get notified when your teams go live'}
+                Get notified when your teams go live
               </p>
             </div>
           </div>
-          {pushPermission === 'granted' ? (
-            <span className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-500">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-              On
-            </span>
-          ) : (
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               type="button"
               onClick={handleEnableNotifications}
               disabled={subscribing}
-              className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 rounded transition-colors whitespace-nowrap disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 rounded transition-colors whitespace-nowrap disabled:opacity-50"
             >
               {subscribing ? 'Enabling…' : 'Enable →'}
             </button>
-          )}
+            <button
+              type="button"
+              onClick={handleDismissPushCard}
+              aria-label="Dismiss"
+              className="w-8 h-8 flex items-center justify-center text-lg text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 transition-colors"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 

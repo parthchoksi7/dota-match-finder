@@ -16,11 +16,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import SettingsSheet, { SETTINGS_OPEN_EVENT } from '../components/SettingsSheet'
 import { SHOW_EVENT as PWA_SHOW_EVENT } from '../components/InstallPrompt'
+import { isPushSupported, getPushPermission } from '../utils/push'
 
 vi.mock('../utils', () => ({ trackEvent: vi.fn() }))
+vi.mock('../utils/push', () => ({
+  isPushSupported: vi.fn(() => false),
+  getPushPermission: vi.fn(() => 'unsupported'),
+  subscribeToPush: vi.fn(),
+}))
 
 beforeEach(() => {
   localStorage.clear()
+  isPushSupported.mockReturnValue(false)
+  getPushPermission.mockReturnValue('unsupported')
 })
 
 async function openSheet() {
@@ -144,6 +152,40 @@ describe('SettingsSheet - links', () => {
     await openSheet()
     const link = screen.getByText("What's New").closest('a')
     expect(link).toHaveAttribute('href', '/release-notes')
+  })
+})
+
+describe('SettingsSheet - push notifications', () => {
+  it('does not show Live match alerts row when push is not supported', async () => {
+    render(<SettingsSheet />)
+    await openSheet()
+    expect(screen.queryByText('Live match alerts')).not.toBeInTheDocument()
+  })
+
+  it('shows Live match alerts row with Enable when permission is default', async () => {
+    isPushSupported.mockReturnValue(true)
+    getPushPermission.mockReturnValue('default')
+    render(<SettingsSheet />)
+    await openSheet()
+    expect(screen.getByText('Live match alerts')).toBeInTheDocument()
+    expect(screen.getByText('Enable →')).toBeInTheDocument()
+  })
+
+  it('shows On state when push permission is granted', async () => {
+    isPushSupported.mockReturnValue(true)
+    getPushPermission.mockReturnValue('granted')
+    render(<SettingsSheet />)
+    await openSheet()
+    expect(screen.getByText('Live match alerts')).toBeInTheDocument()
+    expect(screen.getByText('On for your teams')).toBeInTheDocument()
+  })
+
+  it('hides Live match alerts row when permission is denied', async () => {
+    isPushSupported.mockReturnValue(true)
+    getPushPermission.mockReturnValue('denied')
+    render(<SettingsSheet />)
+    await openSheet()
+    expect(screen.queryByText('Live match alerts')).not.toBeInTheDocument()
   })
 })
 

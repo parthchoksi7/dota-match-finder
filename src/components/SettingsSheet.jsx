@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { trackEvent } from "../utils"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
+import { isPushSupported, getPushPermission, subscribeToPush } from "../utils/push"
 
 export const SETTINGS_OPEN_EVENT = "settings:open"
 
@@ -40,6 +41,10 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
     return () => window.removeEventListener(SETTINGS_OPEN_EVENT, onOpen)
   }, [])
 
+  const pushSupported = isPushSupported()
+  const [pushPermission, setPushPermission] = useState(() => getPushPermission())
+  const [subscribing, setSubscribing] = useState(false)
+
   useEffect(() => {
     if (!isOpen) return
     const onKey = (e) => { if (e.key === "Escape") setIsOpen(false) }
@@ -58,6 +63,15 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
     trackEvent("pwa_install_icon_click", { source: "settings_sheet" })
     window.dispatchEvent(new Event(PWA_SHOW_EVENT))
     onClose()
+  }
+
+  async function handleEnablePush() {
+    setSubscribing(true)
+    trackEvent("push_notifications_enable_click", { source: "settings_sheet" })
+    const teams = JSON.parse(localStorage.getItem('my-teams') || '[]')
+    await subscribeToPush(teams)
+    setPushPermission(getPushPermission())
+    setSubscribing(false)
   }
 
   function handleSpoiler() {
@@ -125,6 +139,18 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           <SettingsRow as="a" href="/calendar" label="Add to Google / Apple Calendar" sublabel="Google, Apple, Outlook" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>
             <Arrow />
           </SettingsRow>
+          {pushSupported && pushPermission !== 'denied' && (
+            <SettingsRow
+              onClick={pushPermission === 'granted' ? undefined : handleEnablePush}
+              label="Live match alerts"
+              sublabel={pushPermission === 'granted' ? 'On for your teams' : 'Notify when your teams go live'}
+            >
+              {pushPermission === 'granted'
+                ? <span className="text-xs font-semibold text-green-500">On</span>
+                : <span className="text-xs font-semibold text-gray-500 dark:text-gray-500">{subscribing ? 'Enabling…' : 'Enable →'}</span>
+              }
+            </SettingsRow>
+          )}
           {!isInstalled && (
             <SettingsRow onClick={handleInstall} label="Install as app">
               <Arrow />
