@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import SiteHeader from '../components/SiteHeader'
+import SiteFooter from '../components/SiteFooter'
+import BottomTabBar from '../components/BottomTabBar'
 import StageTimeline from '../components/StageTimeline'
 import TeamRoster from '../components/TeamRoster'
 import RegionBreakdown from '../components/RegionBreakdown'
@@ -381,7 +383,7 @@ export default function TournamentDetail() {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
       <SiteHeader />
 
-      <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full">
+      <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
         <div>
           <a
             href="/tournaments"
@@ -677,15 +679,8 @@ export default function TournamentDetail() {
         )}
       </main>
 
-      <footer className="mt-auto border-t border-gray-200 dark:border-gray-800/80 px-4 sm:px-6 py-4 text-center">
-        <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1 items-center">
-          <span>Spectate Esports</span>
-          <span className="hidden sm:inline"> · </span>
-          <a href="/tournaments" className="hover:text-gray-300 transition-colors">Tournaments</a>
-          <span className="hidden sm:inline"> · </span>
-          <a href="/" className="hover:text-gray-300 transition-colors">Home</a>
-        </p>
-      </footer>
+      <SiteFooter />
+      <BottomTabBar />
     </div>
   )
 }

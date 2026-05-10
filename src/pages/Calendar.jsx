@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import SiteHeader from '../components/SiteHeader'
+import SiteFooter from '../components/SiteFooter'
+import BottomTabBar from '../components/BottomTabBar'
 import CalendarSubscribeModal from '../components/CalendarSubscribeModal'
 import { trackEvent, toTitleCase } from '../utils'
 
@@ -195,7 +197,7 @@ export default function Calendar() {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
       <SiteHeader />
 
-      <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full">
+      <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
 
         {/* Page header */}
         <div>
@@ -437,6 +439,9 @@ export default function Calendar() {
         source="tournament"
         label={tournamentModalLabel}
       />
+
+      <SiteFooter />
+      <BottomTabBar />
     </div>
   )
 }

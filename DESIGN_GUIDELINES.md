@@ -264,24 +264,72 @@ Used when a section can display content for one of N items and N is variable (e.
 - In bracket round column labels: swap label to `text-red-500` and prepend a `w-1 h-1` pulse dot when any match in that round is `status === 'running'`
 - Live bracket match card: `border-red-500/80 bg-red-500/5` — do NOT animate-pulse the card itself (fades text content)
 
-### Site header nav
+### Site header nav (May 2026 redesign)
 
-The header nav row (`flex items-center gap-3 sm:gap-4`) has limited horizontal space, especially on 320-375px screens where the logo already consumes most of the width. **Before adding any new nav item:**
+The header was redesigned from first principles in May 2026 because the additive approach (every new feature got a slot) led to a 7-item nav that broke on mobile. The new rule: **the header is for orientation + state, not navigation.**
 
-- Count the existing text links. As of Mar 2026: Tournaments, About, What's New, plus icon buttons (Calendar, Spoiler, Theme). That is already near the limit.
-- **Prefer icons over text** for nav items beyond the first two text links. An icon with `aria-label` and `title` takes ~20px vs ~80px+ for a text label.
-- Never add a text-only nav link without first checking it renders correctly at 320px width (the narrowest common screen). If it causes wrapping or pushes the logo off-screen, use an icon instead.
-- Icon-only nav links must always have `aria-label` (for screen readers) and `title` (for hover tooltip).
-- Do NOT use `tracking-widest` on nav labels - it inflates width significantly. Use `tracking-wide` at most for any text that must remain as text.
+**Header contents (all that's allowed):**
+- Logo + tagline (orientation)
+- One text link: Tournaments (the only content destination that earns header space) - hidden below `md:` because mobile uses the bottom tab bar
+- Spoiler-free toggle (only when `onSpoilerToggle` is passed; it's a state indicator, not just a setting)
+- Settings cog (⚙) - opens `SettingsSheet` which holds Theme, Calendar, Install, About, What's New
 
-**Nav item grouping - never mix icons into the text link group:**
-- The nav has two distinct zones: text links on the left, icon buttons on the right.
-- Text links: `text-xs font-semibold uppercase` plain `<a>` tags - no border, no padding box.
-- Icon buttons: `focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors` - always at the far right.
-- **Never insert an icon into the middle of the text link group.** If an item is icon-only, it belongs in the icon button group on the right, using the bordered button style above.
-- Order (left to right): text links → icon buttons. No interleaving.
+**Anything else belongs elsewhere:**
+- Theme toggle, Calendar feeds, Install app → `SettingsSheet`
+- About, What's New → `SiteFooter`
+- Frequent mobile destinations (Home, Tournaments) → `BottomTabBar`
 
-**Failing this check caused two Calendar nav bugs (Mar 2026):** (1) Adding "Calendar" as a text link broke the header on mobile - fix: replaced with an icon. (2) The icon was placed between text links instead of with the other icons - fix: moved to the right icon group with matching border/padding style.
+**Why these rules:**
+- Orientation, state, and one universal action are the only jobs a header can do well in narrow space
+- Navigation is a separate problem solved by the bottom tab bar (mobile) and the page itself (desktop)
+- Information pages (About, What's New) are visited once per user, max - they don't earn header real estate
+
+**Implementation rules:**
+- Icon buttons must have `aria-label` AND `title`
+- Standard icon button class: `focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors`
+- Touch target minimum: `min-h-[44px]`. The `p-2` + `h-4 w-4` icon naturally hits this.
+- Do NOT add new icons to the header. If a new feature needs a global affordance, add it to `SettingsSheet` instead.
+
+### Bottom tab bar (mobile primary nav)
+
+Fixed-bottom tab bar shown on mobile (`md:hidden`). Lives in `src/components/BottomTabBar.jsx`. Three tabs: **Home**, **Tournaments**, **More**.
+
+**Why this pattern:** Sports apps (theScore, Sofascore, FlashScore, ESPN) all use bottom tabs because they put primary destinations in the thumb zone. Hidden hamburger-style nav reduces engagement by ~21% (Nielsen Norman Group). Bottom tabs typically improve task completion ~40% over hamburger menus.
+
+**Pattern:**
+- Container: `fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 md:hidden`
+- Safe-area inset: `style={{ paddingBottom: "env(safe-area-inset-bottom)" }}` to handle iPhone notch
+- Each tab: `flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px]` (above the 44px touch target floor)
+- Icon: `w-5 h-5` Feather-style line icon
+- Label: `text-[10px] font-bold uppercase tracking-wide` (compact)
+- Active state: `text-red-500` (icon and label both turn red - aligns with the red-as-active rule)
+- Inactive: `text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white`
+- Active link gets `aria-current="page"` for assistive tech
+
+**Page padding:** Every page that mounts BottomTabBar must add `pb-20 md:pb-8` (or similar) to its main content so content isn't obscured by the bar.
+
+**Never:**
+- Increase the tab count beyond 4 (5 is the absolute max in industry research; we use 3)
+- Show on desktop (`md:hidden` is non-negotiable)
+- Animate the bar on scroll - it's always-visible
+
+### Settings sheet (consolidated settings)
+
+Slide-up sheet on mobile, dropdown panel anchored top-right on desktop. Lives in `src/components/SettingsSheet.jsx`. Triggered by dispatching `SETTINGS_OPEN_EVENT` (a window event) - so any component can open it without prop drilling.
+
+**Groups inside the sheet:**
+- **Display**: Spoiler-free toggle (with current state shown), Theme toggle (with current value shown)
+- **Stay updated**: Calendar feeds (link), Install as app (button)
+- **Info**: About (link), What's New (link)
+
+**Pattern:**
+- Backdrop: `fixed inset-0 bg-black/40 z-40`
+- Sheet: `fixed z-50 bg-white dark:bg-gray-900 border ... inset-x-0 bottom-0 rounded-t-lg sm:inset-x-auto sm:bottom-auto sm:top-20 sm:right-4 sm:w-72 sm:rounded`
+- Group label: `text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 px-2 pt-3 pb-1`
+- Row: `flex items-center justify-between px-2 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded min-h-[44px]`
+- Row label: `text-sm font-semibold text-gray-900 dark:text-white`
+- Row value (right): toggles show "On"/"Off" or "Dark"/"Light" in `text-xs text-gray-500`
+- Closes on Escape, backdrop click, or close button
 
 ### Tournament identity
 - League organizer label: `text-xs uppercase tracking-[4px] text-red-500 mb-1` above the tournament display name

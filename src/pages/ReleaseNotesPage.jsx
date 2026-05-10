@@ -1,6 +1,20 @@
 import SiteHeader from "../components/SiteHeader"
+import SiteFooter from "../components/SiteFooter"
+import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
+  {
+    date: "May 9, 2026",
+    tag: "improvement",
+    title: "Redesigned navigation",
+    desc: "The header was rebuilt from first principles. The cluttered row of seven items (Tournaments, About, What's New, Calendar, Install, Spoiler, Theme) is gone. The new header has just a logo, a Tournaments link, the Spoiler toggle, and a Settings cog that opens a panel with everything else (Theme, Calendar feeds, Install app, About, What's New). On mobile, a new bottom tab bar (Home / Tournaments / More) puts primary destinations in the thumb zone, matching how sports apps like theScore and Sofascore are designed.",
+    items: [
+      "Header is now 4 items max (was 7) - no more cramped wrapping on small screens.",
+      "Bottom tab bar appears on mobile only; desktop layout stays familiar.",
+      "Settings cog groups Display preferences, subscription actions, and info pages.",
+      "About and What's New moved to the footer.",
+    ],
+  },
   {
     date: "May 9, 2026",
     tag: "improvement",
@@ -785,7 +799,7 @@ function ReleaseNotesPage() {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
       <SiteHeader />
 
-      <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full">
+      <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full pb-20 md:pb-12">
         <p className="text-xs uppercase tracking-[5px] text-red-500 mb-3">Changelog</p>
         <h1 className="text-3xl font-black uppercase tracking-wide mb-2">Release Notes</h1>
         <p className="text-sm uppercase tracking-widest text-gray-500 dark:text-gray-600 mb-12 pb-12 border-b border-gray-200 dark:border-gray-800">
@@ -819,9 +833,8 @@ function ReleaseNotesPage() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-200 dark:border-gray-800 px-4 py-4 text-center text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600">
-        Spectate Esports · spectateesports.live
-      </footer>
+      <SiteFooter />
+      <BottomTabBar />
     </div>
   )
 }

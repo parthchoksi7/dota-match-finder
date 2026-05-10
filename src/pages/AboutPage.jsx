@@ -1,11 +1,13 @@
 import SiteHeader from "../components/SiteHeader"
+import SiteFooter from "../components/SiteFooter"
+import BottomTabBar from "../components/BottomTabBar"
 
 function AboutPage() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col font-mono">
       <SiteHeader />
 
-      <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full">
+      <main className="max-w-2xl mx-auto px-4 py-12 flex-1 w-full pb-20 md:pb-12">
         <p className="text-xs uppercase tracking-[5px] text-red-500 mb-3">About</p>
         <h1 className="text-3xl font-black uppercase tracking-wide mb-2">Built for Dota 2 Fans</h1>
         <p className="text-sm uppercase tracking-widest text-gray-500 dark:text-gray-600 mb-12 pb-12 border-b border-gray-200 dark:border-gray-800">
@@ -41,7 +43,7 @@ function AboutPage() {
               { title: "Grand Final Highlight", desc: "Grand Final match cards are visually distinct - gold border, warm background, and a trophy badge so championship matches stand out at a glance in your latest results and My Teams feed." },
               { title: "Tier 1 Filter", desc: "The homepage shows only matches from top-tier tournaments. Events are filtered using PandaScore tier S and A classifications - the same tier system used for live and upcoming matches - so the feed stays clean and focused on high-quality pro play." },
               { title: "Calendar Feeds", desc: "Subscribe to Dota 2 match schedules in Google Calendar, Apple Calendar, or Outlook. The All Tournaments feed covers every active and upcoming pro tournament in one URL - new matches (group stages, playoffs, new events) appear on your calendar automatically as they are scheduled. Or build a team-specific feed from /calendar to follow only the teams you care about." },
-              { title: "Install as App", desc: "Add Spectate Esports to your home screen on iPhone or Android. Once installed, the site launches full-screen with no browser bar and works offline using cached data from your last visit. No app store needed. The download icon in the header (top right) opens an install banner anytime; on Android it triggers the native install dialog, on iPhone it shows Safari's Share menu instructions. Hidden once the app is installed." },
+              { title: "Install as App", desc: "Add Spectate Esports to your home screen on iPhone or Android. Once installed, the site launches full-screen with no browser bar and works offline using cached data from your last visit. No app store needed. Open the Settings cog in the header (or the More tab on mobile) and tap Install as app anytime; on Android it triggers the native install dialog, on iPhone it shows Safari's Share menu instructions." },
             ].map(f => (
               <div key={f.title} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/40 p-4 rounded">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-gray-900 dark:text-white mb-1.5">{f.title}</p>
@@ -93,9 +95,8 @@ function AboutPage() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-200 dark:border-gray-800 px-4 py-4 text-center text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600">
-        Spectate Esports · Powered by OpenDota + Twitch · spectateesports.live
-      </footer>
+      <SiteFooter />
+      <BottomTabBar />
     </div>
   )
 }

@@ -13,6 +13,8 @@ import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import InstallPrompt from "./components/InstallPrompt"
+import BottomTabBar from "./components/BottomTabBar"
+import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
@@ -599,7 +601,7 @@ function App() {
         }}
       />
 
-      <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full">
+      <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
         <SearchBar
           ref={searchInputRef}
           onSearch={handleSearch}
@@ -722,23 +724,8 @@ function App() {
         )}
       </main>
 
-      <footer className="mt-auto border-t border-gray-200 dark:border-gray-800/80 px-4 sm:px-6 py-4 text-center">
-        <p className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest flex flex-col sm:flex-row sm:justify-center sm:gap-1 items-center">
-          <span>Spectate Esports</span>
-          <span className="hidden sm:inline"> · </span>
-          <span>Powered by OpenDota + Twitch</span>
-          <span className="hidden sm:inline"> · </span>
-          <span>Data updates every few minutes</span>
-          <span className="hidden sm:inline"> · </span>
-          <a href="/about" className="hover:text-gray-300 transition-colors">
-            About
-          </a>
-          <span className="hidden sm:inline"> · </span>
-          <a href="/release-notes" className="hover:text-gray-300 transition-colors">
-            What's New
-          </a>
-        </p>
-      </footer>
+      <SiteFooter />
+      <BottomTabBar />
 
       <ManageTeamsModal
         open={manageTeamsOpen}
