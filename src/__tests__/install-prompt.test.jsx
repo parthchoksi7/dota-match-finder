@@ -4,11 +4,12 @@
  * Covers:
  * - Does not render when already installed (standalone display mode)
  * - Does not render when previously dismissed (localStorage flag set)
- * - On iOS, shows the Share/Add to Home Screen hint and no Install button
+ * - On iOS Safari, shows the step-by-step guide modal and no Install button
+ * - On iOS Chrome, shows the "open in Safari" tip when triggered manually
  * - On Android, shows the Install button when beforeinstallprompt fires
- * - Dismiss button hides the banner and persists the dismissed flag
+ * - Close button hides the modal and persists the dismissed flag
  * - Install button calls the deferred prompt and tracks outcome
- * - Manual trigger via SHOW_EVENT re-shows the banner even after dismiss
+ * - Manual trigger via SHOW_EVENT re-shows the guide even after dismiss
  * - Manual trigger without a deferred prompt falls back to a generic browser-menu hint
  */
 
@@ -19,7 +20,9 @@ import InstallPrompt, { SHOW_EVENT } from '../components/InstallPrompt'
 vi.mock('../utils', () => ({ trackEvent: vi.fn() }))
 
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36'
-const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15'
+// Must include "Safari" and NOT include "Chrome/CriOS" to match isIOSSafari()
+const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+const IOS_CHROME_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1'
 
 function setUserAgent(ua) {
   Object.defineProperty(window.navigator, 'userAgent', {
@@ -70,20 +73,35 @@ describe('InstallPrompt - visibility', () => {
   })
 })
 
-describe('InstallPrompt - iOS', () => {
+describe('InstallPrompt - iOS Safari', () => {
   beforeEach(() => {
     setUserAgent(IOS_UA)
   })
 
-  it('shows the iOS share hint immediately on iOS', () => {
+  it('shows the step-by-step guide modal immediately on iOS Safari', () => {
     render(<InstallPrompt />)
     expect(screen.getByText('Add to Home Screen')).toBeInTheDocument()
-    expect(screen.getByText(/Tap Share then Add to Home Screen/i)).toBeInTheDocument()
+    expect(screen.getByText(/Tap the Share button/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /got it/i })).toBeInTheDocument()
   })
 
-  it('does not show an Install button on iOS', () => {
+  it('does not show an Install button on iOS Safari', () => {
     render(<InstallPrompt />)
     expect(screen.queryByRole('button', { name: /^install$/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('InstallPrompt - iOS Chrome', () => {
+  it('shows the open-in-Safari tip when SHOW_EVENT is dispatched on iOS Chrome', async () => {
+    setUserAgent(IOS_CHROME_UA)
+    render(<InstallPrompt />)
+
+    await act(async () => {
+      window.dispatchEvent(new Event(SHOW_EVENT))
+    })
+
+    expect(screen.getByText(/Open in Safari to Install/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy link/i })).toBeInTheDocument()
   })
 })
 
@@ -126,24 +144,24 @@ describe('InstallPrompt - dismiss', () => {
     setUserAgent(IOS_UA)
   })
 
-  it('hides the banner when dismiss is clicked', () => {
+  it('hides the modal when the close button is clicked', () => {
     render(<InstallPrompt />)
     expect(screen.getByText('Add to Home Screen')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
 
     expect(screen.queryByText('Add to Home Screen')).not.toBeInTheDocument()
   })
 
   it('persists the dismissed flag to localStorage', () => {
     render(<InstallPrompt />)
-    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
     expect(localStorage.getItem('pwa-install-dismissed')).toBe('1')
   })
 })
 
 describe('InstallPrompt - manual trigger (SHOW_EVENT)', () => {
-  it('re-shows the banner after a previous dismiss', async () => {
+  it('re-shows the guide after a previous dismiss', async () => {
     setUserAgent(IOS_UA)
     localStorage.setItem('pwa-install-dismissed', '1')
     render(<InstallPrompt />)
@@ -155,7 +173,7 @@ describe('InstallPrompt - manual trigger (SHOW_EVENT)', () => {
     })
 
     expect(screen.getByText('Add to Home Screen')).toBeInTheDocument()
-    expect(screen.getByText(/Tap Share then Add to Home Screen/i)).toBeInTheDocument()
+    expect(screen.getByText(/Tap the Share button/i)).toBeInTheDocument()
   })
 
   it('falls back to a generic browser-menu hint when no deferred prompt is available', async () => {

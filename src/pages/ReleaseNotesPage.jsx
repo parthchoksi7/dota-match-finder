@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 10, 2026",
+    tag: "improvement",
+    title: "Clearer install guide for iPhone and iPad",
+    desc: "On iOS Safari, tapping \"Install as app\" now shows a step-by-step visual guide instead of a plain text hint. Three numbered steps walk you through tapping the Share button, finding Add to Home Screen, and confirming with Add. Chrome on iPhone shows a message explaining that Safari is needed, with a Copy Link button so you can switch browsers quickly.",
+  },
+  {
     date: "May 9, 2026",
     tag: "fix",
     title: "Live tournament chip now shows the organizer name",
