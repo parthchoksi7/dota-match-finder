@@ -8,6 +8,7 @@
     { "source": "/tournaments", "destination": "/" },
     { "source": "/tournament/:seriesId", "destination": "/" },
     { "source": "/calendar", "destination": "/" },
-    { "source": "/analytics", "destination": "/" }
+    { "source": "/analytics", "destination": "/" },
+    { "source": "/news", "destination": "/" }
   ]
 }

@@ -217,6 +217,7 @@ Homepage sections use **floating labels** — a small `<h2>` rendered *above* th
 | My Teams | `border-amber-500` | Amber = personal content |
 | Recently Completed | `border-emerald-500` | Emerald = concluded successfully |
 | Latest Results | `border-gray-400 dark:border-gray-600` | Gray = historical/neutral |
+| News Feed | `border-sky-500` | Sky blue = discovery/information content |
 
 - Label text is always tertiary style: `text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`
 - `mb-2` gap between label and the card below
@@ -430,6 +431,23 @@ One-time contextual prompt triggered by a user action (e.g. following their firs
 - Always provide an X dismiss button (`aria-label="Dismiss"`) in the top-right corner
 - Store dismissal in `localStorage` so it never reappears after the user acts on it or closes it
 - Copy must mention the specific context (team name, feature) — never generic
+
+---
+
+## NewsCard Pattern
+
+Used in `src/components/NewsCard.jsx` for the /news feed.
+
+- Full card is an `<a>` with `target="_blank" rel="noopener noreferrer nofollow"` — entire row is clickable
+- Text-only layout (no images) — consistent with the minimal esports philosophy
+- Source label + timestamp: `text-xs font-medium uppercase tracking-widest text-gray-500` with an `aria-hidden="true"` separator dot
+- Headline: `font-display font-bold text-sm leading-snug line-clamp-2`
+- Excerpt: `text-xs text-gray-500 line-clamp-2 leading-relaxed`
+- Entity chips (teams, tournaments): ghost border `border border-gray-300 dark:border-gray-700 text-gray-500`, max 3 shown
+- Hover state: `hover:bg-gray-100 dark:hover:bg-gray-800`
+- Separator: `border-b border-gray-100 dark:border-gray-900` (same as the list container's internal dividers)
+- Wrap a list of NewsCards in `bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 overflow-hidden`
+- Skeleton: matches card shape — three `animate-pulse` bars (no image placeholder)
 
 ---
 

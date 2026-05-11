@@ -11,6 +11,7 @@ export default function BottomTabBar() {
   const path = typeof window === "undefined" ? "" : window.location.pathname
   const homeActive = path === "/" || path.startsWith("/match/")
   const tournamentsActive = path === "/tournaments" || path.startsWith("/tournament/")
+  const newsActive = path === "/news"
 
   function openSettings() {
     window.dispatchEvent(new Event(SETTINGS_OPEN_EVENT))
@@ -25,6 +26,7 @@ export default function BottomTabBar() {
       <div className="flex items-stretch">
         <Tab href="/" label="Home" active={homeActive} icon={<HomeIcon />} />
         <Tab href="/tournaments" label="Tournaments" active={tournamentsActive} icon={<TrophyIcon />} />
+        <Tab href="/news" label="News" active={newsActive} icon={<NewspaperIcon />} />
         <Tab onClick={openSettings} label="More" icon={<MoreIcon />} />
       </div>
     </nav>
@@ -75,6 +77,17 @@ function TrophyIcon() {
       <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
       <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
       <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+  )
+}
+
+function NewspaperIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+      <path d="M18 14h-8" />
+      <path d="M15 18h-5" />
+      <path d="M10 6h8v4h-8V6Z" />
     </svg>
   )
 }

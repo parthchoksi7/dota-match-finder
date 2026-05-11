@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 10, 2026",
+    tag: "new",
+    title: "Dota 2 News Feed",
+    desc: "A dedicated /news page now aggregates headlines from Dota 2 Official (Valve) and Dot Esports, refreshed every 30 minutes. Filter by Results, Rosters, Tournaments, or Patches. Articles link directly to the original source. No AI-generated summaries — aggregation only.",
+  },
+  {
+    date: "May 10, 2026",
     tag: "fix",
     title: "Matches now load reliably on first visit",
     desc: "OpenDota has been responding more slowly than usual, causing the match list to fail on first load and only succeed after a refresh. Increased the fetch timeout and added a faster service worker cache fallback so the site loads correctly on the first visit.",

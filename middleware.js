@@ -1,9 +1,40 @@
 export const config = {
-  matcher: '/match/:matchId*',
+  matcher: ['/match/:matchId*', '/news'],
 }
 
 export default async function middleware(req) {
   const url = new URL(req.url)
+
+  // Static OG meta for /news
+  if (url.pathname === '/news') {
+    const title = 'Dota 2 Esports News | Spectate Esports'
+    const description = 'Latest Dota 2 pro match results, roster moves, patch notes, and tournament updates.'
+    const imageUrl = `${url.origin}/api/og`
+    const indexRes = await fetch(`${url.origin}/index.html`)
+    let html = await indexRes.text()
+    const ogTags = `
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Spectate Esports" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:image" content="${imageUrl}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="${url.href}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${imageUrl}" />
+    <title>${escapeHtml(title)}</title>
+    <link rel="canonical" href="${url.origin}/news" />
+  `
+    html = html.replace(/<title>[^<]*<\/title>/gi, '')
+    html = html.replace(/<meta[^>]*property="og:[^>]*"[^>]*\/?>/gi, '')
+    html = html.replace(/<meta[^>]*name="twitter:[^>]*"[^>]*\/?>/gi, '')
+    html = html.replace('</head>', ogTags + '</head>')
+    return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+  }
+
   // Extract matchId from end of path — handles both /match/123456 and /match/team-a-vs-team-b-tournament-123456
   const pathPart = url.pathname.replace('/match/', '').split('/')[0]
   const matchIdMatch = pathPart.match(/(\d+)$/)

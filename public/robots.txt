@@ -8,6 +8,7 @@ Allow: /release-notes
 Allow: /tournaments
 Allow: /tournament/
 Allow: /calendar
+Allow: /news
 Allow: /api/og
 Disallow: /api/
 Disallow: /analytics

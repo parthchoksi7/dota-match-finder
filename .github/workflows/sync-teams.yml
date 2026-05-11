@@ -1,0 +1,16 @@
+name: Sync Tier 1 Teams
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # daily at 02:00 UTC (low-traffic hour)
+  workflow_dispatch:        # allow manual trigger from Actions UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync tier 1 teams from active tournaments
+        run: |
+          curl -s -X GET "https://spectateesports.live/api/tournaments?mode=sync-teams" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body

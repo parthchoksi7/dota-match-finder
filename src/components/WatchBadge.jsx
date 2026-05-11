@@ -47,7 +47,7 @@ export default function WatchBadge({ series }) {
     let cancelled = false
 
     const matchIds = series.games.map(g => g.id)
-    fetch("/api/watchability", {
+    fetch("/api/tournaments?mode=watchability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seriesId: series.id, matchIds }),

@@ -203,6 +203,43 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   return []
 }
 
+// Server-side tier-1 team list for entity tagging in news ingestion.
+// Kept separate from the frontend TIER1_TEAMS in src/pages/Calendar.jsx
+// because they run in different runtimes (Node.js vs browser).
+export const TIER1_TEAMS_SERVER = [
+  'Team Liquid', 'Tundra Esports', 'Team Spirit', 'BetBoom Team',
+  'Team Falcons', 'Gaimin Gladiators', 'Aurora Gaming', 'OG',
+  'Natus Vincere', 'Virtus.pro', 'Team Secret', 'Team Aster',
+  'Talon Esports', 'Nouns Esports', 'Team Yandex', 'PSG.LGD',
+  'Nigma Galaxy', 'Evil Geniuses', 'beastcoast', 'Thunder Awaken',
+]
+
+// RSS sources for the news aggregation feature (api/news.js).
+// Add new sources here; set disabled: true to temporarily pause a source
+// without redeploying. categoryFilter receives the RSS categories array
+// and must return true for the article to be included.
+export const NEWS_SOURCES = [
+  {
+    id: 'steam-dota2',
+    name: 'Dota 2 Official',
+    feedUrl: 'https://store.steampowered.com/feeds/news/app/570/',
+    games: ['dota2'],
+    reliability: 5,
+    baseUrl: 'https://www.dota2.com',
+    categoryFilter: null, // Steam feed is Dota 2 only
+  },
+  {
+    id: 'dotesports',
+    name: 'Dot Esports',
+    feedUrl: 'https://dotesports.com/feed',
+    games: ['dota2'],
+    reliability: 4,
+    baseUrl: 'https://dotesports.com',
+    // Dot Esports covers all esports; keep only Dota 2 category articles
+    categoryFilter: (categories) => categories.some(c => c.toLowerCase().includes('dota')),
+  },
+]
+
 // Permanent tier1 league organizers -- always included regardless of PandaScore
 // tier assignment state. Covers the case where PandaScore creates a new series
 // before assigning a tier to its tournament object (e.g. DreamLeague S29 SEA qualifier
