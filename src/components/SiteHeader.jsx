@@ -38,6 +38,13 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
           >
             Tournaments
           </a>
+          <a
+            href="/news"
+            onClick={() => trackEvent('nav_news_click', {})}
+            className="hidden md:inline text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            News
+          </a>
           {showSpoiler && (
             <button
               type="button"
