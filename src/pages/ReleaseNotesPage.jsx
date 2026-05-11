@@ -5,9 +5,15 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 10, 2026",
+    tag: "fix",
+    title: "More articles in the news feed",
+    desc: "Added PCGamesN as a dedicated Dota 2 news source with active patch and esports coverage. Also fixed the Dot Esports filter, which was blocking all articles because their general feed currently shows no Dota 2 content in its top 10.",
+  },
+  {
+    date: "May 10, 2026",
     tag: "new",
     title: "Dota 2 News Feed",
-    desc: "A dedicated /news page now aggregates headlines from Dota 2 Official (Valve) and Dot Esports, refreshed every 30 minutes. Filter by Results, Rosters, Tournaments, or Patches. Articles link directly to the original source. No AI-generated summaries — aggregation only.",
+    desc: "A dedicated /news page now aggregates headlines from Dota 2 Official (Valve), PCGamesN, and Dot Esports, refreshed every 30 minutes. Filter by Results, Rosters, Tournaments, or Patches. Articles link directly to the original source. No AI-generated summaries - aggregation only.",
   },
   {
     date: "May 10, 2026",
