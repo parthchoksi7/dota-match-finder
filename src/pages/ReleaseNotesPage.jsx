@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 10, 2026",
     tag: "fix",
+    title: "News link in desktop header",
+    desc: "Added a News link to the desktop site header so you can reach the news feed from any page on desktop - previously it was only reachable via the bottom tab bar on mobile.",
+  },
+  {
+    date: "May 10, 2026",
+    tag: "fix",
     title: "More articles in the news feed",
     desc: "Added PCGamesN as a dedicated Dota 2 news source with active patch and esports coverage. Also fixed the Dot Esports filter, which was blocking all articles because their general feed currently shows no Dota 2 content in its top 10.",
   },
