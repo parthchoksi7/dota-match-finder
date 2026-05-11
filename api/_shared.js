@@ -226,7 +226,16 @@ export const NEWS_SOURCES = [
     games: ['dota2'],
     reliability: 5,
     baseUrl: 'https://www.dota2.com',
-    categoryFilter: null, // Steam feed is Dota 2 only
+    categoryFilter: null,
+  },
+  {
+    id: 'pcgamesn',
+    name: 'PCGamesN',
+    feedUrl: 'https://www.pcgamesn.com/dota-2/rss',
+    games: ['dota2'],
+    reliability: 4,
+    baseUrl: 'https://www.pcgamesn.com',
+    categoryFilter: null,
   },
   {
     id: 'dotesports',
@@ -235,8 +244,10 @@ export const NEWS_SOURCES = [
     games: ['dota2'],
     reliability: 4,
     baseUrl: 'https://dotesports.com',
-    // Dot Esports covers all esports; keep only Dota 2 category articles
-    categoryFilter: (categories) => categories.some(c => c.toLowerCase().includes('dota')),
+    // General feed covers all esports; filter by URL path since category tags are unreliable
+    categoryFilter: (categories, url) =>
+      categories.some(c => c.toLowerCase().includes('dota')) ||
+      (url || '').toLowerCase().includes('/dota'),
   },
 ]
 

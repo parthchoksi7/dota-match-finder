@@ -167,8 +167,8 @@ function normalizeArticle(raw, source) {
   const url = canonicalizeUrl(raw.link || '')
   if (!url) return null
 
-  // Apply source-level category filter (e.g. Dot Esports multi-game feed)
-  if (source.categoryFilter && !source.categoryFilter(raw.categories || [])) {
+  // Apply source-level filter; receives categories array and raw URL for flexible matching
+  if (source.categoryFilter && !source.categoryFilter(raw.categories || [], raw.link || '')) {
     return null
   }
 

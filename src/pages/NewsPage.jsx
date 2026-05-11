@@ -199,7 +199,7 @@ export default function NewsPage() {
         </section>
 
         <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase tracking-widest text-center pt-2">
-          Headlines sourced from Dota 2 Official and Dot Esports. We do not generate content.
+          Headlines sourced from Dota 2 Official, PCGamesN, and Dot Esports. We do not generate content.
         </p>
       </main>
 
