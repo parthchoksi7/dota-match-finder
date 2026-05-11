@@ -12,7 +12,6 @@ import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
 import SiteHeader from "./components/SiteHeader"
-import InstallPrompt from "./components/InstallPrompt"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
@@ -665,7 +664,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col overflow-x-hidden">
-      <InstallPrompt />
       {(pullDistance > 0 || refreshing) && (
         <div
           className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none"

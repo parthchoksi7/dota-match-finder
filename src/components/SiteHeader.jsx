@@ -1,5 +1,6 @@
 import { trackEvent } from "../utils"
 import SettingsSheet, { SETTINGS_OPEN_EVENT } from "./SettingsSheet"
+import InstallPrompt from "./InstallPrompt"
 
 /**
  * Site header. Minimal first-principles design:
@@ -78,6 +79,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
         </div>
       </header>
       <SettingsSheet spoilerFree={spoilerFree} onSpoilerToggle={onSpoilerToggle} />
+      <InstallPrompt />
     </>
   )
 }
