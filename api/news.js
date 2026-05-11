@@ -20,7 +20,7 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   // Treat these as arrays even when there is only one element
-  isArray: (name) => ['item', 'entry', 'category', 'link'].includes(name),
+  isArray: (name) => ['item', 'entry', 'category'].includes(name),
   cdataPropName: '__cdata',
   processEntities: true,
   htmlEntities: true,
