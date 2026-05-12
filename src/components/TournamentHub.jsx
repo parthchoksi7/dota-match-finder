@@ -211,7 +211,7 @@ function OverviewMatchRow({ match }) {
 }
 
 
-const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes', 'Videos']
+const TABS = ['Info', 'Standings', 'Schedule', 'Heroes', 'Videos']
 const PLAYOFF_FORMATS = new Set(['Double Elimination', 'Single Elimination', 'Bracket'])
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
@@ -237,7 +237,7 @@ function deriveChampionFromBracket(bracket) {
 function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Overview')
+  const [activeTab, setActiveTab] = useState('Info')
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   // Stage switching: each stage in the same event has its own detail
@@ -529,7 +529,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
-      {detail?.eventStages?.length > 1 && activeTab !== 'Overview' && activeTab !== 'Heroes' && (
+      {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Heroes' && activeTab !== 'Videos' && (
         <div className="flex items-center gap-1 px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-900">
           <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
           {detail.eventStages.map(stage => {
@@ -557,7 +557,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
       )}
 
       {/* Tab content */}
-      {activeTab === 'Overview' && (
+      {activeTab === 'Info' && (
         <div className="px-4 sm:px-5 py-4">
           {detail?.eventStages?.length > 0 && (
             <div className="flex flex-col gap-2">
