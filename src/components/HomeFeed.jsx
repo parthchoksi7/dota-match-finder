@@ -76,7 +76,6 @@ function HomeFeed({
   )
 
   const [activeDate, setActiveDate] = useState(null)
-  const [activeFilter, setActiveFilter] = useState('all')
   const [expandedTournamentName, setExpandedTournamentName] = useState(null)
   const [calNudgeDismissed, setCalNudgeDismissed] = useState(
     () => !!localStorage.getItem('spectate-cal-nudge-dismissed')
@@ -153,10 +152,6 @@ function HomeFeed({
       const upcoming = activeUpcomingMatches.filter(m => (m.tournament || 'Other') === t)
       const completed = activeCompletedSeries.filter(s => (s.tournament || 'Other') === t)
 
-      if (activeFilter === 'live' && live.length === 0) continue
-      if (activeFilter === 'upcoming' && upcoming.length === 0) continue
-      if (activeFilter === 'completed' && completed.length === 0) continue
-
       // Followed-team rows float to the top within each card
       const liveSorted = [...live].sort((a, b) => (isFollowedLive(a) ? 0 : 1) - (isFollowedLive(b) ? 0 : 1))
       const completedSorted = [...completed].sort((a, b) => (isFollowedSeries(a) ? 0 : 1) - (isFollowedSeries(b) ? 0 : 1))
@@ -194,7 +189,7 @@ function HomeFeed({
     })
 
     return cards
-  }, [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, activeFilter, followedTeams])
+  }, [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, followedTeams])
 
   if (error) {
     return (
@@ -218,72 +213,20 @@ function HomeFeed({
     )
   }
 
-  const liveCount = activeLiveMatches.length
-  const upcomingCount = activeUpcomingMatches.length
-  const completedCount = activeCompletedSeries.length
-  const totalCount = liveCount + upcomingCount + completedCount
-
-  const filterTabs = [
-    { key: 'all', label: 'All', count: totalCount },
-    { key: 'live', label: 'Live', count: liveCount },
-    { key: 'upcoming', label: 'Upcoming', count: upcomingCount },
-    { key: 'completed', label: 'Completed', count: completedCount },
-  ]
-
   return (
     <div className="w-full">
-      {/* Date strip + filter bar */}
+      {/* Date nav */}
       <div className="border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-950 overflow-hidden mb-3">
         <DateStrip
           dates={availableDates}
           activeDate={resolvedDate}
           onChange={key => {
             setActiveDate(key)
-            setActiveFilter('all')
             setExpandedTournamentName(null)
           }}
           onLoadEarlier={hasMore ? onLoadMore : null}
           loadingEarlier={loadingMore}
         />
-
-        {/* Filter bar */}
-        <div className="flex items-center">
-          <div
-            className="flex flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
-            style={{ scrollbarWidth: 'none' }}
-            role="tablist"
-            aria-label="Filter matches by type"
-          >
-            {filterTabs.map(({ key, label, count }) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={activeFilter === key}
-                onClick={() => {
-                  trackEvent('feed_filter', { filter: key, date: resolvedDate })
-                  setActiveFilter(key)
-                }}
-                className={`flex-shrink-0 px-3 min-h-[38px] flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${
-                  activeFilter === key
-                    ? 'text-gray-900 dark:text-white border-red-500'
-                    : 'text-gray-500 dark:text-gray-500 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
-                {label}
-                {count > 0 && (
-                  <span className={`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
-                    activeFilter === key
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-500'
-                  }`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Dismissible calendar nudge */}
@@ -374,15 +317,23 @@ function HomeFeed({
         )
       })()}
 
-      {/* Tournament cards */}
-      {tournamentCards.length === 0 ? (
-        <div className="border border-gray-200 dark:border-gray-800 rounded py-10 text-center bg-white dark:bg-gray-950">
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
-            No matches
-          </p>
-        </div>
-      ) : (
-        tournamentCards.map(card => {
+      {/* Tournament cards — split into sections */}
+      {(() => {
+        const liveCards = tournamentCards.filter(c => c.hasLive)
+        const resultsCards = tournamentCards.filter(c => !c.hasLive && c.completedSeries.length > 0)
+        const upcomingCards = tournamentCards.filter(c => !c.hasLive && c.completedSeries.length === 0 && c.hasUpcoming)
+
+        if (tournamentCards.length === 0) {
+          return (
+            <div className="border border-gray-200 dark:border-gray-800 rounded py-10 text-center bg-white dark:bg-gray-950">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                No matches
+              </p>
+            </div>
+          )
+        }
+
+        function renderCard(card) {
           const isHubExpanded = expandedTournamentName === card.tournament
           const hubId = findTournamentId(card.tournament, tournamentIdMap)
           const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length
@@ -402,7 +353,6 @@ function HomeFeed({
               key={card.tournament}
               className="border border-gray-200 dark:border-gray-800 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950 last:mb-0"
             >
-              {/* Tournament header — full row is clickable to expand hub */}
               <button
                 type="button"
                 onClick={toggleHub}
@@ -410,7 +360,6 @@ function HomeFeed({
                 aria-label={isHubExpanded ? `Collapse ${card.tournament} details` : `Expand ${card.tournament} details`}
                 className="w-full flex items-center gap-2 px-3 py-2 min-h-[44px] bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 text-left"
               >
-                {/* Org + tournament name */}
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                   {card.org && (
                     <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500">
@@ -436,7 +385,6 @@ function HomeFeed({
                 <ChevronIcon rotated={isHubExpanded} />
               </button>
 
-              {/* Inline TournamentHub — above match rows */}
               {isHubExpanded && hubId && (
                 <div className="border-b border-gray-200 dark:border-gray-800">
                   <TournamentHub
@@ -448,7 +396,6 @@ function HomeFeed({
                 </div>
               )}
 
-              {/* Match rows */}
               <div role="rowgroup">
                 {card.liveMatches.map(m => (
                   <LiveMatchRow
@@ -489,8 +436,46 @@ function HomeFeed({
               </div>
             </div>
           )
-        })
-      )}
+        }
+
+        return (
+          <>
+            {liveCards.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center mb-2">
+                  <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-red-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                    Live Now
+                  </h2>
+                </div>
+                {liveCards.map(renderCard)}
+              </div>
+            )}
+
+            {resultsCards.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center mb-2">
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-gray-400 dark:border-gray-600">
+                    Results
+                  </h2>
+                </div>
+                {resultsCards.map(renderCard)}
+              </div>
+            )}
+
+            {upcomingCards.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center mb-2">
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-blue-500">
+                    Coming Up
+                  </h2>
+                </div>
+                {upcomingCards.map(renderCard)}
+              </div>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }

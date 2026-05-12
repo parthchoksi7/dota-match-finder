@@ -4,6 +4,19 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "Apr 29, 2026",
+    tag: "improvement",
+    title: "Cleaner feed layout - auto-sections replace filter tabs",
+    desc: "Removed the stacked All/Live/Upcoming/Completed filter tabs and replaced the scrollable date pill strip with a simple left/right arrow navigator. Match cards now self-organize into three sections automatically.",
+    items: [
+      "Live Now section appears first when matches are in progress - time-sensitive content surfaces without a click",
+      "Results section is the primary browse surface for VOD replay browsing - shown second",
+      "Coming Up section lists scheduled matches last - planning info, lowest urgency",
+      "Empty sections are hidden entirely - no placeholder headers when a day has no live matches",
+      "Date nav replaced with a compact arrow row: left arrow for previous day, centered date label, right arrow for next day",
+    ],
+  },
+  {
     date: "May 12, 2026",
     tag: "new",
     title: "Tournament highlight videos",

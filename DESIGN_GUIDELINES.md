@@ -131,14 +131,16 @@ Two-line compact row for a scheduled match. Mobile-first: never truncates team n
 - Amber left border when `isFollowedMatch`
 - No click handler (match not yet played)
 
-### Date strip with load-earlier
+### Date nav (arrow navigator)
 
-The date strip gains a "Earlier" leftmost pill when more historical data can be loaded. This replaces a bottom "Load more" button pattern.
+A minimal single-row control for stepping between dates. Replaces the old horizontal pill strip.
 
-- Leftmost pill: `← Earlier` in the same strip, same styling as date pills but no underline active state
-- Disabled with opacity when loading
-- Clicking loads the next page of historical matches from OpenDota and adds new date pills to the left of the strip
-- Only shown when `onLoadEarlier` prop is provided and `hasMore` is true
+- Layout: `flex items-center justify-between px-3 min-h-[44px] border-b`
+- Left button: chevron-left SVG. At the oldest date, triggers `onLoadEarlier` instead of navigating. Shows `animate-spin` refresh icon while loading.
+- Center: current date label in `text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white`
+- Right button: chevron-right SVG. `disabled` when on the newest date.
+- Both buttons: `p-1.5 text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`
+- Hidden when `dates` is empty (not when fewer than 2 -- a single date still needs the label)
 
 ### Inline TournamentHub (hideStatusLabel mode)
 
