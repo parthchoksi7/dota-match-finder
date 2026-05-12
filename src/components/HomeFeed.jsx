@@ -58,13 +58,6 @@ function HomeFeed({
   const [activeFilter, setActiveFilter] = useState('all')
   const [collapsedTournaments, setCollapsedTournaments] = useState(new Set())
 
-  // Default to most recent date with data (last in chronological array).
-  // Prefers today if today has data; otherwise falls back to the most recent past day.
-  const defaultDateKey = availableDates.some(d => d.key === todayKey)
-    ? todayKey
-    : (availableDates[availableDates.length - 1]?.key ?? todayKey)
-  const resolvedDate = activeDate ?? defaultDateKey
-
   // Build chronological date list: past days → today → tomorrow
   const availableDates = useMemo(() => {
     const dayTimestamps = {}
@@ -95,6 +88,12 @@ function HomeFeed({
 
     return dates
   }, [completeSeries, liveMatches, upcomingMatches, todayKey, tomorrowKey])
+
+  // Default to most recent date with data; prefer today if today has data.
+  const defaultDateKey = availableDates.some(d => d.key === todayKey)
+    ? todayKey
+    : (availableDates[availableDates.length - 1]?.key ?? todayKey)
+  const resolvedDate = activeDate ?? defaultDateKey
 
   const isToday = resolvedDate === todayKey
 
