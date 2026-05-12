@@ -9,7 +9,6 @@ import Tournaments from './pages/Tournaments.jsx'
 import TournamentDetail from './pages/TournamentDetail.jsx'
 import Calendar from './pages/Calendar.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
-import PreviewPage from './pages/PreviewPage.jsx'
 import NewsPage from './pages/NewsPage.jsx'
 
 const path = window.location.pathname
@@ -21,7 +20,6 @@ function Root() {
   if (path.startsWith('/tournament/')) return <TournamentDetail />
   if (path === '/calendar') return <Calendar />
   if (path === '/analytics') return <AnalyticsPage />
-  if (path === '/preview') return <PreviewPage />
   if (path === '/news') return <NewsPage />
   return <App />
 }

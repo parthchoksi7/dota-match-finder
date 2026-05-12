@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
-import LatestMatches from "./components/LatestMatches"
-import UpcomingMatches from "./components/UpcomingMatches"
+import HomeFeed from "./components/HomeFeed"
 import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
@@ -10,11 +9,11 @@ import TournamentHub from "./components/TournamentHub"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
-import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds, VOD_CHANNEL_LABELS } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, toTitleCase } from "./utils"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
@@ -135,7 +134,6 @@ function App() {
   const [nextMatchId, setNextMatchId] = useState(null)
   const [grandFinalMatchIds, setGrandFinalMatchIds] = useState(new Set())
   const [loadingMore, setLoadingMore] = useState(false)
-  const [matches, setMatches] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
   const [initialLoading, setInitialLoading] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -152,6 +150,15 @@ function App() {
   const [copyFeedback, setCopyFeedback] = useState(null)
   const [expandedSeriesId, setExpandedSeriesId] = useState(null)
   const isOwner = typeof window !== "undefined" && localStorage.getItem("spectate-owner") === "true"
+
+  // Live + upcoming data
+  const [liveMatches, setLiveMatches] = useState([])
+  const [upcomingMatches, setUpcomingMatches] = useState([])
+  const [liveLoading, setLiveLoading] = useState(true)
+
+  // Tournament hub chips
+  const [tournamentPills, setTournamentPills] = useState(null)
+  const [expandedTournamentId, setExpandedTournamentId] = useState(null)
 
   const [xPostsOpen, setXPostsOpen] = useState(false)
   const [xPostsSeries, setXPostsSeries] = useState(null)
@@ -219,6 +226,18 @@ function App() {
       })
   }, [])
 
+  async function fetchLiveData() {
+    try {
+      const [liveRes, upcomingRes] = await Promise.all([
+        fetch("/api/live-matches").then(r => r.json()),
+        fetch("/api/upcoming-matches").then(r => r.json()),
+      ])
+      setLiveMatches(liveRes.matches || [])
+      setUpcomingMatches(upcomingRes.matches || [])
+    } catch {}
+    setLiveLoading(false)
+  }
+
   const { pullDistance, refreshing, THRESHOLD } = usePullToRefresh(loadMatches)
 
   // Read ?q= param from URL so "Find VODs" links from tournament detail pages work
@@ -229,7 +248,25 @@ function App() {
   useEffect(() => {
     loadMatches()
     fetchGrandFinalMatchIds().then(ids => setGrandFinalMatchIds(new Set(ids)))
+    fetchLiveData()
+    const liveInterval = setInterval(fetchLiveData, 2 * 60 * 1000)
+    return () => clearInterval(liveInterval)
   }, [loadMatches])
+
+  // Fetch tournament pills for the hub chips section
+  useEffect(() => {
+    fetch("/api/tournaments")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return
+        const pills = [
+          ...(d.ongoing || []).map(t => ({ ...t, status: "live" })),
+          ...(d.upcoming || []).map(t => ({ ...t, status: "upcoming" })),
+        ].slice(0, 3)
+        setTournamentPills(pills)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!initialLoading && initialSearchQuery) {
@@ -245,17 +282,14 @@ function App() {
     const matchId = getMatchIdFromUrl()
     if (!matchId) return
 
-    // Track when someone lands via a shared match link
     trackEvent("shared_match_open", { matchId, source: window.location.pathname.startsWith("/match/") ? "path" : "hash" })
 
-    // Try to find in loaded matches first
     const found = allMatches.find(m => m.id === matchId)
     if (found) {
       handleSelectMatch(found)
       return
     }
 
-    // Fallback: fetch directly from OpenDota
     fetch(`https://api.opendota.com/api/matches/${matchId}`)
       .then(r => r.json())
       .then(data => {
@@ -316,7 +350,6 @@ function App() {
   function handleClearSearch() {
     setSearched(false)
     setSearchQuery("")
-    setMatches([])
     setSelectedMatch(null)
     setError(null)
     setTimeout(() => { if (window.matchMedia('(hover: hover)').matches) searchInputRef.current?.focus() }, 0)
@@ -329,13 +362,11 @@ function App() {
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
 
-    // Unplayed game slot — show empty state drawer without URL update or VOD fetch
     if (match.unplayed) {
       setSelectedMatch(match)
       return
     }
 
-    // Update URL to shareable slug URL for SEO
     window.history.replaceState(null, "", "/match/" + getMatchSlug(match))
 
     trackEvent("match_click", {
@@ -348,9 +379,6 @@ function App() {
     if (match.seriesId && !match._skipExpand) setExpandedSeriesId(String(match.seriesId))
     setSelectedMatch({ ...match, loadingVod: true })
 
-    // Fetch streams for all games in the series so we can check consistency.
-    // If all games agree on the same channel, trust it. If they disagree, fall back
-    // to group search which shows all channels that were online at that time.
     const siblingIds = match.seriesId
       ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
       : [match.id]
@@ -369,6 +397,12 @@ function App() {
       channel: vod?.channel || null,
       allVods: vod?.allVods || [],
     })
+  }
+
+  // Open the last game of a series (most recent action)
+  function handleOpenSeries(series) {
+    const lastGame = series.games[series.games.length - 1]
+    handleSelectMatch(lastGame)
   }
 
   async function handleSummarize(match) {
@@ -564,7 +598,6 @@ function App() {
     setSummaryErrorMatchId(null)
     setCachedSummaryForSelected(null)
     setCopyFeedback(null)
-    // Return to homepage cleanly
     window.history.replaceState(null, "", "/")
     setTimeout(() => {
       if (targetSeriesId) {
@@ -589,7 +622,6 @@ function App() {
     }
   }, [selectedMatch?.id])
 
-  // Compute search results live from allMatches so load more updates results automatically
   const searchResults =
     searched && searchQuery
       ? allMatches.filter(
@@ -605,7 +637,6 @@ function App() {
       ? searchResults
       : searchResults.filter(m => String(m.seriesType) === seriesFilter)
 
-  // Compute game number within series for each match
   const matchGameNumbers = {}
   const seriesMatchMap = {}
   allMatches.forEach(m => {
@@ -656,11 +687,17 @@ function App() {
     </div>
   ) : null
 
-  // Build the shareable slug URL for SEO and sharing
   function getShareUrl(match) {
     if (typeof window === "undefined") return ""
     return window.location.origin + "/match/" + getMatchSlug(match)
   }
+
+  // Live banner data
+  const firstLive = liveMatches[0]
+  const moreCount = liveMatches.length - 1
+  const liveScoreA = firstLive?.seriesScore?.split('-')?.[0] ?? ''
+  const liveScoreB = firstLive?.seriesScore?.split('-')?.[1] ?? ''
+  const liveBannerWatch = firstLive?.streams?.[0]?.rawUrl || firstLive?.streams?.[0]?.url || null
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col overflow-x-hidden">
@@ -681,6 +718,7 @@ function App() {
           </div>
         </div>
       )}
+
       <SiteHeader
         spoilerFree={spoilerFree}
         onSpoilerToggle={() => {
@@ -692,6 +730,44 @@ function App() {
           trackEvent("spoiler_free_toggle", { enabled: next })
         }}
       />
+
+      {/* Sticky live banner */}
+      {!liveLoading && liveMatches.length > 0 && firstLive && (
+        <div className="sticky top-[52px] z-30 border-b border-red-500/40 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm">
+          <div className="max-w-3xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="flex items-center gap-1.5 text-red-500 text-xs font-bold uppercase tracking-widest flex-shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {liveMatches.length} Live
+              </span>
+              <span className="font-display font-black text-gray-900 dark:text-white text-base uppercase truncate">
+                {spoilerFree
+                  ? `${firstLive.teamA} vs ${firstLive.teamB}`
+                  : `${firstLive.teamA} ${liveScoreA}-${liveScoreB} ${firstLive.teamB}`}
+              </span>
+              {moreCount > 0 && (
+                <span className="text-gray-500 dark:text-gray-600 text-xs font-semibold tabular-nums flex-shrink-0">
+                  +{moreCount} more
+                </span>
+              )}
+            </div>
+            {liveBannerWatch && (
+              <a
+                href={liveBannerWatch}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackEvent('live_banner_watch', { url: liveBannerWatch })}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
+                </svg>
+                Watch
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
         <SearchBar
@@ -709,7 +785,7 @@ function App() {
           <SearchSuggestions allMatches={allMatches} onSearch={handleSuggestionSelect} />
         )}
 
-{initialLoading && (
+        {initialLoading && (
           <div
             className="border border-gray-200 dark:border-gray-800 px-6 py-12 text-center rounded"
             aria-live="polite"
@@ -722,10 +798,8 @@ function App() {
           </div>
         )}
 
-
         {!initialLoading && searched && (
           <>
-            <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
             {filteredMatches.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
@@ -768,7 +842,21 @@ function App() {
 
         {!initialLoading && !searched && (
           <div className="flex flex-col gap-6">
-            <TournamentHub spoilerFree={spoilerFree} />
+            {/* My Teams — top of feed */}
+            <MyTeamsSection
+              matches={allMatches}
+              followedTeams={followedTeams}
+              onSelectMatch={handleSelectMatch}
+              onDraftPosts={isOwner ? handleDraftPosts : undefined}
+              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
+              onManageTeams={() => setManageTeamsOpen(true)}
+              onToggleFollow={handleToggleFollow}
+              spoilerFree={spoilerFree}
+              expandedSeriesId={expandedSeriesId}
+              grandFinalMatchIds={grandFinalMatchIds}
+            />
+
+            {/* Calendar nudge */}
             {showCalendarNudge && (
               <div
                 role="status"
@@ -814,31 +902,64 @@ function App() {
                 </button>
               </div>
             )}
-            <UpcomingMatches searchQuery={searchQuery} onSelectMatchId={handleSelectMatchId} spoilerFree={spoilerFree} />
-            <MyTeamsSection
-              matches={allMatches}
-              followedTeams={followedTeams}
+
+            {/* Tournament hub chips */}
+            {tournamentPills && tournamentPills.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold uppercase tracking-[4px] text-gray-500 dark:text-gray-600 flex-shrink-0">Tournaments</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {tournamentPills.map(t => {
+                      const isLive = t.status === "live"
+                      const isExpanded = expandedTournamentId === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            trackEvent("tournament_pill_click", { tournament_id: t.id, tournament_name: t.name })
+                            setExpandedTournamentId(isExpanded ? null : t.id)
+                          }}
+                          className={
+                            "flex items-center gap-1.5 px-3 py-1.5 border rounded text-sm font-semibold transition-colors " +
+                            (isLive
+                              ? "border-red-500/50 bg-red-500/5 text-white hover:bg-red-500/10"
+                              : "border-gray-200 dark:border-gray-800 text-gray-500 hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-700 dark:hover:text-gray-300")
+                          }
+                        >
+                          {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />}
+                          {toTitleCase(t.name)}
+                          <span className="text-gray-500 dark:text-gray-700 text-xs">▾</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                {expandedTournamentId && (
+                  <TournamentHub
+                    key={expandedTournamentId}
+                    tournamentId={expandedTournamentId}
+                    spoilerFree={spoilerFree}
+                    onClose={() => setExpandedTournamentId(null)}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Main unified feed */}
+            <HomeFeed
+              liveMatches={liveMatches}
+              upcomingMatches={upcomingMatches}
+              allMatches={allMatches}
               onSelectMatch={handleSelectMatch}
-              onDraftPosts={isOwner ? handleDraftPosts : undefined}
-              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
-              onManageTeams={() => setManageTeamsOpen(true)}
-              onToggleFollow={handleToggleFollow}
-              spoilerFree={spoilerFree}
-              expandedSeriesId={expandedSeriesId}
-              grandFinalMatchIds={grandFinalMatchIds}
-            />
-            <LatestMatches
-              matches={allMatches}
-              onSelectMatch={handleSelectMatch}
-              onDraftPosts={isOwner ? handleDraftPosts : undefined}
-              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
+              onSelectSeries={handleOpenSeries}
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
-              expandedSeriesId={expandedSeriesId}
               grandFinalMatchIds={grandFinalMatchIds}
               error={error}
               onRetry={loadMatches}
+              onSelectMatchId={handleSelectMatchId}
             />
           </div>
         )}

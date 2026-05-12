@@ -13,7 +13,7 @@ function StarIcon({ filled }) {
   )
 }
 
-function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = false, followedTeams, onToggleFollow, isGrandFinal = false }) {
+function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = false, followedTeams, onToggleFollow, isGrandFinal = false, isFollowedMatch = false }) {
   const radiantTeam = series.games[0].radiantTeam
   const direTeam = series.games[0].direTeam
   const { radiantWins, direWins } = getSeriesWins(series)
@@ -46,7 +46,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
       role="row"
       onClick={handleRowClick}
       className={`grid items-center gap-2 px-4 py-2.5 min-h-[48px] border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
-        isGrandFinal ? 'border-l-2 border-l-amber-500/70 bg-amber-50/30 dark:bg-amber-950/10' : ''
+        (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500/70 bg-amber-50/30 dark:bg-amber-950/10' : ''
       }`}
       style={{ gridTemplateColumns: '1fr 76px 1fr auto' }}
       aria-label={`${radiantTeam} vs ${direTeam}`}
@@ -105,6 +105,13 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
 
       {/* Dire team (right-aligned) */}
       <div className="flex items-center justify-end gap-1.5 min-w-0">
+        <span className={`font-display text-sm tracking-wide uppercase truncate text-right ${
+          direWinner ? 'font-black text-gray-900 dark:text-white'
+          : spoilerFree ? 'font-black text-gray-900 dark:text-white'
+          : 'font-bold text-gray-400 dark:text-gray-500'
+        }`}>
+          {direTeam}
+        </span>
         {onToggleFollow && (
           <button
             type="button"
@@ -124,13 +131,6 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
             <StarIcon filled={isDireFollowed} />
           </button>
         )}
-        <span className={`font-display text-sm tracking-wide uppercase truncate text-right ${
-          direWinner ? 'font-black text-gray-900 dark:text-white'
-          : spoilerFree ? 'font-black text-gray-900 dark:text-white'
-          : 'font-bold text-gray-400 dark:text-gray-500'
-        }`}>
-          {direTeam}
-        </span>
       </div>
 
       {/* Replay button (hidden on mobile, visible sm+) */}

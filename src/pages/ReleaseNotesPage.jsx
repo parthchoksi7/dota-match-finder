@@ -5,6 +5,21 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 11, 2026",
+    tag: "new",
+    title: "Unified live, upcoming, and completed feed",
+    desc: "The homepage now shows all match states in one place. Tournament cards group live matches (with pulsing score and Watch button), upcoming matches (with countdown time and stream pill), and completed results together by event. A date strip lets you jump to any day. Filter the feed by All, Live, Upcoming, or Completed. My Teams section moves to the top so your followed teams are always front and centre. A sticky live banner appears below the header when matches are in progress.",
+    items: [
+      "Live matches show pulsing score, current game indicator, and Watch button",
+      "Upcoming rows show countdown time and stream pill",
+      "Filter bar: All / Live / Upcoming / Completed with counts",
+      "My Teams section promoted to top of the homepage feed",
+      "Sticky live banner with one-click Watch when matches are in progress",
+      "Tournament hub chips above the feed for quick access to standings and brackets",
+      "Followed-team rows highlighted in amber across all completed results",
+    ],
+  },
+  {
+    date: "May 11, 2026",
     tag: "improvement",
     title: "Compact match feed with date navigation",
     desc: "Results are now grouped by tournament with a date strip so you can jump to any day. Each tournament section shows an org label, match count, and collapses with a chevron. Click the tournament name to explore the full event on the Tournaments page. On desktop, a Replay button appears inline on each row.",

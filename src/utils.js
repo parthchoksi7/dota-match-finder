@@ -52,6 +52,29 @@ export function getSeriesLabel(seriesType) {
 }
 
 /**
+ * Format a scheduledAt ISO string as countdown: "In 2h 30m · 3:00 AM PDT", "Starting soon", etc.
+ */
+export function formatMatchTime(scheduledAt) {
+  if (!scheduledAt) return null
+  const date = new Date(scheduledAt)
+  const now = new Date()
+  const diffMs = date - now
+  const diffHours = diffMs / (1000 * 60 * 60)
+  const tzShort = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+    .formatToParts(date).find(p => p.type === 'timeZoneName')?.value || ''
+  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  if (diffHours < 0) return 'Starting soon'
+  if (diffHours < 1) return `In ${Math.round(diffMs / 60000)}m`
+  if (diffHours < 24) {
+    const hrs = Math.floor(diffHours)
+    const mins = Math.round((diffHours - hrs) * 60)
+    return mins > 0 ? `In ${hrs}h ${mins}m · ${timeStr} ${tzShort}` : `In ${hrs}h · ${timeStr} ${tzShort}`
+  }
+  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${dateStr} · ${timeStr} ${tzShort}`
+}
+
+/**
  * Format Unix timestamp (seconds) as relative time: "5m ago", "2h ago", "Yesterday", "3 days ago", or ""
  */
 export function formatRelativeTime(unixSeconds) {

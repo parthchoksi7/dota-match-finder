@@ -1,7 +1,16 @@
+import { useEffect, useRef } from 'react'
 import { trackEvent } from '../utils'
 
 function DateStrip({ dates, activeDate, onChange }) {
   if (!dates || dates.length <= 1) return null
+
+  const activeRef = useRef(null)
+
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' })
+    }
+  }, []) // Auto-scroll active pill into view on mount only
 
   return (
     <div
@@ -13,6 +22,7 @@ function DateStrip({ dates, activeDate, onChange }) {
       {dates.map(({ key, label }) => (
         <button
           key={key}
+          ref={activeDate === key ? activeRef : null}
           type="button"
           role="tab"
           aria-selected={activeDate === key}

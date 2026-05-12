@@ -13,7 +13,5 @@ Allow: /api/og
 Disallow: /api/
 Disallow: /analytics
 Disallow: /analytics.html
-Disallow: /preview
-Disallow: /preview.html
 
 Sitemap: https://spectateesports.live/sitemap.xml
