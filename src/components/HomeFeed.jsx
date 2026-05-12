@@ -20,6 +20,21 @@ function getDateLabel(unixSeconds) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// Fuzzy match: all significant words in the feed name must appear in the PandaScore key.
+// Handles cases like "1Win Essence I" matching "1win Essence Season 1 2026 - Decider Stage".
+function findTournamentId(name, idMap) {
+  if (!idMap || !name) return null
+  if (idMap.has(name)) return idMap.get(name)
+  const normalize = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '')
+  const feedWords = normalize(name).split(' ').filter(w => w.length > 2)
+  if (!feedWords.length) return null
+  for (const [k, v] of idMap) {
+    const kn = normalize(k)
+    if (feedWords.every(w => kn.includes(w))) return v
+  }
+  return null
+}
+
 function ChevronIcon({ rotated }) {
   return (
     <svg
@@ -282,7 +297,7 @@ function HomeFeed({
         tournamentCards.map(card => {
           const isCollapsed = collapsedTournaments.has(card.tournament)
           const isHubExpanded = expandedTournamentName === card.tournament
-          const hubId = tournamentIdMap?.get(card.tournament)
+          const hubId = findTournamentId(card.tournament, tournamentIdMap)
           const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length
 
           return (
