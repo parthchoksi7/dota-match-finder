@@ -260,7 +260,7 @@ function App() {
       .then(d => {
         if (!d) return
         const map = new Map()
-        ;[...(d.ongoing || []), ...(d.upcoming || [])].forEach(t => {
+        ;[...(d.ongoing || []), ...(d.upcoming || []), ...(d.completed || [])].forEach(t => {
           if (t.name && t.id) map.set(t.name, t.id)
         })
         setTournamentIdMap(map)
