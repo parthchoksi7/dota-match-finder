@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 12, 2026",
+    tag: "new",
+    title: "Tournament highlight videos",
+    desc: "A Videos tab inside the Tournament Hub now shows official YouTube highlight clips from ESL, PGL, BLAST, WePlay, and the Dota 2 channel. Click any thumbnail to watch inline without leaving the page. Thumbnails are blurred in spoiler-free mode.",
+    items: [
+      "2-column (mobile) and 3-column (desktop) thumbnail grid inside the Tournament Hub Videos tab",
+      "Inline YouTube player expands below the grid when you click a card",
+      "Spoiler-free mode blurs thumbnails and replaces titles with generic labels",
+      "Channel link footer lets you browse the full channel on YouTube",
+    ],
+  },
+  {
+    date: "May 12, 2026",
     tag: "improvement",
     title: "Search, calendar, and My Teams polish",
     desc: "A round of UX improvements to the search overlay, the My Teams feed card, and the calendar entry point.",

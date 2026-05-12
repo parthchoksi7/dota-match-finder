@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
 import { trackEvent, toTitleCase, getLeagueLabel } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
+import HighlightsTab from './HighlightsTab'
 
 const ALL_TOURNAMENTS_URL = 'https://spectateesports.live/api/tournaments?mode=calendar-all'
 
@@ -210,7 +211,7 @@ function OverviewMatchRow({ match }) {
 }
 
 
-const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes']
+const TABS = ['Overview', 'Standings', 'Schedule', 'Heroes', 'Videos']
 const PLAYOFF_FORMATS = new Set(['Double Elimination', 'Single Elimination', 'Bracket'])
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
@@ -743,6 +744,12 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'Videos' && (
+        <div className="px-4 sm:px-5 py-4">
+          <HighlightsTab tournamentName={tournament.name} spoilerFree={spoilerFree} />
         </div>
       )}
 

@@ -4,6 +4,22 @@ dotenv.config({ path: '.env.local' })
 
 import { isTier1ByFields, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES } from './_shared.js'
 
+// ─── YouTube highlights config ────────────────────────────────────────────────
+
+const YT_HIGHLIGHTS_TTL = 60 * 60 * 6 // 6 hours
+const YT_HIGHLIGHTS_MAX_AGE_DAYS = 90
+
+// Maps tournament name keywords to the official YouTube channel for that org.
+// Channel IDs verified via youtube.com/channel/ URLs in May 2026.
+const YT_CHANNEL_MAP = [
+  { keywords: ['dreamleague', 'esl one'], channelId: 'UCaYLBJfw6d8XqmNlL204lNg', handle: '@ESLDota2' },
+  { keywords: ['pgl', 'wallachia'],       channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
+  { keywords: ['blast'],                  channelId: 'UCAvIC2XmBLLXFPdveirTrmw', handle: '@BLASTDota' },
+  { keywords: ['weplay', 'omega league'], channelId: 'UCdIRwwGQY68S95bQuUVX0sA', handle: '@WePlayDota' },
+  { keywords: ['the international', 'riyadh masters', 'beyond the summit'],
+                                          channelId: 'UCTQKT5QqO3h7y32G8VzuySQ', handle: '@dota2' },
+]
+
 // ─── iCal helpers (used by calendar modes) ────────────────────────────────────
 
 const CRLF = '\r\n'
@@ -1074,6 +1090,79 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('Series list error:', err?.message || err)
       return res.status(500).json({ error: 'Failed to fetch tournament data', message: err?.message })
+    }
+  }
+
+  // YouTube highlights mode
+  if (req.query?.mode === 'highlights') {
+    const rawName = (req.query?.name || '').trim()
+    if (!rawName) return res.status(400).json({ error: 'name param required' })
+
+    const apiKey = process.env.YOUTUBE_API_KEY
+    if (!apiKey) {
+      console.warn('[highlights] YOUTUBE_API_KEY not set')
+      return res.status(200).json({ videos: [], channelHandle: null })
+    }
+
+    const nameLower = rawName.toLowerCase()
+    const channel = YT_CHANNEL_MAP.find(c => c.keywords.some(k => nameLower.includes(k)))
+    if (!channel) return res.status(200).json({ videos: [], channelHandle: null })
+
+    // Strip stage suffixes to get a cleaner search term (e.g. "DreamLeague S24" not "DreamLeague S24 Group Stage")
+    const searchTerm = rawName
+      .replace(/\s*[-–—]\s*(group stage|playoffs|upper bracket|lower bracket|qualifier|open qualifier|closed qualifier|main event)\s*/gi, '')
+      .trim()
+
+    const slugKey = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)
+    const cacheKey = `dota2:yt_highlights:v1:${channel.channelId}:${slugKey}`
+
+    if (req.query?.bust !== '1') {
+      try {
+        const cached = await kv.get(cacheKey)
+        if (cached) return res.status(200).json({ ...cached, cached: true })
+      } catch (e) {
+        console.warn('[highlights] KV read failed:', e?.message)
+      }
+    }
+
+    const publishedAfter = new Date(Date.now() - YT_HIGHLIGHTS_MAX_AGE_DAYS * 86400_000).toISOString()
+    const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search')
+    ytUrl.searchParams.set('part', 'snippet')
+    ytUrl.searchParams.set('channelId', channel.channelId)
+    ytUrl.searchParams.set('q', searchTerm)
+    ytUrl.searchParams.set('type', 'video')
+    ytUrl.searchParams.set('order', 'date')
+    ytUrl.searchParams.set('maxResults', '12')
+    ytUrl.searchParams.set('publishedAfter', publishedAfter)
+    ytUrl.searchParams.set('key', apiKey)
+
+    try {
+      const ytRes = await fetch(ytUrl.toString())
+      if (!ytRes.ok) {
+        const body = await ytRes.text()
+        console.error('[highlights] YouTube API error:', ytRes.status, body.slice(0, 200))
+        return res.status(200).json({ videos: [], channelHandle: channel.handle, error: `YouTube ${ytRes.status}` })
+      }
+      const ytData = await ytRes.json()
+      const videos = (ytData.items || [])
+        .map(item => ({
+          videoId: item.id?.videoId,
+          title: item.snippet?.title,
+          thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
+          publishedAt: item.snippet?.publishedAt,
+        }))
+        .filter(v => v.videoId && v.title)
+
+      const result = { videos, channelHandle: channel.handle }
+      if (videos.length > 0) {
+        kv.set(cacheKey, result, { ex: YT_HIGHLIGHTS_TTL }).catch(e => {
+          console.error('[highlights] KV write failed:', e?.message)
+        })
+      }
+      return res.status(200).json(result)
+    } catch (err) {
+      console.error('[highlights] fetch error:', err?.message)
+      return res.status(200).json({ videos: [], channelHandle: channel.handle, error: err?.message })
     }
   }
 
