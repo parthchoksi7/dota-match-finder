@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 12, 2026",
+    tag: "fix",
+    title: "Fixed white screen on homepage load",
+    desc: "A variable ordering bug in the new feed caused the app to crash before rendering anything. The homepage now loads correctly.",
+  },
+  {
     date: "May 11, 2026",
     tag: "new",
     title: "Unified live, upcoming, and completed feed",
