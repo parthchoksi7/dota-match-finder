@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { trackEvent } from '../utils'
 
-function DateStrip({ dates, activeDate, onChange }) {
+function DateStrip({ dates, activeDate, onChange, onLoadEarlier, loadingEarlier }) {
   if (!dates || dates.length <= 1) return null
 
   const activeRef = useRef(null)
@@ -19,6 +19,21 @@ function DateStrip({ dates, activeDate, onChange }) {
       role="tablist"
       aria-label="Browse results by date"
     >
+      {/* Load earlier — leftmost pill */}
+      {onLoadEarlier && (
+        <button
+          type="button"
+          disabled={loadingEarlier}
+          onClick={() => {
+            trackEvent('load_earlier_click', {})
+            onLoadEarlier()
+          }}
+          className="flex-shrink-0 px-4 min-h-[44px] text-xs font-bold uppercase tracking-widest whitespace-nowrap border-b-2 border-transparent text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-40 transition-colors"
+        >
+          {loadingEarlier ? '...' : '← Earlier'}
+        </button>
+      )}
+
       {dates.map(({ key, label }) => (
         <button
           key={key}

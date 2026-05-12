@@ -856,19 +856,11 @@ function App() {
               onRetry={loadMatches}
               onSelectMatchId={handleSelectMatchId}
               tournamentIdMap={tournamentIdMap}
+              onLoadMore={handleLoadMore}
+              loadingMore={loadingMore}
+              hasMore={!!nextMatchId}
             />
           </div>
-        )}
-
-        {nextMatchId && !initialLoading && (
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="focus-ring py-3 text-sm font-semibold uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-800 rounded transition-colors disabled:opacity-50"
-          >
-            {loadingMore ? "Loading..." : "Load more matches"}
-          </button>
         )}
 
       </main>

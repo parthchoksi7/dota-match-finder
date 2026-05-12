@@ -1,33 +1,29 @@
 import { formatMatchTime, trackEvent } from '../utils'
 
-function UpcomingMatchRow({ match }) {
+function UpcomingMatchRow({ match, isFollowedMatch, spoilerFree }) {
   const timeStr = formatMatchTime(match.scheduledAt)
   const watchUrl = match.streams?.[0]?.url || null
   const watchLabel = match.streams?.[0]?.label || null
 
+  const amberStyle = 'border-l-2 border-l-amber-500/60 bg-amber-50/30 dark:bg-amber-950/10'
+
   return (
-    <div
-      className="flex items-center gap-2 px-4 py-2.5 min-h-[48px] border-b border-gray-100 dark:border-gray-900 last:border-b-0"
-    >
-      {/* Teams */}
-      <div className="flex-1 min-w-0 truncate">
-        <span className="font-display text-sm font-black tracking-wide uppercase text-gray-900 dark:text-white">
+    <div className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-900 last:border-b-0 ${isFollowedMatch ? amberStyle : ''}`}>
+      {/* Teams + time stacked */}
+      <div className="flex-1 min-w-0">
+        <p className="font-display text-sm font-black tracking-wide uppercase text-gray-900 dark:text-white truncate leading-tight">
           {match.teamA}
-        </span>
-        <span className="mx-1.5 text-gray-400 dark:text-gray-600 text-xs font-medium">vs</span>
-        <span className="font-display text-sm font-black tracking-wide uppercase text-gray-900 dark:text-white">
+          <span className="font-normal text-gray-400 dark:text-gray-600 text-xs mx-1.5">vs</span>
           {match.teamB}
-        </span>
+        </p>
+        {timeStr && (
+          <p className="text-[11px] font-semibold tabular-nums text-blue-500 dark:text-blue-400 mt-0.5 leading-tight">
+            {timeStr}
+          </p>
+        )}
       </div>
 
-      {/* Time */}
-      {timeStr && (
-        <span className="flex-shrink-0 text-[11px] font-semibold tabular-nums text-blue-500 dark:text-blue-400 whitespace-nowrap">
-          {timeStr}
-        </span>
-      )}
-
-      {/* Stream pill */}
+      {/* Stream pill — desktop only */}
       {watchUrl && (
         <a
           href={watchUrl}

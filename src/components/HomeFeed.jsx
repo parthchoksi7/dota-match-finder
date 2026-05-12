@@ -62,6 +62,9 @@ function HomeFeed({
   onRetry,
   onSelectMatchId,
   tournamentIdMap,
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }) {
   const todayKey = useMemo(() => new Date().toDateString(), [])
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86400000).toDateString(), [])
@@ -73,7 +76,6 @@ function HomeFeed({
 
   const [activeDate, setActiveDate] = useState(null)
   const [activeFilter, setActiveFilter] = useState('all')
-  const [collapsedTournaments, setCollapsedTournaments] = useState(new Set())
   const [expandedTournamentName, setExpandedTournamentName] = useState(null)
 
   // Build chronological date list: past days → today → tomorrow
@@ -190,15 +192,6 @@ function HomeFeed({
     return cards
   }, [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, activeFilter, followedTeams])
 
-  function toggleCollapse(tournamentName) {
-    setCollapsedTournaments(prev => {
-      const next = new Set(prev)
-      if (next.has(tournamentName)) next.delete(tournamentName)
-      else next.add(tournamentName)
-      return next
-    })
-  }
-
   if (error) {
     return (
       <div
@@ -242,49 +235,108 @@ function HomeFeed({
           activeDate={resolvedDate}
           onChange={key => {
             setActiveDate(key)
-            setCollapsedTournaments(new Set())
             setActiveFilter('all')
             setExpandedTournamentName(null)
           }}
+          onLoadEarlier={hasMore ? onLoadMore : null}
+          loadingEarlier={loadingMore}
         />
 
         {/* Filter bar */}
-        <div
-          className="flex overflow-x-auto [&::-webkit-scrollbar]:hidden"
-          style={{ scrollbarWidth: 'none' }}
-          role="tablist"
-          aria-label="Filter matches by type"
-        >
-          {filterTabs.map(({ key, label, count }) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={activeFilter === key}
-              onClick={() => {
-                trackEvent('feed_filter', { filter: key, date: resolvedDate })
-                setActiveFilter(key)
-              }}
-              className={`flex-shrink-0 px-3 min-h-[38px] flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${
-                activeFilter === key
-                  ? 'text-gray-900 dark:text-white border-red-500'
-                  : 'text-gray-500 dark:text-gray-500 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              {label}
-              {count > 0 && (
-                <span className={`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
+        <div className="flex items-center">
+          <div
+            className="flex flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none' }}
+            role="tablist"
+            aria-label="Filter matches by type"
+          >
+            {filterTabs.map(({ key, label, count }) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={activeFilter === key}
+                onClick={() => {
+                  trackEvent('feed_filter', { filter: key, date: resolvedDate })
+                  setActiveFilter(key)
+                }}
+                className={`flex-shrink-0 px-3 min-h-[38px] flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors duration-150 ${
                   activeFilter === key
-                    ? 'bg-red-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-500'
-                }`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          ))}
+                    ? 'text-gray-900 dark:text-white border-red-500'
+                    : 'text-gray-500 dark:text-gray-500 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {label}
+                {count > 0 && (
+                  <span className={`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
+                    activeFilter === key
+                      ? 'bg-red-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-500'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {/* Persistent calendar link */}
+          <a
+            href="/calendar"
+            onClick={() => trackEvent('calendar_icon_click', { source: 'feed_filter_bar' })}
+            aria-label="Add matches to calendar"
+            title="Add to Calendar"
+            className="flex-shrink-0 flex items-center justify-center w-10 min-h-[38px] border-l border-gray-100 dark:border-gray-900 text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </a>
         </div>
       </div>
+
+      {/* My Teams card — shown when followed teams have matches on the active date */}
+      {followedTeams?.length > 0 && (() => {
+        const myLive = activeLiveMatches.filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+        const myUpcoming = activeUpcomingMatches.filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+        const myCompleted = activeCompletedSeries.filter(s => followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
+        if (myLive.length + myUpcoming.length + myCompleted.length === 0) return null
+        return (
+          <div className="border border-amber-400/40 dark:border-amber-600/30 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950">
+            {/* My Teams header */}
+            <div className="flex items-center gap-2 px-3 py-2 min-h-[44px] bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-200/50 dark:border-amber-800/30">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" aria-hidden="true">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              <span className="text-xs font-bold uppercase tracking-[4px] text-amber-600 dark:text-amber-500">My Teams</span>
+            </div>
+            {/* My Teams match rows */}
+            <div role="rowgroup">
+              {myLive.map(m => (
+                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} spoilerFree={spoilerFree} isFollowedMatch />
+              ))}
+              {myUpcoming.map(m => (
+                <UpcomingMatchRow key={m.id} match={m} isFollowedMatch spoilerFree={spoilerFree} />
+              ))}
+              {myCompleted.map(s => (
+                <CompactSeriesRow
+                  key={s.id}
+                  series={s}
+                  onSelectGame={onSelectMatch}
+                  onSelectSeries={onSelectSeries}
+                  spoilerFree={spoilerFree}
+                  followedTeams={followedTeams}
+                  onToggleFollow={onToggleFollow}
+                  isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                  isFollowedMatch
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Tournament cards */}
       {tournamentCards.length === 0 ? (
@@ -295,60 +347,44 @@ function HomeFeed({
         </div>
       ) : (
         tournamentCards.map(card => {
-          const isCollapsed = collapsedTournaments.has(card.tournament)
           const isHubExpanded = expandedTournamentName === card.tournament
           const hubId = findTournamentId(card.tournament, tournamentIdMap)
           const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length
+
+          function toggleHub() {
+            if (hubId) {
+              trackEvent('tournament_hub_expand', { tournament: card.tournament, expanded: !isHubExpanded })
+              setExpandedTournamentName(isHubExpanded ? null : card.tournament)
+            } else {
+              trackEvent('tournament_header_click', { tournament: card.tournament })
+              window.location.href = '/tournaments'
+            }
+          }
 
           return (
             <div
               key={card.tournament}
               className="border border-gray-200 dark:border-gray-800 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950 last:mb-0"
             >
-              {/* Tournament header */}
-              <div
-                className="flex items-center gap-2 px-3 py-2 min-h-[44px] bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 cursor-pointer"
-                onClick={() => {
-                  trackEvent('tournament_card_collapse', { tournament: card.tournament, collapsed: !isCollapsed })
-                  toggleCollapse(card.tournament)
-                }}
+              {/* Tournament header — full row is clickable to expand hub */}
+              <button
+                type="button"
+                onClick={toggleHub}
+                aria-expanded={isHubExpanded}
+                aria-label={isHubExpanded ? `Collapse ${card.tournament} details` : `Expand ${card.tournament} details`}
+                className="w-full flex items-center gap-2 px-3 py-2 min-h-[44px] bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 text-left"
               >
-                {/* Tournament name - expands TournamentHub inline if available */}
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    if (hubId) {
-                      trackEvent('tournament_hub_expand', { tournament: card.tournament, expanded: !isHubExpanded })
-                      setExpandedTournamentName(isHubExpanded ? null : card.tournament)
-                    } else {
-                      trackEvent('tournament_header_click', { tournament: card.tournament })
-                      window.location.href = '/tournaments'
-                    }
-                  }}
-                  className="flex flex-col gap-0.5 min-w-0 flex-1 text-left"
-                >
+                {/* Org + tournament name */}
+                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                   {card.org && (
                     <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500">
                       {card.org}
                     </span>
                   )}
-                  <div className="flex items-center gap-1 min-w-0">
-                    <span className="font-display font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                      {card.tournament}
-                    </span>
-                    {hubId && (
-                      <svg
-                        className={`w-3 h-3 flex-shrink-0 text-gray-400 dark:text-gray-600 transition-transform duration-150 ${isHubExpanded ? 'rotate-180' : ''}`}
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    )}
-                  </div>
-                </button>
+                  <span className="font-display font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
+                    {card.tournament}
+                  </span>
+                </div>
 
                 {card.hasLive && (
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -361,72 +397,61 @@ function HomeFeed({
                   {rowCount}
                 </span>
 
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    trackEvent('tournament_card_collapse', { tournament: card.tournament, collapsed: !isCollapsed })
-                    toggleCollapse(card.tournament)
-                  }}
-                  aria-label={isCollapsed ? `Expand ${card.tournament}` : `Collapse ${card.tournament}`}
-                  aria-expanded={!isCollapsed}
-                  className="focus-ring flex-shrink-0 p-1 rounded text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                >
-                  <ChevronIcon rotated={!isCollapsed} />
-                </button>
-              </div>
+                <ChevronIcon rotated={isHubExpanded} />
+              </button>
 
-              {/* Match rows */}
-              {!isCollapsed && (
-                <div role="rowgroup">
-                  {card.liveMatches.map(m => (
-                    <LiveMatchRow
-                      key={m.id}
-                      match={m}
-                      onSelectMatchId={onSelectMatchId}
-                      spoilerFree={spoilerFree}
-                      isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
-                    />
-                  ))}
-                  {card.upcomingMatches.map(m => (
-                    <UpcomingMatchRow
-                      key={m.id}
-                      match={m}
-                    />
-                  ))}
-                  {card.completedSeries.map(s => {
-                    const isFollowedMatch = !!(
-                      followedTeams?.includes(s.games[0]?.radiantTeam) ||
-                      followedTeams?.includes(s.games[0]?.direTeam)
-                    )
-                    return (
-                      <CompactSeriesRow
-                        key={s.id}
-                        series={s}
-                        onSelectGame={onSelectMatch}
-                        onSelectSeries={onSelectSeries}
-                        spoilerFree={spoilerFree}
-                        followedTeams={followedTeams}
-                        onToggleFollow={onToggleFollow}
-                        isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
-                        isFollowedMatch={isFollowedMatch}
-                      />
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Inline TournamentHub — expands when tournament name is clicked */}
+              {/* Inline TournamentHub — above match rows */}
               {isHubExpanded && hubId && (
-                <div className="border-t border-gray-200 dark:border-gray-800">
+                <div className="border-b border-gray-200 dark:border-gray-800">
                   <TournamentHub
                     key={hubId}
                     tournamentId={hubId}
                     spoilerFree={spoilerFree}
                     onClose={() => setExpandedTournamentName(null)}
+                    hideStatusLabel
                   />
                 </div>
               )}
+
+              {/* Match rows */}
+              <div role="rowgroup">
+                {card.liveMatches.map(m => (
+                  <LiveMatchRow
+                    key={m.id}
+                    match={m}
+                    onSelectMatchId={onSelectMatchId}
+                    spoilerFree={spoilerFree}
+                    isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
+                  />
+                ))}
+                {card.upcomingMatches.map(m => (
+                  <UpcomingMatchRow
+                    key={m.id}
+                    match={m}
+                    isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
+                    spoilerFree={spoilerFree}
+                  />
+                ))}
+                {card.completedSeries.map(s => {
+                  const isFollowedMatch = !!(
+                    followedTeams?.includes(s.games[0]?.radiantTeam) ||
+                    followedTeams?.includes(s.games[0]?.direTeam)
+                  )
+                  return (
+                    <CompactSeriesRow
+                      key={s.id}
+                      series={s}
+                      onSelectGame={onSelectMatch}
+                      onSelectSeries={onSelectSeries}
+                      spoilerFree={spoilerFree}
+                      followedTeams={followedTeams}
+                      onToggleFollow={onToggleFollow}
+                      isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                      isFollowedMatch={isFollowedMatch}
+                    />
+                  )
+                })}
+              </div>
             </div>
           )
         })

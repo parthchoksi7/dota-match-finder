@@ -233,7 +233,7 @@ function deriveChampionFromBracket(bracket) {
   return scoreA > scoreB ? teamA : teamB
 }
 
-function TournamentHub({ spoilerFree, tournamentId, onClose }) {
+function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Overview')
@@ -371,22 +371,24 @@ function TournamentHub({ spoilerFree, tournamentId, onClose }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h2
-          id="tournament-hub-heading"
-          className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-emerald-500" : "border-blue-500"}`}
-        >
-          {isOngoing ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              {ongoing.length > 1 ? 'Live Tournaments' : 'Live Tournament'}
-              {ongoing.length > 1 && (
-                <span className="text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
-                  {ongoing.length}
-                </span>
-              )}
-            </span>
-          ) : isCompleted ? "Recently Completed" : "Upcoming Tournament"}
-        </h2>
+        {!hideStatusLabel && (
+          <h2
+            id="tournament-hub-heading"
+            className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-emerald-500" : "border-blue-500"}`}
+          >
+            {isOngoing ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {ongoing.length > 1 ? 'Live Tournaments' : 'Live Tournament'}
+                {ongoing.length > 1 && (
+                  <span className="text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-500">
+                    {ongoing.length}
+                  </span>
+                )}
+              </span>
+            ) : isCompleted ? "Recently Completed" : null}
+          </h2>
+        )}
         <button
           type="button"
           onClick={() => {
