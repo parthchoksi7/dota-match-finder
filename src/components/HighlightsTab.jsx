@@ -14,7 +14,7 @@ function timeAgo(isoDate) {
   return `${weeks}w ago`
 }
 
-export default function HighlightsTab({ tournamentName, spoilerFree }) {
+export default function HighlightsTab({ tournamentName, spoilerFree, beginAt, endAt }) {
   const [videos, setVideos] = useState(null)
   const [channelHandle, setChannelHandle] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -26,7 +26,10 @@ export default function HighlightsTab({ tournamentName, spoilerFree }) {
     if (!tournamentName) return
     setLoading(true)
     setError(null)
-    fetch(`/api/tournaments?mode=highlights&name=${encodeURIComponent(tournamentName)}`)
+    const params = new URLSearchParams({ mode: 'highlights', name: tournamentName })
+    if (beginAt) params.set('beginAt', beginAt)
+    if (endAt) params.set('endAt', endAt)
+    fetch(`/api/tournaments?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -46,7 +49,7 @@ export default function HighlightsTab({ tournamentName, spoilerFree }) {
         setError(true)
       })
       .finally(() => setLoading(false))
-  }, [tournamentName, retryKey])
+  }, [tournamentName, beginAt, endAt, retryKey])
 
   function handleVideoClick(video) {
     const isExpanding = selectedVideoId !== video.videoId

@@ -1097,6 +1097,8 @@ export default async function handler(req, res) {
   if (req.query?.mode === 'highlights') {
     const rawName = (req.query?.name || '').trim()
     if (!rawName) return res.status(400).json({ error: 'name param required' })
+    const rawBeginAt = req.query?.beginAt || null
+    const rawEndAt = req.query?.endAt || null
 
     const apiKey = process.env.YOUTUBE_API_KEY
     if (!apiKey) {
@@ -1114,7 +1116,8 @@ export default async function handler(req, res) {
       .trim()
 
     const slugKey = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)
-    const cacheKey = `dota2:yt_highlights:v1:${channel.channelId}:${slugKey}`
+    const dateKey = rawBeginAt ? new Date(rawBeginAt).toISOString().slice(0, 10) : 'nodate'
+    const cacheKey = `dota2:yt_highlights:v1:${channel.channelId}:${slugKey}:${dateKey}`
 
     if (req.query?.bust !== '1') {
       try {
@@ -1125,7 +1128,21 @@ export default async function handler(req, res) {
       }
     }
 
-    const publishedAfter = new Date(Date.now() - YT_HIGHLIGHTS_MAX_AGE_DAYS * 86400_000).toISOString()
+    // Date window: use tournament dates ±1 day when available; else fall back to 90-day window
+    let publishedAfter, publishedBefore
+    if (rawBeginAt) {
+      const d = new Date(rawBeginAt)
+      d.setUTCDate(d.getUTCDate() - 1)
+      publishedAfter = d.toISOString()
+    } else {
+      publishedAfter = new Date(Date.now() - YT_HIGHLIGHTS_MAX_AGE_DAYS * 86400_000).toISOString()
+    }
+    if (rawEndAt) {
+      const d = new Date(rawEndAt)
+      d.setUTCDate(d.getUTCDate() + 1)
+      publishedBefore = d.toISOString()
+    }
+
     const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search')
     ytUrl.searchParams.set('part', 'snippet')
     ytUrl.searchParams.set('channelId', channel.channelId)
@@ -1134,6 +1151,7 @@ export default async function handler(req, res) {
     ytUrl.searchParams.set('order', 'date')
     ytUrl.searchParams.set('maxResults', '12')
     ytUrl.searchParams.set('publishedAfter', publishedAfter)
+    if (publishedBefore) ytUrl.searchParams.set('publishedBefore', publishedBefore)
     ytUrl.searchParams.set('key', apiKey)
 
     try {

@@ -749,7 +749,12 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
 
       {activeTab === 'Videos' && (
         <div className="px-4 sm:px-5 py-4">
-          <HighlightsTab tournamentName={tournament.name} spoilerFree={spoilerFree} />
+          <HighlightsTab
+            tournamentName={tournament.name}
+            spoilerFree={spoilerFree}
+            beginAt={tournament.startdate || null}
+            endAt={tournament.enddate || null}
+          />
         </div>
       )}
 
