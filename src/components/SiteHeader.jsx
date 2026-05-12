@@ -9,7 +9,7 @@ import InstallPrompt from "./InstallPrompt"
  * - Spoiler-free toggle (only when onSpoilerToggle is passed; homepage state)
  * - Settings cog (opens SettingsSheet which holds theme, calendar, install, about, what's new)
  */
-export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
+export default function SiteHeader({ spoilerFree, onSpoilerToggle, onSearchOpen }) {
   const showSpoiler = typeof onSpoilerToggle === "function"
 
   function openSettings() {
@@ -45,6 +45,20 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle }) {
           >
             News
           </a>
+          {onSearchOpen && (
+            <button
+              type="button"
+              onClick={onSearchOpen}
+              aria-label="Search matches"
+              title="Search"
+              className="focus-ring p-2 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          )}
           {showSpoiler && (
             <button
               type="button"

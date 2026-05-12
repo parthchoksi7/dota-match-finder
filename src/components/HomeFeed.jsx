@@ -4,6 +4,7 @@ import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
 import UpcomingMatchRow from './UpcomingMatchRow'
+import TournamentHub from './TournamentHub'
 
 function getDayKey(unixSeconds) {
   if (!unixSeconds) return 'unknown'
@@ -45,6 +46,7 @@ function HomeFeed({
   error = null,
   onRetry,
   onSelectMatchId,
+  tournamentIdMap,
 }) {
   const todayKey = useMemo(() => new Date().toDateString(), [])
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86400000).toDateString(), [])
@@ -54,9 +56,10 @@ function HomeFeed({
     [allMatches]
   )
 
-  const [activeDate, setActiveDate] = useState(null) // null resolves to todayKey
+  const [activeDate, setActiveDate] = useState(null)
   const [activeFilter, setActiveFilter] = useState('all')
   const [collapsedTournaments, setCollapsedTournaments] = useState(new Set())
+  const [expandedTournamentName, setExpandedTournamentName] = useState(null)
 
   // Build chronological date list: past days → today → tomorrow
   const availableDates = useMemo(() => {
@@ -66,7 +69,6 @@ function HomeFeed({
       if (!dayTimestamps[key]) dayTimestamps[key] = s.startTime
     }
 
-    // Past days in chronological order (oldest first)
     const pastKeys = Object.keys(dayTimestamps)
       .filter(k => k !== todayKey && k !== tomorrowKey)
       .sort((a, b) => new Date(a) - new Date(b))
@@ -97,7 +99,6 @@ function HomeFeed({
 
   const isToday = resolvedDate === todayKey
 
-  // Matches for the active date
   const activeLiveMatches = isToday ? liveMatches : []
 
   const activeUpcomingMatches = useMemo(
@@ -110,8 +111,15 @@ function HomeFeed({
     [completeSeries, resolvedDate]
   )
 
-  // Build tournament cards, sorted: live first → upcoming → completed
+  // Build tournament cards sorted: live → upcoming → followed-team → completed
   const tournamentCards = useMemo(() => {
+    const isFollowedSeries = s =>
+      !!followedTeams?.length &&
+      (followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
+    const isFollowedLive = m =>
+      !!followedTeams?.length &&
+      (followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+
     const allNames = new Set([
       ...activeLiveMatches.map(m => m.tournament || 'Other'),
       ...activeUpcomingMatches.map(m => m.tournament || 'Other'),
@@ -128,6 +136,15 @@ function HomeFeed({
       if (activeFilter === 'upcoming' && upcoming.length === 0) continue
       if (activeFilter === 'completed' && completed.length === 0) continue
 
+      // Followed-team rows float to the top within each card
+      const liveSorted = [...live].sort((a, b) => (isFollowedLive(a) ? 0 : 1) - (isFollowedLive(b) ? 0 : 1))
+      const completedSorted = [...completed].sort((a, b) => (isFollowedSeries(a) ? 0 : 1) - (isFollowedSeries(b) ? 0 : 1))
+
+      const hasFollowed =
+        liveSorted.some(isFollowedLive) ||
+        upcoming.some(isFollowedLive) ||
+        completedSorted.some(isFollowedSeries)
+
       const latestTime = Math.max(
         ...live.map(() => Date.now() / 1000),
         ...upcoming.map(m => new Date(m.scheduledAt).getTime() / 1000),
@@ -138,11 +155,12 @@ function HomeFeed({
       cards.push({
         tournament: t,
         org: getLeagueLabel(t),
-        liveMatches: live,
+        liveMatches: liveSorted,
         upcomingMatches: upcoming,
-        completedSeries: completed,
+        completedSeries: completedSorted,
         hasLive: live.length > 0,
         hasUpcoming: upcoming.length > 0,
+        hasFollowed,
         latestTime,
       })
     }
@@ -150,11 +168,12 @@ function HomeFeed({
     cards.sort((a, b) => {
       if (a.hasLive !== b.hasLive) return a.hasLive ? -1 : 1
       if (a.hasUpcoming !== b.hasUpcoming) return a.hasUpcoming ? -1 : 1
+      if (a.hasFollowed !== b.hasFollowed) return a.hasFollowed ? -1 : 1
       return b.latestTime - a.latestTime
     })
 
     return cards
-  }, [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, activeFilter])
+  }, [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, activeFilter, followedTeams])
 
   function toggleCollapse(tournamentName) {
     setCollapsedTournaments(prev => {
@@ -210,6 +229,7 @@ function HomeFeed({
             setActiveDate(key)
             setCollapsedTournaments(new Set())
             setActiveFilter('all')
+            setExpandedTournamentName(null)
           }}
         />
 
@@ -261,6 +281,8 @@ function HomeFeed({
       ) : (
         tournamentCards.map(card => {
           const isCollapsed = collapsedTournaments.has(card.tournament)
+          const isHubExpanded = expandedTournamentName === card.tournament
+          const hubId = tournamentIdMap?.get(card.tournament)
           const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length
 
           return (
@@ -276,23 +298,42 @@ function HomeFeed({
                   toggleCollapse(card.tournament)
                 }}
               >
-                <a
-                  href="/tournaments"
+                {/* Tournament name - expands TournamentHub inline if available */}
+                <button
+                  type="button"
                   onClick={e => {
                     e.stopPropagation()
-                    trackEvent('tournament_header_click', { tournament: card.tournament })
+                    if (hubId) {
+                      trackEvent('tournament_hub_expand', { tournament: card.tournament, expanded: !isHubExpanded })
+                      setExpandedTournamentName(isHubExpanded ? null : card.tournament)
+                    } else {
+                      trackEvent('tournament_header_click', { tournament: card.tournament })
+                      window.location.href = '/tournaments'
+                    }
                   }}
-                  className="flex flex-col gap-0.5 min-w-0 flex-1 group/link"
+                  className="flex flex-col gap-0.5 min-w-0 flex-1 text-left"
                 >
                   {card.org && (
                     <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500">
                       {card.org}
                     </span>
                   )}
-                  <span className="font-display font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate group-hover/link:text-gray-600 dark:group-hover/link:text-gray-300 transition-colors">
-                    {card.tournament}
-                  </span>
-                </a>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="font-display font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                      {card.tournament}
+                    </span>
+                    {hubId && (
+                      <svg
+                        className={`w-3 h-3 flex-shrink-0 text-gray-400 dark:text-gray-600 transition-transform duration-150 ${isHubExpanded ? 'rotate-180' : ''}`}
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
 
                 {card.hasLive && (
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -357,6 +398,18 @@ function HomeFeed({
                       />
                     )
                   })}
+                </div>
+              )}
+
+              {/* Inline TournamentHub — expands when tournament name is clicked */}
+              {isHubExpanded && hubId && (
+                <div className="border-t border-gray-200 dark:border-gray-800">
+                  <TournamentHub
+                    key={hubId}
+                    tournamentId={hubId}
+                    spoilerFree={spoilerFree}
+                    onClose={() => setExpandedTournamentName(null)}
+                  />
                 </div>
               )}
             </div>

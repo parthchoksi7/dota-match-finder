@@ -5,15 +5,13 @@ import HomeFeed from "./components/HomeFeed"
 import MatchDrawer from "./components/MatchDrawer"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
-import TournamentHub from "./components/TournamentHub"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
-import MyTeamsSection from "./components/MyTeamsSection"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, toTitleCase } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
@@ -156,9 +154,11 @@ function App() {
   const [upcomingMatches, setUpcomingMatches] = useState([])
   const [liveLoading, setLiveLoading] = useState(true)
 
-  // Tournament hub chips
-  const [tournamentPills, setTournamentPills] = useState(null)
-  const [expandedTournamentId, setExpandedTournamentId] = useState(null)
+  // Tournament name → PandaScore ID map (for inline TournamentHub expand)
+  const [tournamentIdMap, setTournamentIdMap] = useState(new Map())
+
+  // Search overlay
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const [xPostsOpen, setXPostsOpen] = useState(false)
   const [xPostsSeries, setXPostsSeries] = useState(null)
@@ -253,23 +253,24 @@ function App() {
     return () => clearInterval(liveInterval)
   }, [loadMatches])
 
-  // Fetch tournament pills for the hub chips section
+  // Build tournament name → ID map for inline TournamentHub expand
   useEffect(() => {
     fetch("/api/tournaments")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return
-        const pills = [
-          ...(d.ongoing || []).map(t => ({ ...t, status: "live" })),
-          ...(d.upcoming || []).map(t => ({ ...t, status: "upcoming" })),
-        ].slice(0, 3)
-        setTournamentPills(pills)
+        const map = new Map()
+        ;[...(d.ongoing || []), ...(d.upcoming || [])].forEach(t => {
+          if (t.name && t.id) map.set(t.name, t.id)
+        })
+        setTournamentIdMap(map)
       })
       .catch(() => {})
   }, [])
 
   useEffect(() => {
     if (!initialLoading && initialSearchQuery) {
+      setSearchOpen(true)
       handleSearch(initialSearchQuery)
     }
     // Only run once after initial load completes
@@ -607,9 +608,6 @@ function App() {
           return
         }
       }
-      if (window.matchMedia('(hover: hover)').matches) {
-        searchInputRef.current?.focus({ preventScroll: true })
-      }
       window.scrollTo(0, scrollY)
     }, 0)
   }
@@ -720,6 +718,7 @@ function App() {
       )}
 
       <SiteHeader
+        onSearchOpen={() => setSearchOpen(true)}
         spoilerFree={spoilerFree}
         onSpoilerToggle={() => {
           const next = !spoilerFree
@@ -770,21 +769,6 @@ function App() {
       )}
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
-        <SearchBar
-          ref={searchInputRef}
-          onSearch={handleSearch}
-          loading={loading}
-          initialLoadComplete={!initialLoading}
-          onClearSearch={handleClearSearch}
-          disabled={initialLoading}
-          errorId={undefined}
-          initialQuery={initialSearchQuery}
-        />
-
-        {!initialLoading && !searched && (
-          <SearchSuggestions allMatches={allMatches} onSearch={handleSuggestionSelect} />
-        )}
-
         {initialLoading && (
           <div
             className="border border-gray-200 dark:border-gray-800 px-6 py-12 text-center rounded"
@@ -798,64 +782,8 @@ function App() {
           </div>
         )}
 
-        {!initialLoading && searched && (
-          <>
-            {filteredMatches.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
-                  Filter:
-                </span>
-                {["all", "0", "1", "2"].map(value => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      setSeriesFilter(value)
-                      trackEvent("series_filter", { filter: value })
-                    }}
-                    className={
-                      "focus-ring px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors " +
-                      (seriesFilter === value
-                        ? "bg-red-600 border-red-600 text-white"
-                        : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500")
-                    }
-                  >
-                    {value === "all" ? "All" : value === "0" ? "BO1" : value === "1" ? "BO3" : "BO5"}
-                  </button>
-                ))}
-              </div>
-            )}
-            <MatchList
-              matches={filteredMatches}
-              onSelect={handleSelectMatch}
-              onDraftPosts={isOwner ? handleDraftPosts : undefined}
-              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
-              loading={loading}
-              onClearSearch={handleClearSearch}
-              spoilerFree={spoilerFree}
-              followedTeams={followedTeams}
-              onToggleFollow={handleToggleFollow}
-              expandedSeriesId={expandedSeriesId}
-            />
-          </>
-        )}
-
-        {!initialLoading && !searched && (
+        {!initialLoading && (
           <div className="flex flex-col gap-6">
-            {/* My Teams — top of feed */}
-            <MyTeamsSection
-              matches={allMatches}
-              followedTeams={followedTeams}
-              onSelectMatch={handleSelectMatch}
-              onDraftPosts={isOwner ? handleDraftPosts : undefined}
-              onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
-              onManageTeams={() => setManageTeamsOpen(true)}
-              onToggleFollow={handleToggleFollow}
-              spoilerFree={spoilerFree}
-              expandedSeriesId={expandedSeriesId}
-              grandFinalMatchIds={grandFinalMatchIds}
-            />
-
             {/* Calendar nudge */}
             {showCalendarNudge && (
               <div
@@ -903,49 +831,6 @@ function App() {
               </div>
             )}
 
-            {/* Tournament hub chips */}
-            {tournamentPills && tournamentPills.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold uppercase tracking-[4px] text-gray-500 dark:text-gray-600 flex-shrink-0">Tournaments</span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {tournamentPills.map(t => {
-                      const isLive = t.status === "live"
-                      const isExpanded = expandedTournamentId === t.id
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => {
-                            trackEvent("tournament_pill_click", { tournament_id: t.id, tournament_name: t.name })
-                            setExpandedTournamentId(isExpanded ? null : t.id)
-                          }}
-                          className={
-                            "flex items-center gap-1.5 px-3 py-1.5 border rounded text-sm font-semibold transition-colors " +
-                            (isLive
-                              ? "border-red-500/50 bg-red-500/5 text-white hover:bg-red-500/10"
-                              : "border-gray-200 dark:border-gray-800 text-gray-500 hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-700 dark:hover:text-gray-300")
-                          }
-                        >
-                          {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />}
-                          {toTitleCase(t.name)}
-                          <span className="text-gray-500 dark:text-gray-700 text-xs">▾</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                {expandedTournamentId && (
-                  <TournamentHub
-                    key={expandedTournamentId}
-                    tournamentId={expandedTournamentId}
-                    spoilerFree={spoilerFree}
-                    onClose={() => setExpandedTournamentId(null)}
-                  />
-                )}
-              </div>
-            )}
-
             {/* Main unified feed */}
             <HomeFeed
               liveMatches={liveMatches}
@@ -960,6 +845,7 @@ function App() {
               error={error}
               onRetry={loadMatches}
               onSelectMatchId={handleSelectMatchId}
+              tournamentIdMap={tournamentIdMap}
             />
           </div>
         )}
@@ -975,12 +861,86 @@ function App() {
           </button>
         )}
 
-        {!initialLoading && !error && (
-          <p className="text-xs text-gray-500 dark:text-gray-600 text-center">
-            Search above to find more matches by team or tournament
-          </p>
-        )}
       </main>
+
+      {/* Search overlay */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 bg-gray-100 dark:bg-gray-950 flex flex-col overflow-hidden">
+          {/* Search bar row */}
+          <div className="flex-shrink-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3">
+            <div className="flex-1">
+              <SearchBar
+                ref={searchInputRef}
+                onSearch={handleSearch}
+                loading={loading}
+                initialLoadComplete={true}
+                onClearSearch={handleClearSearch}
+                initialQuery=""
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                handleClearSearch()
+                setSearchOpen(false)
+              }}
+              className="flex-shrink-0 px-2 py-1.5 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+
+          {/* Results */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col gap-4 w-full pb-20">
+              {!searched && (
+                <SearchSuggestions allMatches={allMatches} onSearch={handleSuggestionSelect} />
+              )}
+              {searched && (
+                <>
+                  {filteredMatches.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
+                        Filter:
+                      </span>
+                      {["all", "0", "1", "2"].map(value => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => {
+                            setSeriesFilter(value)
+                            trackEvent("series_filter", { filter: value })
+                          }}
+                          className={
+                            "focus-ring px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors " +
+                            (seriesFilter === value
+                              ? "bg-red-600 border-red-600 text-white"
+                              : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500")
+                          }
+                        >
+                          {value === "all" ? "All" : value === "0" ? "BO1" : value === "1" ? "BO3" : "BO5"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <MatchList
+                    matches={filteredMatches}
+                    onSelect={match => { handleSelectMatch(match); setSearchOpen(false) }}
+                    onDraftPosts={isOwner ? handleDraftPosts : undefined}
+                    onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
+                    loading={loading}
+                    onClearSearch={handleClearSearch}
+                    spoilerFree={spoilerFree}
+                    followedTeams={followedTeams}
+                    onToggleFollow={handleToggleFollow}
+                    expandedSeriesId={expandedSeriesId}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <SiteFooter />
       <BottomTabBar />
