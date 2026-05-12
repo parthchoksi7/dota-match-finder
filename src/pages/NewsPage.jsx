@@ -3,6 +3,7 @@ import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
 import NewsCard, { NewsCardSkeleton } from '../components/NewsCard'
+import SocialFeedSection from '../components/SocialFeedSection'
 import { trackEvent } from '../utils'
 
 const PAGE_SIZE = 20
@@ -13,6 +14,7 @@ const CATEGORIES = [
   { id: 'roster', label: 'Rosters' },
   { id: 'tournament', label: 'Tournaments' },
   { id: 'patch', label: 'Patches' },
+  { id: 'social', label: 'Social' },
 ]
 
 // Module-level session cache so navigating away and back skips the network fetch
@@ -144,63 +146,69 @@ export default function NewsPage() {
 
         {/* Content */}
         <section>
-          <div className="flex items-center mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-sky-500">
-              Dota 2 News
-            </h2>
-          </div>
+          {category === 'social' ? (
+            <SocialFeedSection />
+          ) : (
+            <>
+              <div className="flex items-center mb-3">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-sky-500">
+                  Dota 2 News
+                </h2>
+              </div>
 
-          {loading && (
-            <div className="bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 divide-y-0">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <NewsCardSkeleton key={i} />
-              ))}
-            </div>
-          )}
+              {loading && (
+                <div className="bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 divide-y-0">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <NewsCardSkeleton key={i} />
+                  ))}
+                </div>
+              )}
 
-          {error && !loading && (
-            <div className="py-10 text-center">
-              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-4">
-                {error}
+              {error && !loading && (
+                <div className="py-10 text-center">
+                  <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-4">
+                    {error}
+                  </p>
+                  <button
+                    onClick={retry}
+                    className="px-4 py-2 text-xs font-bold uppercase tracking-wide border border-gray-300 dark:border-gray-700 rounded hover:border-gray-500 dark:hover:border-gray-500 transition-colors"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {!loading && !error && visible.length === 0 && (
+                <p className="py-6 text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center">
+                  Nothing matched
+                </p>
+              )}
+
+              {!loading && !error && visible.length > 0 && (
+                <div className="bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  {visible.map((article, i) => (
+                    <NewsCard key={article.id} article={article} position={i + 1} />
+                  ))}
+                </div>
+              )}
+
+              {!loading && !error && hasMore && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={handleLoadMore}
+                    className="px-6 py-2.5 text-xs font-bold uppercase tracking-wide border border-gray-300 dark:border-gray-700 rounded hover:border-gray-500 dark:hover:border-gray-500 transition-colors"
+                  >
+                    Load more
+                  </button>
+                </div>
+              )}
+
+              <p className="mt-4 text-[10px] text-gray-400 dark:text-gray-700 uppercase tracking-widest text-center">
+                Headlines sourced from Dota 2 Official, PCGamesN, and Dot Esports. We do not generate content.
               </p>
-              <button
-                onClick={retry}
-                className="px-4 py-2 text-xs font-bold uppercase tracking-wide border border-gray-300 dark:border-gray-700 rounded hover:border-gray-500 dark:hover:border-gray-500 transition-colors"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-          {!loading && !error && visible.length === 0 && (
-            <p className="py-6 text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center">
-              Nothing matched
-            </p>
-          )}
-
-          {!loading && !error && visible.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800 overflow-hidden">
-              {visible.map((article, i) => (
-                <NewsCard key={article.id} article={article} position={i + 1} />
-              ))}
-            </div>
-          )}
-
-          {!loading && !error && hasMore && (
-            <div className="mt-4 flex justify-center">
-              <button
-                onClick={handleLoadMore}
-                className="px-6 py-2.5 text-xs font-bold uppercase tracking-wide border border-gray-300 dark:border-gray-700 rounded hover:border-gray-500 dark:hover:border-gray-500 transition-colors"
-              >
-                Load more
-              </button>
-            </div>
+            </>
           )}
         </section>
-
-        <p className="text-[10px] text-gray-400 dark:text-gray-700 uppercase tracking-widest text-center pt-2">
-          Headlines sourced from Dota 2 Official, PCGamesN, and Dot Esports. We do not generate content.
-        </p>
       </main>
 
       <SiteFooter />
