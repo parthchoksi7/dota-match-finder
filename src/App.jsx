@@ -253,15 +253,25 @@ function App() {
     return () => clearInterval(liveInterval)
   }, [loadMatches])
 
-  // Build tournament name → ID map for inline TournamentHub expand
+  // Build tournament name → ID map for inline TournamentHub expand.
+  // Store both the raw PandaScore name AND the display-transformed name so that
+  // upcoming-matches.js's buildTournamentName output ("DreamLeague S29") matches
+  // the raw PandaScore key ("DreamLeague Season 29").
   useEffect(() => {
     fetch("/api/tournaments")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return
+        const transformName = name => name
+          .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
+          .replace(/\s+\d{4}$/, '')
+          .trim()
         const map = new Map()
         ;[...(d.ongoing || []), ...(d.upcoming || []), ...(d.completed || [])].forEach(t => {
-          if (t.name && t.id) map.set(t.name, t.id)
+          if (t.name && t.id) {
+            map.set(t.name, t.id)
+            map.set(transformName(t.name), t.id)
+          }
         })
         setTournamentIdMap(map)
       })
