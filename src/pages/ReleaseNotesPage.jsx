@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 12, 2026",
+    tag: "improvement",
+    title: "Homepage redesign — cleaner layout, less clutter",
+    desc: "Removed the tournament chips section at the top, the separate My Teams block, and the search bar from the main content area. Everything is now integrated into the feed itself.",
+    items: [
+      "Tournament names in the feed are now clickable — tap to expand standings, schedule, bracket, and hero stats inline. Works for live, upcoming, and completed events.",
+      "Followed-team matches surface at the top of their tournament card with an amber highlight — no separate section needed",
+      "Search moved to a magnifier icon in the header — opens a full-screen overlay without taking up homepage space",
+      "Completed tournaments are now accessible via inline expansion, not just the /tournaments page",
+    ],
+  },
+  {
+    date: "May 12, 2026",
     tag: "fix",
     title: "Fixed white screen on homepage load",
     desc: "A variable ordering bug in the new feed caused the app to crash before rendering anything. The homepage now loads correctly.",
