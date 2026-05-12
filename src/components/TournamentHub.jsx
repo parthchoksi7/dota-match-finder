@@ -211,7 +211,7 @@ function OverviewMatchRow({ match }) {
 }
 
 
-const TABS = ['Info', 'Standings', 'Schedule', 'Heroes', 'Videos']
+const TABS = ['Info', 'Standings', 'Schedule', 'Heroes']
 const PLAYOFF_FORMATS = new Set(['Double Elimination', 'Single Elimination', 'Bracket'])
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
@@ -529,7 +529,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
-      {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Heroes' && activeTab !== 'Videos' && (
+      {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Heroes' && (
         <div className="flex items-center gap-1 px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-900">
           <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
           {detail.eventStages.map(stage => {
@@ -558,7 +558,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
 
       {/* Tab content */}
       {activeTab === 'Info' && (
-        <div className="px-4 sm:px-5 py-4">
+        <div className="px-4 sm:px-5 py-4 flex flex-col gap-4">
           {detail?.eventStages?.length > 0 && (
             <div className="flex flex-col gap-2">
               {detail.eventStages.map(stage => {
@@ -575,6 +575,16 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
               })}
             </div>
           )}
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-2">Recent Highlights</p>
+            <HighlightsTab
+              tournamentName={tournament.name}
+              spoilerFree={spoilerFree}
+              beginAt={tournament.startdate || null}
+              endAt={tournament.enddate || null}
+              limit={4}
+            />
+          </div>
         </div>
       )}
 
@@ -744,17 +754,6 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {activeTab === 'Videos' && (
-        <div className="px-4 sm:px-5 py-4">
-          <HighlightsTab
-            tournamentName={tournament.name}
-            spoilerFree={spoilerFree}
-            beginAt={tournament.startdate || null}
-            endAt={tournament.enddate || null}
-          />
         </div>
       )}
 

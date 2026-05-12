@@ -14,7 +14,7 @@ function timeAgo(isoDate) {
   return `${weeks}w ago`
 }
 
-export default function HighlightsTab({ tournamentName, spoilerFree, beginAt, endAt }) {
+export default function HighlightsTab({ tournamentName, spoilerFree, beginAt, endAt, limit }) {
   const [videos, setVideos] = useState(null)
   const [channelHandle, setChannelHandle] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -98,14 +98,15 @@ export default function HighlightsTab({ tournamentName, spoilerFree, beginAt, en
 
   if (videos === null) return null
 
-  const selectedVideo = videos.find(v => v.videoId === selectedVideoId)
+  const displayVideos = limit ? videos.slice(0, limit) : videos
+  const selectedVideo = displayVideos.find(v => v.videoId === selectedVideoId)
 
   return (
     <div className="flex flex-col gap-3">
 
       {/* Video thumbnail grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {videos.map((video, i) => (
+      <div className={`grid gap-2 ${limit ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
+        {displayVideos.map((video, i) => (
           <VideoCard
             key={video.videoId}
             video={video}
