@@ -9,7 +9,6 @@ const ACCOUNTS = [
   { handle: 'GosuGamersDotA', label: 'GosuGamers' },
 ]
 
-const TWEET_LIMIT = 8
 const SCRIPT_POLL_TIMEOUT_MS = 10000
 
 function loadTwitterScript(onReady, onError) {
@@ -122,11 +121,12 @@ export default function SocialFeedSection() {
         ) : (
           // The <a> is processed and replaced by an iframe by twttr.widgets.load().
           // No skeleton sibling here to avoid both rendering visible at the same time.
+          // Note: data-tweet-limit was deprecated in X's 2024 embed parameter update.
           <a
             className="twitter-timeline"
             data-theme={theme}
             data-chrome="noheader nofooter noborders"
-            data-tweet-limit={String(TWEET_LIMIT)}
+            data-height="600"
             data-dnt="true"
             data-aria-polite="assertive"
             href={`https://twitter.com/${account}`}
