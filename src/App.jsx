@@ -859,6 +859,7 @@ function App() {
               onLoadMore={handleLoadMore}
               loadingMore={loadingMore}
               hasMore={!!nextMatchId}
+              onManageTeams={() => setManageTeamsOpen(true)}
             />
           </div>
         )}
@@ -868,9 +869,16 @@ function App() {
       {/* Search overlay */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-gray-100 dark:bg-gray-950 flex flex-col overflow-hidden">
-          {/* Search bar row */}
-          <div className="flex-shrink-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3">
-            <div className="flex-1">
+
+          {/* Compact search bar — single row, no big button */}
+          <div className="flex-shrink-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+            <div className="max-w-3xl mx-auto flex items-center gap-2 px-3 h-12">
+              {/* Search icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 w-4 h-4 text-gray-400 dark:text-gray-600" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              {/* Compact input (Enter to search, × to clear) */}
               <SearchBar
                 ref={searchInputRef}
                 onSearch={handleSearch}
@@ -878,69 +886,72 @@ function App() {
                 initialLoadComplete={true}
                 onClearSearch={handleClearSearch}
                 initialQuery=""
+                compact
               />
+              {/* Cancel */}
+              <button
+                type="button"
+                onClick={() => { handleClearSearch(); setSearchOpen(false) }}
+                className="flex-shrink-0 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap"
+              >
+                Cancel
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                handleClearSearch()
-                setSearchOpen(false)
-              }}
-              className="flex-shrink-0 px-2 py-1.5 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
           </div>
 
-          {/* Results */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col gap-4 w-full pb-20">
-              {!searched && (
+          {/* Suggestions — pinned directly below search bar */}
+          {!searched && (
+            <div className="flex-shrink-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+              <div className="max-w-3xl mx-auto px-3 py-2.5">
                 <SearchSuggestions allMatches={allMatches} onSearch={handleSuggestionSelect} />
-              )}
-              {searched && (
-                <>
-                  {filteredMatches.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
-                        Filter:
-                      </span>
-                      {["all", "0", "1", "2"].map(value => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => {
-                            setSeriesFilter(value)
-                            trackEvent("series_filter", { filter: value })
-                          }}
-                          className={
-                            "focus-ring px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors " +
-                            (seriesFilter === value
-                              ? "bg-red-600 border-red-600 text-white"
-                              : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500")
-                          }
-                        >
-                          {value === "all" ? "All" : value === "0" ? "BO1" : value === "1" ? "BO3" : "BO5"}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <MatchList
-                    matches={filteredMatches}
-                    onSelect={match => { handleSelectMatch(match); setSearchOpen(false) }}
-                    onDraftPosts={isOwner ? handleDraftPosts : undefined}
-                    onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
-                    loading={loading}
-                    onClearSearch={handleClearSearch}
-                    spoilerFree={spoilerFree}
-                    followedTeams={followedTeams}
-                    onToggleFollow={handleToggleFollow}
-                    expandedSeriesId={expandedSeriesId}
-                  />
-                </>
-              )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Results — scrollable */}
+          {searched && (
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-3xl mx-auto px-3 pt-3 pb-20 flex flex-col gap-3 w-full">
+                {filteredMatches.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
+                      Filter:
+                    </span>
+                    {["all", "0", "1", "2"].map(value => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setSeriesFilter(value)
+                          trackEvent("series_filter", { filter: value })
+                        }}
+                        className={
+                          "focus-ring px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors " +
+                          (seriesFilter === value
+                            ? "bg-red-600 border-red-600 text-white"
+                            : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500")
+                        }
+                      >
+                        {value === "all" ? "All" : value === "0" ? "BO1" : value === "1" ? "BO3" : "BO5"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <MatchList
+                  matches={filteredMatches}
+                  onSelect={match => { handleSelectMatch(match); setSearchOpen(false) }}
+                  onDraftPosts={isOwner ? handleDraftPosts : undefined}
+                  onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
+                  loading={loading}
+                  onClearSearch={handleClearSearch}
+                  spoilerFree={spoilerFree}
+                  followedTeams={followedTeams}
+                  onToggleFollow={handleToggleFollow}
+                  expandedSeriesId={expandedSeriesId}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 

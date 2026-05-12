@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "re
 import { trackEvent } from "../utils"
 
 function SearchBar(
-  { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId, initialQuery },
+  { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId, initialQuery, compact },
   ref
 ) {
   const [query, setQuery] = useState(initialQuery || "")
@@ -11,6 +11,7 @@ function SearchBar(
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
     setValue: (v) => setQuery(v),
+    getQuery: () => query,
   }))
 
   useEffect(() => {
@@ -33,6 +34,41 @@ function SearchBar(
     trackEvent("search_clear", {})
     onClearSearch?.()
     inputRef.current?.focus()
+  }
+
+  if (compact) {
+    return (
+      <form onSubmit={handleSubmit} className="flex-1 flex items-center min-w-0" aria-describedby={errorId || undefined}>
+        <label htmlFor="search-input" className="sr-only">Search by team or tournament</label>
+        <input
+          id="search-input"
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search teams or tournaments..."
+          disabled={disabled}
+          className="flex-1 min-w-0 bg-transparent border-none outline-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 disabled:opacity-60"
+          aria-invalid={undefined}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck="false"
+        />
+        {query.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="flex-shrink-0 p-1.5 text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors ml-1"
+            aria-label="Clear search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
+      </form>
+    )
   }
 
   return (

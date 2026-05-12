@@ -6,6 +6,20 @@ const RELEASES = [
   {
     date: "May 12, 2026",
     tag: "improvement",
+    title: "Search, calendar, and My Teams polish",
+    desc: "A round of UX improvements to the search overlay, the My Teams feed card, and the calendar entry point.",
+    items: [
+      "Search overlay is now compact — a single slim bar with a borderless input, inline clear button, and a small Cancel link. No more oversized red Search button.",
+      "Suggestions appear pinned directly below the search bar, not floating in the middle of the page",
+      "My Teams amber card at the top of the feed now has a Manage button to add or remove followed teams",
+      "Dismissible Add to Calendar nudge card in the feed — shows once, can be closed, links to /calendar",
+      "Tournament inline expansion no longer shows a redundant X button — the chevron collapses it",
+      "Spacing inside the inline tournament hub fixed — content no longer sits flush against the card border",
+    ],
+  },
+  {
+    date: "May 12, 2026",
+    tag: "improvement",
     title: "Homepage redesign — cleaner layout, less clutter",
     desc: "Removed the tournament chips section at the top, the separate My Teams block, and the search bar from the main content area. Everything is now integrated into the feed itself.",
     items: [
