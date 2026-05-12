@@ -15,7 +15,7 @@ function LiveMatchRow({ match, onSelectMatchId, spoilerFree, isFollowedMatch }) 
   const watchUrl = match.streams?.[0]?.rawUrl || match.streams?.[0]?.url || null
   const watchLabel = match.streams?.[0]?.label || null
 
-  const amberStyle = 'border-l-2 border-l-amber-500/60 bg-amber-50/30 dark:bg-amber-950/10'
+  const amberStyle = 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10'
   const redStyle = 'border-l-2 border-l-red-500 bg-red-50/20 dark:bg-red-950/10'
 
   return (

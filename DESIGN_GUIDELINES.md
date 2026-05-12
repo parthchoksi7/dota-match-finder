@@ -103,8 +103,8 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 
 Amber-bordered card shown at the top of the date feed when the user follows at least one team that has a match on the active date. Aggregates all followed-team matches (live + upcoming + completed) across all tournaments into one place.
 
-- Border: `border border-amber-400/40 dark:border-amber-600/30`
-- Header background: `bg-amber-50/60 dark:bg-amber-950/20`, bottom border: `border-amber-200/50 dark:border-amber-800/30`
+- Card border: `border border-amber-400/60 dark:border-amber-500/40` — visible on both light and dark backgrounds
+- Header background: `bg-amber-50/80 dark:bg-amber-400/10`, bottom border: `border-amber-200 dark:border-amber-500/20`
 - Header content: filled star SVG (`text-amber-500`) + "MY TEAMS" label in `text-xs font-bold uppercase tracking-[4px] text-amber-600 dark:text-amber-500`
 - Match rows inside use the same components (LiveMatchRow, UpcomingMatchRow, CompactSeriesRow) with `isFollowedMatch` always true
 - Hidden when 0 followed teams OR when no followed-team matches exist on the active date
@@ -119,7 +119,7 @@ Compact tournament grouping card in the date feed. Replaces the old TournamentHu
 - Chevron rotates 180deg when TournamentHub is expanded (`rotate-180`)
 - TournamentHub expands **above** match rows (between header and first match row), not below
 - No collapse/expand of match rows - all rows are always visible
-- Followed-team rows within the card have amber left border (`border-l-2 border-l-amber-500/60 bg-amber-50/30 dark:bg-amber-950/10`) and are sorted to the top
+- Followed-team rows within the card have amber left border (`border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10`) and are sorted to the top. Use `dark:border-l-amber-400` (brighter shade, full opacity) in dark mode — amber-500/60 is invisible against dark backgrounds
 
 ### Upcoming match row (UpcomingMatchRow)
 
@@ -156,7 +156,7 @@ When TournamentHub is expanded inline within a tournament card, it uses `hideSta
 - Internal dividers: `border-amber-200 dark:border-amber-800/50`
 - Trophy badge in the tournament header row: trophy emoji + "Grand Final" label in `text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wide`
 - Do NOT animate-pulse the card border or background
-- Amber is used here at the card level only - section label `border-l-2 border-amber-500` for My Teams remains unchanged
+- **Amber on dark backgrounds**: always use `dark:border-l-amber-400` (not amber-500/60) for left-border row indicators. The lighter, brighter amber-400 at full opacity is the only shade that reads against dark gray at the 2px border width. Opacity variants of amber-500 disappear.
 
 ### Match cards — winner/loser state
 - **Winner** team name: `font-display font-black text-base sm:text-xl uppercase tracking-wide text-gray-900 dark:text-white`

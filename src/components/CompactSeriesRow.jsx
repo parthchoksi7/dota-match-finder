@@ -46,7 +46,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
       role="row"
       onClick={handleRowClick}
       className={`grid items-center gap-2 px-4 py-2.5 min-h-[48px] border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
-        (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500/70 bg-amber-50/30 dark:bg-amber-950/10' : ''
+        (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10' : ''
       }`}
       style={{ gridTemplateColumns: '1fr 76px 1fr auto' }}
       aria-label={`${radiantTeam} vs ${direTeam}`}

@@ -331,9 +331,9 @@ function HomeFeed({
         const myCompleted = activeCompletedSeries.filter(s => followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
         if (myLive.length + myUpcoming.length + myCompleted.length === 0) return null
         return (
-          <div className="border border-amber-400/40 dark:border-amber-600/30 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950">
+          <div className="border border-amber-400/60 dark:border-amber-500/40 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950">
             {/* My Teams header */}
-            <div className="flex items-center gap-2 px-3 py-2 min-h-[44px] bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-200/50 dark:border-amber-800/30">
+            <div className="flex items-center gap-2 px-3 py-2 min-h-[44px] bg-amber-50/80 dark:bg-amber-400/10 border-b border-amber-200 dark:border-amber-500/20">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" aria-hidden="true">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
               </svg>
