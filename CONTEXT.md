@@ -14,7 +14,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - **Backend**: Vercel serverless functions (`/api/`)
 - **Data**: OpenDota API (match data), Twitch API (VOD links), PandaScore API (live/upcoming/tournament data)
 - **Cache**: Upstash Redis (KV) for live/upcoming/tournament caching; news articles cached 30min under `news:articles:dota2:v1`
-- **News**: RSS aggregation from Dota 2 Official (Steam), PCGamesN, and Dot Esports via `api/news.js`; no AI generation. Social tab on /news embeds X (Twitter) timelines for tournament accounts (PGL, ESL, BLAST, Liquipedia, GosuGamers) via Twitter Widget JS loaded lazily on first Social tab open; uses `data-tweet-limit=8` to avoid iframe scroll-trapping on mobile.
+- **News**: RSS aggregation from Dota 2 Official (Steam), PCGamesN, and Dot Esports via `api/news.js`; no AI generation
 - **AI**: Anthropic Claude Haiku via `/api/summarize.js`
 - **Analytics**: Vercel Analytics with custom events + Google Analytics (GA4) + BigQuery export
 - **Analytics AI**: Claude Sonnet via `/api/analytics-chat.js` with BigQuery tool use for live GA4 data queries

@@ -5,20 +5,6 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 12, 2026",
-    tag: "new",
-    title: "Social tab on News - X posts from tournament accounts",
-    desc: "The News page now has a Social tab that embeds live X (Twitter) posts from major Dota 2 tournament accounts. Switch between PGL, ESL, BLAST, Liquipedia, and GosuGamers with one tap.",
-    items: [
-      "Social tab added alongside All, Results, Rosters, Tournaments, and Patches",
-      "Account chips let you switch between PGL, ESL, BLAST, Liquipedia, and GosuGamers instantly",
-      "Shows the latest 8 posts per account, integrated into the page scroll with no iframe scroll-trapping",
-      "Twitter widget loads lazily - only when you open the Social tab, so articles stay fast",
-      "Dark mode aware - embeds match the current theme",
-      "Direct View on X link if you want to open the full profile",
-    ],
-  },
-  {
-    date: "May 12, 2026",
     tag: "improvement",
     title: "Search, calendar, and My Teams polish",
     desc: "A round of UX improvements to the search overlay, the My Teams feed card, and the calendar entry point.",
