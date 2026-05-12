@@ -186,6 +186,13 @@ Two distinct tab patterns exist - use the right one for the context:
 - No red indicator - the filled background IS the active indicator
 - Use when: switching between views within a contained component
 
+**Source/account picker chips** (horizontal scrollable pill row for switching between external content sources, e.g. Social Feed account switcher):
+- Container: `flex gap-2 overflow-x-auto scrollbar-none pb-0.5 -mx-1 px-1`
+- Each chip: `flex-shrink-0 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide rounded-full border transition-colors`
+- Active: `bg-sky-500 border-sky-500 text-white`
+- Inactive: `border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500`
+- Use when: switching between named external data sources (accounts, feeds) inside a section — NOT for switching between page-level views (use underline tabs) or component sub-views (use segmented control)
+
 **Underline tabs** (full-width navigation rows for switching top-level items):
 - Active: `border-b-2 border-red-500 text-gray-900 dark:text-white`
 - Inactive: `border-b-2 border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white`
