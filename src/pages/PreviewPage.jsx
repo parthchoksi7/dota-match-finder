@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import MatchDrawer from "../components/MatchDrawer"
+import LatestMatches from "../components/LatestMatches"
 import TournamentHub from "../components/TournamentHub"
 import ManageTeamsModal from "../components/ManageTeamsModal"
 import {
@@ -13,11 +14,9 @@ import {
   groupIntoSeries,
   isSeriesComplete,
   getSeriesWins,
-  getSeriesLabel,
   getFollowedTeams,
   setFollowedTeams as persistFollowedTeams,
   trackEvent,
-  formatDuration,
   toTitleCase,
 } from "../utils"
 
@@ -48,25 +47,6 @@ function getMatchSlug(match) {
 }
 function getShareUrl(match) {
   return window.location.origin + "/match/" + getMatchSlug(match)
-}
-
-// ── Display helpers ──────────────────────────────────────────────────────────
-function abbrevTournament(name) {
-  if (!name) return ""
-  const lower = name.toLowerCase()
-  if (lower.includes("the international")) return "TI"
-  if (lower.includes("beyond the summit") || lower.includes("bts")) return "BTS"
-  if (lower.includes("dreamleague")) return "DreamLeague"
-  if (lower.includes("weplay")) return "WePlay"
-  // For other names strip the year and stage suffix, keep first 2 words
-  // e.g. "BLAST Slam 2026 — Group Stage" -> "BLAST Slam"
-  //      "PGL Wallachia Season 8 2026"    -> "PGL Wallachia"
-  //      "ESL One Copenhagen 2026"        -> "ESL One"
-  const cleaned = name
-    .replace(/\s*[-–—]\s*.*$/, "")   // remove " — Group Stage" etc.
-    .replace(/\s+\d{4}.*$/, "")      // remove " 2026..." etc.
-    .trim()
-  return cleaned.split(/\s+/).slice(0, 2).join(" ")
 }
 
 function getDateLabel(unixSeconds) {
@@ -128,183 +108,6 @@ function StarIcon({ filled }) {
         strokeWidth={filled ? "0" : "1.5"}
       />
     </svg>
-  )
-}
-
-// ── Result card (B+ style) — flat list row, matches prototype ────────────────
-function ResultCard({ series, onOpenSeries, spoilerFree, followedTeams, isGrandFinal, onToggleFollow }) {
-  const game1 = series.games[0]
-  const radiantTeam = game1.radiantTeam
-  const direTeam = game1.direTeam
-  const { radiantWins, direWins } = getSeriesWins(series)
-  const seriesWinner = radiantWins > direWins ? radiantTeam : radiantWins < direWins ? direTeam : null
-  const isFollowed = followedTeams?.includes(radiantTeam) || followedTeams?.includes(direTeam)
-  const seriesLabel = getSeriesLabel(series.seriesType)
-  const tournamentShort = abbrevTournament(series.tournament)
-  const maxGames = series.seriesType === 0 ? 1 : series.seriesType === 2 ? 5 : 3
-  const gameSlots = Array.from({ length: maxGames }, (_, i) => series.games[i] ?? null)
-  const radiantDim = !spoilerFree && seriesWinner && seriesWinner !== radiantTeam
-  const direDim = !spoilerFree && seriesWinner && seriesWinner !== direTeam
-
-  return (
-    <article
-      data-series-id={series.id}
-      onClick={() => onOpenSeries(series)}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenSeries(series) } }}
-      tabIndex={0}
-      className={[
-        "py-5 border-b border-gray-200 dark:border-gray-800 group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/30",
-        "-mx-4 px-4 sm:-mx-6 sm:px-6 transition-colors outline-none",
-        isFollowed ? "border-l-4 border-l-amber-500/60" : "",
-      ].join(" ")}
-    >
-      {/* Meta row */}
-      <div className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-600 mb-3 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span>{tournamentShort}</span>
-          {seriesLabel && (
-            <span className="text-xs px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-600">{seriesLabel}</span>
-          )}
-          {isGrandFinal && (
-            <span className="text-xs px-1.5 py-0.5 rounded border border-amber-800/40 text-amber-500/80">Grand Final</span>
-          )}
-        </div>
-      </div>
-
-      {/* Teams + Score — mobile: stacked rows, desktop: side-by-side */}
-
-      {/* Mobile stacked layout */}
-      <div className="block sm:hidden space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {onToggleFollow && (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onToggleFollow(radiantTeam) }}
-                className={`flex-shrink-0 p-0.5 rounded transition-colors ${followedTeams?.includes(radiantTeam) ? "text-amber-400" : "text-gray-400 dark:text-gray-700 hover:text-amber-400"}`}
-                aria-label={followedTeams?.includes(radiantTeam) ? `Unfollow ${radiantTeam}` : `Follow ${radiantTeam}`}
-              >
-                <StarIcon filled={!!followedTeams?.includes(radiantTeam)} />
-              </button>
-            )}
-            <p className={["font-display font-black text-2xl uppercase leading-none", radiantDim ? "text-gray-500" : "text-gray-900 dark:text-white"].join(" ")}>
-              {radiantTeam}
-            </p>
-          </div>
-          {!spoilerFree && (
-            <span className={["font-display font-black text-3xl tabular-nums leading-none flex-shrink-0", radiantDim ? "text-gray-500" : "text-gray-900 dark:text-white"].join(" ")}>{radiantWins}</span>
-          )}
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {onToggleFollow && (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onToggleFollow(direTeam) }}
-                className={`flex-shrink-0 p-0.5 rounded transition-colors ${followedTeams?.includes(direTeam) ? "text-amber-400" : "text-gray-400 dark:text-gray-700 hover:text-amber-400"}`}
-                aria-label={followedTeams?.includes(direTeam) ? `Unfollow ${direTeam}` : `Follow ${direTeam}`}
-              >
-                <StarIcon filled={!!followedTeams?.includes(direTeam)} />
-              </button>
-            )}
-            <p className={["font-display font-black text-2xl uppercase leading-none", direDim ? "text-gray-500" : "text-gray-600 dark:text-gray-400"].join(" ")}>
-              {direTeam}
-            </p>
-          </div>
-          {!spoilerFree ? (
-            <span className={["font-display font-black text-3xl tabular-nums leading-none flex-shrink-0", direDim ? "text-gray-500" : "text-gray-900 dark:text-white"].join(" ")}>{direWins}</span>
-          ) : (
-            <span className="text-gray-500 dark:text-gray-600 text-xs uppercase tracking-widest">vs</span>
-          )}
-        </div>
-      </div>
-
-      {/* Desktop side-by-side layout */}
-      <div className="hidden sm:flex items-center gap-8">
-        <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
-          {onToggleFollow && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onToggleFollow(radiantTeam) }}
-              className={`flex-shrink-0 p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 ${followedTeams?.includes(radiantTeam) ? "text-amber-400 opacity-100" : "text-gray-400 dark:text-gray-700 hover:text-amber-400"}`}
-              aria-label={followedTeams?.includes(radiantTeam) ? `Unfollow ${radiantTeam}` : `Follow ${radiantTeam}`}
-            >
-              <StarIcon filled={!!followedTeams?.includes(radiantTeam)} />
-            </button>
-          )}
-          <p className={[
-            "font-display font-black text-4xl uppercase leading-none truncate",
-            radiantDim ? "text-gray-500" : "text-gray-900 dark:text-white"
-          ].join(" ")}>
-            {radiantTeam}
-          </p>
-        </div>
-        <div className="flex-shrink-0 flex items-center gap-1.5">
-          {!spoilerFree ? (
-            <>
-              <span className={["font-display font-black text-5xl tabular-nums leading-none", radiantDim ? "text-gray-500" : "text-gray-900 dark:text-white"].join(" ")}>{radiantWins}</span>
-              <span className="text-gray-400 dark:text-gray-700 text-xl font-medium">–</span>
-              <span className={["font-display font-black text-5xl tabular-nums leading-none", direDim ? "text-gray-500" : "text-gray-900 dark:text-white"].join(" ")}>{direWins}</span>
-            </>
-          ) : (
-            <span className="text-gray-500 dark:text-gray-600 text-sm">vs</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <p className={[
-            "font-display font-black text-4xl uppercase leading-none truncate",
-            direDim ? "text-gray-500" : "text-gray-600 dark:text-gray-400"
-          ].join(" ")}>
-            {direTeam}
-          </p>
-          {onToggleFollow && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onToggleFollow(direTeam) }}
-              className={`flex-shrink-0 p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 ${followedTeams?.includes(direTeam) ? "text-amber-400 opacity-100" : "text-gray-400 dark:text-gray-700 hover:text-amber-400"}`}
-              aria-label={followedTeams?.includes(direTeam) ? `Unfollow ${direTeam}` : `Follow ${direTeam}`}
-            >
-              <StarIcon filled={!!followedTeams?.includes(direTeam)} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Game chips */}
-      <div className="mt-3 flex items-center gap-2 flex-wrap">
-        {gameSlots.map((game, i) => {
-          if (!game) {
-            // Spoilers ON: show all slots (don't reveal which games were played)
-            // Spoilers OFF: hide unplayed slots (you can see the score anyway)
-            if (!spoilerFree) return null
-            return (
-              <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-gray-200/40 dark:bg-gray-800/40 text-gray-400 dark:text-gray-700">
-                G{i + 1}
-              </span>
-            )
-          }
-          const gameWinner = game.radiantWin ? game.radiantTeam : game.direTeam
-          const showWinner = !spoilerFree && gameWinner
-          return (
-            <span
-              key={game.id}
-              className={[
-                "inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded",
-                showWinner ? "bg-gray-200/60 dark:bg-gray-800/60 text-green-600 dark:text-green-400" : "bg-gray-200 dark:bg-gray-800 text-gray-500"
-              ].join(" ")}
-            >
-              G{i + 1}
-              {showWinner && <span>✓</span>}
-              {game.duration && (
-                <span className={showWinner ? "text-green-700 dark:text-green-600 font-normal" : "text-gray-500 dark:text-gray-600 font-normal"}>
-                  {formatDuration(game.duration)}
-                </span>
-              )}
-            </span>
-          )
-        })}
-      </div>
-    </article>
   )
 }
 
@@ -447,26 +250,6 @@ function UpcomingRow({ match }) {
   )
 }
 
-// ── Date section header ──────────────────────────────────────────────────────
-function DateHeader({ label, dateStr, accent = "gray" }) {
-  const showDateStr = dateStr && dateStr !== label
-  const labelColor = accent === "amber" ? "text-amber-600" : "text-gray-500 dark:text-gray-600"
-  const dateColor = accent === "amber" ? "text-amber-700" : "text-gray-400 dark:text-gray-700"
-  return (
-    <div className="flex items-center gap-3 pt-3 pb-1">
-      <span className={`text-xs font-bold uppercase tracking-widest flex-shrink-0 ${labelColor}`}>
-        {label}
-      </span>
-      <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
-      {showDateStr && (
-        <span className={`text-xs ${dateColor} font-semibold uppercase tracking-widest flex-shrink-0`}>
-          {dateStr}
-        </span>
-      )}
-    </div>
-  )
-}
-
 // ── Section label ────────────────────────────────────────────────────────────
 function SectionLabel({ children, color = "gray", count, right }) {
   if (color === "red") {
@@ -507,27 +290,6 @@ function SectionLabel({ children, color = "gray", count, right }) {
   )
 }
 
-// ── Loading skeleton ─────────────────────────────────────────────────────────
-function CardSkeleton() {
-  return (
-    <div className="rounded-xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-100/40 dark:bg-gray-900/40 px-4 py-4 animate-pulse">
-      <div className="flex items-center justify-between mb-3">
-        <div className="h-2 w-16 bg-gray-200 dark:bg-gray-800 rounded" />
-        <div className="h-2 w-8 bg-gray-200 dark:bg-gray-800 rounded" />
-      </div>
-      <div className="flex items-center gap-3 mb-3">
-        <div className="flex-1 h-5 bg-gray-200 dark:bg-gray-800 rounded" />
-        <div className="w-12 h-6 bg-gray-200 dark:bg-gray-800 rounded" />
-        <div className="flex-1 h-5 bg-gray-200 dark:bg-gray-800 rounded" />
-      </div>
-      <div className="flex gap-2">
-        <div className="h-6 w-20 bg-gray-200 dark:bg-gray-800 rounded-full" />
-        <div className="h-6 w-20 bg-gray-200 dark:bg-gray-800 rounded-full" />
-      </div>
-    </div>
-  )
-}
-
 // ── Main PreviewPage ─────────────────────────────────────────────────────────
 function PreviewPage() {
   const [allMatches, setAllMatches] = useState([])
@@ -559,7 +321,6 @@ function PreviewPage() {
   })
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
   const [manageTeamsOpen, setManageTeamsOpen] = useState(false)
-  const [starredOnly, setStarredOnly] = useState(false)
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"))
   const [tournamentPills, setTournamentPills] = useState(null)
   const [expandedTournamentId, setExpandedTournamentId] = useState(null)
@@ -1070,80 +831,34 @@ function PreviewPage() {
 
         {/* ── Results skeleton ── */}
         {initialLoading && (
-          <div>
-            <SectionLabel>Results</SectionLabel>
-            <DateHeader label="Today" dateStr={getDateStr(Date.now() / 1000)} />
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="py-5 border-b border-gray-200 dark:border-gray-800 -mx-4 px-4 sm:-mx-6 sm:px-6 animate-pulse">
-                <div className="h-2 w-24 bg-gray-200 dark:bg-gray-800 rounded mb-3" />
-                <div className="flex items-center gap-8">
-                  <div className="flex-1 h-8 bg-gray-200 dark:bg-gray-800 rounded" />
-                  <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded" />
-                  <div className="flex-1 h-8 bg-gray-200 dark:bg-gray-800 rounded" />
-                </div>
+          <div className="border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-950 overflow-hidden animate-pulse">
+            <div className="h-11 border-b border-gray-200 dark:border-gray-800 flex items-center gap-6 px-4">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-2.5 w-14 bg-gray-200 dark:bg-gray-800 rounded" />)}
+            </div>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-2 px-4 min-h-[48px] border-b border-gray-100 dark:border-gray-900">
+                <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-800 rounded" />
+                <div className="w-16 h-4 bg-gray-200 dark:bg-gray-800 rounded" />
+                <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-800 rounded" />
               </div>
             ))}
           </div>
         )}
 
-        {/* ── Error ── */}
-        {error && (
-          <div className="flex items-center justify-center gap-3 py-6 border border-red-900/50 bg-red-950/20 rounded-xl px-4">
-            <span className="text-red-400 text-xs uppercase tracking-widest">{error}</span>
-            <button type="button" onClick={loadMatches} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors">
-              Retry
-            </button>
-          </div>
+        {/* ── Results ── compact livescore layout ── */}
+        {!initialLoading && (
+          <LatestMatches
+            matches={allMatches}
+            onSelectMatch={handleSelectMatch}
+            onSelectSeries={handleOpenSeries}
+            spoilerFree={spoilerFree}
+            followedTeams={followedTeams}
+            onToggleFollow={handleToggleFollow}
+            grandFinalMatchIds={grandFinalMatchIds}
+            error={error}
+            onRetry={loadMatches}
+          />
         )}
-
-        {/* ── Results by day ── flat rows, no card wrappers ── */}
-        {!initialLoading && !error && dayGroups.length > 0 && (() => {
-          const isStarred = s => s.games.some(g =>
-            followedTeams.includes(g.radiantTeam) || followedTeams.includes(g.direTeam)
-          )
-          const visibleGroups = starredOnly
-            ? dayGroups.map(g => ({ ...g, series: g.series.filter(isStarred) })).filter(g => g.series.length > 0)
-            : dayGroups
-          const starFilter = followedTeams.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setStarredOnly(p => !p)}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded border transition-colors ${
-                starredOnly
-                  ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
-                  : "border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-600 hover:text-amber-400 hover:border-amber-500/50"
-              }`}
-            >
-              <StarIcon filled={starredOnly} />
-              Starred
-            </button>
-          ) : null
-          return (
-            <div>
-              <SectionLabel color="amber" right={starFilter}>Results</SectionLabel>
-              {starredOnly && visibleGroups.length === 0 ? (
-                <p className="text-xs text-gray-400 dark:text-gray-700 uppercase tracking-widest py-6 text-center">No starred matches in the current results</p>
-              ) : (
-                visibleGroups.map((group, i) => (
-                  <div key={group.key}>
-                    <DateHeader label={group.label} dateStr={group.dateStr} accent={i === 0 ? "amber" : "gray"} />
-                    {group.series.map(s => (
-                      <ResultCard
-                        key={s.id}
-                        series={s}
-                        onOpenSeries={handleOpenSeries}
-                        spoilerFree={spoilerFree}
-                        followedTeams={followedTeams}
-                        isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
-                        onToggleFollow={handleToggleFollow}
-                      />
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
-          )
-        })()}
 
         {/* ── Load more ── */}
         {nextMatchId && !initialLoading && (

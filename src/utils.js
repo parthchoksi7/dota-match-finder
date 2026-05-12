@@ -38,7 +38,7 @@ export function getSeriesWins(series) {
  * Format "HH:MM" or "H:MM" duration string to human-readable "1h 23m" or "45m"
  */
 export function formatDuration(isoTimeStr) {
-  if (!isoTimeStr || typeof isoTimeStr !== "string") return isoTimeStr || "—"
+  if (!isoTimeStr || typeof isoTimeStr !== "string") return isoTimeStr || "-"
   const [h = 0, m = 0] = isoTimeStr.trim().split(":").map(Number)
   if (h > 0 && m > 0) return `${h}h ${m}m`
   if (h > 0) return `${h}h`
@@ -158,6 +158,20 @@ export function matchesTier1Names(leagueName, tier1Names) {
   if (validNames.length === 0) return null  // all names too short — use fallback
   const lower = (leagueName || '').toLowerCase()
   return validNames.some(n => lower.includes(n))
+}
+
+/** Extracts the league organizer short-label from a tournament name. Returns null if unrecognised. */
+export function getLeagueLabel(name) {
+  if (!name) return null
+  if (/dreamleague/i.test(name)) return 'DreamLeague'
+  if (/\besl\b/i.test(name)) return 'ESL'
+  if (/\bpgl\b/i.test(name)) return 'PGL'
+  if (/blast/i.test(name)) return 'BLAST'
+  if (/weplay/i.test(name)) return 'WePlay'
+  if (/riyadh/i.test(name)) return 'Riyadh Masters'
+  if (/the international/i.test(name)) return 'The International'
+  if (/beyond the summit|bts/i.test(name)) return 'Beyond The Summit'
+  return null
 }
 
 export function isSeriesComplete(series) {

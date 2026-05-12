@@ -4,6 +4,13 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 11, 2026",
+    tag: "improvement",
+    title: "Compact match feed with date navigation",
+    desc: "Results are now grouped by tournament with a date strip so you can jump to any day. Each tournament section shows an org label, match count, and collapses with a chevron. Click the tournament name to explore the full event on the Tournaments page. On desktop, a Replay button appears inline on each row.",
+    items: ["Date strip navigation - jump to any day's results", "Tournament-grouped compact rows replace expandable cards", "Replay in one click from the match row"],
+  },
+  {
     date: "May 10, 2026",
     tag: "fix",
     title: "News link in desktop header",

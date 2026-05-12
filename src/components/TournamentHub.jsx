@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
-import { trackEvent, toTitleCase } from '../utils'
+import { trackEvent, toTitleCase, getLeagueLabel } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
 
 const ALL_TOURNAMENTS_URL = 'https://spectateesports.live/api/tournaments?mode=calendar-all'
@@ -88,17 +88,6 @@ function cleanTournamentName(name) {
   )
 }
 
-function getLeagueLabel(name) {
-  if (/dreamleague/i.test(name)) return 'DreamLeague'
-  if (/\besl\b/i.test(name)) return 'ESL'
-  if (/\bpgl\b/i.test(name)) return 'PGL'
-  if (/blast/i.test(name)) return 'BLAST'
-  if (/weplay/i.test(name)) return 'WePlay'
-  if (/riyadh/i.test(name)) return 'Riyadh Masters'
-  if (/the international/i.test(name)) return 'The International'
-  if (/beyond the summit|bts/i.test(name)) return 'Beyond The Summit'
-  return null
-}
 
 function extractRegion(name) {
   const n = name.toLowerCase()

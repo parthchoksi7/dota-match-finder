@@ -33,8 +33,8 @@ describe('formatDuration', () => {
   })
 
   it('returns the input unchanged when not a string', () => {
-    expect(formatDuration(null)).toBe('—')
-    expect(formatDuration(undefined)).toBe('—')
+    expect(formatDuration(null)).toBe('-')
+    expect(formatDuration(undefined)).toBe('-')
   })
 
   it('trims whitespace before parsing', () => {
