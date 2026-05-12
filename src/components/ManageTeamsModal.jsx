@@ -90,7 +90,26 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
             </ul>
           )}
 
-          <p className="mt-4 text-xs text-gray-400 dark:text-gray-600 leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-3">
+          {followedTeams.length > 0 && (
+            <a
+              href="/calendar"
+              onClick={() => trackEvent('calendar_nudge_click', { source: 'manage_teams_modal' })}
+              className="mt-4 flex items-center gap-2 px-3 py-2.5 w-full rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-400 dark:hover:border-gray-500 transition-colors group"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors leading-snug">Add to Calendar</p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-snug">Subscribe to your teams' match schedule</p>
+              </div>
+            </a>
+          )}
+
+          <p className="mt-3 text-xs text-gray-400 dark:text-gray-600 leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-3">
             Your followed teams are saved in this browser. They will not appear if you use incognito mode, a different browser, or another device.
           </p>
         </div>
