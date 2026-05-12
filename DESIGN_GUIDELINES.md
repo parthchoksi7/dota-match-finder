@@ -131,16 +131,18 @@ Two-line compact row for a scheduled match. Mobile-first: never truncates team n
 - Amber left border when `isFollowedMatch`
 - No click handler (match not yet played)
 
-### Date nav (arrow navigator)
+### Date strip (filled pill track)
 
-A minimal single-row control for stepping between dates. Replaces the old horizontal pill strip.
+Scrollable horizontal row of date pills inside a gray pill-shaped track. Active date gets a filled white/dark pill with a shadow. Standard pattern used by Sofascore, FlashScore, and ESPN.
 
-- Layout: `flex items-center justify-between px-3 min-h-[44px] border-b`
-- Left button: chevron-left SVG. At the oldest date, triggers `onLoadEarlier` instead of navigating. Shows `animate-spin` refresh icon while loading.
-- Center: current date label in `text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white`
-- Right button: chevron-right SVG. `disabled` when on the newest date.
-- Both buttons: `p-1.5 text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`
-- Hidden when `dates` is empty (not when fewer than 2 -- a single date still needs the label)
+- Container: `flex overflow-x-auto gap-1 p-1.5 bg-gray-100 dark:bg-gray-900 [&::-webkit-scrollbar]:hidden` + `scrollbarWidth: 'none'` inline style
+- Active pill: `bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white rounded-full px-3 py-1.5`
+- Inactive pill: `text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full px-3 py-1.5`
+- Both pills: `flex-shrink-0 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-150`
+- "← More" button (leftmost): only shown when `onLoadEarlier` is provided. No fill. Same padding as pills. Shows `...` while loading. `disabled:opacity-40`.
+- Auto-scrolls active pill into center view on mount via `scrollIntoView({ behavior: 'instant', inline: 'center' })`
+- Hidden when `dates` is empty. Shown even with 1 date (label is informative).
+- Fires `date_strip_click` (per pill) and `load_earlier_click` (More button) GA events.
 
 ### Inline TournamentHub (hideStatusLabel mode)
 

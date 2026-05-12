@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 12, 2026",
+    tag: "improvement",
+    title: "Date navigation redesigned - scrollable pill strip",
+    desc: "Replaced the left/right arrow date navigator with a scrollable filled pill strip, similar to LiveScore and Sofascore. All available dates are visible at a glance in a compact pill track.",
+    items: [
+      "All dates shown as pills in a horizontally scrollable track - no hidden dates behind arrows",
+      "Active date has a filled white pill (dark: dark gray) with a subtle shadow for clear visual anchoring",
+      "Auto-scrolls the active date into center view on load",
+      "Load earlier button stays at the far left of the strip when more history is available",
+    ],
+  },
+  {
     date: "Apr 29, 2026",
     tag: "improvement",
     title: "Cleaner feed layout - auto-sections replace filter tabs",
