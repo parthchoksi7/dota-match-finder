@@ -369,9 +369,9 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
   })()
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        {!hideStatusLabel && (
+    <div className={hideStatusLabel ? 'p-3 sm:p-4' : ''}>
+      {!hideStatusLabel && (
+        <div className="flex items-center justify-between mb-2">
           <h2
             id="tournament-hub-heading"
             className={`text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 ${isOngoing ? "border-red-500" : isCompleted ? "border-emerald-500" : "border-blue-500"}`}
@@ -388,26 +388,26 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
               </span>
             ) : isCompleted ? "Recently Completed" : null}
           </h2>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            trackEvent('calendar_subscribe_modal_open', { source: 'tournament_hub_header' })
-            setCalendarModalUrl(ALL_TOURNAMENTS_URL)
-            setCalendarModalLabel('All Dota 2 Tournaments')
-            setCalendarModalOpen(true)
-          }}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white rounded transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          Add to Calendar
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              trackEvent('calendar_subscribe_modal_open', { source: 'tournament_hub_header' })
+              setCalendarModalUrl(ALL_TOURNAMENTS_URL)
+              setCalendarModalLabel('All Dota 2 Tournaments')
+              setCalendarModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white rounded transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Add to Calendar
+          </button>
+        </div>
+      )}
       {/* Chip bar — only when multiple live tournaments */}
       {ongoing.length > 1 && !tournamentId && (() => {
         const sharedLeague = (() => {

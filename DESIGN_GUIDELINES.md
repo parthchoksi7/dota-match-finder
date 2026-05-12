@@ -10,6 +10,8 @@ defensible against these principles.
 **Minimal esports.** The product exists to surface information fast, without ego.
 Every element earns its place or gets cut. When in doubt, remove. Don't add.
 
+**Mobile first, desktop enhanced.** Every design decision must be evaluated on a 375px mobile screen first. Truncation, overflow, stacked layout, touch targets, and thumb zones all come from the mobile constraint. Desktop is then an enhancement layer - more columns, hover states, inline actions that would be too small or crowded on mobile. Before committing any UI change, mentally render it at 375px width AND at 1280px width. If it only works at one size, it's not done.
+
 ---
 
 ## Typography
@@ -96,6 +98,56 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 | Ghost | `border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600` |
 - All buttons: `font-semibold text-sm rounded px-3 py-1.5` (small) or `px-4 py-2` (default)
 - Disabled: `disabled:opacity-50 disabled:cursor-not-allowed`
+
+### My Teams feed card
+
+Amber-bordered card shown at the top of the date feed when the user follows at least one team that has a match on the active date. Aggregates all followed-team matches (live + upcoming + completed) across all tournaments into one place.
+
+- Border: `border border-amber-400/40 dark:border-amber-600/30`
+- Header background: `bg-amber-50/60 dark:bg-amber-950/20`, bottom border: `border-amber-200/50 dark:border-amber-800/30`
+- Header content: filled star SVG (`text-amber-500`) + "MY TEAMS" label in `text-xs font-bold uppercase tracking-[4px] text-amber-600 dark:text-amber-500`
+- Match rows inside use the same components (LiveMatchRow, UpcomingMatchRow, CompactSeriesRow) with `isFollowedMatch` always true
+- Hidden when 0 followed teams OR when no followed-team matches exist on the active date
+
+### Tournament feed card (HomeFeed)
+
+Compact tournament grouping card in the date feed. Replaces the old TournamentHub chip + separate section pattern.
+
+- Border: `border border-gray-200 dark:border-gray-800 rounded`
+- Header is a `<button>` covering the full row; single click expands/collapses TournamentHub inline
+- Header contains: org eyebrow (red, tracking-[4px]) + tournament name (display font, bold) / live pulse + LIVE label / row count / chevron (right-aligned)
+- Chevron rotates 180deg when TournamentHub is expanded (`rotate-180`)
+- TournamentHub expands **above** match rows (between header and first match row), not below
+- No collapse/expand of match rows - all rows are always visible
+- Followed-team rows within the card have amber left border (`border-l-2 border-l-amber-500/60 bg-amber-50/30 dark:bg-amber-950/10`) and are sorted to the top
+
+### Upcoming match row (UpcomingMatchRow)
+
+Two-line compact row for a scheduled match. Mobile-first: never truncates team names.
+
+- Line 1: `TEAM A vs TEAM B` - display font, font-black, truncates as one unit
+- Line 2: countdown time string (`In 2h 30m - 3:00 AM PDT`) in `text-[11px] text-blue-500`
+- Stream pill (ESL/etc): `hidden sm:block` - desktop only, never shown on mobile
+- Amber left border when `isFollowedMatch`
+- No click handler (match not yet played)
+
+### Date strip with load-earlier
+
+The date strip gains a "Earlier" leftmost pill when more historical data can be loaded. This replaces a bottom "Load more" button pattern.
+
+- Leftmost pill: `← Earlier` in the same strip, same styling as date pills but no underline active state
+- Disabled with opacity when loading
+- Clicking loads the next page of historical matches from OpenDota and adds new date pills to the left of the strip
+- Only shown when `onLoadEarlier` prop is provided and `hasMore` is true
+
+### Inline TournamentHub (hideStatusLabel mode)
+
+When TournamentHub is expanded inline within a tournament card, it uses `hideStatusLabel=true`:
+
+- Root div gets `p-3 sm:p-4` padding to separate content from the card border
+- Status label row ("Upcoming Tournament", "Recently Completed") is hidden entirely
+- The header "ADD TO CALENDAR" button is also hidden - the per-tournament "Add to calendar" link inside the section serves this purpose
+- The persistent calendar icon in the filter bar (links to /calendar) gives first-time users a route to calendar features without expanding any tournament
 
 ### Grand Final match cards
 - Detected when `series.tournament.toLowerCase().includes('grand final')`
@@ -461,3 +513,6 @@ Used in `src/components/NewsCard.jsx` for the /news feed.
 - Arbitrary widths/heights not derived from the spacing scale
 - Decorative borders or dividers that don't separate distinct content zones
 - Copy that apologizes ("Sorry, no results") or over-explains obvious states
+- Designing only at desktop width — always render at 375px first
+- Team names or tournament names that truncate on mobile — use two-line layouts instead of one-line with ellipsis
+- Putting interactive elements (stream pills, watch buttons, replay links) in positions that are invisible on mobile (`hidden sm:block`) without providing an alternative touch-friendly path
