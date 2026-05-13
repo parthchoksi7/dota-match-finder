@@ -122,6 +122,19 @@ export function groupIntoSeries(matches) {
   series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)
 
+  // Safety net: a 1-1 result with exactly 2 games is unambiguously BO2.
+  // Fixes historical series where OpenDota reported series_type 1 (BO3) for a BO2.
+  for (const s of series) {
+    if (s.seriesType !== 1 || s.games.length !== 2) continue
+    const wins = {}
+    for (const g of s.games) {
+      const winner = g.radiantWin ? g.radiantTeam : g.direTeam
+      wins[winner] = (wins[winner] || 0) + 1
+    }
+    const counts = Object.values(wins)
+    if (counts.length === 2 && counts[0] === 1 && counts[1] === 1) s.seriesType = 3
+  }
+
   const reversed = [...series].reverse()
   const oldestIncompleteIndex = reversed.findIndex((s) => !isSeriesComplete(s))
   if (oldestIncompleteIndex !== -1) {

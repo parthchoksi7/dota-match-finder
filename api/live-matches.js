@@ -136,25 +136,35 @@ async function enrichMultiStreamMatches(matches, headers) {
  * Called by both the normal handler (client poll) and the cron mode.
  * nx=true on stream:match so the first recorded channel is never overwritten.
  */
+const FORMAT_MATCH_TTL = 7 * 24 * 3600 // 7 days — survives full group stage duration
+
 async function cacheRunningStreams(rawMatches) {
   const streamWrites = []
   const tsBuckets = {} // roundedTs → Set<channel>
 
   for (const m of rawMatches) {
+    const format = m.match_type // 'best_of_2', 'best_of_3', etc.
     const streams = getTwitchStreams(m.streams_list, m.league?.name, m.serie?.full_name || m.serie?.name)
-    if (streams.length !== 1) continue
-    const channel = streams[0].url.replace('https://www.twitch.tv/', '')
+
     for (const game of m.games || []) {
-      if (!game.begin_at || game.status !== 'running') continue
+      const matchId = game.external_identifier || null
+      if (!matchId) continue
+
+      // Cache PandaScore format keyed by OpenDota match ID so completed-match
+      // feed can correct series_type when OpenDota reports the wrong format (e.g.
+      // DreamLeague S29 group stage BO2 reported as series_type 1 = BO3).
+      if (format) {
+        streamWrites.push(kv.set(`format:match:${matchId}`, format, { ex: FORMAT_MATCH_TTL }))
+      }
+
+      if (streams.length !== 1 || !game.begin_at || game.status !== 'running') continue
+      const channel = streams[0].url.replace('https://www.twitch.tv/', '')
       const ts = Math.floor(new Date(game.begin_at).getTime() / 1000)
       const roundedTs = Math.floor(ts / 300) * 300
       if (!tsBuckets[roundedTs]) tsBuckets[roundedTs] = new Set()
       tsBuckets[roundedTs].add(channel)
-      const matchId = game.external_identifier || null
-      if (matchId) {
-        // nx: true — write-once. First recorded channel is never overwritten.
-        streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
-      }
+      // nx: true — write-once. First recorded channel is never overwritten.
+      streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
     }
   }
 

@@ -114,6 +114,23 @@ export async function fetchProMatches(lastMatchId = null) {
     twitchOffset: null,
   }))
 
+  // Enrich seriesType using PandaScore format cached in Redis by the live-matches cron.
+  // Fixes cases where OpenDota reports the wrong series_type (e.g. BO2 group stage as BO3).
+  try {
+    const ids = matches.map(m => m.id).join(',')
+    const fmtRes = await fetch(`/api/tournaments?mode=match-formats&ids=${ids}`)
+    if (fmtRes.ok) {
+      const { formats } = await fmtRes.json()
+      const FORMAT_TO_SERIES_TYPE = { 'best_of_1': 0, 'best_of_2': 3, 'best_of_3': 1, 'best_of_5': 2 }
+      for (const match of matches) {
+        const fmt = formats?.[match.id]
+        if (fmt && FORMAT_TO_SERIES_TYPE[fmt] !== undefined) {
+          match.seriesType = FORMAT_TO_SERIES_TYPE[fmt]
+        }
+      }
+    }
+  } catch {}
+
   return { matches, nextMatchId: cursor }
 }
 

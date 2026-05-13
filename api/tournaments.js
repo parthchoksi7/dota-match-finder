@@ -1062,6 +1062,22 @@ export default async function handler(req, res) {
     return res.status(200).json({ names })
   }
 
+  // Match formats mode - returns PandaScore-sourced format ('best_of_2' etc.) keyed by OpenDota match ID.
+  // Used by the frontend to correct series_type when OpenDota reports the wrong format.
+  if (req.query?.mode === 'match-formats') {
+    const ids = (req.query?.ids || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
+    if (ids.length === 0) return res.status(200).json({ formats: {} })
+    try {
+      const values = await kv.mget(...ids.map(id => `format:match:${id}`))
+      const formats = {}
+      ids.forEach((id, i) => { if (values[i]) formats[id] = values[i] })
+      return res.status(200).json({ formats })
+    } catch (err) {
+      console.warn('match-formats KV read failed:', err?.message)
+      return res.status(200).json({ formats: {} })
+    }
+  }
+
   // Grand Finals mode - returns OpenDota match IDs for Grand Final games
   if (req.query?.mode === 'grand-finals') {
     if (req.query?.bust === '1') {
