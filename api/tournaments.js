@@ -1126,9 +1126,14 @@ export default async function handler(req, res) {
     const channel = YT_CHANNEL_MAP.find(c => c.keywords.some(k => nameLower.includes(k)))
     if (!channel) return res.status(200).json({ videos: [], channelHandle: null })
 
-    // Strip stage suffixes to get a cleaner search term (e.g. "DreamLeague S24" not "DreamLeague S24 Group Stage")
+    // Clean up the name to get the best YouTube search term:
+    // - Strip stage suffixes like "- Group A", "- Group Stage", "- Playoffs", etc.
+    // - Strip trailing year (ESL video titles don't include "2026")
+    // - Abbreviate "Season N" → "SN" to match ESL's video title convention
     const searchTerm = rawName
-      .replace(/\s*[-–—]\s*(group stage|playoffs|upper bracket|lower bracket|qualifier|open qualifier|closed qualifier|main event)\s*/gi, '')
+      .replace(/\s*[-–—]\s*(group [a-z]|group stage|playoffs|upper bracket|lower bracket|qualifier|open qualifier|closed qualifier|main event)\s*/gi, '')
+      .replace(/\s+\d{4}\b/, '')
+      .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
       .trim()
 
     const slugKey = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)
@@ -1188,11 +1193,12 @@ export default async function handler(req, res) {
         .filter(v => v.videoId && v.title)
 
       const result = { videos, channelHandle: channel.handle }
-      if (videos.length > 0) {
-        kv.set(cacheKey, result, { ex: YT_HIGHLIGHTS_TTL }).catch(e => {
-          console.error('[highlights] KV write failed:', e?.message)
-        })
-      }
+      // Cache hits and misses. Empty results cached briefly (30 min) to avoid burning
+      // YouTube API quota on repeated page loads when no videos exist yet.
+      const ttl = videos.length > 0 ? YT_HIGHLIGHTS_TTL : 60 * 30
+      kv.set(cacheKey, result, { ex: ttl }).catch(e => {
+        console.error('[highlights] KV write failed:', e?.message)
+      })
       return res.status(200).json(result)
     } catch (err) {
       console.error('[highlights] fetch error:', err?.message)
