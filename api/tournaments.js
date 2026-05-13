@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES } from './_shared.js'
+import { isTier1ByFields, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -1087,14 +1087,43 @@ export default async function handler(req, res) {
       const positions = [1, 2, 3, 4, 5]
       const keys = positions.map(p => `live:game:${pandaId}:${p}`)
       const values = await kv.mget(...keys)
-      const gameIds = values
+      const fromCache = values
         .map((v, i) => (v ? { pos: positions[i], id: String(v) } : null))
         .filter(Boolean)
         .sort((a, b) => a.pos - b.pos)
-        .map(x => x.id)
+
+      if (fromCache.length > 0) {
+        return res.status(200).json({ gameIds: fromCache.map(x => x.id) })
+      }
+
+      // Redis miss (e.g. series started before this code was deployed) — fetch
+      // the individual match from PandaScore which sets external_identifier on
+      // finished games even when the bulk running endpoint does not.
+      const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      const psRes = await fetch(`${PANDASCORE_BASE}/matches/${pandaId}`, { headers })
+      if (!psRes.ok) {
+        console.warn(`live-series-games: PandaScore match ${pandaId} returned ${psRes.status}`)
+        return res.status(200).json({ gameIds: [] })
+      }
+      const detail = await psRes.json()
+      const finished = (detail.games || [])
+        .filter(g => g.status === 'finished' && g.external_identifier)
+        .sort((a, b) => a.position - b.position)
+
+      // Backfill Redis so the next click is instant.
+      if (finished.length > 0) {
+        Promise.all(
+          finished.map(g =>
+            kv.set(`live:game:${pandaId}:${g.position}`, String(g.external_identifier), { ex: STREAM_TTL })
+          )
+        ).catch(err => console.warn('live-series-games backfill failed:', err?.message))
+      }
+
+      const gameIds = finished.map(g => String(g.external_identifier))
+      console.log(`live-series-games: PS fallback for ${pandaId} → [${gameIds.join(', ')}]`)
       return res.status(200).json({ gameIds })
     } catch (err) {
-      console.warn('live-series-games KV read failed:', err?.message)
+      console.warn('live-series-games failed:', err?.message)
       return res.status(200).json({ gameIds: [] })
     }
   }
