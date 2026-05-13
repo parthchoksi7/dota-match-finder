@@ -98,9 +98,11 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
             </span>
           </div>
         )}
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
-          FT{seriesLabel ? ` · ${seriesLabel}` : ''}
-        </span>
+        {seriesLabel && (
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
+            {seriesLabel}
+          </span>
+        )}
       </div>
 
       {/* Dire team (right-aligned) */}
