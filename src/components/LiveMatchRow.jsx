@@ -8,27 +8,25 @@ function TwitchIcon() {
   )
 }
 
-function LiveMatchRow({ match, onSelectMatchId, spoilerFree, isFollowedMatch }) {
+function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch }) {
   const hasScore = match.seriesScore && match.seriesScore !== '0-0'
   const [scoreA, scoreB] = hasScore ? match.seriesScore.split('-').map(Number) : [0, 0]
 
   const watchUrl = match.streams?.[0]?.rawUrl || match.streams?.[0]?.url || null
   const watchLabel = match.streams?.[0]?.label || null
 
-  // Last completed game with an OpenDota match ID — used to open the drawer for G1/G2 details.
-  const lastFinishedGame = [...(match.games || [])]
-    .filter(g => g.status === 'finished' && g.matchId)
-    .sort((a, b) => b.position - a.position)[0]
-
   const amberStyle = 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10'
   const redStyle = 'border-l-2 border-l-red-500 bg-red-50/20 dark:bg-red-950/10'
 
+  // Clickable when score shows completed games exist (1-0, 0-1, 1-1, etc.)
+  const isClickable = hasScore && !!onSelectLiveMatch
+
   return (
     <div
-      onClick={() => { if (lastFinishedGame && onSelectMatchId) onSelectMatchId(lastFinishedGame.matchId) }}
+      onClick={() => { if (isClickable) onSelectLiveMatch(match.id) }}
       className={`grid items-center gap-2 px-4 py-2.5 min-h-[48px] border-b border-gray-100 dark:border-gray-900 last:border-b-0 ${
         isFollowedMatch ? amberStyle : redStyle
-      } ${lastFinishedGame ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
+      } ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
       style={{ gridTemplateColumns: '1fr 80px 1fr auto' }}
     >
       {/* Team A (left) */}

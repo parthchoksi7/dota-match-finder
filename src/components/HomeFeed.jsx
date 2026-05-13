@@ -61,6 +61,7 @@ function HomeFeed({
   error = null,
   onRetry,
   onSelectMatchId,
+  onSelectLiveMatch,
   tournamentIdMap,
   onLoadMore,
   loadingMore,
@@ -294,7 +295,7 @@ function HomeFeed({
             {/* My Teams match rows */}
             <div role="rowgroup">
               {myLive.map(m => (
-                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} spoilerFree={spoilerFree} isFollowedMatch />
+                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} onSelectLiveMatch={onSelectLiveMatch} spoilerFree={spoilerFree} isFollowedMatch />
               ))}
               {myUpcoming.map(m => (
                 <UpcomingMatchRow key={m.id} match={m} isFollowedMatch spoilerFree={spoilerFree} />
@@ -402,6 +403,7 @@ function HomeFeed({
                     key={m.id}
                     match={m}
                     onSelectMatchId={onSelectMatchId}
+                    onSelectLiveMatch={onSelectLiveMatch}
                     spoilerFree={spoilerFree}
                     isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
                   />

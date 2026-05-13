@@ -1078,6 +1078,27 @@ export default async function handler(req, res) {
     }
   }
 
+  // Live series games mode — returns the OpenDota game IDs for each position in a
+  // PandaScore live match. Used by the drawer to show G1/G2 details while G3 is live.
+  if (req.query?.mode === 'live-series-games') {
+    const pandaId = req.query?.id
+    if (!pandaId) return res.status(400).json({ gameIds: [] })
+    try {
+      const positions = [1, 2, 3, 4, 5]
+      const keys = positions.map(p => `live:game:${pandaId}:${p}`)
+      const values = await kv.mget(...keys)
+      const gameIds = values
+        .map((v, i) => (v ? { pos: positions[i], id: String(v) } : null))
+        .filter(Boolean)
+        .sort((a, b) => a.pos - b.pos)
+        .map(x => x.id)
+      return res.status(200).json({ gameIds })
+    } catch (err) {
+      console.warn('live-series-games KV read failed:', err?.message)
+      return res.status(200).json({ gameIds: [] })
+    }
+  }
+
   // Grand Finals mode - returns OpenDota match IDs for Grand Final games
   if (req.query?.mode === 'grand-finals') {
     if (req.query?.bust === '1') {

@@ -157,6 +157,13 @@ async function cacheRunningStreams(rawMatches) {
         streamWrites.push(kv.set(`format:match:${matchId}`, format, { ex: FORMAT_MATCH_TTL }))
       }
 
+      // Record which OpenDota game ID belongs to which position in this PandaScore match.
+      // Written when the game is running (the only time external_identifier is reliable);
+      // persists across cron runs so G1/G2 IDs remain available while G3 is live.
+      if (game.status === 'running') {
+        streamWrites.push(kv.set(`live:game:${m.id}:${game.position}`, String(matchId), { ex: STREAM_TTL }))
+      }
+
       if (streams.length !== 1 || !game.begin_at || game.status !== 'running') continue
       const channel = streams[0].url.replace('https://www.twitch.tv/', '')
       const ts = Math.floor(new Date(game.begin_at).getTime() / 1000)

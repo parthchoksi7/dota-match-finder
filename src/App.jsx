@@ -466,6 +466,18 @@ function App() {
     }
   }
 
+  async function handleSelectLiveMatch(pandaScoreMatchId) {
+    try {
+      const res = await fetch(`/api/tournaments?mode=live-series-games&id=${pandaScoreMatchId}`)
+      if (!res.ok) return
+      const { gameIds } = await res.json()
+      if (!gameIds || gameIds.length === 0) return
+      await handleSelectMatchId(gameIds[gameIds.length - 1])
+    } catch {
+      // silently fail
+    }
+  }
+
   async function handleDraftPosts(series) {
     setXPostsSeries(series)
     setXPosts(null)
@@ -855,6 +867,7 @@ function App() {
               error={error}
               onRetry={loadMatches}
               onSelectMatchId={handleSelectMatchId}
+              onSelectLiveMatch={handleSelectLiveMatch}
               tournamentIdMap={tournamentIdMap}
               onLoadMore={handleLoadMore}
               loadingMore={loadingMore}
