@@ -122,19 +122,6 @@ export function groupIntoSeries(matches) {
   series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)
 
-  // Safety net: a 1-1 result with exactly 2 games is unambiguously BO2.
-  // Fixes historical series where OpenDota reported series_type 1 (BO3) for a BO2.
-  for (const s of series) {
-    if (s.seriesType !== 1 || s.games.length !== 2) continue
-    const wins = {}
-    for (const g of s.games) {
-      const winner = g.radiantWin ? g.radiantTeam : g.direTeam
-      wins[winner] = (wins[winner] || 0) + 1
-    }
-    const counts = Object.values(wins)
-    if (counts.length === 2 && counts[0] === 1 && counts[1] === 1) s.seriesType = 3
-  }
-
   const reversed = [...series].reverse()
   const oldestIncompleteIndex = reversed.findIndex((s) => !isSeriesComplete(s))
   if (oldestIncompleteIndex !== -1) {
@@ -219,8 +206,9 @@ export function isSeriesComplete(series) {
   }
   const maxWins = Math.max(...Object.values(teamWins))
   if (maxWins >= winsRequiredForSeries(series.seriesType)) return true
-  // BO2 draw: both teams have 1 win after 2 games (seriesType 3 = BO2, or seriesType 1 fallback)
-  const isBO2 = series.seriesType === 3 || series.seriesType === 1
+  // BO2 draw: both teams have 1 win after 2 games. Only check seriesType 3 (explicit BO2 from
+  // PandaScore format cache). seriesType 1 is BO3 — a 1-1 BO3 is NOT complete (G3 still to play).
+  const isBO2 = series.seriesType === 3
   if (isBO2 && series.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
   return false
 }

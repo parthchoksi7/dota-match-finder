@@ -261,12 +261,12 @@ describe('isSeriesComplete', () => {
     expect(isSeriesComplete(series)).toBe(true)
   })
 
-  it('is complete for a BO2 draw (seriesType 1 fallback, 1-1 after 2 games)', () => {
+  it('is NOT complete for a BO3 (seriesType 1) at 1-1 — G3 still to play', () => {
     const series = {
       seriesType: 1,
       games: [makeCompleteGame({ radiantWin: true }), makeCompleteGame({ radiantWin: false })],
     }
-    expect(isSeriesComplete(series)).toBe(true)
+    expect(isSeriesComplete(series)).toBe(false)
   })
 
   it('is not complete for a BO2 after only 1 game', () => {
