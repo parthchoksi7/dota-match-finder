@@ -141,17 +141,32 @@ function HomeFeed({
       !!followedTeams?.length &&
       (followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
 
-    const allNames = new Set([
+    // Normalize "DreamLeague S29" and "DreamLeague Season 29" to the same key so
+    // PandaScore (live/upcoming) and OpenDota (results) names merge into one card.
+    const normKey = name =>
+      (name || 'Other')
+        .toLowerCase()
+        .replace(/\bs(\d+)\b/gi, 'season $1')
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    // Build canonical key -> display name; live/upcoming names (PandaScore) preferred.
+    const keyToDisplay = new Map()
+    for (const name of [
       ...activeLiveMatches.map(m => m.tournament || 'Other'),
       ...activeUpcomingMatches.map(m => m.tournament || 'Other'),
       ...activeCompletedSeries.map(s => s.tournament || 'Other'),
-    ])
+    ]) {
+      const key = normKey(name)
+      if (!keyToDisplay.has(key)) keyToDisplay.set(key, name)
+    }
 
     const cards = []
-    for (const t of allNames) {
-      const live = activeLiveMatches.filter(m => (m.tournament || 'Other') === t)
-      const upcoming = activeUpcomingMatches.filter(m => (m.tournament || 'Other') === t)
-      const completed = activeCompletedSeries.filter(s => (s.tournament || 'Other') === t)
+    for (const [key, t] of keyToDisplay) {
+      const live = activeLiveMatches.filter(m => normKey(m.tournament || 'Other') === key)
+      const upcoming = activeUpcomingMatches.filter(m => normKey(m.tournament || 'Other') === key)
+      const completed = activeCompletedSeries.filter(s => normKey(s.tournament || 'Other') === key)
 
       // Followed-team rows float to the top within each card
       const liveSorted = [...live].sort((a, b) => (isFollowedLive(a) ? 0 : 1) - (isFollowedLive(b) ? 0 : 1))

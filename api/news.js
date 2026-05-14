@@ -11,7 +11,7 @@ const kv = new Redis({
 })
 
 const NEWS_CACHE_TTL = 30 * 60 // 30 min
-const MAX_AGE_DAYS = 14
+const MAX_AGE_DAYS = 60
 const MAX_PER_SOURCE = 25
 const MAX_TOTAL = 60
 const FEED_TIMEOUT_MS = 5000

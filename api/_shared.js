@@ -231,7 +231,7 @@ export const NEWS_SOURCES = [
   {
     id: 'pcgamesn',
     name: 'PCGamesN',
-    feedUrl: 'https://www.pcgamesn.com/dota-2/rss',
+    feedUrl: 'https://www.pcgamesn.com/dota-2/feed',
     games: ['dota2'],
     reliability: 4,
     baseUrl: 'https://www.pcgamesn.com',

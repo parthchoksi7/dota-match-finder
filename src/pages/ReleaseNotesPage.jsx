@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 14, 2026",
+    tag: "fix",
+    title: "Tournament deduplication and news feed improvements",
+    desc: "Tournaments with slightly different names from different data sources now correctly merge into one card. The news feed now surfaces articles up to 60 days old so coverage stays populated during quieter periods.",
+    items: [
+      "DreamLeague S29 (live) and DreamLeague Season 29 (results) now appear as one tournament card instead of two",
+      "Tournament name matching is now fuzzy - S29 and Season 29 are treated as the same event",
+      "News feed age limit raised from 14 to 60 days - older patch notes and tournament coverage stay visible when fewer new articles are published",
+      "PCGamesN feed URL updated to canonical path, removing a redirect on every fetch",
+    ],
+  },
+  {
+    date: "May 14, 2026",
     tag: "improvement",
     title: "Unified tournament cards and smarter push notifications",
     desc: "Tournament cards now show live, upcoming, and completed matches together in one place. Push notification subscriptions update automatically when you follow or unfollow a team.",
