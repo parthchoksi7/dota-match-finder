@@ -74,27 +74,47 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
         </span>
       </div>
 
-      {/* Watch button */}
+      {/* Watch button — icon-only on mobile, full label on desktop */}
       {watchUrl ? (
-        <a
-          href={watchUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={e => {
-            e.stopPropagation()
-            trackEvent('live_match_watch', {
-              channel: watchLabel,
-              teamA: match.teamA,
-              teamB: match.teamB,
-              tournament: match.tournament,
-            })
-          }}
-          className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
-          aria-label={`Watch ${match.teamA} vs ${match.teamB} live`}
-        >
-          <TwitchIcon />
-          Watch{watchLabel ? ` · ${watchLabel}` : ''}
-        </a>
+        <>
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => {
+              e.stopPropagation()
+              trackEvent('live_match_watch', {
+                channel: watchLabel,
+                teamA: match.teamA,
+                teamB: match.teamB,
+                tournament: match.tournament,
+              })
+            }}
+            className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+            aria-label={`Watch ${match.teamA} vs ${match.teamB} live`}
+          >
+            <TwitchIcon />
+          </a>
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => {
+              e.stopPropagation()
+              trackEvent('live_match_watch', {
+                channel: watchLabel,
+                teamA: match.teamA,
+                teamB: match.teamB,
+                tournament: match.tournament,
+              })
+            }}
+            className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+            aria-label={`Watch ${match.teamA} vs ${match.teamB} live`}
+          >
+            <TwitchIcon />
+            Watch{watchLabel ? ` · ${watchLabel}` : ''}
+          </a>
+        </>
       ) : (
         <div className="hidden sm:block w-[68px]" aria-hidden="true" />
       )}

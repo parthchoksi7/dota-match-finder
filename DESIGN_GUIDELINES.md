@@ -526,4 +526,4 @@ Used in `src/components/NewsCard.jsx` for the /news feed.
 - Copy that apologizes ("Sorry, no results") or over-explains obvious states
 - Designing only at desktop width — always render at 375px first
 - Team names or tournament names that truncate on mobile — use two-line layouts instead of one-line with ellipsis
-- Putting interactive elements (stream pills, watch buttons, replay links) in positions that are invisible on mobile (`hidden sm:block`) without providing an alternative touch-friendly path
+- Putting interactive elements (stream pills, watch buttons, replay links) in positions that are invisible on mobile without providing an alternative touch-friendly path. **Established pattern**: Watch (Live) and Replay (Results) use a `sm:hidden` icon-only purple button (44px tap target) + `hidden sm:inline-flex` full-text button — same 4th-column slot, different density per breakpoint.

@@ -135,7 +135,17 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         )}
       </div>
 
-      {/* Replay button (hidden on mobile, visible sm+) */}
+      {/* Replay button — icon-only on mobile, full label on desktop */}
+      <button
+        type="button"
+        onClick={handleReplayClick}
+        className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+        aria-label={`Watch ${radiantTeam} vs ${direTeam} replay`}
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 flex-shrink-0" aria-hidden="true">
+          <path d="M3 2.5a.5.5 0 0 1 .765-.424l10 5.5a.5.5 0 0 1 0 .848l-10 5.5A.5.5 0 0 1 3 13.5v-11z"/>
+        </svg>
+      </button>
       <button
         type="button"
         onClick={handleReplayClick}
