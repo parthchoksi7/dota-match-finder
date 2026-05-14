@@ -90,7 +90,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                 tournament: match.tournament,
               })
             }}
-            className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+            className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
             aria-label={`Watch ${match.teamA} vs ${match.teamB} live`}
           >
             <TwitchIcon />

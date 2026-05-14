@@ -139,7 +139,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
       <button
         type="button"
         onClick={handleReplayClick}
-        className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+        className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
         aria-label={`Watch ${radiantTeam} vs ${direTeam} replay`}
       >
         <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 flex-shrink-0" aria-hidden="true">
