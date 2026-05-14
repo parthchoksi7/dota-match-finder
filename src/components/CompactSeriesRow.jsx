@@ -22,7 +22,6 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
   const isRadiantFollowed = !!followedTeams?.includes(radiantTeam)
   const isDireFollowed = !!followedTeams?.includes(direTeam)
 
-  // Open on the last played game (most likely the decider or most recent action)
   const lastGame = series.games[series.games.length - 1]
 
   function handleRowClick() {

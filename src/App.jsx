@@ -414,10 +414,8 @@ function App() {
     })
   }
 
-  // Open the last game of a series (most recent action)
   function handleOpenSeries(series) {
-    const lastGame = series.games[series.games.length - 1]
-    handleSelectMatch(lastGame)
+    handleSelectMatch(series.games[0])
   }
 
   async function handleSummarize(match) {

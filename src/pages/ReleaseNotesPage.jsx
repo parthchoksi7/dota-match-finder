@@ -6,6 +6,16 @@ const RELEASES = [
   {
     date: "May 14, 2026",
     tag: "fix",
+    title: "VOD links now appear on first click",
+    desc: "Opening a completed series now always starts on Game 1. This ensures the Twitch channel lookup uses the right timestamp and the VOD link appears immediately instead of requiring you to navigate away and back.",
+    items: [
+      "Series open on Game 1 by default - the most reliable starting point for VOD detection",
+      "Fixed a timing issue where the channel lookup failed for later games in a series because their start times fell outside the search window",
+    ],
+  },
+  {
+    date: "May 14, 2026",
+    tag: "fix",
     title: "Tournament deduplication and news feed improvements",
     desc: "Tournaments with slightly different names from different data sources now correctly merge into one card. The news feed now surfaces articles up to 60 days old so coverage stays populated during quieter periods.",
     items: [
