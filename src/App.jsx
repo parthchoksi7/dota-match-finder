@@ -715,11 +715,6 @@ function App() {
   }
 
   // Live banner data
-  const firstLive = liveMatches[0]
-  const moreCount = liveMatches.length - 1
-  const liveScoreA = firstLive?.seriesScore?.split('-')?.[0] ?? ''
-  const liveScoreB = firstLive?.seriesScore?.split('-')?.[1] ?? ''
-  const liveBannerWatch = firstLive?.streams?.[0]?.rawUrl || firstLive?.streams?.[0]?.url || null
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col overflow-x-hidden">
@@ -754,43 +749,6 @@ function App() {
         }}
       />
 
-      {/* Sticky live banner */}
-      {!liveLoading && liveMatches.length > 0 && firstLive && (
-        <div className="sticky top-[52px] z-30 border-b border-red-500/40 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm">
-          <div className="max-w-3xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="flex items-center gap-1.5 text-red-500 text-xs font-bold uppercase tracking-widest flex-shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                {liveMatches.length} Live
-              </span>
-              <span className="font-display font-black text-gray-900 dark:text-white text-base uppercase truncate">
-                {spoilerFree
-                  ? `${firstLive.teamA} vs ${firstLive.teamB}`
-                  : `${firstLive.teamA} ${liveScoreA}-${liveScoreB} ${firstLive.teamB}`}
-              </span>
-              {moreCount > 0 && (
-                <span className="text-gray-500 dark:text-gray-600 text-xs font-semibold tabular-nums flex-shrink-0">
-                  +{moreCount} more
-                </span>
-              )}
-            </div>
-            {liveBannerWatch && (
-              <a
-                href={liveBannerWatch}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackEvent('live_banner_watch', { url: liveBannerWatch })}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
-              >
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
-                </svg>
-                Watch
-              </a>
-            )}
-          </div>
-        </div>
-      )}
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
         {initialLoading && (
