@@ -4,6 +4,19 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 14, 2026",
+    tag: "improvement",
+    title: "Unified tournament cards and smarter push notifications",
+    desc: "Tournament cards now show live, upcoming, and completed matches together in one place. Push notification subscriptions update automatically when you follow or unfollow a team.",
+    items: [
+      "Each tournament appears only once in the feed - live games, upcoming matches, and results are all inside the same card with labeled dividers",
+      "Removed the separate Live Now, Results, and Coming Up section headers - the feed is one sorted list with live tournaments first",
+      "Section labels (Live, Upcoming, Results) appear inside a card only when it has matches in two or more states - single-state cards stay clean",
+      "Following or unfollowing a team now immediately updates your push notification subscription - no need to re-enable alerts after changing your team list",
+      "Removing a team from favorites stops push alerts for that team right away",
+    ],
+  },
+  {
     date: "May 12, 2026",
     tag: "improvement",
     title: "Date navigation redesigned - scrollable pill strip",

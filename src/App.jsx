@@ -12,6 +12,7 @@ import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
+import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
@@ -200,6 +201,9 @@ function App() {
             setShowCalendarNudge(true)
           }
         } catch {}
+      }
+      if (getPushPermission() === 'granted') {
+        subscribeToPush(next).catch(() => {})
       }
       return next
     })

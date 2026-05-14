@@ -318,12 +318,8 @@ function HomeFeed({
         )
       })()}
 
-      {/* Tournament cards — split into sections */}
+      {/* Tournament cards */}
       {(() => {
-        const liveCards = tournamentCards.filter(c => c.hasLive)
-        const resultsCards = tournamentCards.filter(c => !c.hasLive && c.completedSeries.length > 0)
-        const upcomingCards = tournamentCards.filter(c => !c.hasLive && c.completedSeries.length === 0 && c.hasUpcoming)
-
         if (tournamentCards.length === 0) {
           return (
             <div className="border border-gray-200 dark:border-gray-800 rounded py-10 text-center bg-white dark:bg-gray-950">
@@ -398,6 +394,12 @@ function HomeFeed({
               )}
 
               <div role="rowgroup">
+                {card.liveMatches.length > 0 && (card.upcomingMatches.length > 0 || card.completedSeries.length > 0) && (
+                  <div className="flex items-center gap-1.5 px-3 py-1 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">Live</span>
+                  </div>
+                )}
                 {card.liveMatches.map(m => (
                   <LiveMatchRow
                     key={m.id}
@@ -408,6 +410,11 @@ function HomeFeed({
                     isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
                   />
                 ))}
+                {card.upcomingMatches.length > 0 && (card.liveMatches.length > 0 || card.completedSeries.length > 0) && (
+                  <div className="px-3 py-1 border-t border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 dark:text-blue-500">Upcoming</span>
+                  </div>
+                )}
                 {card.upcomingMatches.map(m => (
                   <UpcomingMatchRow
                     key={m.id}
@@ -416,6 +423,11 @@ function HomeFeed({
                     spoilerFree={spoilerFree}
                   />
                 ))}
+                {card.completedSeries.length > 0 && (card.liveMatches.length > 0 || card.upcomingMatches.length > 0) && (
+                  <div className="px-3 py-1 border-t border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">Results</span>
+                  </div>
+                )}
                 {card.completedSeries.map(s => {
                   const isFollowedMatch = !!(
                     followedTeams?.includes(s.games[0]?.radiantTeam) ||
@@ -440,43 +452,7 @@ function HomeFeed({
           )
         }
 
-        return (
-          <>
-            {liveCards.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center mb-2">
-                  <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-red-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                    Live Now
-                  </h2>
-                </div>
-                {liveCards.map(renderCard)}
-              </div>
-            )}
-
-            {resultsCards.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center mb-2">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-gray-400 dark:border-gray-600">
-                    Results
-                  </h2>
-                </div>
-                {resultsCards.map(renderCard)}
-              </div>
-            )}
-
-            {upcomingCards.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center mb-2">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 pl-2 border-l-2 border-blue-500">
-                    Coming Up
-                  </h2>
-                </div>
-                {upcomingCards.map(renderCard)}
-              </div>
-            )}
-          </>
-        )
+        return tournamentCards.map(renderCard)
       })()}
     </div>
   )
