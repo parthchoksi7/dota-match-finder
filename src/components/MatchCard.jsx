@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react"
 import { formatDuration, getSeriesLabel, trackEvent, getSeriesWins } from "../utils"
+import { fetchMatchIndicators } from "../api"
+import GameIndicators from "./GameIndicators"
 
 // Star icon: filled when followed, outlined when not
 function StarIcon({ filled }) {
@@ -28,10 +30,20 @@ function MatchCard({
   isGrandFinal = false,
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const [indicatorsMap, setIndicatorsMap] = useState({})
 
   useEffect(() => {
     if (series.id === expandedSeriesId) setExpanded(true)
   }, [series.id, expandedSeriesId])
+
+  useEffect(() => {
+    if (!expanded || spoilerFree) return
+    const gameIds = series.games.map(g => g.id).filter(Boolean)
+    if (gameIds.length === 0) return
+    fetchMatchIndicators(gameIds).then(map => {
+      if (Object.keys(map).length > 0) setIndicatorsMap(map)
+    }).catch(() => {})
+  }, [expanded, series.id, spoilerFree])
 
   const radiantTeam = series.games[0].radiantTeam
   const direTeam = series.games[0].direTeam
@@ -273,11 +285,14 @@ function MatchCard({
 
                 {/* Winner / spoiler-free placeholder */}
                 {!spoilerFree && game ? (
-                  <span className={`text-xs font-semibold ${
-                    game.radiantWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                  }`}>
-                    {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold ${
+                      game.radiantWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                    }`}>
+                      {game.radiantWin ? game.radiantTeam : game.direTeam} WIN
+                    </span>
+                    <GameIndicators indicators={indicatorsMap[game.id]} variant="compact" />
+                  </div>
                 ) : (
                   <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider">
                     Hidden

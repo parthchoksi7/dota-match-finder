@@ -1256,6 +1256,92 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── match-indicators mode ──────────────────────────────────────────────────
+  if (req.query?.mode === 'match-indicators') {
+    const { ids } = req.query
+    if (!ids) return res.status(400).json({ error: 'ids required' })
+
+    const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 15)
+    if (matchIds.length === 0) return res.status(400).json({ error: 'no valid ids' })
+
+    const INDICATORS_TTL = 60 * 60 * 24 * 7 // 7 days - match data is immutable
+    const result = {}
+
+    // Batch Redis read
+    try {
+      const keys = matchIds.map(id => `indicators:match:${id}`)
+      const cached = await kv.mget(...keys)
+      matchIds.forEach((id, i) => { if (cached[i] != null) result[id] = cached[i] })
+    } catch (err) {
+      console.warn('match-indicators KV read failed:', err?.message)
+    }
+
+    const uncached = matchIds.filter(id => !result[id])
+
+    if (uncached.length > 0) {
+      const computeIndicators = (data) => {
+        const hasRapier = (data.players || []).some(p => {
+          const purchase = p.purchase || {}
+          if (Object.keys(purchase).some(k => k.includes('rapier') && purchase[k] > 0)) return true
+          return [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].includes(116)
+        })
+        const goldAdv = data.radiant_gold_adv || []
+        let hasGoldSwing = false
+        let radiantPeak = 0
+        for (const adv of goldAdv) {
+          if (adv > radiantPeak) radiantPeak = adv
+          if (radiantPeak >= 20000 && adv <= 0) { hasGoldSwing = true; break }
+        }
+        if (!hasGoldSwing) {
+          let direPeak = 0
+          for (const adv of goldAdv) {
+            if (-adv > direPeak) direPeak = -adv
+            if (direPeak >= 20000 && adv >= 0) { hasGoldSwing = true; break }
+          }
+        }
+        const hasMegaComeback =
+          (data.barracks_status_dire === 0 && data.radiant_win === false) ||
+          (data.barracks_status_radiant === 0 && data.radiant_win === true)
+        return { hasRapier, hasGoldSwing, hasMegaComeback }
+      }
+
+      const settled = await Promise.allSettled(
+        uncached.map(async id => {
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 8000)
+          try {
+            const fetchRes = await fetch(`https://api.opendota.com/api/matches/${id}`, { signal: controller.signal })
+            if (!fetchRes.ok) throw new Error(`OpenDota ${fetchRes.status}`)
+            const data = await fetchRes.json()
+            return { id, indicators: computeIndicators(data) }
+          } finally {
+            clearTimeout(timeout)
+          }
+        })
+      )
+
+      const toCache = []
+      for (const outcome of settled) {
+        if (outcome.status === 'fulfilled' && outcome.value) {
+          const { id, indicators } = outcome.value
+          result[id] = indicators
+          toCache.push({ id, indicators })
+        }
+      }
+
+      if (toCache.length > 0) {
+        Promise.all(
+          toCache.map(({ id, indicators }) =>
+            kv.set(`indicators:match:${id}`, indicators, { ex: INDICATORS_TTL })
+          )
+        ).catch(err => console.warn('match-indicators KV write failed:', err?.message))
+      }
+    }
+
+    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+    return res.status(200).json(result)
+  }
+
   // Default mode - existing TournamentHub behavior (tournament sub-stages)
   if (req.query?.bust === '1') {
     await kv.del(KV_LIST_KEY)

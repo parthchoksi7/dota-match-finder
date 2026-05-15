@@ -282,6 +282,34 @@ export async function fetchMatchSummary(matchId) {
   return data.summary
 }
 
+const _indicatorsCache = new Map()
+
+/**
+ * Fetch game indicators for one or more match IDs.
+ * Returns a map of matchId → { hasRapier, hasGoldSwing, hasMegaComeback }.
+ * Results are cached in-memory for the browser session (the backend also caches in Redis).
+ */
+export async function fetchMatchIndicators(matchIds) {
+  if (!matchIds || matchIds.length === 0) return {}
+  const uncached = matchIds.filter(id => !_indicatorsCache.has(id))
+  if (uncached.length > 0) {
+    try {
+      const res = await fetch(`/api/tournaments?mode=match-indicators&ids=${uncached.join(',')}`)
+      if (res.ok) {
+        const data = await res.json()
+        for (const [id, indicators] of Object.entries(data)) {
+          _indicatorsCache.set(id, indicators)
+        }
+      }
+    } catch {}
+  }
+  const result = {}
+  for (const id of matchIds) {
+    if (_indicatorsCache.has(id)) result[id] = _indicatorsCache.get(id)
+  }
+  return result
+}
+
 let heroCache = null
 
 export async function fetchHeroes() {

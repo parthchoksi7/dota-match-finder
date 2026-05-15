@@ -16,12 +16,12 @@ vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 // ── formatDuration ──────────────────────────────────────────────────────────
 
 describe('formatDuration', () => {
-  it('formats hours and minutes', () => {
-    expect(formatDuration('1:23')).toBe('1h 23m')
+  it('formats hours and minutes as total minutes', () => {
+    expect(formatDuration('1:23')).toBe('83m')
   })
 
-  it('formats hours only (zero minutes)', () => {
-    expect(formatDuration('2:00')).toBe('2h')
+  it('formats hours only as total minutes', () => {
+    expect(formatDuration('2:00')).toBe('120m')
   })
 
   it('formats minutes only (zero hours)', () => {
@@ -38,7 +38,7 @@ describe('formatDuration', () => {
   })
 
   it('trims whitespace before parsing', () => {
-    expect(formatDuration(' 1:30 ')).toBe('1h 30m')
+    expect(formatDuration(' 1:30 ')).toBe('90m')
   })
 })
 

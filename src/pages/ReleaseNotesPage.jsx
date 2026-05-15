@@ -5,6 +5,22 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 14, 2026",
+    tag: "new",
+    title: "Game indicators: Rapier, Gold Swing, Mega Comeback",
+    desc: "Match cards and game panels now show icon badges for three notable in-game events. Hidden in spoiler-free mode.",
+    items: [
+      "Divine Rapier (red sword icon): at least one hero purchased the strongest weapon in the game",
+      "20K+ Gold Swing (amber chart icon): one team had a 20,000+ gold lead, then the other team overtook them",
+      "Mega Creep Comeback (violet lightning icon): one team destroyed all enemy barracks but still lost the game",
+      "Compact icon chips appear on series cards and inside each game row when you expand a card",
+      "Full icon-and-label pills appear in the match details panel for the selected game",
+      "Series cards aggregate indicators across all games - if any game in the series had a Rapier, the series shows it",
+      "Indicator data is cached server-side and in-memory so repeat views cost no extra network requests",
+      "Match duration is now shown in total minutes (e.g. 83m instead of 1h 23m) for faster scanning",
+    ],
+  },
+  {
+    date: "May 14, 2026",
     tag: "fix",
     title: "VOD links now appear on first click",
     desc: "Opening a completed series now always starts on Game 1. This ensures the Twitch channel lookup uses the right timestamp and the VOD link appears immediately instead of requiring you to navigate away and back.",

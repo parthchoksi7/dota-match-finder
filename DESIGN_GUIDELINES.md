@@ -353,6 +353,39 @@ Used when a section can display content for one of N items and N is variable (e.
   - Mixed (same org appears multiple times with different regions) → `"League Region"`: `ESL WEU`, `ESL EEU`
 - Do NOT use this pattern for fixed-count tab bars (2–4 items) — use the segmented control pattern instead
 
+### Game indicators (GameIndicators component)
+
+Three icon chips that surface notable in-game events: Divine Rapier, 20K+ Gold Swing, Mega Creep Comeback. Never rendered in spoiler-free mode.
+
+**Color tokens (these are reserved for indicators only):**
+| Indicator | Color | Background chip |
+|---|---|---|
+| Divine Rapier | `text-red-500` | `bg-red-500/10 dark:bg-red-500/15` |
+| 20K+ Gold Swing | `text-amber-500` | `bg-amber-500/10 dark:bg-amber-500/15` |
+| Mega Creep Comeback | `text-violet-500` | `bg-violet-500/10 dark:bg-violet-500/15` |
+
+**Compact variant** (series rows, game rows in MatchCard):
+- Chip: `w-5 h-5 rounded-full flex items-center justify-center` with colored background
+- Icon: SVG at `w-3 h-3` (16x16 viewBox)
+- Tooltip: appears on hover using `group/indicator` scoped Tailwind — `absolute bottom-full left-1/2 -translate-x-1/2 mb-1` positioning, `z-10`, `text-[10px] whitespace-nowrap px-1.5 py-0.5 rounded bg-gray-900 text-white`
+- Wrapper: `relative group/indicator` so tooltip is scoped per chip
+
+**Full variant** (MatchDrawer only):
+- Pill: `inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide` with colored border and text
+- Icon: same SVG at `w-3 h-3`
+- Label: short text ("Divine Rapier", "Gold Swing", "Mega Comeback")
+- No tooltip needed — label is already visible
+
+**Placement:**
+- Series rows (CompactSeriesRow): below the BO3/BO5 format label, inside the center score column
+- Game rows (MatchCard): inline after the winner name, inside the `!spoilerFree && game` section
+- Match drawer (MatchDrawer): between the team score row and the VOD section, `full` variant
+
+**Data flow:**
+- `fetchMatchIndicators(matchIds)` in `src/api.js` — module-level `Map` cache per browser session
+- Fetched lazily: CompactSeriesRow on mount, MatchCard on expand, MatchDrawer on match change
+- Aggregated for series (OR across all games) in CompactSeriesRow via `useMemo`
+
 ### Live indicators
 - Pulsing red dot: `inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse`
 - Only used for genuinely live/running states — never as decoration

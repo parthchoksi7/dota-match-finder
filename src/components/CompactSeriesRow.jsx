@@ -1,4 +1,7 @@
+import { useState, useEffect, useMemo } from 'react'
 import { getSeriesWins, getSeriesLabel, trackEvent } from '../utils'
+import { fetchMatchIndicators } from '../api'
+import GameIndicators from './GameIndicators'
 
 function StarIcon({ filled }) {
   return (
@@ -18,6 +21,26 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
   const direTeam = series.games[0].direTeam
   const { radiantWins, direWins } = getSeriesWins(series)
   const seriesLabel = getSeriesLabel(series.seriesType)
+
+  const [indicatorsMap, setIndicatorsMap] = useState({})
+  useEffect(() => {
+    if (spoilerFree) return
+    const gameIds = series.games.map(g => g.id).filter(Boolean)
+    if (gameIds.length === 0) return
+    fetchMatchIndicators(gameIds).then(map => {
+      if (Object.keys(map).length > 0) setIndicatorsMap(map)
+    }).catch(() => {})
+  }, [series.id, spoilerFree])
+
+  const seriesIndicators = useMemo(() => {
+    const all = Object.values(indicatorsMap)
+    if (all.length === 0) return null
+    return {
+      hasRapier: all.some(i => i.hasRapier),
+      hasGoldSwing: all.some(i => i.hasGoldSwing),
+      hasMegaComeback: all.some(i => i.hasMegaComeback),
+    }
+  }, [indicatorsMap])
 
   const isRadiantFollowed = !!followedTeams?.includes(radiantTeam)
   const isDireFollowed = !!followedTeams?.includes(direTeam)
@@ -101,6 +124,9 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
             {seriesLabel}
           </span>
+        )}
+        {!spoilerFree && seriesIndicators && (
+          <GameIndicators indicators={seriesIndicators} variant="compact" />
         )}
       </div>
 

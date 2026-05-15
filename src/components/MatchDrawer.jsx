@@ -1,5 +1,6 @@
 import DraftDisplay from "./DraftDisplay"
-import { VOD_CHANNEL_LABELS } from "../api"
+import GameIndicators from "./GameIndicators"
+import { VOD_CHANNEL_LABELS, fetchMatchIndicators } from "../api"
 import { useEffect, useRef, useState } from "react"
 import { trackEvent } from "../utils"
 
@@ -23,10 +24,16 @@ function MatchDrawer({
 }) {
   const drawerRef = useRef(null)
   const [scoreRevealed, setScoreRevealed] = useState(false)
+  const [gameIndicators, setGameIndicators] = useState(null)
 
   useEffect(() => {
     setScoreRevealed(false)
-  }, [match?.id])
+    setGameIndicators(null)
+    if (!match?.id || match.unplayed || spoilerFree) return
+    fetchMatchIndicators([match.id]).then(map => {
+      setGameIndicators(map[match.id] ?? null)
+    }).catch(() => {})
+  }, [match?.id, spoilerFree])
 
   useEffect(() => {
     function onKey(e) {
@@ -191,6 +198,10 @@ function MatchDrawer({
               {match.direTeam}
             </span>
           </div>
+
+          {!spoilerFree && gameIndicators && (
+            <GameIndicators indicators={gameIndicators} variant="full" />
+          )}
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
             <div className="space-y-1">

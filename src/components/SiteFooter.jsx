@@ -10,7 +10,7 @@ export default function SiteFooter() {
         <span aria-hidden="true">·</span>
         <a href="/release-notes" className="hover:text-gray-900 dark:hover:text-white transition-colors">What's New</a>
       </div>
-      <p className="text-center">Spectate Esports · Powered by OpenDota + Twitch · Data updates every few minutes</p>
+      <p className="text-center">Spectate Esports · Data via OpenDota, PandaScore &amp; Twitch · Updates every few minutes</p>
     </footer>
   )
 }

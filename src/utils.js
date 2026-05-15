@@ -40,10 +40,8 @@ export function getSeriesWins(series) {
 export function formatDuration(isoTimeStr) {
   if (!isoTimeStr || typeof isoTimeStr !== "string") return isoTimeStr || "-"
   const [h = 0, m = 0] = isoTimeStr.trim().split(":").map(Number)
-  if (h > 0 && m > 0) return `${h}h ${m}m`
-  if (h > 0) return `${h}h`
-  if (m > 0) return `${m}m`
-  return "0m"
+  const totalMinutes = h * 60 + m
+  return totalMinutes > 0 ? `${totalMinutes}m` : "0m"
 }
 
 const SERIES_LABELS = { 0: "BO1", 1: "BO3", 2: "BO5", 3: "BO2" }
