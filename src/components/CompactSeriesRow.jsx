@@ -26,10 +26,11 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
   }, [series.id, spoilerFree])
 
   // Build per-team indicator sets by mapping radiant/dire across all games to team names
-  const { rapierTeams, goldSwingTeams, megaComebackTeams } = useMemo(() => {
+  const { rapierTeams, goldSwingTeams, megaComebackTeams, rampageTeams } = useMemo(() => {
     const rapierTeams = new Set()
     const goldSwingTeams = new Set()
     const megaComebackTeams = new Set()
+    const rampageTeams = new Set()
     series.games.forEach(game => {
       const ind = indicatorsMap[game.id]
       if (!ind) return
@@ -39,11 +40,13 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
       if (ind.goldSwingWinner === 'dire') goldSwingTeams.add(game.direTeam)
       if (ind.megaComebackWinner === 'radiant') megaComebackTeams.add(game.radiantTeam)
       if (ind.megaComebackWinner === 'dire') megaComebackTeams.add(game.direTeam)
+      if (ind.radiantHasRampage) rampageTeams.add(game.radiantTeam)
+      if (ind.direHasRampage) rampageTeams.add(game.direTeam)
     })
-    return { rapierTeams, goldSwingTeams, megaComebackTeams }
+    return { rapierTeams, goldSwingTeams, megaComebackTeams, rampageTeams }
   }, [indicatorsMap, series.games])
 
-  const hasAnyIndicators = rapierTeams.size > 0 || goldSwingTeams.size > 0 || megaComebackTeams.size > 0
+  const hasAnyIndicators = rapierTeams.size > 0 || goldSwingTeams.size > 0 || megaComebackTeams.size > 0 || rampageTeams.size > 0
 
   const lastGame = series.games[series.games.length - 1]
   const radiantWinner = !spoilerFree && radiantWins > direWins
@@ -66,7 +69,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
     (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10' : ''
   }`
 
-  const indicatorProps = { rapierTeams, goldSwingTeams, megaComebackTeams }
+  const indicatorProps = { rapierTeams, goldSwingTeams, megaComebackTeams, rampageTeams }
 
   return (
     <div

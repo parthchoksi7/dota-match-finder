@@ -63,6 +63,7 @@ function MatchDrawer({
     const rapier = new Set()
     const goldSwing = new Set()
     const megaComeback = new Set()
+    const rampage = new Set()
     if (gameIndicators && match && !spoilerFree) {
       if (gameIndicators.radiantHasRapier) rapier.add(match.radiantTeam)
       if (gameIndicators.direHasRapier) rapier.add(match.direTeam)
@@ -70,8 +71,10 @@ function MatchDrawer({
       if (gameIndicators.goldSwingWinner === 'dire') goldSwing.add(match.direTeam)
       if (gameIndicators.megaComebackWinner === 'radiant') megaComeback.add(match.radiantTeam)
       if (gameIndicators.megaComebackWinner === 'dire') megaComeback.add(match.direTeam)
+      if (gameIndicators.radiantHasRampage) rampage.add(match.radiantTeam)
+      if (gameIndicators.direHasRampage) rampage.add(match.direTeam)
     }
-    return { rapier, goldSwing, megaComeback }
+    return { rapier, goldSwing, megaComeback, rampage }
   }, [gameIndicators, match, spoilerFree])
 
   if (!match) return null
@@ -195,6 +198,7 @@ function MatchDrawer({
                   rapierTeams={drawerIndicatorSets.rapier}
                   goldSwingTeams={drawerIndicatorSets.goldSwing}
                   megaComebackTeams={drawerIndicatorSets.megaComeback}
+                  rampageTeams={drawerIndicatorSets.rampage}
                   teamName={match.radiantTeam}
                 />
               )}
@@ -271,6 +275,7 @@ function MatchDrawer({
                   rapierTeams={drawerIndicatorSets.rapier}
                   goldSwingTeams={drawerIndicatorSets.goldSwing}
                   megaComebackTeams={drawerIndicatorSets.megaComeback}
+                  rampageTeams={drawerIndicatorSets.rampage}
                   teamName={match.direTeam}
                 />
               )}

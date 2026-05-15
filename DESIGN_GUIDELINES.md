@@ -357,7 +357,7 @@ Used when a section can display content for one of N items and N is variable (e.
 
 ### Game indicators (GameIndicators component)
 
-Three icon chips that surface notable in-game events: Divine Rapier, 20K+ Gold Swing, Mega Creep Comeback. Never rendered in spoiler-free mode.
+Four icon chips that surface notable in-game events: Divine Rapier, 20K+ Gold Swing, Mega Creep Comeback, Rampage. Never rendered in spoiler-free mode.
 
 **Color tokens (these are reserved for indicators only):**
 | Indicator | Color | Background chip |
@@ -365,6 +365,7 @@ Three icon chips that surface notable in-game events: Divine Rapier, 20K+ Gold S
 | Divine Rapier | `text-red-500` | `bg-red-500/10 dark:bg-red-500/15` |
 | 20K+ Gold Swing | `text-amber-500` | `bg-amber-500/10 dark:bg-amber-500/15` |
 | Mega Creep Comeback | `text-violet-500` | `bg-violet-500/10 dark:bg-violet-500/15` |
+| Rampage (5-kill streak) | `text-orange-500` | `bg-orange-500/10 dark:bg-orange-500/15` |
 
 **Compact variant** (series rows, game rows in MatchCard):
 - Chip: `w-5 h-5 rounded-full flex items-center justify-center` with colored background

@@ -5,6 +5,19 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 14, 2026",
+    tag: "new",
+    title: "Rampage indicator",
+    desc: "A skull icon now appears next to any team that had a player get a rampage (5-kill streak) in that game.",
+    items: [
+      "Rampage (orange skull icon): a player eliminated 5 enemies in a row without dying",
+      "Icon appears inline next to the team on series cards — aggregated across all games in a series",
+      "Also shown next to the specific team in the match details panel for that game",
+      "Tooltip: 'A player got a rampage (5-kill streak)'",
+      "Hidden in spoiler-free mode like all other game indicators",
+    ],
+  },
+  {
+    date: "May 14, 2026",
     tag: "improvement",
     title: "Game indicators now show next to the team they belong to",
     desc: "Instead of a single row of icons below the series format label, each icon now appears inline next to the specific team it applies to — on both mobile and desktop.",

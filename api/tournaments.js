@@ -1265,7 +1265,7 @@ export default async function handler(req, res) {
     if (matchIds.length === 0) return res.status(400).json({ error: 'no valid ids' })
 
     const INDICATORS_TTL = 60 * 60 * 24 * 7 // 7 days - match data is immutable
-    const KV_PREFIX = 'indicators:match:v3:' // v3 — per-team rapier/gold swing/mega comeback attribution
+    const KV_PREFIX = 'indicators:match:v4:' // v4 — added rampage detection
     const result = {}
 
     // Batch Redis read
@@ -1317,12 +1317,22 @@ export default async function handler(req, res) {
           megaComebackWinner = 'dire'
         }
 
+        // rampage = team had at least one player achieve a 5-kill streak
+        const hadRampage = (p) => {
+          const mk = p.multi_kills || {}
+          return (mk[5] || mk['5'] || 0) > 0
+        }
+        const radiantHasRampage = (data.players || []).some(p => isRadiant(p) && hadRampage(p))
+        const direHasRampage = (data.players || []).some(p => !isRadiant(p) && hadRampage(p))
+
         return {
           radiantHasRapier, direHasRapier, goldSwingWinner, megaComebackWinner,
+          radiantHasRampage, direHasRampage,
           // legacy booleans — consumed by MatchCard game rows via GameIndicators
           hasRapier: radiantHasRapier || direHasRapier,
           hasGoldSwing: goldSwingWinner !== null,
           hasMegaComeback: megaComebackWinner !== null,
+          hasRampage: radiantHasRampage || direHasRampage,
         }
       }
 

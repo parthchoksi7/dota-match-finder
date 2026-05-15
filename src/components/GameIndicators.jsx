@@ -64,6 +64,18 @@ export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
   )
 }
 
+export function RampageSvg({ className = 'w-3.5 h-3.5' }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+      {/* skull silhouette with eye-socket cutouts via evenodd fill rule */}
+      <path
+        fillRule="evenodd"
+        d="M8 2C4.69 2 2 4.69 2 7.5c0 1.87.9 3.52 2.29 4.56V14h7.42v-1.94A5.5 5.5 0 0 0 13.5 7.5C13.5 4.69 11.31 2 8 2zM5.3 7.5a1.2 1.2 0 1 1 2.4 0 1.2 1.2 0 0 1-2.4 0zm5.1 0a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"
+      />
+    </svg>
+  )
+}
+
 // ── Per-team inline badges ─────────────────────────────────────────────────────
 
 /**
@@ -73,9 +85,10 @@ export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
  * @param {Set<string>} rapierTeams        — bought Divine Rapier
  * @param {Set<string>} goldSwingTeams     — recovered from 20k+ gold deficit
  * @param {Set<string>} megaComebackTeams  — won with mega creeps against them
+ * @param {Set<string>} rampageTeams       — had at least one rampage (5-kill streak)
  * @param {string}      teamName
  */
-export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams, teamName }) {
+export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams, rampageTeams, teamName }) {
   const icons = []
   if (rapierTeams?.has(teamName)) {
     icons.push({ key: 'rapier', label: 'Had Divine Rapier in this game', Icon: RapierSvg, color: 'text-red-500 dark:text-red-400' })
@@ -85,6 +98,9 @@ export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams,
   }
   if (megaComebackTeams?.has(teamName)) {
     icons.push({ key: 'mega', label: 'Won with mega creeps against them', Icon: MegaComebackSvg, color: 'text-violet-500 dark:text-violet-400' })
+  }
+  if (rampageTeams?.has(teamName)) {
+    icons.push({ key: 'rampage', label: 'A player got a rampage (5-kill streak)', Icon: RampageSvg, color: 'text-orange-500 dark:text-orange-400' })
   }
 
   if (icons.length === 0) return null
@@ -131,6 +147,15 @@ const INDICATORS = [
     colorClass: 'text-violet-500 dark:text-violet-400',
     bgClass: 'bg-violet-500/10 dark:bg-violet-500/15',
     ringClass: 'ring-violet-500/20',
+  },
+  {
+    key: 'hasRampage',
+    label: 'Rampage (5-kill streak) in this game',
+    shortLabel: 'Rampage',
+    icon: RampageSvg,
+    colorClass: 'text-orange-500 dark:text-orange-400',
+    bgClass: 'bg-orange-500/10 dark:bg-orange-500/15',
+    ringClass: 'ring-orange-500/20',
   },
 ]
 
