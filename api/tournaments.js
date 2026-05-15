@@ -1265,11 +1265,12 @@ export default async function handler(req, res) {
     if (matchIds.length === 0) return res.status(400).json({ error: 'no valid ids' })
 
     const INDICATORS_TTL = 60 * 60 * 24 * 7 // 7 days - match data is immutable
+    const KV_PREFIX = 'indicators:match:v2:' // v2 — fixes wrong item ID (was 116=BKB, now 133=Divine Rapier)
     const result = {}
 
     // Batch Redis read
     try {
-      const keys = matchIds.map(id => `indicators:match:${id}`)
+      const keys = matchIds.map(id => `${KV_PREFIX}${id}`)
       const cached = await kv.mget(...keys)
       matchIds.forEach((id, i) => { if (cached[i] != null) result[id] = cached[i] })
     } catch (err) {
@@ -1280,10 +1281,14 @@ export default async function handler(req, res) {
 
     if (uncached.length > 0) {
       const computeIndicators = (data) => {
+        // Divine Rapier: OpenDota item ID 133 (NOT 116, which is Black King Bar)
+        const RAPIER_ID = 133
         const hasRapier = (data.players || []).some(p => {
           const purchase = p.purchase || {}
-          if (Object.keys(purchase).some(k => k.includes('rapier') && purchase[k] > 0)) return true
-          return [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].includes(116)
+          if ((purchase['rapier'] || 0) > 0) return true
+          const log = p.purchase_log || []
+          if (log.some(e => e.key === 'rapier')) return true
+          return [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].includes(RAPIER_ID)
         })
         const goldAdv = data.radiant_gold_adv || []
         let hasGoldSwing = false
@@ -1332,7 +1337,7 @@ export default async function handler(req, res) {
       if (toCache.length > 0) {
         Promise.all(
           toCache.map(({ id, indicators }) =>
-            kv.set(`indicators:match:${id}`, indicators, { ex: INDICATORS_TTL })
+            kv.set(`${KV_PREFIX}${id}`, indicators, { ex: INDICATORS_TTL })
           )
         ).catch(err => console.warn('match-indicators KV write failed:', err?.message))
       }
