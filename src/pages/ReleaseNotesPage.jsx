@@ -6,6 +6,19 @@ const RELEASES = [
   {
     date: "May 14, 2026",
     tag: "improvement",
+    title: "Game indicators now show next to the team they belong to",
+    desc: "Instead of a single row of icons below the series format label, each icon now appears inline next to the specific team it applies to — on both mobile and desktop.",
+    items: [
+      "Divine Rapier icon appears next to the team that purchased it — or both teams if both did",
+      "Gold Swing icon appears next to the team that recovered from the 20,000+ gold deficit (not the team that had the lead)",
+      "Mega Comeback icon appears next to the team that won despite having mega creeps against them",
+      "Tooltips updated to describe what the team did: 'Purchased Divine Rapier', 'Recovered from a 20,000+ gold deficit', 'Won with mega creeps against them'",
+      "Same behavior in the match details panel — icons appear next to each team name in the score row",
+    ],
+  },
+  {
+    date: "May 14, 2026",
+    tag: "improvement",
     title: "Manage Teams: search to add, push notification toggle",
     desc: "The Manage Teams sheet now lets you search and add any top-tier team directly, and includes a live match alerts toggle to turn push notifications on or off without changing your team list.",
     items: [
