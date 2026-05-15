@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 14, 2026",
+    tag: "fix",
+    title: "Fixed: Divine Rapier indicator was showing on all games",
+    desc: "The rapier icon was appearing on every match due to a wrong item ID in the detection logic. Item 116 is Black King Bar (purchased in nearly every pro game), not Divine Rapier (item 133). All cached results have been cleared and will recompute correctly.",
+  },
+  {
+    date: "May 14, 2026",
     tag: "new",
     title: "Game indicators: Rapier, Gold Swing, Mega Comeback",
     desc: "Match cards and game panels now show icon badges for three notable in-game events. Hidden in spoiler-free mode.",
