@@ -6,6 +6,8 @@ Claude should follow these guidelines for ALL tasks in this project:
 
 ## Design Guidelines (UI/UX changes)
 
+**Core design mindset:** Whenever making any UI or design decision, think like a world-class UI/UX designer specializing in sports and esports (Sofascore, FlashScore, ESPN, HLTV, Liquipedia). Don't just make it functional — make it feel premium and purpose-built. Ask "what would Sofascore do here?" before every layout, color, or interaction decision.
+
 Before making any UI or visual change:
 
 1. **Read `DESIGN_GUIDELINES.md`** at the repo root before touching any component

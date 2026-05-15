@@ -5,6 +5,31 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 14, 2026",
+    tag: "improvement",
+    title: "Manage Teams: search to add, push notification toggle",
+    desc: "The Manage Teams sheet now lets you search and add any top-tier team directly, and includes a live match alerts toggle to turn push notifications on or off without changing your team list.",
+    items: [
+      "Search any Tier 1 team by name and add them to your followed list instantly",
+      "Turn live match alerts on or off without unfollowing your teams",
+      "Push notification state is preserved when you add or remove teams while alerts are paused",
+      "Calendar subscription link shown when you follow at least one team",
+      "Follow/unfollow stars moved into the match details panel to prevent accidental taps on mobile",
+    ],
+  },
+  {
+    date: "May 14, 2026",
+    tag: "improvement",
+    title: "Mobile series cards: Sofascore-style stacked layout",
+    desc: "Series cards on mobile now use a stacked two-row layout that gives each team name full width, eliminating truncation on narrow screens. Match format and indicators appear in a compact meta row below.",
+  },
+  {
+    date: "May 14, 2026",
+    tag: "fix",
+    title: "Match duration now shows total minutes",
+    desc: "The match details panel now shows duration as total minutes (e.g. 58m or 110m) instead of the raw HH:MM timestamp format.",
+  },
+  {
+    date: "May 14, 2026",
     tag: "fix",
     title: "Fixed: Divine Rapier indicator was showing on all games",
     desc: "The rapier icon was appearing on every match due to a wrong item ID in the detection logic. Item 116 is Black King Bar (purchased in nearly every pro game), not Divine Rapier (item 133). All cached results have been cleared and will recompute correctly.",

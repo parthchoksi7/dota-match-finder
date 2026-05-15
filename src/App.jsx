@@ -203,7 +203,13 @@ function App() {
         } catch {}
       }
       if (getPushPermission() === 'granted') {
-        subscribeToPush(next).catch(() => {})
+        try {
+          if (localStorage.getItem('spectate-push-disabled') !== '1') {
+            subscribeToPush(next).catch(() => {})
+          }
+        } catch {
+          // localStorage unavailable; skip push update to avoid re-enabling when disabled
+        }
       }
       return next
     })

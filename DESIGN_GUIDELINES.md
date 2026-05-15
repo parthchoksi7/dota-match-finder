@@ -7,6 +7,8 @@ defensible against these principles.
 
 ## Philosophy
 
+**Think like a world-class sports/esports UI designer.** Every design decision should be evaluated against the best products in the genre: Sofascore, FlashScore, ESPN, HLTV, Liquipedia. Don't just make it functional — make it feel premium and purpose-built. Strong genre conventions exist for a reason: stacked team rows, right-aligned scores, compact meta rows, status pills, amber for live/followed highlights. Use them. When designing anything, ask "what would Sofascore do here?"
+
 **Minimal esports.** The product exists to surface information fast, without ego.
 Every element earns its place or gets cut. When in doubt, remove. Don't add.
 

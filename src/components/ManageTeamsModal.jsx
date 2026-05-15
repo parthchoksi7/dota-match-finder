@@ -1,52 +1,149 @@
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { trackEvent } from "../utils"
+import { isPushSupported, getPushPermission, subscribeToPush } from "../utils/push"
 
-function StarIcon({ filled }) {
+const TIER1_TEAMS = [
+  'Aurora Gaming', 'beastcoast', 'BetBoom Team', 'Evil Geniuses',
+  'Gaimin Gladiators', 'Natus Vincere', 'Nigma Galaxy', 'Nouns Esports',
+  'OG', 'PSG.LGD', 'Talon Esports', 'Team Aster', 'Team Falcons',
+  'Team Liquid', 'Team Secret', 'Team Spirit', 'Team Yandex',
+  'Thunder Awaken', 'Tundra Esports', 'Virtus.pro',
+]
+
+const PUSH_DISABLED_KEY = 'spectate-push-disabled'
+
+function BellIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden="true">
-      <path
-        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth={filled ? "0" : "1.5"}
-      />
+    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   )
 }
 
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 flex-shrink-0" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  )
+}
+
+function Toggle({ on, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onChange}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed ${
+        on ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-700'
+      }`}
+    >
+      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+    </button>
+  )
+}
+
 function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
+  const [query, setQuery] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [pushPermission, setPushPermission] = useState(() => getPushPermission())
+  const [pushDisabled, setPushDisabled] = useState(() => {
+    try { return localStorage.getItem(PUSH_DISABLED_KEY) === '1' } catch { return false }
+  })
+  const [pushLoading, setPushLoading] = useState(false)
+
   useEffect(() => {
     if (!open) return
+    setQuery('')
+    setShowDropdown(false)
     function handleKey(e) {
-      if (e.key === "Escape") onClose()
+      if (e.key === 'Escape') onClose()
     }
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
   }, [open, onClose])
 
   if (!open) return null
 
+  const suggestions = TIER1_TEAMS.filter(name =>
+    !followedTeams.includes(name) &&
+    (query === '' || name.toLowerCase().includes(query.toLowerCase()))
+  )
+
+  const pushSupported = isPushSupported()
+  const pushGranted = pushPermission === 'granted'
+  const pushDenied = pushPermission === 'denied'
+  const pushOn = pushGranted && !pushDisabled
+
+  async function handleEnablePush() {
+    if (followedTeams.length === 0) return
+    setPushLoading(true)
+    try {
+      const result = await subscribeToPush(followedTeams)
+      if (result.ok) {
+        setPushPermission('granted')
+        setPushDisabled(false)
+        try { localStorage.removeItem(PUSH_DISABLED_KEY) } catch {}
+        trackEvent('push_enable', { source: 'manage_teams_modal', team_count: followedTeams.length })
+      } else {
+        setPushPermission(getPushPermission())
+      }
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  async function handleTogglePush() {
+    if (pushOn) {
+      // Turn off: tell server to send for 0 teams, set disabled flag locally
+      setPushDisabled(true)
+      try { localStorage.setItem(PUSH_DISABLED_KEY, '1') } catch {}
+      subscribeToPush([]).catch(() => {})
+      trackEvent('push_disable', { source: 'manage_teams_modal' })
+    } else {
+      // Turn on: re-subscribe with current team list
+      setPushLoading(true)
+      try {
+        const result = await subscribeToPush(followedTeams)
+        if (result.ok) {
+          setPushDisabled(false)
+          try { localStorage.removeItem(PUSH_DISABLED_KEY) } catch {}
+          trackEvent('push_enable', { source: 'manage_teams_modal', team_count: followedTeams.length })
+        }
+      } finally {
+        setPushLoading(false)
+      }
+    }
+  }
+
+  function handleAddTeam(name) {
+    onToggleFollow(name)
+    setQuery('')
+    setShowDropdown(false)
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="manage-teams-title"
     >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
-          <h2
-            id="manage-teams-title"
-            className="text-sm font-bold uppercase tracking-widest text-gray-900 dark:text-white"
-          >
+      {/* Sheet — slides up from bottom on mobile, centered on desktop */}
+      <div className="relative w-full sm:max-w-sm bg-white dark:bg-gray-900 border-t sm:border border-gray-200 dark:border-gray-700 rounded-t-2xl sm:rounded max-h-[88vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+          <h2 id="manage-teams-title" className="text-sm font-bold uppercase tracking-widest text-gray-900 dark:text-white">
             My Teams
           </h2>
           <button
@@ -61,47 +158,138 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
           </button>
         </div>
 
-        <div className="px-5 py-4">
-          {followedTeams.length === 0 ? (
-            <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-6">
-              No teams followed yet
-            </p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-gray-100 dark:divide-gray-800">
-              {followedTeams.map(team => (
-                <li key={team} className="flex items-center justify-between py-2.5 min-h-[44px]">
-                  <span className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                    {team}
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+
+          {/* ── Search to add a team ─────────────────────────── */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[4px] text-gray-500 dark:text-gray-500 mb-2">Follow a Team</p>
+            <div className="relative">
+              <input
+                type="text"
+                value={query}
+                onChange={e => { setQuery(e.target.value); setShowDropdown(true) }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                placeholder="Search teams..."
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-gray-500 dark:focus:border-gray-500 transition-colors"
+              />
+              {showDropdown && suggestions.length > 0 && (
+                <ul className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-xl max-h-48 overflow-y-auto">
+                  {suggestions.map(name => (
+                    <li key={name}>
+                      <button
+                        type="button"
+                        onMouseDown={() => handleAddTeam(name)}
+                        className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        {name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {showDropdown && query.length > 0 && suggestions.length === 0 && (
+                <div className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No teams found</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Followed teams list ──────────────────────────── */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[4px] text-gray-500 dark:text-gray-500 mb-2">Following</p>
+            {followedTeams.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-600 py-3 uppercase tracking-widest">
+                No teams yet — search above to add one
+              </p>
+            ) : (
+              <ul className="rounded border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
+                {followedTeams.map(team => (
+                  <li key={team} className="flex items-center justify-between pl-3 pr-2 min-h-[44px]">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {team}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trackEvent('unfollow_team', { team_name: team, source: 'manage_teams_modal' })
+                        onToggleFollow(team)
+                      }}
+                      className="focus-ring p-1.5 rounded text-gray-300 dark:text-gray-700 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                      aria-label={`Remove ${team}`}
+                      title={`Remove ${team}`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* ── Push notifications ──────────────────────────── */}
+          {pushSupported && !pushDenied && (
+            <div className="rounded border border-gray-100 dark:border-gray-800 overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-3.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className={pushOn ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}>
+                    <BellIcon />
                   </span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">Live match alerts</p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-snug mt-0.5">
+                      {pushGranted
+                        ? pushOn ? 'On for all your teams' : 'Paused'
+                        : 'Notify when your teams go live'}
+                    </p>
+                  </div>
+                </div>
+                {pushGranted ? (
+                  <Toggle on={pushOn} onChange={handleTogglePush} disabled={pushLoading} />
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      trackEvent("unfollow_team", { team_name: team })
-                      onToggleFollow(team)
-                    }}
-                    className="focus-ring p-1 rounded text-yellow-400 hover:text-gray-300 dark:hover:text-gray-700 transition-colors"
-                    aria-label={`Unfollow ${team}`}
-                    title={`Unfollow ${team}`}
+                    onClick={handleEnablePush}
+                    disabled={pushLoading || followedTeams.length === 0}
+                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <StarIcon filled={true} />
+                    {pushLoading ? '...' : 'Enable'}
                   </button>
-                </li>
-              ))}
-            </ul>
+                )}
+              </div>
+              {!pushGranted && followedTeams.length === 0 && (
+                <p className="px-3 pb-3 text-[11px] text-gray-400 dark:text-gray-600 border-t border-gray-100 dark:border-gray-800 pt-2">
+                  Follow at least one team first.
+                </p>
+              )}
+            </div>
           )}
 
+          {pushDenied && (
+            <div className="flex items-start gap-2.5 px-3 py-3 rounded border border-gray-100 dark:border-gray-800">
+              <span className="text-gray-400 dark:text-gray-600 mt-0.5">
+                <BellIcon />
+              </span>
+              <p className="text-xs text-gray-400 dark:text-gray-600 leading-relaxed">
+                Notifications are blocked. Allow them in your browser or system settings to receive live match alerts.
+              </p>
+            </div>
+          )}
+
+          {/* ── Calendar link ────────────────────────────────── */}
           {followedTeams.length > 0 && (
             <a
               href="/calendar"
               onClick={() => trackEvent('calendar_nudge_click', { source: 'manage_teams_modal' })}
-              className="mt-4 flex items-center gap-2 px-3 py-2.5 w-full rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-400 dark:hover:border-gray-500 transition-colors group"
+              className="flex items-center gap-2.5 px-3 py-3 w-full rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-400 dark:hover:border-gray-500 transition-colors group"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
+              <span className="text-gray-400 dark:text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                <CalendarIcon />
+              </span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors leading-snug">Add to Calendar</p>
                 <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-snug">Subscribe to your teams' match schedule</p>
@@ -109,8 +297,8 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
             </a>
           )}
 
-          <p className="mt-3 text-xs text-gray-400 dark:text-gray-600 leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-3">
-            Your followed teams are saved in this browser. They will not appear if you use incognito mode, a different browser, or another device.
+          <p className="text-xs text-gray-400 dark:text-gray-600 leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-4">
+            Saved in this browser only. Won't carry over to incognito mode, other browsers, or other devices.
           </p>
         </div>
       </div>

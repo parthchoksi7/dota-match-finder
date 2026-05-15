@@ -2,7 +2,7 @@ import DraftDisplay from "./DraftDisplay"
 import GameIndicators from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators } from "../api"
 import { useEffect, useRef, useState } from "react"
-import { trackEvent } from "../utils"
+import { formatDuration, trackEvent } from "../utils"
 
 function StarIcon({ filled }) {
   return (
@@ -136,7 +136,7 @@ function MatchDrawer({
             </p>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-xs text-gray-400 dark:text-gray-600">
-                {match.date} · {match.duration}
+                {match.date} · {formatDuration(match.duration)}
               </p>
               {gameLabel && (
                 <span className="text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
