@@ -78,7 +78,7 @@ export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
 export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams, teamName }) {
   const icons = []
   if (rapierTeams?.has(teamName)) {
-    icons.push({ key: 'rapier', label: 'Purchased Divine Rapier', Icon: RapierSvg, color: 'text-red-500 dark:text-red-400' })
+    icons.push({ key: 'rapier', label: 'Had Divine Rapier in this game', Icon: RapierSvg, color: 'text-red-500 dark:text-red-400' })
   }
   if (goldSwingTeams?.has(teamName)) {
     icons.push({ key: 'goldSwing', label: 'Recovered from a 20,000+ gold deficit', Icon: GoldSwingSvg, color: 'text-amber-500 dark:text-amber-400' })
@@ -107,7 +107,7 @@ export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams,
 const INDICATORS = [
   {
     key: 'hasRapier',
-    label: 'Divine Rapier purchased',
+    label: 'Divine Rapier in this game',
     shortLabel: 'Rapier',
     icon: RapierSvg,
     colorClass: 'text-red-500 dark:text-red-400',
