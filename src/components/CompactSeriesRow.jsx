@@ -62,7 +62,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
     else onSelectGame({ ...series.games[0], _skipExpand: true })
   }
 
-  const rowBase = `px-4 py-2.5 border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+  const rowBase = `px-4 py-2 border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
     (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10' : ''
   }`
 
@@ -76,53 +76,60 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
       aria-label={`${radiantTeam} vs ${direTeam}`}
     >
 
-      {/* ── Mobile layout (< sm): Sofascore-style stacked rows ─────────────── */}
-      <div className="sm:hidden flex flex-col gap-1">
+      {/* ── Mobile layout (< sm): two-row compact ───────────────────────────── */}
+      <div className="sm:hidden flex flex-col gap-0.5">
 
-        {/* Radiant team row */}
-        <div className="flex items-center gap-1.5">
-          <span className={`flex-1 min-w-0 font-display text-sm tracking-wide uppercase leading-tight ${
-            radiantWinner ? 'font-black text-gray-900 dark:text-white'
-            : spoilerFree ? 'font-black text-gray-900 dark:text-white'
-            : 'font-bold text-gray-400 dark:text-gray-500'
-          }`}>
-            {radiantTeam}
-          </span>
-          {!spoilerFree && hasAnyIndicators && (
-            <TeamIndicators {...indicatorProps} teamName={radiantTeam} />
-          )}
-          {!spoilerFree && (
-            <span className={`shrink-0 w-5 text-right font-display font-black text-xl tabular-nums ${
-              radiantWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'
+        {/* Row 1: both teams + score on one line */}
+        <div className="flex items-center gap-1.5 min-w-0">
+
+          {/* Radiant side — left-aligned, truncates */}
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            <span className={`truncate font-display text-sm tracking-wide uppercase leading-tight ${
+              radiantWinner ? 'font-black text-gray-900 dark:text-white'
+              : spoilerFree ? 'font-black text-gray-900 dark:text-white'
+              : 'font-bold text-gray-400 dark:text-gray-500'
             }`}>
-              {radiantWins}
+              {radiantTeam}
             </span>
-          )}
+            {!spoilerFree && hasAnyIndicators && (
+              <TeamIndicators {...indicatorProps} teamName={radiantTeam} />
+            )}
+          </div>
+
+          {/* Score — fixed center */}
+          <div className="flex items-center flex-shrink-0">
+            {spoilerFree ? (
+              <span className="font-display font-black text-base text-gray-300 dark:text-gray-700 tabular-nums select-none">?·?</span>
+            ) : (
+              <>
+                <span className={`font-display font-black text-lg tabular-nums ${radiantWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
+                  {radiantWins}
+                </span>
+                <span className="text-xs font-medium text-gray-300 dark:text-gray-700 mx-0.5">·</span>
+                <span className={`font-display font-black text-lg tabular-nums ${direWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
+                  {direWins}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Dire side — right-aligned, truncates */}
+          <div className="flex items-center justify-end gap-1 min-w-0 flex-1">
+            {!spoilerFree && hasAnyIndicators && (
+              <TeamIndicators {...indicatorProps} teamName={direTeam} />
+            )}
+            <span className={`truncate text-right font-display text-sm tracking-wide uppercase leading-tight ${
+              direWinner ? 'font-black text-gray-900 dark:text-white'
+              : spoilerFree ? 'font-black text-gray-900 dark:text-white'
+              : 'font-bold text-gray-400 dark:text-gray-500'
+            }`}>
+              {direTeam}
+            </span>
+          </div>
         </div>
 
-        {/* Dire team row */}
-        <div className="flex items-center gap-1.5">
-          <span className={`flex-1 min-w-0 font-display text-sm tracking-wide uppercase leading-tight ${
-            direWinner ? 'font-black text-gray-900 dark:text-white'
-            : spoilerFree ? 'font-black text-gray-900 dark:text-white'
-            : 'font-bold text-gray-400 dark:text-gray-500'
-          }`}>
-            {direTeam}
-          </span>
-          {!spoilerFree && hasAnyIndicators && (
-            <TeamIndicators {...indicatorProps} teamName={direTeam} />
-          )}
-          {!spoilerFree && (
-            <span className={`shrink-0 w-5 text-right font-display font-black text-xl tabular-nums ${
-              direWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'
-            }`}>
-              {direWins}
-            </span>
-          )}
-        </div>
-
-        {/* Meta row: format + replay */}
-        <div className="flex items-center justify-between pt-0.5">
+        {/* Row 2: format label + replay button */}
+        <div className="flex items-center justify-between">
           {seriesLabel ? (
             <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
               {seriesLabel}
