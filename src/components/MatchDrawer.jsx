@@ -4,6 +4,19 @@ import { VOD_CHANNEL_LABELS, fetchMatchIndicators } from "../api"
 import { useEffect, useRef, useState } from "react"
 import { trackEvent } from "../utils"
 
+function StarIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden="true">
+      <path
+        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth={filled ? '0' : '1.5'}
+      />
+    </svg>
+  )
+}
+
 function MatchDrawer({
   match,
   onDismiss,
@@ -21,6 +34,8 @@ function MatchDrawer({
   shareUrl,
   spoilerFree = false,
   gameSwitcher,
+  followedTeams,
+  onToggleFollow,
 }) {
   const drawerRef = useRef(null)
   const [scoreRevealed, setScoreRevealed] = useState(false)
@@ -149,15 +164,35 @@ function MatchDrawer({
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
 
           <div className="flex items-center justify-between gap-2">
-            <span className={`font-display text-lg font-black uppercase tracking-wide truncate ${
-              !hideScore && match.radiantWin
-                ? "text-gray-900 dark:text-white"
-                : hideScore
-                ? "text-gray-900 dark:text-white"
-                : "text-gray-400 dark:text-gray-500"
-            }`}>
-              {match.radiantTeam}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className={`font-display text-lg font-black uppercase tracking-wide truncate ${
+                !hideScore && match.radiantWin
+                  ? "text-gray-900 dark:text-white"
+                  : hideScore
+                  ? "text-gray-900 dark:text-white"
+                  : "text-gray-400 dark:text-gray-500"
+              }`}>
+                {match.radiantTeam}
+              </span>
+              {onToggleFollow && !match.unplayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent(followedTeams?.includes(match.radiantTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.radiantTeam, source: 'drawer' })
+                    onToggleFollow(match.radiantTeam)
+                  }}
+                  className={`flex-shrink-0 p-1 rounded transition-colors ${
+                    followedTeams?.includes(match.radiantTeam)
+                      ? 'text-yellow-400'
+                      : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+                  }`}
+                  aria-label={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
+                  title={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
+                >
+                  <StarIcon filled={followedTeams?.includes(match.radiantTeam)} />
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 shrink-0">
               {hideScore ? (
@@ -188,15 +223,35 @@ function MatchDrawer({
               )}
             </div>
 
-            <span className={`font-display text-lg font-black uppercase tracking-wide truncate text-right ${
-              !hideScore && !match.radiantWin
-                ? "text-gray-900 dark:text-white"
-                : hideScore
-                ? "text-gray-900 dark:text-white"
-                : "text-gray-400 dark:text-gray-500"
-            }`}>
-              {match.direTeam}
-            </span>
+            <div className="flex items-center justify-end gap-1.5 min-w-0">
+              {onToggleFollow && !match.unplayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent(followedTeams?.includes(match.direTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.direTeam, source: 'drawer' })
+                    onToggleFollow(match.direTeam)
+                  }}
+                  className={`flex-shrink-0 p-1 rounded transition-colors ${
+                    followedTeams?.includes(match.direTeam)
+                      ? 'text-yellow-400'
+                      : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+                  }`}
+                  aria-label={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
+                  title={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
+                >
+                  <StarIcon filled={followedTeams?.includes(match.direTeam)} />
+                </button>
+              )}
+              <span className={`font-display text-lg font-black uppercase tracking-wide truncate text-right ${
+                !hideScore && !match.radiantWin
+                  ? "text-gray-900 dark:text-white"
+                  : hideScore
+                  ? "text-gray-900 dark:text-white"
+                  : "text-gray-400 dark:text-gray-500"
+              }`}>
+                {match.direTeam}
+              </span>
+            </div>
           </div>
 
           {!spoilerFree && gameIndicators && (

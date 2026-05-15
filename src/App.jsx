@@ -963,6 +963,8 @@ function App() {
         <MatchDrawer
           match={selectedMatch}
           onDismiss={dismissPanel}
+          followedTeams={followedTeams}
+          onToggleFollow={handleToggleFollow}
           summary={summaryMatchId === selectedMatch?.id ? summary : null}
           summaryLoading={summaryLoading}
           summaryError={summaryErrorMatchId === selectedMatch?.id ? summaryError : null}
