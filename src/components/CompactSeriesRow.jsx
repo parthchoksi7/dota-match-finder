@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getSeriesWins, getSeriesLabel, trackEvent } from '../utils'
 import { fetchMatchIndicators } from '../api'
-import GameIndicators from './GameIndicators'
+import { TeamIndicators } from './GameIndicators'
 
 const PlayIcon = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 flex-shrink-0" aria-hidden="true">
@@ -25,15 +25,25 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
     }).catch(() => {})
   }, [series.id, spoilerFree])
 
-  const seriesIndicators = useMemo(() => {
-    const all = Object.values(indicatorsMap)
-    if (all.length === 0) return null
-    return {
-      hasRapier: all.some(i => i.hasRapier),
-      hasGoldSwing: all.some(i => i.hasGoldSwing),
-      hasMegaComeback: all.some(i => i.hasMegaComeback),
-    }
-  }, [indicatorsMap])
+  // Build per-team indicator sets by mapping radiant/dire across all games to team names
+  const { rapierTeams, goldSwingTeams, megaComebackTeams } = useMemo(() => {
+    const rapierTeams = new Set()
+    const goldSwingTeams = new Set()
+    const megaComebackTeams = new Set()
+    series.games.forEach(game => {
+      const ind = indicatorsMap[game.id]
+      if (!ind) return
+      if (ind.radiantHasRapier) rapierTeams.add(game.radiantTeam)
+      if (ind.direHasRapier) rapierTeams.add(game.direTeam)
+      if (ind.goldSwingWinner === 'radiant') goldSwingTeams.add(game.radiantTeam)
+      if (ind.goldSwingWinner === 'dire') goldSwingTeams.add(game.direTeam)
+      if (ind.megaComebackWinner === 'radiant') megaComebackTeams.add(game.radiantTeam)
+      if (ind.megaComebackWinner === 'dire') megaComebackTeams.add(game.direTeam)
+    })
+    return { rapierTeams, goldSwingTeams, megaComebackTeams }
+  }, [indicatorsMap, series.games])
+
+  const hasAnyIndicators = rapierTeams.size > 0 || goldSwingTeams.size > 0 || megaComebackTeams.size > 0
 
   const lastGame = series.games[series.games.length - 1]
   const radiantWinner = !spoilerFree && radiantWins > direWins
@@ -56,6 +66,8 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
     (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10' : ''
   }`
 
+  const indicatorProps = { rapierTeams, goldSwingTeams, megaComebackTeams }
+
   return (
     <div
       role="row"
@@ -76,6 +88,9 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           }`}>
             {radiantTeam}
           </span>
+          {!spoilerFree && hasAnyIndicators && (
+            <TeamIndicators {...indicatorProps} teamName={radiantTeam} />
+          )}
           {!spoilerFree && (
             <span className={`shrink-0 w-5 text-right font-display font-black text-xl tabular-nums ${
               radiantWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'
@@ -94,6 +109,9 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           }`}>
             {direTeam}
           </span>
+          {!spoilerFree && hasAnyIndicators && (
+            <TeamIndicators {...indicatorProps} teamName={direTeam} />
+          )}
           {!spoilerFree && (
             <span className={`shrink-0 w-5 text-right font-display font-black text-xl tabular-nums ${
               direWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'
@@ -103,18 +121,13 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           )}
         </div>
 
-        {/* Meta row: format + indicators + replay */}
-        <div className="flex items-center gap-2 pt-0.5">
-          <div className="flex-1 flex items-center gap-1.5 min-w-0">
-            {seriesLabel && (
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500 shrink-0">
-                {seriesLabel}
-              </span>
-            )}
-            {!spoilerFree && seriesIndicators && (
-              <GameIndicators indicators={seriesIndicators} variant="compact" />
-            )}
-          </div>
+        {/* Meta row: format + replay */}
+        <div className="flex items-center justify-between pt-0.5">
+          {seriesLabel ? (
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
+              {seriesLabel}
+            </span>
+          ) : <span />}
           <button
             type="button"
             onClick={handleReplayClick}
@@ -131,8 +144,8 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         className="hidden sm:grid sm:items-center sm:gap-2 sm:min-h-[36px]"
         style={{ gridTemplateColumns: '1fr 76px 1fr auto' }}
       >
-        {/* Radiant team (left-aligned) */}
-        <div className="flex items-center min-w-0">
+        {/* Radiant team + indicators (left-aligned) */}
+        <div className="flex items-center gap-1.5 min-w-0">
           <span className={`font-display text-sm tracking-wide uppercase truncate ${
             radiantWinner ? 'font-black text-gray-900 dark:text-white'
             : spoilerFree ? 'font-black text-gray-900 dark:text-white'
@@ -140,6 +153,9 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           }`}>
             {radiantTeam}
           </span>
+          {!spoilerFree && hasAnyIndicators && (
+            <TeamIndicators {...indicatorProps} teamName={radiantTeam} />
+          )}
         </div>
 
         {/* Score block (center) */}
@@ -164,13 +180,13 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
               {seriesLabel}
             </span>
           )}
-          {!spoilerFree && seriesIndicators && (
-            <GameIndicators indicators={seriesIndicators} variant="compact" />
-          )}
         </div>
 
-        {/* Dire team (right-aligned) */}
-        <div className="flex items-center justify-end min-w-0">
+        {/* Dire team + indicators (right-aligned) */}
+        <div className="flex items-center justify-end gap-1.5 min-w-0">
+          {!spoilerFree && hasAnyIndicators && (
+            <TeamIndicators {...indicatorProps} teamName={direTeam} />
+          )}
           <span className={`font-display text-sm tracking-wide uppercase truncate text-right ${
             direWinner ? 'font-black text-gray-900 dark:text-white'
             : spoilerFree ? 'font-black text-gray-900 dark:text-white'

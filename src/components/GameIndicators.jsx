@@ -1,7 +1,8 @@
 /**
- * GameIndicators — small icon chips showing notable game events.
- * variant="compact"  → icon-only pills (series rows, game lists)
- * variant="full"     → icon + label (MatchDrawer game sheet)
+ * GameIndicators — icon chips for notable game events.
+ *
+ * Default export GameIndicators: aggregate view used in MatchCard game rows.
+ * Named export TeamIndicators: per-team inline badges next to team names.
  */
 
 function Tooltip({ label, children }) {
@@ -28,30 +29,25 @@ function Tooltip({ label, children }) {
   )
 }
 
-// ── SVG icons ─────────────────────────────────────────────────────────────────
+// ── SVG icons — exported so CompactSeriesRow / MatchDrawer can use them inline ─
 
-function RapierSvg() {
+export function RapierSvg({ className = 'w-3.5 h-3.5' }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5" aria-hidden="true">
-      {/* Blade */}
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true">
       <line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      {/* Crossguard — perpendicular to blade */}
       <line x1="4" y1="8" x2="8" y2="12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      {/* Pommel */}
       <circle cx="3" cy="13" r="1.25" fill="currentColor" />
     </svg>
   )
 }
 
-function GoldSwingSvg() {
+export function GoldSwingSvg({ className = 'w-3.5 h-3.5' }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5" aria-hidden="true">
-      {/* Trend line: climbs to peak then reverses below start */}
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true">
       <polyline
         points="1,11 5,3 10,8 15,14"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
       />
-      {/* Down-arrow at reversal end */}
       <polyline
         points="12,12 15,14 12,14"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -60,16 +56,53 @@ function GoldSwingSvg() {
   )
 }
 
-function MegaComebackSvg() {
+export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
-      {/* Lightning bolt — universal "dramatic moment" icon */}
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
       <path d="M9.5 1.5 L4.5 8.5 H7.5 L6.5 14.5 L12 7.5 H9 Z" />
     </svg>
   )
 }
 
-// ── Indicator definitions ──────────────────────────────────────────────────────
+// ── Per-team inline badges ─────────────────────────────────────────────────────
+
+/**
+ * Tiny icon badges shown inline next to a team name.
+ * Each icon is only shown when the given team earned/experienced that event.
+ *
+ * @param {Set<string>} rapierTeams        — bought Divine Rapier
+ * @param {Set<string>} goldSwingTeams     — recovered from 20k+ gold deficit
+ * @param {Set<string>} megaComebackTeams  — won with mega creeps against them
+ * @param {string}      teamName
+ */
+export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams, teamName }) {
+  const icons = []
+  if (rapierTeams?.has(teamName)) {
+    icons.push({ key: 'rapier', label: 'Purchased Divine Rapier', Icon: RapierSvg, color: 'text-red-500 dark:text-red-400' })
+  }
+  if (goldSwingTeams?.has(teamName)) {
+    icons.push({ key: 'goldSwing', label: 'Recovered from a 20,000+ gold deficit', Icon: GoldSwingSvg, color: 'text-amber-500 dark:text-amber-400' })
+  }
+  if (megaComebackTeams?.has(teamName)) {
+    icons.push({ key: 'mega', label: 'Won with mega creeps against them', Icon: MegaComebackSvg, color: 'text-violet-500 dark:text-violet-400' })
+  }
+
+  if (icons.length === 0) return null
+
+  return (
+    <span className="inline-flex items-center gap-0.5 flex-shrink-0">
+      {icons.map(({ key, label, Icon, color }) => (
+        <Tooltip key={key} label={label}>
+          <span className={`inline-flex items-center justify-center w-4 h-4 ${color}`}>
+            <Icon className="w-3 h-3" />
+          </span>
+        </Tooltip>
+      ))}
+    </span>
+  )
+}
+
+// ── Aggregate component — MatchCard game rows ──────────────────────────────────
 
 const INDICATORS = [
   {
@@ -92,7 +125,7 @@ const INDICATORS = [
   },
   {
     key: 'hasMegaComeback',
-    label: 'Mega creep comeback',
+    label: 'Won with mega creeps against them',
     shortLabel: 'Mega',
     icon: MegaComebackSvg,
     colorClass: 'text-violet-500 dark:text-violet-400',
@@ -101,13 +134,6 @@ const INDICATORS = [
   },
 ]
 
-// ── Public component ───────────────────────────────────────────────────────────
-
-/**
- * @param {object} indicators  — { hasRapier, hasGoldSwing, hasMegaComeback }
- * @param {"compact"|"full"}   variant — compact = icon only; full = icon + label
- * @param {string} className
- */
 function GameIndicators({ indicators, variant = 'compact', className = '' }) {
   if (!indicators) return null
 
@@ -138,7 +164,6 @@ function GameIndicators({ indicators, variant = 'compact', className = '' }) {
     )
   }
 
-  // Full variant — icon + label pill (used in MatchDrawer)
   return (
     <div className={`flex flex-wrap gap-2 ${className}`}>
       {active.map(ind => {

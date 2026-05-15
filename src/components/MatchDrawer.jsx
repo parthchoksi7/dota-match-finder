@@ -1,7 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
-import GameIndicators from "./GameIndicators"
+import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators } from "../api"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { formatDuration, trackEvent } from "../utils"
 
 function StarIcon({ filled }) {
@@ -57,6 +57,22 @@ function MatchDrawer({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [onDismiss])
+
+  // Per-team indicator sets derived from the single-game gameIndicators object
+  const drawerIndicatorSets = useMemo(() => {
+    const rapier = new Set()
+    const goldSwing = new Set()
+    const megaComeback = new Set()
+    if (gameIndicators && match && !spoilerFree) {
+      if (gameIndicators.radiantHasRapier) rapier.add(match.radiantTeam)
+      if (gameIndicators.direHasRapier) rapier.add(match.direTeam)
+      if (gameIndicators.goldSwingWinner === 'radiant') goldSwing.add(match.radiantTeam)
+      if (gameIndicators.goldSwingWinner === 'dire') goldSwing.add(match.direTeam)
+      if (gameIndicators.megaComebackWinner === 'radiant') megaComeback.add(match.radiantTeam)
+      if (gameIndicators.megaComebackWinner === 'dire') megaComeback.add(match.direTeam)
+    }
+    return { rapier, goldSwing, megaComeback }
+  }, [gameIndicators, match, spoilerFree])
 
   if (!match) return null
 
@@ -174,6 +190,14 @@ function MatchDrawer({
               }`}>
                 {match.radiantTeam}
               </span>
+              {!hideScore && (
+                <TeamIndicators
+                  rapierTeams={drawerIndicatorSets.rapier}
+                  goldSwingTeams={drawerIndicatorSets.goldSwing}
+                  megaComebackTeams={drawerIndicatorSets.megaComeback}
+                  teamName={match.radiantTeam}
+                />
+              )}
               {onToggleFollow && !match.unplayed && (
                 <button
                   type="button"
@@ -242,6 +266,14 @@ function MatchDrawer({
                   <StarIcon filled={followedTeams?.includes(match.direTeam)} />
                 </button>
               )}
+              {!hideScore && (
+                <TeamIndicators
+                  rapierTeams={drawerIndicatorSets.rapier}
+                  goldSwingTeams={drawerIndicatorSets.goldSwing}
+                  megaComebackTeams={drawerIndicatorSets.megaComeback}
+                  teamName={match.direTeam}
+                />
+              )}
               <span className={`font-display text-lg font-black uppercase tracking-wide truncate text-right ${
                 !hideScore && !match.radiantWin
                   ? "text-gray-900 dark:text-white"
@@ -253,10 +285,6 @@ function MatchDrawer({
               </span>
             </div>
           </div>
-
-          {!spoilerFree && gameIndicators && (
-            <GameIndicators indicators={gameIndicators} variant="full" />
-          )}
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
             <div className="space-y-1">

@@ -1265,7 +1265,7 @@ export default async function handler(req, res) {
     if (matchIds.length === 0) return res.status(400).json({ error: 'no valid ids' })
 
     const INDICATORS_TTL = 60 * 60 * 24 * 7 // 7 days - match data is immutable
-    const KV_PREFIX = 'indicators:match:v2:' // v2 — fixes wrong item ID (was 116=BKB, now 133=Divine Rapier)
+    const KV_PREFIX = 'indicators:match:v3:' // v3 — per-team rapier/gold swing/mega comeback attribution
     const result = {}
 
     // Batch Redis read
@@ -1281,33 +1281,49 @@ export default async function handler(req, res) {
 
     if (uncached.length > 0) {
       const computeIndicators = (data) => {
-        // Divine Rapier: OpenDota item ID 133 (NOT 116, which is Black King Bar)
         const RAPIER_ID = 133
-        const hasRapier = (data.players || []).some(p => {
+        const isRadiant = (p) => (p.player_slot ?? 0) < 128
+        const boughtRapier = (p) => {
           const purchase = p.purchase || {}
           if ((purchase['rapier'] || 0) > 0) return true
           const log = p.purchase_log || []
           if (log.some(e => e.key === 'rapier')) return true
           return [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].includes(RAPIER_ID)
-        })
+        }
+        const radiantHasRapier = (data.players || []).some(p => isRadiant(p) && boughtRapier(p))
+        const direHasRapier = (data.players || []).some(p => !isRadiant(p) && boughtRapier(p))
+
+        // goldSwingWinner = team that came back from a 20k+ gold deficit
         const goldAdv = data.radiant_gold_adv || []
-        let hasGoldSwing = false
+        let goldSwingWinner = null
         let radiantPeak = 0
         for (const adv of goldAdv) {
           if (adv > radiantPeak) radiantPeak = adv
-          if (radiantPeak >= 20000 && adv <= 0) { hasGoldSwing = true; break }
+          if (radiantPeak >= 20000 && adv <= 0) { goldSwingWinner = 'dire'; break }
         }
-        if (!hasGoldSwing) {
+        if (!goldSwingWinner) {
           let direPeak = 0
           for (const adv of goldAdv) {
             if (-adv > direPeak) direPeak = -adv
-            if (direPeak >= 20000 && adv >= 0) { hasGoldSwing = true; break }
+            if (direPeak >= 20000 && adv >= 0) { goldSwingWinner = 'radiant'; break }
           }
         }
-        const hasMegaComeback =
-          (data.barracks_status_dire === 0 && data.radiant_win === false) ||
-          (data.barracks_status_radiant === 0 && data.radiant_win === true)
-        return { hasRapier, hasGoldSwing, hasMegaComeback }
+
+        // megaComebackWinner = team that won despite all their barracks being destroyed
+        let megaComebackWinner = null
+        if (data.barracks_status_radiant === 0 && data.radiant_win === true) {
+          megaComebackWinner = 'radiant'
+        } else if (data.barracks_status_dire === 0 && data.radiant_win === false) {
+          megaComebackWinner = 'dire'
+        }
+
+        return {
+          radiantHasRapier, direHasRapier, goldSwingWinner, megaComebackWinner,
+          // legacy booleans — consumed by MatchCard game rows via GameIndicators
+          hasRapier: radiantHasRapier || direHasRapier,
+          hasGoldSwing: goldSwingWinner !== null,
+          hasMegaComeback: megaComebackWinner !== null,
+        }
       }
 
       const settled = await Promise.allSettled(
