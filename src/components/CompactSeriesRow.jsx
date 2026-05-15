@@ -62,7 +62,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
     else onSelectGame({ ...series.games[0], _skipExpand: true })
   }
 
-  const rowBase = `px-4 py-2 border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+  const rowBase = `px-4 py-2.5 border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
     (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10' : ''
   }`
 
@@ -105,7 +105,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
                 <span className={`font-display font-black text-lg tabular-nums ${radiantWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
                   {radiantWins}
                 </span>
-                <span className="text-xs font-medium text-gray-300 dark:text-gray-700 mx-0.5">·</span>
+                <span className="text-xs font-medium text-gray-300 dark:text-gray-700 mx-0.5">-</span>
                 <span className={`font-display font-black text-lg tabular-nums ${direWinner ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
                   {direWins}
                 </span>
