@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 16, 2026",
+    tag: "improvement",
+    title: "Match drawer: team names no longer cut off",
+    desc: "Team names in the match details panel now display in full on all screen sizes. The score section is split into two rows — names on top, score below — so nothing truncates even on the narrowest phone.",
+  },
+  {
+    date: "May 16, 2026",
+    tag: "improvement",
+    title: "Date strip load button no longer jumps around",
+    desc: "The earlier-dates button in the date strip is now anchored outside the scrollable pill track, so it stays in place when new date pills load in.",
+  },
+  {
+    date: "May 16, 2026",
     tag: "fix",
     title: "Day switch now always loads fresh games",
     desc: "Switching to a different day in the date strip now automatically fetches more matches, so you no longer see an incomplete or stale game list after switching from Today or Tomorrow.",
