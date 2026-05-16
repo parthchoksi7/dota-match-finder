@@ -133,6 +133,13 @@ function MatchDrawer({
   const gameLabel = gameNumber && seriesMatches > 1 ? (spoilerFree ? "Game " + gameNumber : "Game " + gameNumber + " of " + seriesMatches) : null
   const hideScore = spoilerFree && !scoreRevealed
 
+  const radiantNameColor = (!hideScore && match.radiantWin) || hideScore
+    ? 'text-gray-900 dark:text-white'
+    : 'text-gray-400 dark:text-gray-500'
+  const direNameColor = (!hideScore && !match.radiantWin) || hideScore
+    ? 'text-gray-900 dark:text-white'
+    : 'text-gray-400 dark:text-gray-500'
+
   return (
     <>
       <div
@@ -182,113 +189,97 @@ function MatchDrawer({
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
 
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className={`font-display text-lg font-black uppercase tracking-wide truncate ${
-                !hideScore && match.radiantWin
-                  ? "text-gray-900 dark:text-white"
-                  : hideScore
-                  ? "text-gray-900 dark:text-white"
-                  : "text-gray-400 dark:text-gray-500"
-              }`}>
-                {match.radiantTeam}
-              </span>
-              {!hideScore && (
-                <TeamIndicators
-                  rapierTeams={drawerIndicatorSets.rapier}
-                  goldSwingTeams={drawerIndicatorSets.goldSwing}
-                  megaComebackTeams={drawerIndicatorSets.megaComeback}
-                  rampageTeams={drawerIndicatorSets.rampage}
-                  teamName={match.radiantTeam}
-                />
-              )}
-              {onToggleFollow && !match.unplayed && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    trackEvent(followedTeams?.includes(match.radiantTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.radiantTeam, source: 'drawer' })
-                    onToggleFollow(match.radiantTeam)
-                  }}
-                  className={`flex-shrink-0 p-1 rounded transition-colors ${
-                    followedTeams?.includes(match.radiantTeam)
-                      ? 'text-yellow-400'
-                      : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
-                  }`}
-                  aria-label={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
-                  title={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
-                >
-                  <StarIcon filled={followedTeams?.includes(match.radiantTeam)} />
-                </button>
-              )}
-            </div>
+          {/* Names row — centered, flex-wrap prevents truncation on long names */}
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <span className={`font-display font-black text-lg uppercase tracking-wide ${radiantNameColor}`}>
+              {match.radiantTeam}
+            </span>
+            {!hideScore && (
+              <TeamIndicators
+                rapierTeams={drawerIndicatorSets.rapier}
+                goldSwingTeams={drawerIndicatorSets.goldSwing}
+                megaComebackTeams={drawerIndicatorSets.megaComeback}
+                rampageTeams={drawerIndicatorSets.rampage}
+                teamName={match.radiantTeam}
+              />
+            )}
+            {onToggleFollow && !match.unplayed && (
+              <button
+                type="button"
+                onClick={() => {
+                  trackEvent(followedTeams?.includes(match.radiantTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.radiantTeam, source: 'drawer' })
+                  onToggleFollow(match.radiantTeam)
+                }}
+                className={`flex-shrink-0 p-1 rounded transition-colors ${
+                  followedTeams?.includes(match.radiantTeam)
+                    ? 'text-yellow-400'
+                    : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+                }`}
+                aria-label={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
+                title={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
+              >
+                <StarIcon filled={followedTeams?.includes(match.radiantTeam)} />
+              </button>
+            )}
 
-            <div className="flex items-center gap-2 shrink-0">
-              {hideScore ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setScoreRevealed(true)
-                    trackEvent("spoiler_reveal", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam })
-                  }}
-                  className="font-display text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                >
-                  Reveal score
-                </button>
-              ) : (
-                <>
-                  <span className={`font-display text-3xl font-black ${
-                    match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
-                  }`}>
-                    {match.radiantScore ?? (match.radiantWin ? 1 : 0)}
-                  </span>
-                  <span className="text-gray-400 dark:text-gray-700 text-xl">-</span>
-                  <span className={`font-display text-3xl font-black ${
-                    !match.radiantWin ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
-                  }`}>
-                    {match.direScore ?? (!match.radiantWin ? 1 : 0)}
-                  </span>
-                </>
-              )}
-            </div>
+            <span className="text-gray-300 dark:text-gray-700 font-medium select-none">—</span>
 
-            <div className="flex items-center justify-end gap-1.5 min-w-0">
-              {onToggleFollow && !match.unplayed && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    trackEvent(followedTeams?.includes(match.direTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.direTeam, source: 'drawer' })
-                    onToggleFollow(match.direTeam)
-                  }}
-                  className={`flex-shrink-0 p-1 rounded transition-colors ${
-                    followedTeams?.includes(match.direTeam)
-                      ? 'text-yellow-400'
-                      : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
-                  }`}
-                  aria-label={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
-                  title={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
-                >
-                  <StarIcon filled={followedTeams?.includes(match.direTeam)} />
-                </button>
-              )}
-              {!hideScore && (
-                <TeamIndicators
-                  rapierTeams={drawerIndicatorSets.rapier}
-                  goldSwingTeams={drawerIndicatorSets.goldSwing}
-                  megaComebackTeams={drawerIndicatorSets.megaComeback}
-                  rampageTeams={drawerIndicatorSets.rampage}
-                  teamName={match.direTeam}
-                />
-              )}
-              <span className={`font-display text-lg font-black uppercase tracking-wide truncate text-right ${
-                !hideScore && !match.radiantWin
-                  ? "text-gray-900 dark:text-white"
-                  : hideScore
-                  ? "text-gray-900 dark:text-white"
-                  : "text-gray-400 dark:text-gray-500"
-              }`}>
-                {match.direTeam}
-              </span>
-            </div>
+            {onToggleFollow && !match.unplayed && (
+              <button
+                type="button"
+                onClick={() => {
+                  trackEvent(followedTeams?.includes(match.direTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.direTeam, source: 'drawer' })
+                  onToggleFollow(match.direTeam)
+                }}
+                className={`flex-shrink-0 p-1 rounded transition-colors ${
+                  followedTeams?.includes(match.direTeam)
+                    ? 'text-yellow-400'
+                    : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+                }`}
+                aria-label={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
+                title={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
+              >
+                <StarIcon filled={followedTeams?.includes(match.direTeam)} />
+              </button>
+            )}
+            {!hideScore && (
+              <TeamIndicators
+                rapierTeams={drawerIndicatorSets.rapier}
+                goldSwingTeams={drawerIndicatorSets.goldSwing}
+                megaComebackTeams={drawerIndicatorSets.megaComeback}
+                rampageTeams={drawerIndicatorSets.rampage}
+                teamName={match.direTeam}
+              />
+            )}
+            <span className={`font-display font-black text-lg uppercase tracking-wide ${direNameColor}`}>
+              {match.direTeam}
+            </span>
+          </div>
+
+          {/* Score row — centered, standalone */}
+          <div className="flex items-center justify-center gap-3 mt-1">
+            {hideScore ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setScoreRevealed(true)
+                  trackEvent("spoiler_reveal", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam })
+                }}
+                className="font-display text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Reveal score
+              </button>
+            ) : (
+              <>
+                <span className={`font-display text-4xl font-black ${match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+                  {match.radiantScore ?? (match.radiantWin ? 1 : 0)}
+                </span>
+                <span className="text-gray-300 dark:text-gray-700 text-2xl font-medium select-none">—</span>
+                <span className={`font-display text-4xl font-black ${!match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+                  {match.direScore ?? (!match.radiantWin ? 1 : 0)}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">

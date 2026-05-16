@@ -174,6 +174,40 @@ When TournamentHub is expanded inline within a tournament card, it uses `hideSta
 - Do NOT animate-pulse the card border or background
 - **Amber on dark backgrounds**: always use `dark:border-l-amber-400` (not amber-500/60) for left-border row indicators. The lighter, brighter amber-400 at full opacity is the only shade that reads against dark gray at the 2px border width. Opacity variants of amber-500 disappear.
 
+### Match drawer — score section layout
+
+The score section uses two stacked rows, not a single 3-column flex row. This eliminates truncation on long team names.
+
+**Row 1 — Names row:**
+```
+TUNDRA ESPORTS [indicators] ☆  —  ☆ [indicators] BETBOOM TEAM
+```
+- Container: `flex items-center justify-center gap-2 flex-wrap`
+- `flex-wrap` allows overflow onto a second line for very long names — never truncate
+- Order: `[radiant name] [radiant indicators] [radiant star]  —  [dire star] [dire indicators] [dire name]`
+- Name: `font-display font-black text-lg uppercase tracking-wide` — no `truncate`, no `min-w-0` needed
+- Separator "—": `text-gray-300 dark:text-gray-700 font-medium select-none`
+- Indicators: `flex-shrink-0`, hidden when `hideScore`
+- Stars: `flex-shrink-0`, hidden when `!onToggleFollow || match.unplayed`
+
+**Row 2 — Score row:**
+```
+             29  —  25
+```
+- Container: `flex items-center justify-center gap-3 mt-1`
+- Score: `font-display text-4xl font-black` (up from text-3xl — names no longer compete for horizontal space)
+- Separator "—": `text-gray-300 dark:text-gray-700 text-2xl font-medium select-none`
+- Winner score: `text-gray-900 dark:text-white`; loser: `text-gray-400 dark:text-gray-500`
+- In spoiler-free mode: "Reveal score" ghost button replaces both numbers, centered in this row
+
+**Color logic:**
+```js
+const radiantNameColor = (!hideScore && match.radiantWin) || hideScore
+  ? 'text-gray-900 dark:text-white'
+  : 'text-gray-400 dark:text-gray-500'
+```
+Both names use winner color in spoiler-free mode (no result is known yet).
+
 ### Match cards — winner/loser state
 - **Winner** team name: `font-display font-black text-base sm:text-xl uppercase tracking-wide text-gray-900 dark:text-white`
 - **Loser** team name: same size but `font-bold text-gray-400 dark:text-gray-500` — still readable, clearly secondary
