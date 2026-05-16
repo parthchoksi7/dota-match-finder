@@ -7,7 +7,7 @@ const RELEASES = [
     date: "May 16, 2026",
     tag: "improvement",
     title: "Match drawer: team names no longer cut off",
-    desc: "Team names in the match details panel now display in full on all screen sizes. The score section is split into two rows — names on top, score below — so nothing truncates even on the narrowest phone.",
+    desc: "Team names in the match details panel are now left and right anchored on a single row above the score, so they no longer get cut off on mobile. The score sits on its own centered row below.",
   },
   {
     date: "May 16, 2026",
