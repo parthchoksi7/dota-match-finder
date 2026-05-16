@@ -137,14 +137,24 @@ Two-line compact row for a scheduled match. Mobile-first: never truncates team n
 
 Scrollable horizontal row of date pills inside a gray pill-shaped track. Active date gets a filled white/dark pill with a shadow. Standard pattern used by Sofascore, FlashScore, and ESPN.
 
-- Container: `flex overflow-x-auto gap-1 p-1.5 bg-gray-100 dark:bg-gray-900 [&::-webkit-scrollbar]:hidden` + `scrollbarWidth: 'none'` inline style
+**Structure:** two-zone flex row — a fixed left chevron button + a scrollable pill track. Keeping them separate prevents new pills loading on the left from ever shifting the button position.
+
+```
+[ ‹ ] | [May 12] [May 13] [May 14] [Today] [Tomorrow]
+  ↑ fixed, outside scroll   ↑ overflow-x-auto, independent
+```
+
+- Outer container: `flex items-stretch bg-gray-100 dark:bg-gray-900`
+- **Load-earlier button** (fixed, outside scroll): `flex-shrink-0 flex items-center justify-center w-8 border-r border-gray-200 dark:border-gray-800 text-gray-400 ... disabled:opacity-30 transition-colors duration-150`. Left chevron SVG icon only — no text label. Only rendered when `onLoadEarlier` is provided. `disabled` during loading; no text swap, no spinner — the dim state is the only feedback.
+- **Scrollable pill track**: `flex flex-1 overflow-x-auto gap-1 p-1.5 [&::-webkit-scrollbar]:hidden` + `scrollbarWidth: 'none'` inline style
 - Active pill: `bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white rounded-full px-3 py-1.5`
 - Inactive pill: `text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full px-3 py-1.5`
 - Both pills: `flex-shrink-0 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-150`
-- "← More" button (leftmost): only shown when `onLoadEarlier` is provided. No fill. Same padding as pills. Shows `...` while loading. `disabled:opacity-40`.
 - Auto-scrolls active pill into center view on mount via `scrollIntoView({ behavior: 'instant', inline: 'center' })`
 - Hidden when `dates` is empty. Shown even with 1 date (label is informative).
-- Fires `date_strip_click` (per pill) and `load_earlier_click` (More button) GA events.
+- Fires `date_strip_click` (per pill) and `load_earlier_click` (chevron button) GA events.
+
+**Why not a text button inside the scroll track:** a button inside `overflow-x-auto` shifts position every time new pills load to its right. The fixed two-zone layout eliminates all reflow.
 
 ### Inline TournamentHub (hideStatusLabel mode)
 
