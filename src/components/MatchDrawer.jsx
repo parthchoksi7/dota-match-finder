@@ -192,7 +192,7 @@ function MatchDrawer({
           {/* Names row — left/right anchored, single line, no separator */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className={`font-display font-black text-base uppercase tracking-wide truncate ${radiantNameColor}`}>
+              <span className={`font-display font-black text-base sm:text-lg uppercase tracking-wide truncate ${radiantNameColor}`}>
                 {match.radiantTeam}
               </span>
               {!hideScore && (
@@ -252,7 +252,7 @@ function MatchDrawer({
                   teamName={match.direTeam}
                 />
               )}
-              <span className={`font-display font-black text-base uppercase tracking-wide truncate text-right ${direNameColor}`}>
+              <span className={`font-display font-black text-base sm:text-lg uppercase tracking-wide truncate text-right ${direNameColor}`}>
                 {match.direTeam}
               </span>
             </div>

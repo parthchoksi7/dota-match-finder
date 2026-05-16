@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 16, 2026",
     tag: "improvement",
+    title: "Match drawer: larger team names on desktop",
+    desc: "Team names in the match details panel are now slightly larger on desktop screens for easier reading. Mobile size is unchanged.",
+  },
+  {
+    date: "May 16, 2026",
+    tag: "improvement",
     title: "Match drawer: team names no longer cut off",
     desc: "Team names in the match details panel are now left and right anchored on a single row above the score, so they no longer get cut off on mobile. The score sits on its own centered row below.",
   },
