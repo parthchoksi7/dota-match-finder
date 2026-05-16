@@ -189,71 +189,73 @@ function MatchDrawer({
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
 
-          {/* Names row — centered, flex-wrap prevents truncation on long names */}
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            <span className={`font-display font-black text-lg uppercase tracking-wide ${radiantNameColor}`}>
-              {match.radiantTeam}
-            </span>
-            {!hideScore && (
-              <TeamIndicators
-                rapierTeams={drawerIndicatorSets.rapier}
-                goldSwingTeams={drawerIndicatorSets.goldSwing}
-                megaComebackTeams={drawerIndicatorSets.megaComeback}
-                rampageTeams={drawerIndicatorSets.rampage}
-                teamName={match.radiantTeam}
-              />
-            )}
-            {onToggleFollow && !match.unplayed && (
-              <button
-                type="button"
-                onClick={() => {
-                  trackEvent(followedTeams?.includes(match.radiantTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.radiantTeam, source: 'drawer' })
-                  onToggleFollow(match.radiantTeam)
-                }}
-                className={`flex-shrink-0 p-1 rounded transition-colors ${
-                  followedTeams?.includes(match.radiantTeam)
-                    ? 'text-yellow-400'
-                    : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
-                }`}
-                aria-label={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
-                title={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
-              >
-                <StarIcon filled={followedTeams?.includes(match.radiantTeam)} />
-              </button>
-            )}
+          {/* Names row — left/right anchored, single line, no separator */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className={`font-display font-black text-base uppercase tracking-wide truncate ${radiantNameColor}`}>
+                {match.radiantTeam}
+              </span>
+              {!hideScore && (
+                <TeamIndicators
+                  rapierTeams={drawerIndicatorSets.rapier}
+                  goldSwingTeams={drawerIndicatorSets.goldSwing}
+                  megaComebackTeams={drawerIndicatorSets.megaComeback}
+                  rampageTeams={drawerIndicatorSets.rampage}
+                  teamName={match.radiantTeam}
+                />
+              )}
+              {onToggleFollow && !match.unplayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent(followedTeams?.includes(match.radiantTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.radiantTeam, source: 'drawer' })
+                    onToggleFollow(match.radiantTeam)
+                  }}
+                  className={`flex-shrink-0 p-1 rounded transition-colors ${
+                    followedTeams?.includes(match.radiantTeam)
+                      ? 'text-yellow-400'
+                      : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+                  }`}
+                  aria-label={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
+                  title={followedTeams?.includes(match.radiantTeam) ? `Unfollow ${match.radiantTeam}` : `Follow ${match.radiantTeam}`}
+                >
+                  <StarIcon filled={followedTeams?.includes(match.radiantTeam)} />
+                </button>
+              )}
+            </div>
 
-            <span className="text-gray-300 dark:text-gray-700 font-medium select-none">—</span>
-
-            {onToggleFollow && !match.unplayed && (
-              <button
-                type="button"
-                onClick={() => {
-                  trackEvent(followedTeams?.includes(match.direTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.direTeam, source: 'drawer' })
-                  onToggleFollow(match.direTeam)
-                }}
-                className={`flex-shrink-0 p-1 rounded transition-colors ${
-                  followedTeams?.includes(match.direTeam)
-                    ? 'text-yellow-400'
-                    : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
-                }`}
-                aria-label={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
-                title={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
-              >
-                <StarIcon filled={followedTeams?.includes(match.direTeam)} />
-              </button>
-            )}
-            {!hideScore && (
-              <TeamIndicators
-                rapierTeams={drawerIndicatorSets.rapier}
-                goldSwingTeams={drawerIndicatorSets.goldSwing}
-                megaComebackTeams={drawerIndicatorSets.megaComeback}
-                rampageTeams={drawerIndicatorSets.rampage}
-                teamName={match.direTeam}
-              />
-            )}
-            <span className={`font-display font-black text-lg uppercase tracking-wide ${direNameColor}`}>
-              {match.direTeam}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              {onToggleFollow && !match.unplayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent(followedTeams?.includes(match.direTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.direTeam, source: 'drawer' })
+                    onToggleFollow(match.direTeam)
+                  }}
+                  className={`flex-shrink-0 p-1 rounded transition-colors ${
+                    followedTeams?.includes(match.direTeam)
+                      ? 'text-yellow-400'
+                      : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+                  }`}
+                  aria-label={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
+                  title={followedTeams?.includes(match.direTeam) ? `Unfollow ${match.direTeam}` : `Follow ${match.direTeam}`}
+                >
+                  <StarIcon filled={followedTeams?.includes(match.direTeam)} />
+                </button>
+              )}
+              {!hideScore && (
+                <TeamIndicators
+                  rapierTeams={drawerIndicatorSets.rapier}
+                  goldSwingTeams={drawerIndicatorSets.goldSwing}
+                  megaComebackTeams={drawerIndicatorSets.megaComeback}
+                  rampageTeams={drawerIndicatorSets.rampage}
+                  teamName={match.direTeam}
+                />
+              )}
+              <span className={`font-display font-black text-base uppercase tracking-wide truncate text-right ${direNameColor}`}>
+                {match.direTeam}
+              </span>
+            </div>
           </div>
 
           {/* Score row — centered, standalone */}
