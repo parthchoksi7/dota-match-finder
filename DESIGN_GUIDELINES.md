@@ -186,7 +186,7 @@ TUNDRA ESPORTS [indicators] ☆          ☆ [indicators] BETBOOM TEAM
 - Left cluster (`min-w-0`): `[radiant name (truncate)] [radiant indicators] [radiant star]`
 - Right cluster (`min-w-0`): `[dire star] [dire indicators] [dire name (truncate, text-right)]`
 - No separator between teams — color contrast (winner white / loser gray) provides the distinction
-- Name: `font-display font-black text-base uppercase tracking-wide truncate` — `text-base` (down from `text-lg`) to keep both names on one line; `truncate` as last resort for extreme name lengths
+- Name: `font-display font-black text-base sm:text-lg uppercase tracking-wide truncate` — `text-base` on mobile to keep both names on one line; `sm:text-lg` on desktop where the wider drawer gives enough room; `truncate` as last resort for extreme name lengths
 - No `flex-wrap` — names must stay on a single row
 - Indicators: `flex-shrink-0`, hidden when `hideScore`
 - Stars: `flex-shrink-0`, hidden when `!onToggleFollow || match.unplayed`
