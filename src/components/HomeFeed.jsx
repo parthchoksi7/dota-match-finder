@@ -239,6 +239,7 @@ function HomeFeed({
           onChange={key => {
             setActiveDate(key)
             setExpandedTournamentName(null)
+            if (hasMore && !loadingMore && onLoadMore) onLoadMore()
           }}
           onLoadEarlier={hasMore ? onLoadMore : null}
           loadingEarlier={loadingMore}

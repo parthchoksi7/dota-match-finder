@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 16, 2026",
+    tag: "fix",
+    title: "Day switch now always loads fresh games",
+    desc: "Switching to a different day in the date strip now automatically fetches more matches, so you no longer see an incomplete or stale game list after switching from Today or Tomorrow.",
+  },
+  {
     date: "May 14, 2026",
     tag: "new",
     title: "Rampage indicator",

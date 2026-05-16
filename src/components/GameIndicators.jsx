@@ -45,11 +45,11 @@ export function GoldSwingSvg({ className = 'w-3.5 h-3.5' }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true">
       <polyline
-        points="1,11 5,3 10,8 15,14"
+        points="2,4 6,11 14,3"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
       />
       <polyline
-        points="12,12 15,14 12,14"
+        points="11.5,3 14,3 14,5.5"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
       />
     </svg>
@@ -59,7 +59,12 @@ export function GoldSwingSvg({ className = 'w-3.5 h-3.5' }) {
 export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M9.5 1.5 L4.5 8.5 H7.5 L6.5 14.5 L12 7.5 H9 Z" />
+      <path d="M3 9 L 4 5 L 5 7.5 L 6.5 3 L 8 7 L 9.5 3.5 L 11 7 L 12 5.5 L 13 9 Z" />
+      <path d="M3 9 Q 3 12 5 13 L 11 13 Q 13 12 13 9 Z" />
+      <path d="M3.5 11.5 L 0.5 10.5 L 0.5 13 L 3.5 12.5 Z" />
+      <rect x="5" y="13" width="1.4" height="1.5" rx="0.3" />
+      <rect x="9.5" y="13" width="1.4" height="1.5" rx="0.3" />
+      <circle cx="10" cy="10" r="0.6" fill="#030712" />
     </svg>
   )
 }
@@ -67,11 +72,41 @@ export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
 export function RampageSvg({ className = 'w-3.5 h-3.5' }) {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
-      {/* skull silhouette with eye-socket cutouts via evenodd fill rule */}
       <path
         fillRule="evenodd"
-        d="M8 2C4.69 2 2 4.69 2 7.5c0 1.87.9 3.52 2.29 4.56V14h7.42v-1.94A5.5 5.5 0 0 0 13.5 7.5C13.5 4.69 11.31 2 8 2zM5.3 7.5a1.2 1.2 0 1 1 2.4 0 1.2 1.2 0 0 1-2.4 0zm5.1 0a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"
+        clipRule="evenodd"
+        d="
+          M 8 0.5
+          C 5 0.5 2.5 2.5 2.5 5.5
+          C 2.5 7 3 8.2 3.7 9
+          L 3.7 10.2
+          L 5.2 10.2
+          L 5.2 11.5
+          L 6.5 11.5
+          L 6.5 10.5
+          L 9.5 10.5
+          L 9.5 11.5
+          L 10.8 11.5
+          L 10.8 10.2
+          L 12.3 10.2
+          L 12.3 9
+          C 13 8.2 13.5 7 13.5 5.5
+          C 13.5 2.5 11 0.5 8 0.5 Z
+          M 4.6 5.2 L 7 5.2 L 7 7.6 L 5.9 8 L 4.6 7.3 Z
+          M 9 5.2 L 11.4 5.2 L 11.4 7.3 L 10.1 8 L 9 7.6 Z
+          M 7.5 8 L 8.5 8 L 8.8 9.2 L 7.2 9.2 Z
+        "
       />
+      <g transform="rotate(-30 8 13)">
+        <rect x="2.5" y="12.6" width="9" height="0.9" rx="0.1" />
+        <polygon points="11.5,12.5 13,13.05 11.5,13.6" />
+        <rect x="3.5" y="12.2" width="0.5" height="1.6" />
+      </g>
+      <g transform="rotate(30 8 13)">
+        <rect x="2.5" y="12.6" width="9" height="0.9" rx="0.1" />
+        <polygon points="11.5,12.5 13,13.05 11.5,13.6" />
+        <rect x="3.5" y="12.2" width="0.5" height="1.6" />
+      </g>
     </svg>
   )
 }
