@@ -18,7 +18,7 @@ function DateStrip({ dates, activeDate, onChange, onLoadEarlier, loadingEarlier 
       role="tablist"
       aria-label="Browse matches by date"
     >
-      {/* Load earlier — fixed outside the scrollable pill track so new pills never shift this button */}
+      {/* Explicit load-earlier button (kept for backwards compat with any caller that passes onLoadEarlier) */}
       {onLoadEarlier && (
         <button
           type="button"
@@ -38,6 +38,14 @@ function DateStrip({ dates, activeDate, onChange, onLoadEarlier, loadingEarlier 
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
+      )}
+
+      {/* Shimmer pill shown while auto-fetching earlier dates (no explicit button needed) */}
+      {!onLoadEarlier && loadingEarlier && (
+        <div
+          aria-hidden="true"
+          className="flex-shrink-0 self-center w-14 h-7 mx-1.5 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse"
+        />
       )}
 
       {/* Scrollable pill track */}

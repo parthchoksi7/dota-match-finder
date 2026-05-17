@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
@@ -118,6 +118,21 @@ function HomeFeed({
     : (availableDates[availableDates.length - 1]?.key ?? todayKey)
   const resolvedDate = activeDate ?? defaultDateKey
 
+  // Windowed date strip: show only 1 previous date + selected + all future dates.
+  // New data from background fetches only surfaces one pill at a time as the user navigates back.
+  const visibleDates = useMemo(() => {
+    const selectedIdx = availableDates.findIndex(d => d.key === resolvedDate)
+    if (selectedIdx <= 0) return availableDates
+    return availableDates.slice(selectedIdx - 1)
+  }, [availableDates, resolvedDate])
+
+  // Auto-fetch guarantee: if selected date is the leftmost available, keep loading until a previous date exists.
+  useEffect(() => {
+    if (!resolvedDate || !hasMore || loadingMore || !onLoadMore) return
+    const selectedIdx = availableDates.findIndex(d => d.key === resolvedDate)
+    if (selectedIdx === 0) onLoadMore()
+  }, [availableDates, resolvedDate, hasMore, loadingMore, onLoadMore])
+
   const isToday = resolvedDate === todayKey
 
   const activeLiveMatches = isToday ? liveMatches : []
@@ -234,14 +249,13 @@ function HomeFeed({
       {/* Date nav */}
       <div className="border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-950 overflow-hidden mb-3">
         <DateStrip
-          dates={availableDates}
+          dates={visibleDates}
           activeDate={resolvedDate}
           onChange={key => {
             setActiveDate(key)
             setExpandedTournamentName(null)
-            if (hasMore && !loadingMore && onLoadMore) onLoadMore()
           }}
-          onLoadEarlier={hasMore ? onLoadMore : null}
+          onLoadEarlier={null}
           loadingEarlier={loadingMore}
         />
       </div>

@@ -137,24 +137,27 @@ Two-line compact row for a scheduled match. Mobile-first: never truncates team n
 
 Scrollable horizontal row of date pills inside a gray pill-shaped track. Active date gets a filled white/dark pill with a shadow. Standard pattern used by Sofascore, FlashScore, and ESPN.
 
-**Structure:** two-zone flex row — a fixed left chevron button + a scrollable pill track. Keeping them separate prevents new pills loading on the left from ever shifting the button position.
+**Windowed view (HomeFeed):** the strip never shows all available dates at once. It always shows exactly 1 previous date (with matches) + the selected date + all future dates. As the user navigates back one day at a time, the window slides with them. New data loaded in the background only ever surfaces as a single new pill — no jarring multi-pill insertions.
 
 ```
-[ ‹ ] | [May 12] [May 13] [May 14] [Today] [Tomorrow]
-  ↑ fixed, outside scroll   ↑ overflow-x-auto, independent
+[May 13] [May 14 (selected)] [Today] [Tomorrow]
+   ↑ 1 previous day only     ↑ selected + all future dates
 ```
+
+**Auto-fetch guarantee:** a `useEffect` in HomeFeed watches `availableDates` and calls `onLoadMore()` whenever the selected date is at index 0 (no previous day visible) and `hasMore` is true. It loops until a previous date exists or `hasMore` becomes false. Date switching itself never calls `onLoadMore()` directly.
+
+**Loading state:** while auto-fetching, a shimmer placeholder pill appears at the far left of the strip. No explicit chevron button — the auto-fetch is invisible. Shimmer: `flex-shrink-0 w-14 h-7 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse`.
 
 - Outer container: `flex items-stretch bg-gray-100 dark:bg-gray-900`
-- **Load-earlier button** (fixed, outside scroll): `flex-shrink-0 flex items-center justify-center w-8 border-r border-gray-200 dark:border-gray-800 text-gray-400 ... disabled:opacity-30 transition-colors duration-150`. Left chevron SVG icon only — no text label. Only rendered when `onLoadEarlier` is provided. `disabled` during loading; no text swap, no spinner — the dim state is the only feedback.
+- **Shimmer pill** (left slot, shown when `loadingEarlier && !onLoadEarlier`): `flex-shrink-0 self-center w-14 h-7 mx-1.5 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse aria-hidden`
+- **Legacy chevron button** (kept in DateStrip for backwards compat): only rendered when `onLoadEarlier` is explicitly passed — HomeFeed passes `null`
 - **Scrollable pill track**: `flex flex-1 overflow-x-auto gap-1 p-1.5 [&::-webkit-scrollbar]:hidden` + `scrollbarWidth: 'none'` inline style
 - Active pill: `bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white rounded-full px-3 py-1.5`
 - Inactive pill: `text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full px-3 py-1.5`
 - Both pills: `flex-shrink-0 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-150`
 - Auto-scrolls active pill into center view on mount via `scrollIntoView({ behavior: 'instant', inline: 'center' })`
 - Hidden when `dates` is empty. Shown even with 1 date (label is informative).
-- Fires `date_strip_click` (per pill) and `load_earlier_click` (chevron button) GA events.
-
-**Why not a text button inside the scroll track:** a button inside `overflow-x-auto` shifts position every time new pills load to its right. The fixed two-zone layout eliminates all reflow.
+- Fires `date_strip_click` GA event per pill.
 
 ### Inline TournamentHub (hideStatusLabel mode)
 

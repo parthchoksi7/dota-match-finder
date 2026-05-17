@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 17, 2026",
+    tag: "improvement",
+    title: "Smoother date navigation",
+    desc: "The date strip now shows a clean window: one previous day, the selected day, and all upcoming dates. Scrolling back in time adds one day at a time instead of jumping in many dates at once. A subtle shimmer appears while older dates load.",
+  },
+  {
+    date: "May 17, 2026",
     tag: "fix",
     title: "Match results now appear within minutes of a series ending",
     desc: "Completed series now show up in the feed as soon as they finish, rather than waiting up to several hours for all stats to be processed. Kill scores fill in automatically on your next refresh once available.",
