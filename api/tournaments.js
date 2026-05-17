@@ -643,9 +643,9 @@ async function fetchTier1LeagueNames(token) {
 // to bridge the 30min–several-hour OpenDota /promatches indexing lag.
 // Kill scores are unavailable from PandaScore; radiantScore/direScore are null.
 
-const KV_RC_KEY = 'dota2:recent_completed_v1'
+const KV_RC_KEY = 'dota2:recent_completed_v2'
 const RC_TTL = 60 * 5   // 5 minutes
-const RC_FETCH_CAP = 5  // max individual PS /matches/{id} calls per cache refresh
+const RC_FETCH_CAP = 10  // max individual PS /matches/{id} calls per cache refresh
 
 const FORMAT_TO_SERIES_TYPE_RC = { best_of_1: 0, best_of_2: 3, best_of_3: 1, best_of_5: 2 }
 
@@ -756,15 +756,15 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
       } catch {}
     }
 
-    // Skip this PS match entirely if no game has a resolvable OD match_id
-    if (!matchGames.some(g => extIds[g.position])) continue
-
     const seriesType = FORMAT_TO_SERIES_TYPE_RC[m.match_type] ?? 1
     const tournamentName = buildMatchTournamentName(m)
 
     for (const g of matchGames) {
-      const extId = extIds[g.position]
-      if (!extId) continue  // skip games without a usable OD match_id
+      const resolvedId = extIds[g.position]
+      // Fall back to a PS-scoped ID when the OD match ID isn't available yet.
+      // These games still appear in the feed (teams, series record, duration) but
+      // without kill scores or VOD links until OD indexes the match.
+      const extId = resolvedId || `_ps-${m.id}-${g.position}`
 
       const radiantTeam = g.radiant_team?.name || opponents[0]?.opponent?.name || 'Radiant'
       const direTeam    = g.dire_team?.name    || opponents[1]?.opponent?.name || 'Dire'
@@ -788,6 +788,7 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
         twitchOffset: null,
         _fromPandaScore: true,
         _pandaMatchId: m.id,
+        _tempId: !resolvedId, // true when OD match ID not yet available; used by MatchDrawer
       })
     }
   }
