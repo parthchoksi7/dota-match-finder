@@ -658,7 +658,7 @@ function calcDuration(game) {
   return '00:00'
 }
 
-async function fetchRecentCompleted(token, bust = false) {
+async function fetchRecentCompleted(token, bust = false, debug = false) {
   if (!bust) {
     try {
       const cached = await kv.get(KV_RC_KEY)
@@ -795,6 +795,29 @@ async function fetchRecentCompleted(token, bust = false) {
   console.log(`recent-completed: ${games.length} games resolved with OD match IDs`)
 
   const payload = { games, fetchedAt: new Date().toISOString() }
+
+  if (debug) {
+    // Debug mode: return raw PS data so we can diagnose 0-games issues without log viewer.
+    // Only activated by ?debug=1 — never cached or exposed in normal operation.
+    payload._debug = {
+      rawCount,
+      tier1Count: psMatches.length,
+      url: `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=...`,
+      sampleMatches: psMatches.slice(0, 5).map(m => ({
+        id: m.id,
+        leagueName: m.league?.name,
+        tournamentTier: m.tournament?.tier,
+        opponents: m.opponents?.map(o => o.opponent?.name),
+        games: (m.games || []).map(g => ({
+          position: g.position,
+          status: g.status,
+          external_identifier: g.external_identifier,
+        })),
+      })),
+    }
+    return payload
+  }
+
   try {
     await kv.set(KV_RC_KEY, payload, { ex: RC_TTL })
   } catch (err) {
@@ -1246,12 +1269,13 @@ export default async function handler(req, res) {
   // Recent completed mode — PandaScore fallback for series not yet indexed by OpenDota.
   if (req.query?.mode === 'recent-completed') {
     const bust = req.query?.bust === '1'
+    const dbg  = req.query?.debug === '1'
     if (bust) {
       await kv.del(KV_RC_KEY).catch(() => {})
       console.log('recent-completed cache cleared')
     }
     try {
-      const data = await fetchRecentCompleted(token, bust)
+      const data = await fetchRecentCompleted(token, bust, dbg)
       res.setHeader('Cache-Control', 'no-store')
       return res.status(200).json(data)
     } catch (err) {
