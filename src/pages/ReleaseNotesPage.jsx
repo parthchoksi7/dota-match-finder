@@ -6,6 +6,20 @@ const RELEASES = [
   {
     date: "May 17, 2026",
     tag: "improvement",
+    title: "News feed: fresher sources, same-day articles",
+    desc: "The news page now pulls from four sources simultaneously so articles appear within hours instead of days.",
+    items: [
+      "Steam News JSON API added - Valve's own feed for official patch notes and third-party Dota coverage (PCGamesN, PC Gamer) sourced directly from Steam",
+      "Steam Community RSS updated to the verified-live endpoint so official announcements appear immediately",
+      "Liquipedia transfers added - individual roster move articles (e.g. 'Player X joins Team Y') sourced from Liquipedia's Portal:Transfers, covering the last 7 days",
+      "Currents API added for editorial coverage from outlets like Dot Esports - articles appear in real time once a CURRENTS_API_KEY is configured",
+      "All four sources fetch in parallel - a single slow or failing source does not delay or break the rest",
+      "Existing PCGamesN and Dot Esports RSS feeds kept as additional coverage; URL-level deduplication prevents duplicate articles from appearing",
+    ],
+  },
+  {
+    date: "May 17, 2026",
+    tag: "improvement",
     title: "Smoother date navigation",
     desc: "The date strip now shows a clean window: one previous day, the selected day, and all upcoming dates. Scrolling back in time adds one day at a time instead of jumping in many dates at once. A subtle shimmer appears while older dates load.",
   },
