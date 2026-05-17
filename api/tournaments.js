@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, fetchByTiers, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY } from './_shared.js'
+import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -676,11 +676,16 @@ async function fetchRecentCompleted(token, bust = false) {
 
   const now = new Date().toISOString()
   const ago48 = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
-  const baseUrl = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=40&range[end_at]=${ago48},${now}`
+  // filter[tier] is not supported on /dota2/matches/* endpoints (returns 400) — fetch
+  // without tier filter and apply isTier1Match / isTier1ByName client-side instead.
+  const url = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=${ago48},${now}`
 
   let psMatches
   try {
-    psMatches = await fetchByTiers(baseUrl, headers)
+    const res = await fetch(url, { headers })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    psMatches = Array.isArray(data) ? data : []
   } catch (err) {
     throw new Error(`PandaScore recent-completed fetch failed: ${err.message}`)
   }
