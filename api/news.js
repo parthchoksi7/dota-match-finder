@@ -332,17 +332,20 @@ async function fetchCurrentsApi() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     const items = data?.news || []
-    return items.map(item => ({
-      title: item.title || '',
-      link: item.url || '',
-      description: item.description || '',
-      // Currents dates come as "2026-05-17 10:30:00 +0000" — not reliably parsed by new Date()
-      pubDate: item.published
-        ? item.published.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})$/, '$1T$2$3')
-        : null,
-      categories: Array.isArray(item.category) ? item.category : [],
-      enclosureUrl: null,
-    }))
+    return items
+      // Currents keyword search is broad — filter to articles that actually mention Dota
+      .filter(item => `${item.title} ${item.description}`.toLowerCase().includes('dota'))
+      .map(item => ({
+        title: item.title || '',
+        link: item.url || '',
+        description: item.description || '',
+        // Currents dates come as "2026-05-17 10:30:00 +0000" — not reliably parsed by new Date()
+        pubDate: item.published
+          ? item.published.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})$/, '$1T$2$3')
+          : null,
+        categories: Array.isArray(item.category) ? item.category : [],
+        enclosureUrl: null,
+      }))
   } finally {
     clearTimeout(timer)
   }
