@@ -16,6 +16,33 @@ const MAX_PER_SOURCE = 25
 const MAX_TOTAL = 60
 const FEED_TIMEOUT_MS = 5000
 
+const STEAM_JSON_SOURCE = {
+  id: 'steam-news-api',
+  name: 'Dota 2 Official',
+  baseUrl: 'https://www.dota2.com',
+  games: ['dota2'],
+  reliability: 5,
+  categoryFilter: null,
+}
+
+const LIQUIPEDIA_SOURCE = {
+  id: 'liquipedia',
+  name: 'Liquipedia',
+  baseUrl: 'https://liquipedia.net',
+  games: ['dota2'],
+  reliability: 4,
+  categoryFilter: null,
+}
+
+const CURRENTS_SOURCE = {
+  id: 'currents',
+  name: 'Currents',
+  baseUrl: 'https://currentsapi.services',
+  games: ['dota2'],
+  reliability: 3,
+  categoryFilter: null,
+}
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
@@ -90,6 +117,14 @@ function parseDate(dateStr) {
   return isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+function domainFromUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return 'News'
+  }
+}
+
 // ── RSS / Atom parsing ────────────────────────────────────────────────────────
 
 function parseRssFeed(xml) {
@@ -156,6 +191,158 @@ async function fetchFeedWithTimeout(source) {
     if (!isXml) throw new Error(`Unexpected content-type: ${ct}`)
     const xml = await res.text()
     return parseRssFeed(xml)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// ── Steam News JSON API ───────────────────────────────────────────────────────
+
+async function fetchSteamJsonApi() {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS)
+  try {
+    const res = await fetch(
+      'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=570&count=20&maxlength=300&format=json',
+      {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'SpectateEsports/1.0 (+https://spectateesports.live)' },
+      }
+    )
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    const items = data?.appnews?.newsitems || []
+    return items.map(item => ({
+      title: stripHtml(item.title || ''),
+      link: item.url || '',
+      description: stripHtml(item.contents || ''),
+      // Steam dates are Unix seconds, not milliseconds
+      pubDate: item.date ? new Date(item.date * 1000).toISOString() : null,
+      categories: Array.isArray(item.tags) ? item.tags.map(t => t.tag || t) : [],
+      enclosureUrl: null,
+      _feedlabel: item.feedlabel || null,
+      _feedname: item.feedname || null,
+    }))
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// ── Liquipedia Transfers ──────────────────────────────────────────────────────
+
+function parseLiquipediaTransfers(html) {
+  const articles = []
+  const sevenDaysAgo = Date.now() - 7 * 86400_000
+  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || []
+
+  for (const row of rows) {
+    if (/<th/i.test(row)) continue
+
+    const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
+    if (tds.length < 4) continue
+
+    const dateText = stripHtml(tds[0][1]).trim()
+    const dateMatch = dateText.match(/(\d{4}-\d{2}-\d{2})/)
+    if (!dateMatch) continue
+
+    const date = new Date(dateMatch[1])
+    if (isNaN(date.getTime()) || date.getTime() < sevenDaysAgo) continue
+
+    const playerHtml = tds[1][1]
+    const playerName = stripHtml(playerHtml).trim()
+    const playerPathMatch = playerHtml.match(/href="(\/dota2\/[^"#?]+)"/)
+    const playerPath = playerPathMatch?.[1]
+
+    if (!playerName || playerName === '—' || playerName === '-') continue
+
+    const fromTeam = stripHtml(tds[2][1]).trim()
+    const toTeam = stripHtml(tds[3][1]).trim()
+    const transferType = tds[4] ? stripHtml(tds[4][1]).trim() : ''
+
+    if (!toTeam || toTeam === '—' || toTeam === '-') continue
+
+    const hasPrevTeam = fromTeam && fromTeam !== '—' && fromTeam !== '-'
+    const title = hasPrevTeam
+      ? `${playerName} joins ${toTeam}`
+      : `${playerName} signs with ${toTeam}`
+    const excerpt = [
+      hasPrevTeam ? `${fromTeam} → ${toTeam}` : toTeam,
+      transferType ? `(${transferType})` : '',
+    ].filter(Boolean).join(' ')
+
+    // Append date as fragment so each transfer gets a unique URL (prevents dedup across multiple
+    // transfers by the same player in the same week)
+    const transferDate = dateMatch[1]
+    const baseUrl = playerPath
+      ? `https://liquipedia.net${playerPath}`
+      : `https://liquipedia.net/dota2/Portal:Transfers`
+    articles.push({
+      title,
+      link: `${baseUrl}#${transferDate}`,
+      description: excerpt,
+      pubDate: date.toISOString(),
+      categories: ['roster'],
+      enclosureUrl: null,
+    })
+  }
+
+  return articles
+}
+
+async function fetchLiquipediaTransfers() {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10000)
+  try {
+    const res = await fetch(
+      'https://liquipedia.net/dota2/api.php?action=parse&page=Portal:Transfers&prop=text&format=json',
+      {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'SpectateEsports/1.0 (contact: admin@spectateesports.live)',
+          'Accept-Encoding': 'gzip',
+          'Accept': 'application/json',
+        },
+      }
+    )
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    const html = data?.parse?.text?.['*'] || ''
+    if (!html) throw new Error('Empty Liquipedia response')
+    return parseLiquipediaTransfers(html)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// ── Currents API ──────────────────────────────────────────────────────────────
+
+async function fetchCurrentsApi() {
+  const apiKey = process.env.CURRENTS_API_KEY
+  if (!apiKey) return []
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS)
+  try {
+    const url = new URL('https://api.currentsapi.services/v1/search')
+    url.searchParams.set('keywords', 'dota 2')
+    url.searchParams.set('language', 'en')
+    url.searchParams.set('apiKey', apiKey)
+
+    const res = await fetch(url.toString(), { signal: controller.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    const items = data?.news || []
+    return items.map(item => ({
+      title: item.title || '',
+      link: item.url || '',
+      description: item.description || '',
+      // Currents dates come as "2026-05-17 10:30:00 +0000" — not reliably parsed by new Date()
+      pubDate: item.published
+        ? item.published.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})$/, '$1T$2$3')
+        : null,
+      categories: Array.isArray(item.category) ? item.category : [],
+      enclosureUrl: null,
+    }))
   } finally {
     clearTimeout(timer)
   }
@@ -234,12 +421,20 @@ async function fetchAndCacheNews(game) {
     // Non-fatal - static list is a fine fallback
   }
 
-  const results = await Promise.allSettled(sources.map(fetchFeedWithTimeout))
+  const isDota2 = game === 'dota2'
+
+  const [rssResults, steamJsonItems, liquipediaItems, currentsItems] = await Promise.all([
+    Promise.allSettled(sources.map(fetchFeedWithTimeout)),
+    fetchSteamJsonApi().catch(err => { console.error('[news] steam-json failed:', err?.message); return [] }),
+    isDota2 ? fetchLiquipediaTransfers().catch(err => { console.error('[news] liquipedia failed:', err?.message); return [] }) : Promise.resolve([]),
+    fetchCurrentsApi().catch(err => { console.error('[news] currents failed:', err?.message); return [] }),
+  ])
 
   const perSourceMeta = []
   let articles = []
 
-  results.forEach((r, i) => {
+  // RSS sources
+  rssResults.forEach((r, i) => {
     const src = sources[i]
     if (r.status === 'fulfilled') {
       const normalized = r.value.slice(0, MAX_PER_SOURCE)
@@ -252,6 +447,38 @@ async function fetchAndCacheNews(game) {
       perSourceMeta.push({ id: src.id, name: src.name, count: 0, error: r.reason?.message })
     }
   })
+
+  // Steam News JSON API — use feedlabel as source name when available (e.g. "PCGamesN")
+  if (steamJsonItems.length > 0) {
+    const normalized = steamJsonItems.slice(0, MAX_PER_SOURCE)
+      .map(({ _feedlabel, _feedname, ...item }) => {
+        const src = _feedlabel
+          ? { ...STEAM_JSON_SOURCE, name: _feedlabel, id: `steam-${(_feedname || '').toLowerCase().replace(/[^a-z0-9]/g, '-') || 'other'}` }
+          : STEAM_JSON_SOURCE
+        return normalizeArticle(item, src)
+      })
+      .filter(Boolean)
+    articles.push(...normalized)
+    perSourceMeta.push({ id: STEAM_JSON_SOURCE.id, name: 'Steam News API', count: normalized.length })
+  }
+
+  // Liquipedia transfer news
+  if (liquipediaItems.length > 0) {
+    const normalized = liquipediaItems.slice(0, MAX_PER_SOURCE)
+      .map(item => normalizeArticle(item, LIQUIPEDIA_SOURCE))
+      .filter(Boolean)
+    articles.push(...normalized)
+    perSourceMeta.push({ id: LIQUIPEDIA_SOURCE.id, name: LIQUIPEDIA_SOURCE.name, count: normalized.length })
+  }
+
+  // Currents API — label each article by its publisher's domain
+  if (currentsItems.length > 0) {
+    const normalized = currentsItems.slice(0, MAX_PER_SOURCE)
+      .map(item => normalizeArticle(item, { ...CURRENTS_SOURCE, name: domainFromUrl(item.link) }))
+      .filter(Boolean)
+    articles.push(...normalized)
+    perSourceMeta.push({ id: CURRENTS_SOURCE.id, name: 'Currents API', count: normalized.length })
+  }
 
   // Drop stale articles
   const cutoff = Date.now() - MAX_AGE_DAYS * 86400_000

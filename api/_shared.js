@@ -222,7 +222,7 @@ export const NEWS_SOURCES = [
   {
     id: 'steam-dota2',
     name: 'Dota 2 Official',
-    feedUrl: 'https://store.steampowered.com/feeds/news/app/570/',
+    feedUrl: 'https://steamcommunity.com/games/dota2/rss/',
     games: ['dota2'],
     reliability: 5,
     baseUrl: 'https://www.dota2.com',
