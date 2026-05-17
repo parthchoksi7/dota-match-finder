@@ -2,6 +2,8 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
+import { get as httpsGet } from 'node:https'
+import { createGunzip } from 'node:zlib'
 import { XMLParser } from 'fast-xml-parser'
 import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER } from './_shared.js'
 
@@ -228,90 +230,138 @@ async function fetchSteamJsonApi() {
   }
 }
 
+// ── HTTPS+gzip helper (Liquipedia requires Accept-Encoding: gzip) ────────────
+
+function httpsGetGzip(url, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const req = httpsGet(
+      {
+        hostname: parsed.hostname,
+        path: parsed.pathname + parsed.search,
+        headers: {
+          'User-Agent': 'SpectateEsports/1.0 (contact: admin@spectateesports.live)',
+          'Accept-Encoding': 'gzip',
+          'Accept': 'application/json',
+        },
+      },
+      (res) => {
+        if (res.statusCode !== 200) {
+          res.resume()
+          reject(new Error(`HTTP ${res.statusCode}`))
+          return
+        }
+        const enc = (res.headers['content-encoding'] || '').toLowerCase()
+        const stream = enc === 'gzip' ? res.pipe(createGunzip()) : res
+        const chunks = []
+        stream.on('data', c => chunks.push(c))
+        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
+        stream.on('error', reject)
+      }
+    )
+    req.on('error', reject)
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error('Request timed out'))
+    })
+  })
+}
+
+function getCurrentTransferPage() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const quarter = Math.ceil((now.getMonth() + 1) / 3)
+  const suffix = ['1st', '2nd', '3rd', '4th'][quarter - 1]
+  return `Transfers/${year}/${suffix}_Quarter`
+}
+
 // ── Liquipedia Transfers ──────────────────────────────────────────────────────
 
-function parseLiquipediaTransfers(html) {
+// Liquipedia uses CSS div-tables (divRow/divCell), not <table> elements.
+// Each row has: Date | Name | Team OldTeam | Icon | Team NewTeam | Ref
+function parseLiquipediaTransfers(html, page = 'Portal:Transfers') {
   const articles = []
-  const sevenDaysAgo = Date.now() - 7 * 86400_000
-  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || []
+  const fourteenDaysAgo = Date.now() - 14 * 86400_000
 
-  for (const row of rows) {
-    if (/<th/i.test(row)) continue
+  // Split at each divRow boundary to isolate row chunks
+  const rowSections = html.split('<div class="divRow mainpage-transfer')
 
-    const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
-    if (tds.length < 4) continue
+  for (let i = 1; i < rowSections.length; i++) {
+    const chunk = rowSections[i]
 
-    const dateText = stripHtml(tds[0][1]).trim()
+    // Split at divCell boundaries to isolate each cell's content
+    const cellParts = chunk.split('<div class="divCell ')
+    const cells = {}
+    for (const part of cellParts.slice(1)) {
+      const gtIdx = part.indexOf('>')
+      const cellKey = part.slice(0, gtIdx).replace(/"/g, '').trim()
+      cells[cellKey] = part.slice(gtIdx + 1)
+    }
+
+    const dateText = stripHtml(cells['Date'] || '').trim()
     const dateMatch = dateText.match(/(\d{4}-\d{2}-\d{2})/)
     if (!dateMatch) continue
 
     const date = new Date(dateMatch[1])
-    if (isNaN(date.getTime()) || date.getTime() < sevenDaysAgo) continue
-
-    const playerHtml = tds[1][1]
-    const playerName = stripHtml(playerHtml).trim()
-    const playerPathMatch = playerHtml.match(/href="(\/dota2\/[^"#?]+)"/)
-    const playerPath = playerPathMatch?.[1]
-
-    if (!playerName || playerName === '—' || playerName === '-') continue
-
-    const fromTeam = stripHtml(tds[2][1]).trim()
-    const toTeam = stripHtml(tds[3][1]).trim()
-    const transferType = tds[4] ? stripHtml(tds[4][1]).trim() : ''
-
-    if (!toTeam || toTeam === '—' || toTeam === '-') continue
-
-    const hasPrevTeam = fromTeam && fromTeam !== '—' && fromTeam !== '-'
-    const title = hasPrevTeam
-      ? `${playerName} joins ${toTeam}`
-      : `${playerName} signs with ${toTeam}`
-    const excerpt = [
-      hasPrevTeam ? `${fromTeam} → ${toTeam}` : toTeam,
-      transferType ? `(${transferType})` : '',
-    ].filter(Boolean).join(' ')
-
-    // Append date as fragment so each transfer gets a unique URL (prevents dedup across multiple
-    // transfers by the same player in the same week)
+    if (isNaN(date.getTime()) || date.getTime() < fourteenDaysAgo) continue
     const transferDate = dateMatch[1]
-    const baseUrl = playerPath
-      ? `https://liquipedia.net${playerPath}`
-      : `https://liquipedia.net/dota2/Portal:Transfers`
-    articles.push({
-      title,
-      link: `${baseUrl}#${transferDate}`,
-      description: excerpt,
-      pubDate: date.toISOString(),
-      categories: ['roster'],
-      enclosureUrl: null,
-    })
+
+    // Extract player links; skip red-links (index.php = page doesn't exist)
+    const nameHtml = cells['Name'] || ''
+    const playerLinks = [...nameHtml.matchAll(/href="(\/dota2\/(?!index\.php)[^"#?]+)"[^>]*>([^<]+)<\/a>/g)]
+    if (!playerLinks.length) continue
+
+    // Team names via data-highlighting-class (most reliable — avoids img alt ambiguity)
+    const fromTeamMatch = (cells['Team OldTeam'] || '').match(/data-highlighting-class="([^"]+)"/)
+    const toTeamMatch = (cells['Team NewTeam'] || '').match(/data-highlighting-class="([^"]+)"/)
+    const fromTeam = fromTeamMatch?.[1] || ''
+    const toTeam = toTeamMatch?.[1] || ''
+
+    if (!toTeam || /^(TBD|None)$/i.test(toTeam)) continue
+    if (fromTeam && fromTeam === toTeam) continue // skip renewals/extensions
+
+    if (playerLinks.length === 1) {
+      const [, playerPath, playerName] = playerLinks[0]
+      const title = fromTeam
+        ? `${playerName} moves to ${toTeam}`
+        : `${playerName} signs with ${toTeam}`
+      const excerpt = fromTeam ? `${fromTeam} → ${toTeam}` : toTeam
+      articles.push({
+        title,
+        link: `https://liquipedia.net${playerPath}#${transferDate}`,
+        description: excerpt,
+        pubDate: date.toISOString(),
+        categories: ['roster'],
+        enclosureUrl: null,
+      })
+    } else {
+      // Multiple players = roster signing
+      const playerNames = playerLinks.map(([, , n]) => n).join(', ')
+      const title = fromTeam
+        ? `${toTeam} acquires players from ${fromTeam}`
+        : `${toTeam} signs new roster`
+      const teamSlug = toTeam.replace(/ /g, '_')
+      articles.push({
+        title,
+        link: `https://liquipedia.net/dota2/${encodeURIComponent(teamSlug)}#${transferDate}`,
+        description: playerNames,
+        pubDate: date.toISOString(),
+        categories: ['roster'],
+        enclosureUrl: null,
+      })
+    }
   }
 
   return articles
 }
 
 async function fetchLiquipediaTransfers() {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10000)
-  try {
-    const res = await fetch(
-      'https://liquipedia.net/dota2/api.php?action=parse&page=Portal:Transfers&prop=text&format=json',
-      {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'SpectateEsports/1.0 (contact: admin@spectateesports.live)',
-          'Accept-Encoding': 'gzip',
-          'Accept': 'application/json',
-        },
-      }
-    )
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
-    const html = data?.parse?.text?.['*'] || ''
-    if (!html) throw new Error('Empty Liquipedia response')
-    return parseLiquipediaTransfers(html)
-  } finally {
-    clearTimeout(timer)
-  }
+  const page = getCurrentTransferPage()
+  const url = `https://liquipedia.net/dota2/api.php?action=parse&page=${encodeURIComponent(page)}&prop=text&format=json`
+  const text = await httpsGetGzip(url)
+  const data = JSON.parse(text)
+  const html = data?.parse?.text?.['*'] || ''
+  if (!html) throw new Error('Empty Liquipedia response')
+  return parseLiquipediaTransfers(html, page)
 }
 
 // ── Currents API ──────────────────────────────────────────────────────────────

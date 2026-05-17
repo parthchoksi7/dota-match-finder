@@ -675,10 +675,12 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const now = new Date().toISOString()
-  const ago48 = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+  // 8-hour window: OD typically indexes within 1-4h. Keeping the window short prevents
+  // stale PS games from appearing alongside already-indexed OD matches as duplicates.
   // filter[tier] is not supported on /dota2/matches/* endpoints (returns 400) — fetch
   // without tier filter and apply isTier1Match / isTier1ByName client-side instead.
-  const url = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=${ago48},${now}`
+  const ago8h = new Date(Date.now() - 8 * 3600 * 1000).toISOString()
+  const url = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=${ago8h},${now}`
 
   let psMatches
   try {

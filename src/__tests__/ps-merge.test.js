@@ -170,19 +170,42 @@ describe('mergeWithPsGames', () => {
     expect(result[0]._fromPandaScore).toBe(false)
   })
 
-  it('_tempId dedup: does not suppress when OD match with same teams is older than 72h', () => {
-    const old = Math.floor(Date.now() / 1000) - 80 * 3600 // 80h ago — outside window
+  it('_tempId dedup: does not suppress when OD match with same teams is older than 8h', () => {
+    const old = Math.floor(Date.now() / 1000) - 10 * 3600 // 10h ago — outside 8h window
     const recent = Math.floor(Date.now() / 1000) - 1800   // 30min ago
-    // OD only has an OLD Aurora vs Vici match; new series not yet indexed
     const matches = [makeOdMatch('8800000001', 1098400, old, 'Team Liquid', 'Vici Gaming')]
     const psGames = [
       makeTempPsGame(1487821, 1, 1487821, recent, 'Team Liquid', 'Vici Gaming'),
       makeTempPsGame(1487821, 2, 1487821, recent + 100, 'Team Liquid', 'Vici Gaming'),
     ]
     const result = mergeWithPsGames(matches, psGames)
-    // Should inject because the OD match is outside the 72h window
+    // Should inject because the OD match is outside the 8h window
     expect(result).toHaveLength(3)
     const injected = result.filter(m => m._fromPandaScore)
     expect(injected).toHaveLength(2)
+  })
+
+  it('name mismatch: "Aurora" (PS) vs "Aurora Gaming" (OD) - substring match deduplicates', () => {
+    // PS uses short names, OD uses full names — "aurora gaming".includes("aurora") = true
+    const recent = Math.floor(Date.now() / 1000) - 1800
+    const matches = [makeOdMatch('999', 500, recent, 'Aurora Gaming', 'Gaimin Gladiators')]
+    const psGames = [
+      makeTempPsGame(7777, 1, 7777, recent, 'Aurora', 'Gaimin Gladiators'),
+    ]
+    const result = mergeWithPsGames(matches, psGames)
+    expect(result).toHaveLength(1)
+    expect(result[0]._fromPandaScore).toBe(false)
+  })
+
+  it('name mismatch: "BetBoom" (PS) vs "BetBoom Team" (OD) - substring match deduplicates', () => {
+    // "betboom team".includes("betboom") = true
+    const recent = Math.floor(Date.now() / 1000) - 1800
+    const matches = [makeOdMatch('888', 500, recent, 'BetBoom Team', 'Team Spirit')]
+    const psGames = [
+      makeTempPsGame(6666, 1, 6666, recent, 'BetBoom', 'Team Spirit'),
+    ]
+    const result = mergeWithPsGames(matches, psGames)
+    expect(result).toHaveLength(1)
+    expect(result[0]._fromPandaScore).toBe(false)
   })
 })

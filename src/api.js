@@ -48,6 +48,22 @@ async function fetchPremiumLeagueIds() {
  *      matching OD game so groupIntoSeries puts them all in the same bucket.
  * Returns a new array sorted by startTime descending.
  */
+/**
+ * Fuzzy team-name match: same bidirectional substring logic as teamsMatch() in
+ * api/match-streams.js. Handles PS/OD name discrepancies like "Aurora" vs "Aurora
+ * Gaming" or "BetBoom Team" vs "BetBoom". Does NOT match very different names like
+ * "BB" vs "BetBoom Team" — the time-based dedup covers that fallback.
+ */
+function psTeamsMatchOd(psRadiant, psDire, odRadiant, odDire) {
+  const a = (psRadiant || '').toLowerCase()
+  const b = (psDire || '').toLowerCase()
+  const r = (odRadiant || '').toLowerCase()
+  const d = (odDire || '').toLowerCase()
+  if (!a || !b || !r || !d) return false
+  const m = (x, y) => x.includes(y) || y.includes(x)
+  return (m(a, r) || m(a, d)) && (m(b, r) || m(b, d))
+}
+
 export function mergeWithPsGames(matches, psGames) {
   if (!psGames || psGames.length === 0) return matches
 
@@ -55,16 +71,11 @@ export function mergeWithPsGames(matches, psGames) {
   const odIdToSeriesId = {}
   for (const m of matches) odIdToSeriesId[m.id] = m.seriesId
 
-  // Team pairs from recent OD matches (last 72h) — used to skip injection when OD
-  // has indexed a series that PS would otherwise inject with _tempId (fallback) IDs.
-  // Scoped to 72h so older same-team matchups don't suppress injection of new series.
-  const recentCutoff = Date.now() / 1000 - 72 * 3600
-  const odRecentTeamPairs = new Set()
-  for (const m of matches) {
-    if ((m.startTime || 0) < recentCutoff) continue
-    const key = [m.radiantTeam || '', m.direTeam || ''].sort().join('|')
-    if (key !== '|') odRecentTeamPairs.add(key)
-  }
+  // Time threshold: skip _tempId PS games older than 8h as a backstop for cases
+  // where fuzzy name matching fails (e.g. "BB" vs "BetBoom Team").
+  const PS_MAX_AGE_SECONDS = 8 * 3600
+  const psInjectAfter = Date.now() / 1000 - PS_MAX_AGE_SECONDS
+  const recentOdMatches = matches.filter(m => (m.startTime || 0) > psInjectAfter)
 
   const psByMatch = {}
   for (const g of psGames) {
@@ -79,12 +90,14 @@ export function mergeWithPsGames(matches, psGames) {
     if (notInOD.length === 0) continue
 
     if (inOD.length === 0) {
-      // All PS games have _tempId — check if OD already has this team matchup.
-      // If so, OD has indexed the series and we should use it instead of the PS version.
       if (pgames.every(g => g._tempId)) {
+        const latestStartTime = Math.max(...pgames.map(g => g.startTime || 0))
+        // Time backstop: if the series is old, OD should have indexed it.
+        if (latestStartTime < psInjectAfter) continue
+        // Fuzzy name match (same approach as match-streams.js): if OD has a recent
+        // game with the same two teams, skip injection to avoid duplicate cards.
         const first = pgames[0]
-        const teamKey = [first.radiantTeam || '', first.direTeam || ''].sort().join('|')
-        if (odRecentTeamPairs.has(teamKey)) continue
+        if (recentOdMatches.some(m => psTeamsMatchOd(first.radiantTeam, first.direTeam, m.radiantTeam, m.direTeam))) continue
       }
       toInject.push(...pgames)
     } else {
