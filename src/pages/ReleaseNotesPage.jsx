@@ -34,6 +34,7 @@ const RELEASES = [
       "Series record (2-1, 1-0, etc.) is always accurate regardless of stats availability",
       "VOD links resolve normally if the match was live earlier in the session",
       "Once OpenDota processes the match, a pull-to-refresh replaces the pending state with full stats",
+      "Fixed: series already indexed by OpenDota no longer appear twice (once with kill scores, once with 'Stats pending')",
     ],
   },
   {

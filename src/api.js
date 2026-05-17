@@ -55,6 +55,17 @@ export function mergeWithPsGames(matches, psGames) {
   const odIdToSeriesId = {}
   for (const m of matches) odIdToSeriesId[m.id] = m.seriesId
 
+  // Team pairs from recent OD matches (last 72h) — used to skip injection when OD
+  // has indexed a series that PS would otherwise inject with _tempId (fallback) IDs.
+  // Scoped to 72h so older same-team matchups don't suppress injection of new series.
+  const recentCutoff = Date.now() / 1000 - 72 * 3600
+  const odRecentTeamPairs = new Set()
+  for (const m of matches) {
+    if ((m.startTime || 0) < recentCutoff) continue
+    const key = [m.radiantTeam || '', m.direTeam || ''].sort().join('|')
+    if (key !== '|') odRecentTeamPairs.add(key)
+  }
+
   const psByMatch = {}
   for (const g of psGames) {
     const pid = String(g._pandaMatchId)
@@ -66,7 +77,15 @@ export function mergeWithPsGames(matches, psGames) {
     const inOD = pgames.filter(g => odIds.has(g.id))
     const notInOD = pgames.filter(g => !odIds.has(g.id))
     if (notInOD.length === 0) continue
+
     if (inOD.length === 0) {
+      // All PS games have _tempId — check if OD already has this team matchup.
+      // If so, OD has indexed the series and we should use it instead of the PS version.
+      if (pgames.every(g => g._tempId)) {
+        const first = pgames[0]
+        const teamKey = [first.radiantTeam || '', first.direTeam || ''].sort().join('|')
+        if (odRecentTeamPairs.has(teamKey)) continue
+      }
       toInject.push(...pgames)
     } else {
       const bridgeSeriesId = odIdToSeriesId[inOD[0].id]
