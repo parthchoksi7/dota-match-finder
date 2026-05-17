@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL } from './_shared.js'
+import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, fetchByTiers, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -571,7 +571,6 @@ async function fetchSeriesList(token) {
 // Used by src/api.js to filter OpenDota promatches to only Tier 1 events,
 // replacing the broader OpenDota "professional" tier classification.
 
-const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
 const TIER1_NAMES_TTL = 60 * 60 * 2 // 2 hours
 
 // Permanent tier 1 league organizers — always included regardless of PandaScore
@@ -636,6 +635,160 @@ async function fetchTier1LeagueNames(token) {
     kv.set(KV_TIER1_NAMES_KEY, names, { ex: TIER1_NAMES_TTL }).catch(() => {})
   }
   return names
+}
+
+// ── Recent Completed mode (?mode=recent-completed) ──────────────────────────
+// Returns recently-completed tier-1 series from PandaScore, formatted as match
+// objects shaped identically to fetchProMatches() output. Used by the frontend
+// to bridge the 30min–several-hour OpenDota /promatches indexing lag.
+// Kill scores are unavailable from PandaScore; radiantScore/direScore are null.
+
+const KV_RC_KEY = 'dota2:recent_completed_v1'
+const RC_TTL = 60 * 5   // 5 minutes
+const RC_FETCH_CAP = 5  // max individual PS /matches/{id} calls per cache refresh
+
+const FORMAT_TO_SERIES_TYPE_RC = { best_of_1: 0, best_of_2: 3, best_of_3: 1, best_of_5: 2 }
+
+function calcDuration(game) {
+  if (game.length != null) return new Date(game.length * 1000).toISOString().slice(11, 16)
+  if (game.begin_at && game.end_at) {
+    const secs = Math.max(0, Math.floor((new Date(game.end_at) - new Date(game.begin_at)) / 1000))
+    return new Date(secs * 1000).toISOString().slice(11, 16)
+  }
+  return '00:00'
+}
+
+async function fetchRecentCompleted(token, bust = false) {
+  if (!bust) {
+    try {
+      const cached = await kv.get(KV_RC_KEY)
+      if (cached) {
+        console.log('recent-completed: serving from KV cache')
+        return cached
+      }
+    } catch (err) {
+      console.warn('recent-completed KV read failed:', err?.message)
+    }
+  }
+
+  console.log('recent-completed: fetching from PandaScore')
+  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+
+  const now = new Date().toISOString()
+  const ago48 = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+  const baseUrl = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=40&range[end_at]=${ago48},${now}`
+
+  let psMatches
+  try {
+    psMatches = await fetchByTiers(baseUrl, headers)
+  } catch (err) {
+    throw new Error(`PandaScore recent-completed fetch failed: ${err.message}`)
+  }
+
+  // Build name list for isTier1ByName fallback (catches leagues where tier is null)
+  let tier1Names = []
+  try {
+    const cached = await kv.get(KV_TIER1_NAMES_KEY)
+    if (Array.isArray(cached)) tier1Names = cached.map(n => n.toLowerCase())
+  } catch {}
+  const permanentNames = SHARED_PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
+  const allNames = [...new Set([...permanentNames, ...tier1Names])]
+
+  psMatches = psMatches.filter(m => isTier1Match(m) || isTier1ByName(m, allNames))
+  console.log(`recent-completed: ${psMatches.length} tier-1 matches after filter`)
+
+  let individualFetchBudget = RC_FETCH_CAP
+  const games = []
+
+  for (const m of psMatches) {
+    const opponents = m.opponents || []
+    const matchGames = (m.games || []).filter(g => g.status === 'finished')
+    if (matchGames.length === 0) continue
+
+    // --- Three-tier external_identifier lookup ---
+
+    // Tier 1: direct from bulk response
+    const extIds = {}
+    for (const g of matchGames) {
+      if (g.external_identifier) extIds[g.position] = String(g.external_identifier)
+    }
+
+    // Tier 2: KV batch (written by live-matches cron while game was running)
+    const missingAfterBulk = matchGames.filter(g => !extIds[g.position])
+    if (missingAfterBulk.length > 0) {
+      try {
+        const keys = missingAfterBulk.map(g => `live:game:${m.id}:${g.position}`)
+        const vals = await kv.mget(...keys)
+        missingAfterBulk.forEach((g, i) => {
+          if (vals[i]) extIds[g.position] = String(vals[i])
+        })
+      } catch {}
+    }
+
+    // Tier 3: individual PS fetch (capped to avoid rate limiting)
+    const missingAfterKv = matchGames.filter(g => !extIds[g.position])
+    if (missingAfterKv.length > 0 && individualFetchBudget > 0) {
+      individualFetchBudget--
+      try {
+        const detailRes = await fetch(`${PANDASCORE_BASE}/matches/${m.id}`, { headers })
+        if (detailRes.ok) {
+          const detail = await detailRes.json()
+          for (const g of (detail.games || [])) {
+            if (g.status === 'finished' && g.external_identifier) {
+              extIds[g.position] = String(g.external_identifier)
+              // Backfill KV so next cache refresh skips this fetch
+              kv.set(`live:game:${m.id}:${g.position}`, String(g.external_identifier), { ex: STREAM_TTL }).catch(() => {})
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Skip this PS match entirely if no game has a resolvable OD match_id
+    if (!matchGames.some(g => extIds[g.position])) continue
+
+    const seriesType = FORMAT_TO_SERIES_TYPE_RC[m.match_type] ?? 1
+    const tournamentName = buildMatchTournamentName(m)
+
+    for (const g of matchGames) {
+      const extId = extIds[g.position]
+      if (!extId) continue  // skip games without a usable OD match_id
+
+      const radiantTeam = g.radiant_team?.name || opponents[0]?.opponent?.name || 'Radiant'
+      const direTeam    = g.dire_team?.name    || opponents[1]?.opponent?.name || 'Dire'
+      const radiantWin  = g.winner?.id != null ? g.winner.id === g.radiant_team?.id : false
+      const startTime   = g.begin_at ? Math.floor(new Date(g.begin_at).getTime() / 1000) : 0
+
+      games.push({
+        id: extId,
+        tournament: tournamentName,
+        date: new Date(startTime * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        radiantTeam,
+        direTeam,
+        radiantScore: null,
+        direScore: null,
+        radiantWin,
+        duration: calcDuration(g),
+        startTime,
+        seriesId: m.id,      // PandaScore match.id; overridden by merge logic on the frontend
+        seriesType,
+        twitchVodId: null,
+        twitchOffset: null,
+        _fromPandaScore: true,
+        _pandaMatchId: m.id,
+      })
+    }
+  }
+
+  console.log(`recent-completed: ${games.length} games resolved with OD match IDs`)
+
+  const payload = { games, fetchedAt: new Date().toISOString() }
+  try {
+    await kv.set(KV_RC_KEY, payload, { ex: RC_TTL })
+  } catch (err) {
+    console.warn('recent-completed KV write failed:', err?.message)
+  }
+  return payload
 }
 
 // ── Grand Finals mode (?mode=grand-finals) ──────────────────────────────────
@@ -1075,6 +1228,23 @@ export default async function handler(req, res) {
     } catch (err) {
       console.warn('match-formats KV read failed:', err?.message)
       return res.status(200).json({ formats: {} })
+    }
+  }
+
+  // Recent completed mode — PandaScore fallback for series not yet indexed by OpenDota.
+  if (req.query?.mode === 'recent-completed') {
+    const bust = req.query?.bust === '1'
+    if (bust) {
+      await kv.del(KV_RC_KEY).catch(() => {})
+      console.log('recent-completed cache cleared')
+    }
+    try {
+      const data = await fetchRecentCompleted(token, bust)
+      res.setHeader('Cache-Control', 'no-store')
+      return res.status(200).json(data)
+    } catch (err) {
+      console.error('recent-completed error:', err?.message)
+      return res.status(200).json({ games: [], fetchedAt: new Date().toISOString(), error: err?.message })
     }
   }
 

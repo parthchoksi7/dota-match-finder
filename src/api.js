@@ -39,6 +39,45 @@ async function fetchPremiumLeagueIds() {
   return _premiumLeagueIds || new Set()
 }
 
+/**
+ * Merge PandaScore recent-completed games into an OD match array.
+ * Three cases per PS series (grouped by _pandaMatchId):
+ *   1. All games already in OD - skip (OD is authoritative, has kill scores)
+ *   2. No games in OD - inject all PS games (series shows "Stats pending")
+ *   3. Some games in OD - inject missing PS games, bridging seriesId from the
+ *      matching OD game so groupIntoSeries puts them all in the same bucket.
+ * Returns a new array sorted by startTime descending.
+ */
+export function mergeWithPsGames(matches, psGames) {
+  if (!psGames || psGames.length === 0) return matches
+
+  const odIds = new Set(matches.map(m => m.id))
+  const odIdToSeriesId = {}
+  for (const m of matches) odIdToSeriesId[m.id] = m.seriesId
+
+  const psByMatch = {}
+  for (const g of psGames) {
+    const pid = String(g._pandaMatchId)
+    ;(psByMatch[pid] = psByMatch[pid] || []).push(g)
+  }
+
+  const toInject = []
+  for (const pgames of Object.values(psByMatch)) {
+    const inOD = pgames.filter(g => odIds.has(g.id))
+    const notInOD = pgames.filter(g => !odIds.has(g.id))
+    if (notInOD.length === 0) continue
+    if (inOD.length === 0) {
+      toInject.push(...pgames)
+    } else {
+      const bridgeSeriesId = odIdToSeriesId[inOD[0].id]
+      toInject.push(...notInOD.map(g => ({ ...g, seriesId: bridgeSeriesId ?? g.seriesId })))
+    }
+  }
+
+  if (toInject.length === 0) return matches
+  return [...matches, ...toInject].sort((a, b) => b.startTime - a.startTime)
+}
+
 export async function fetchProMatches(lastMatchId = null) {
   const url = lastMatchId
     ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${lastMatchId}`
@@ -47,9 +86,10 @@ export async function fetchProMatches(lastMatchId = null) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25000)
 
-  // Fetch tier1 names and premium IDs in parallel with the promatches request.
-  // Both are cached after the first call so load-more incurs no extra latency.
-  let res
+  // Fetch tier1 names, premium IDs, OD promatches, and PS recent-completed in parallel.
+  // PS fetch only runs on initial load (not load-more pages) to avoid re-injecting data
+  // already in allMatches. All caches are warm after the first call so latency is minimal.
+  let res, psGames = []
   const [tier1Names, premiumIds] = await Promise.all([
     fetchTier1LeagueNames(),
     fetchPremiumLeagueIds(),
@@ -60,6 +100,12 @@ export async function fetchProMatches(lastMatchId = null) {
         clearTimeout(timeoutId)
       }
     })(),
+    lastMatchId === null
+      ? fetch('/api/tournaments?mode=recent-completed')
+          .then(r => r.ok ? r.json() : { games: [] })
+          .then(d => { psGames = Array.isArray(d.games) ? d.games : [] })
+          .catch(() => {})
+      : Promise.resolve(),
   ])
 
   if (!res.ok) throw new Error(`OpenDota promatches error: ${res.status}`)
@@ -131,7 +177,7 @@ export async function fetchProMatches(lastMatchId = null) {
     }
   } catch {}
 
-  return { matches, nextMatchId: cursor }
+  return { matches: mergeWithPsGames(matches, psGames), nextMatchId: cursor }
 }
 
 /**

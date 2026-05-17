@@ -340,7 +340,11 @@ function App() {
     trackEvent("load_more", { searchQuery: searchQuery || "homepage" })
     try {
       const { matches: newMatches, nextMatchId: newNextId } = await fetchProMatches(nextMatchId)
-      setAllMatches(prev => [...prev, ...newMatches])
+      setAllMatches(prev => {
+          const existingIds = new Set(prev.map(m => m.id))
+          const dedupedNew = newMatches.filter(m => !existingIds.has(m.id))
+          return [...prev, ...dedupedNew]
+        })
       setNextMatchId(newNextId)
     } catch {
       // silently fail

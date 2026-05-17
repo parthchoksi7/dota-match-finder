@@ -88,6 +88,18 @@ Run through these after any significant code change. Focus on the areas touched 
 - [ ] Confirm there are NO GROUP A / GROUP B tabs above the tournament card
 - [ ] Stage switching only happens via the picker inside Standings/Schedule tabs
 
+### PandaScore Recent-Completed Fallback
+
+- [ ] Within 5 minutes of a tier-1 series ending, it appears in the feed with correct series record (2-1 etc.)
+- [ ] Match details panel shows "STATS PENDING" in the score row for PS-sourced games
+- [ ] Team name colors show winner (white) vs loser (gray) even in "Stats pending" state
+- [ ] VOD link resolves normally if the stream was cached during the live phase
+- [ ] After OD indexes the match (30+ min later), pull-to-refresh replaces "Stats pending" with kill scores
+- [ ] PandaScore error: OD feed renders normally even if `/api/tournaments?mode=recent-completed` fails
+- [ ] Load more: no duplicate series cards when OD eventually indexes a PS-sourced match
+- [ ] `/api/tournaments?mode=recent-completed` returns `{ games: [...] }` shape on success
+- [ ] `/api/tournaments?mode=recent-completed&bust=1` returns fresh data (not from KV cache)
+
 ### BO2 Specific (critical edge cases)
 
 - [ ] A completed BO2 1-1 draw appears in "Latest Results" (not filtered out)
@@ -124,6 +136,7 @@ For features that touch core match data, series grouping, or new API integration
 | Calendar changes | Subscribe URL generates; .ics downloads; events appear in calendar app |
 | Search changes | Search and clear both work; query is tracked in GA4 |
 | Tier filter changes | At least one known tier-S or tier-A event (e.g. DreamLeague, PGL, Premier Series, ESL Challenger) appears in live/upcoming/tournaments; a known non-pro event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results. Any new `filter[param]=value` added to a PandaScore URL must be tested for multi-value support before using comma-separated syntax -- write a unit test that mocks `fetch` and asserts the URL contains the expected single-value parameter |
+| PandaScore recent-completed fallback | Within 5 minutes of a major series ending: series appears in the feed with correct series record (e.g. 2-1). Match details panel shows "STATS PENDING" in the score row (not triple dashes, not 0-0). Series card shows the correct winner in bold. VOD link resolves if the match was live earlier in the session. After OD indexes (30+ min): pull-to-refresh replaces "STATS PENDING" with actual kill scores. PandaScore API failure must not affect the OD feed: temporarily test by checking `/api/tournaments?mode=recent-completed` returns `{ games: [] }` on error, and verifying the homepage renders normally. `/api/tournaments?mode=recent-completed&bust=1` returns non-empty `games` array during active tournament days. |
 
 ---
 

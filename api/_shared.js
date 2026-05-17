@@ -251,6 +251,22 @@ export const NEWS_SOURCES = [
   },
 ]
 
+/**
+ * Builds a display name for a PandaScore match/series object.
+ * Combines league + serie names, normalises "Season N" to "SN", strips trailing years.
+ */
+export function buildTournamentName(m) {
+  const league = m.league?.name || ''
+  const serie = m.serie?.full_name || m.serie?.name || ''
+  const rawName = league && serie
+    ? (serie.toLowerCase().includes(league.toLowerCase()) ? serie : `${league} ${serie}`)
+    : league || serie || 'Unknown'
+  return rawName
+    .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
+    .replace(/\s+\d{4}$/, '')
+    .trim()
+}
+
 // Permanent tier1 league organizers -- always included regardless of PandaScore
 // tier assignment state. Covers the case where PandaScore creates a new series
 // before assigning a tier to its tournament object (e.g. DreamLeague S29 SEA qualifier

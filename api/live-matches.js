@@ -20,7 +20,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -32,17 +32,6 @@ function getSeriesLabel(matchType, numberOfGames) {
 }
 
 
-function buildTournamentName(m) {
-  const league = m.league?.name || ''
-  const serie = m.serie?.full_name || m.serie?.name || ''
-  const rawName = league && serie
-    ? (serie.toLowerCase().includes(league.toLowerCase()) ? serie : `${league} ${serie}`)
-    : league || serie || 'Unknown'
-  return rawName
-    .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
-    .replace(/\s+\d{4}$/, '')
-    .trim()
-}
 
 function getSeriesScore(m) {
   const opponents = m.opponents || []

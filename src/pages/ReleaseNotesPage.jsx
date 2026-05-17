@@ -4,6 +4,19 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 17, 2026",
+    tag: "fix",
+    title: "Match results now appear within minutes of a series ending",
+    desc: "Completed series now show up in the feed as soon as they finish, rather than waiting up to several hours for all stats to be processed. Kill scores fill in automatically on your next refresh once available.",
+    items: [
+      "Results sourced from PandaScore appear immediately after a series ends",
+      "The match details panel shows 'Stats pending' in the score row until kill scores are available",
+      "Series record (2-1, 1-0, etc.) is always accurate regardless of stats availability",
+      "VOD links resolve normally if the match was live earlier in the session",
+      "Once OpenDota processes the match, a pull-to-refresh replaces the pending state with full stats",
+    ],
+  },
+  {
     date: "May 16, 2026",
     tag: "improvement",
     title: "Match drawer: larger team names on desktop",

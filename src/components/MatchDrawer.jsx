@@ -271,6 +271,10 @@ function MatchDrawer({
               >
                 Reveal score
               </button>
+            ) : match._fromPandaScore && match.radiantScore == null ? (
+              <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                Stats pending
+              </span>
             ) : (
               <>
                 <span className={`font-display text-4xl font-black ${match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>

@@ -201,6 +201,16 @@ TUNDRA ESPORTS [indicators] ☆          ☆ [indicators] BETBOOM TEAM
 - Winner score: `text-gray-900 dark:text-white`; loser: `text-gray-400 dark:text-gray-500`
 - In spoiler-free mode: "Reveal score" ghost button replaces both numbers, centered in this row
 
+**Stats pending state** (PandaScore-sourced games not yet indexed by OpenDota):
+```
+            STATS PENDING
+```
+- When `match._fromPandaScore && match.radiantScore == null`, the score row is replaced by a single centered label
+- Label: `text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600`
+- Winner/loser distinction is still visible via team name color (white vs gray-400/500) in the names row above
+- No "0 — 0" fallback — showing fabricated numbers is worse than showing nothing
+- In spoiler-free mode, "Reveal score" still shows (the result is hidden, not absent)
+
 **Color logic:**
 ```js
 const radiantNameColor = (!hideScore && match.radiantWin) || hideScore
