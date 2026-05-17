@@ -699,8 +699,15 @@ async function fetchRecentCompleted(token, bust = false) {
   const permanentNames = SHARED_PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
   const allNames = [...new Set([...permanentNames, ...tier1Names])]
 
+  const rawCount = psMatches.length
   psMatches = psMatches.filter(m => isTier1Match(m) || isTier1ByName(m, allNames))
-  console.log(`recent-completed: ${psMatches.length} tier-1 matches after filter`)
+  console.log(`recent-completed: ${rawCount} raw → ${psMatches.length} tier-1 after filter`)
+
+  // Temporary debug: log game status breakdown for the first few tier-1 matches
+  for (const m of psMatches.slice(0, 3)) {
+    const gameStatuses = (m.games || []).map(g => `pos${g.position}:${g.status}:extId=${g.external_identifier ?? 'null'}`)
+    console.log(`recent-completed debug match ${m.id} (${m.opponents?.[0]?.opponent?.name} vs ${m.opponents?.[1]?.opponent?.name}) tier=${m.tournament?.tier} games=[${gameStatuses.join(', ')}]`)
+  }
 
   let individualFetchBudget = RC_FETCH_CAP
   const games = []
