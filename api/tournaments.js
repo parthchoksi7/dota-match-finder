@@ -768,7 +768,12 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
 
       const radiantTeam = g.radiant_team?.name || opponents[0]?.opponent?.name || 'Radiant'
       const direTeam    = g.dire_team?.name    || opponents[1]?.opponent?.name || 'Dire'
-      const radiantWin  = g.winner?.id != null ? g.winner.id === g.radiant_team?.id : false
+      // g.radiant_team is null in the bulk /matches/past response; fall back to opponents[0]
+      // so the series win/loss record is computed correctly.
+      const radiantId   = g.radiant_team?.id ?? opponents[0]?.opponent?.id
+      const radiantWin  = g.winner?.id != null && radiantId != null
+        ? g.winner.id === radiantId
+        : false
       const startTime   = g.begin_at ? Math.floor(new Date(g.begin_at).getTime() / 1000) : 0
 
       games.push({
@@ -813,6 +818,8 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
           position: g.position,
           status: g.status,
           external_identifier: g.external_identifier,
+          winner_id: g.winner?.id,
+          radiant_team_id: g.radiant_team?.id,
         })),
       })),
     }
