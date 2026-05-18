@@ -207,7 +207,7 @@ function MatchDrawer({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-5 py-5 space-y-6">
 
           {/* Names row — left/right anchored, single line, no separator */}
           <div className="flex items-center justify-between gap-2">
@@ -445,6 +445,8 @@ function MatchDrawer({
                   radiantName={match.radiantTeam}
                   direName={match.direTeam}
                   loading={statsLoading}
+                  events={matchStats?.events}
+                  vodUrl={allVods[0]?.url}
                 />
               </div>
 

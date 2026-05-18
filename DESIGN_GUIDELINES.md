@@ -616,13 +616,17 @@ Displayed below the collapsible draft section for completed OpenDota-indexed mat
 Both sections use the tertiary label style: `text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`.
 
 ### Gold advantage graph (GoldGraph)
-- Custom SVG, no chart library. Props: `radiantGoldAdv`, `radiantName`, `direName`, `loading`.
+- Custom SVG, no chart library. Props: `radiantGoldAdv`, `radiantName`, `direName`, `loading`, `events`, `vodUrl`.
 - Two `<path>` elements clipped to above-zero (green-500/20 fill) and below-zero (red-500/20 fill) halves.
 - Zero line: dashed, `stroke-gray-200 dark:stroke-gray-700`, strokeWidth 0.75.
 - Data line: `stroke-gray-400 dark:stroke-gray-500`, strokeWidth 1.5.
 - SVG viewBox 480x140 with `preserveAspectRatio="none"` — fills the container width.
 - Loading: 140px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
 - Empty (< 2 data points): `text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600` — "Gold data unavailable".
+- **Event markers**: SVG `<circle>` elements at the interpolated y-position of the gold line at the event's minute. Amber (`rgb(251,191,36)`) for rapier purchases, red (`rgb(239,68,68)`) for rampages. White stroke 1.5px so they stand out against both fills. R=5.
+- **Hover tooltip**: React state (`activeEvent`). Positioned via `left: (x/VW)*100%` and `top: y-30px` as an absolutely-positioned `<div>` over the SVG. Shows event type, player name, minute, and "Watch" hint in amber when `vodUrl` is available.
+- **Click-to-VOD**: `buildEventUrl(vodUrl, event.time)` parses the Twitch `?t=` offset already in the VOD URL, adds `event.time` seconds, reformats to `Xh Ym Zs`, opens in new tab. No-op if no `vodUrl`.
+- Tooltip and click work on desktop hover/click. Touch devices get click-only (no hover tooltip).
 
 ### Player stats row (PlayerStatsSection)
 - Per-player row (3 lines): hero icon (24px) + name (truncate, `text-sm font-semibold`) + networth (right, `text-xs tabular-nums text-gray-500`) / 6x ItemSlot (24px each, `gap-0.5`, indented 8px to align under name) / networth bar (`h-1 rounded-full`, green-500 for Radiant, red-500 for Dire).
@@ -635,7 +639,7 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - `w-6 h-6` (md, default) or `w-5 h-5` (sm). Always `rounded-sm`.
 - Empty slot (itemId=0 or name not found): `bg-gray-200 dark:bg-gray-800` placeholder, `aria-hidden="true"`.
 - CDN URL: `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/{name}_lg.png` with `loading="lazy"` and `onError` fallback to empty slot.
-- Tooltip: `title={name.replace(/_/g, ' ')}`.
+- Tooltip: CSS hover tooltip via `group`/`group-hover:opacity-100` pattern. Wrapper div has `relative group`; no `overflow-hidden` (clips absolute-positioned tooltips). `rounded-sm` on the `<img>` directly.
 
 ---
 

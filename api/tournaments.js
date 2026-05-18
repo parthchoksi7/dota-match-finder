@@ -1038,7 +1038,7 @@ export default async function handler(req, res) {
     const STATS_KV_KEY = `stats:match:v1:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v1'
 
-    const EMPTY = { radiantGoldAdv: [], players: [], itemNames: {} }
+    const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {} }
 
     // KV cache hit
     try {
@@ -1091,6 +1091,34 @@ export default async function handler(req, res) {
       }
 
       const isRadiantPlayer = (p) => (p.player_slot ?? 0) < 128
+
+      // Extract rapier purchases and rampages (5 kills within 30s) for chart markers
+      const extractMatchEvents = (players) => {
+        const evts = []
+        for (const p of players) {
+          const team = isRadiantPlayer(p) ? 'radiant' : 'dire'
+          const player = p.name || p.personaname || ''
+          if (Array.isArray(p.purchase_log)) {
+            for (const entry of p.purchase_log) {
+              if (entry.key === 'rapier' && typeof entry.time === 'number' && entry.time >= 0) {
+                evts.push({ type: 'rapier', team, player, time: entry.time })
+              }
+            }
+          }
+          if (Array.isArray(p.kills_log) && p.kills_log.length >= 5) {
+            const times = p.kills_log.map(k => k.time).filter(t => typeof t === 'number').sort((a, b) => a - b)
+            let skipUntil = -Infinity
+            for (let i = 4; i < times.length; i++) {
+              if (times[i - 4] > skipUntil && times[i] - times[i - 4] <= 30) {
+                evts.push({ type: 'rampage', team, player, time: times[i - 4] })
+                skipUntil = times[i] + 1
+              }
+            }
+          }
+        }
+        return evts.sort((a, b) => a.time - b.time)
+      }
+
       const stats = {
         radiantGoldAdv: data.radiant_gold_adv ?? [],
         players: (data.players || []).map(p => ({
@@ -1099,11 +1127,13 @@ export default async function handler(req, res) {
           name: p.name || p.personaname || '',
           netWorth: p.net_worth ?? 0,
           items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].map(v => v ?? 0),
+          backpackItems: [p.backpack_0, p.backpack_1, p.backpack_2].map(v => v ?? 0),
           kills: p.kills ?? 0,
           deaths: p.deaths ?? 0,
           assists: p.assists ?? 0,
           isRadiant: isRadiantPlayer(p),
         })),
+        events: extractMatchEvents(data.players || []),
         itemNames,
       }
 

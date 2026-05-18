@@ -147,6 +147,7 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   // Exception: for ESL One tournaments, PandaScore consistently returns only esl_dota2 (main hub)
   // even when the actual broadcast is on a sub-channel (esl_dota2earth/storm/ember).
   // In that case, fall through to the static mapping so all sub-channels are shown.
+
   const allTwitchOfficial = (streamsList || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
   // Prefer English streams to preserve existing behaviour for main events; fall back to any language
   const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')

@@ -10,19 +10,28 @@ function formatNetWorth(val) {
 function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadiant }) {
   const barColor = isRadiant ? 'bg-green-500' : 'bg-red-500'
   const barWidth = maxNetWorth > 0 ? Math.round((player.netWorth / maxNetWorth) * 100) : 0
+  const backpack = player.backpackItems || []
 
   return (
     <div className="space-y-1.5">
-      {/* Hero icon + player name + networth */}
+      {/* Hero icon (with CSS tooltip) + player name + networth */}
       <div className="flex items-center gap-2 min-w-0">
         {heroKey ? (
-          <img
-            src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${heroKey}_icon.png`}
-            alt={heroName || heroKey}
-            title={heroName || heroKey}
-            className="w-6 h-6 rounded-sm flex-shrink-0 object-cover"
-            loading="lazy"
-          />
+          <div className="relative flex-shrink-0 group">
+            <img
+              src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`}
+              alt={heroName || heroKey}
+              className="w-6 h-6 rounded-sm object-cover"
+              loading="lazy"
+            />
+            {heroName && (
+              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+                <span className="block bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap">
+                  {heroName}
+                </span>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="w-6 h-6 rounded-sm flex-shrink-0 bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
         )}
@@ -34,10 +43,16 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
         </span>
       </div>
 
-      {/* 6 item slots */}
-      <div className="flex gap-0.5 ml-8">
+      {/* Main items + divider + backpack items */}
+      <div className="flex items-center gap-0.5 ml-8">
         {player.items.map((itemId, i) => (
           <ItemSlot key={i} itemId={itemId} itemNames={itemNames} size="md" />
+        ))}
+        {backpack.length > 0 && (
+          <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-0.5 flex-shrink-0" aria-hidden="true" />
+        )}
+        {backpack.map((itemId, i) => (
+          <ItemSlot key={`bp-${i}`} itemId={itemId} itemNames={itemNames} size="md" />
         ))}
       </div>
 
@@ -60,9 +75,13 @@ function SkeletonRow() {
         <div className="h-3 rounded bg-gray-200 dark:bg-gray-800 flex-1" />
         <div className="h-3 w-10 rounded bg-gray-200 dark:bg-gray-800 flex-shrink-0" />
       </div>
-      <div className="flex gap-0.5 ml-8">
+      <div className="flex items-center gap-0.5 ml-8">
         {Array.from({ length: 6 }, (_, j) => (
           <div key={j} className="w-6 h-6 rounded-sm bg-gray-200 dark:bg-gray-800" />
+        ))}
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-0.5" />
+        {Array.from({ length: 3 }, (_, j) => (
+          <div key={`bp-${j}`} className="w-6 h-6 rounded-sm bg-gray-200 dark:bg-gray-800" />
         ))}
       </div>
       <div className="h-1 rounded-full bg-gray-200 dark:bg-gray-800 ml-8" />

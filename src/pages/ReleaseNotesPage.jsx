@@ -6,11 +6,13 @@ const RELEASES = [
   {
     date: "May 18, 2026",
     tag: "new",
-    title: "End-game stats: gold graph and player networth",
-    desc: "Open any completed match to see the full economic story of the game.",
+    title: "End-game stats: gold graph, player networth, and critical events",
+    desc: "Open any completed match to see the full economic story of the game - including interactive event markers on the gold chart.",
     items: [
       "Gold advantage graph shows which team was ahead every minute, with green fill for Radiant leads and red for Dire",
-      "Player networth, item builds (all 6 slots), and a proportional networth bar for every player",
+      "Rapier purchases and rampages appear as interactive markers on the gold chart - hover to see who and when, click to jump to that moment in the VOD",
+      "Player networth, item builds (main slots and backpack), and a proportional networth bar for every player",
+      "Hover over any hero or item icon to see the name",
       "Players sorted by final networth within each team",
       "Draft section in the match panel is now collapsible to keep the view focused",
       "All stats are hidden in spoiler-free mode",

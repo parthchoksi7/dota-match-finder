@@ -23,6 +23,7 @@ function extractPlayers(rawPlayers) {
     name: p.name || p.personaname || '',
     netWorth: p.net_worth ?? 0,
     items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].map(v => v ?? 0),
+    backpackItems: [p.backpack_0, p.backpack_1, p.backpack_2].map(v => v ?? 0),
     kills: p.kills ?? 0,
     deaths: p.deaths ?? 0,
     assists: p.assists ?? 0,
@@ -75,11 +76,25 @@ describe('extractPlayers', () => {
     expect(p.heroId).toBe(0)
     expect(p.netWorth).toBe(0)
     expect(p.items).toEqual([0, 0, 0, 0, 0, 0])
+    expect(p.backpackItems).toEqual([0, 0, 0])
     expect(p.kills).toBe(0)
     expect(p.deaths).toBe(0)
     expect(p.assists).toBe(0)
     expect(p.name).toBe('')
     expect(p.isRadiant).toBe(true)  // slot 0 = radiant
+  })
+
+  it('extracts backpack items correctly', () => {
+    const raw = [{ player_slot: 0, backpack_0: 48, backpack_1: 63, backpack_2: 0 }]
+    const [p] = extractPlayers(raw)
+    expect(p.backpackItems).toEqual([48, 63, 0])
+  })
+
+  it('backpackItems defaults to [0,0,0] when backpack fields are absent', () => {
+    const raw = [{ player_slot: 0, item_0: 36 }]
+    const [p] = extractPlayers(raw)
+    expect(p.backpackItems).toHaveLength(3)
+    expect(p.backpackItems).toEqual([0, 0, 0])
   })
 
   it('always returns exactly 6 item slots, defaulting missing to 0', () => {
@@ -279,7 +294,7 @@ describe('?mode=match-stats handler', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], itemNames: {} })
+    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {} })
 
     vi.unstubAllGlobals()
   })
@@ -505,5 +520,102 @@ describe('PlayerStatsSection sort and grouping', () => {
     const yatoro = mockPlayers.find(p => p.name === 'yatoro')
     const barWidth = Math.round((yatoro.netWorth / maxNetWorth) * 100)
     expect(barWidth).toBeCloseTo(57, 0)   // 20000/35000 ≈ 57%
+  })
+})
+
+// ── Part 3: extractMatchEvents (rapier + rampage detection) ──────────────────
+
+function extractMatchEvents(players) {
+  const isRadiantPlayer = (p) => (p.player_slot ?? 0) < 128
+  const evts = []
+  for (const p of players) {
+    const team = isRadiantPlayer(p) ? 'radiant' : 'dire'
+    const player = p.name || p.personaname || ''
+    if (Array.isArray(p.purchase_log)) {
+      for (const entry of p.purchase_log) {
+        if (entry.key === 'rapier' && typeof entry.time === 'number' && entry.time >= 0) {
+          evts.push({ type: 'rapier', team, player, time: entry.time })
+        }
+      }
+    }
+    if (Array.isArray(p.kills_log) && p.kills_log.length >= 5) {
+      const times = p.kills_log.map(k => k.time).filter(t => typeof t === 'number').sort((a, b) => a - b)
+      let skipUntil = -Infinity
+      for (let i = 4; i < times.length; i++) {
+        if (times[i - 4] > skipUntil && times[i] - times[i - 4] <= 30) {
+          evts.push({ type: 'rampage', team, player, time: times[i - 4] })
+          skipUntil = times[i] + 1
+        }
+      }
+    }
+  }
+  return evts.sort((a, b) => a.time - b.time)
+}
+
+describe('extractMatchEvents', () => {
+  it('detects rapier purchase from purchase_log', () => {
+    const players = [{
+      player_slot: 0, name: 'miracle',
+      purchase_log: [{ key: 'rapier', time: 1800 }, { key: 'blink', time: 600 }],
+    }]
+    const events = extractMatchEvents(players)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'rapier', team: 'radiant', player: 'miracle', time: 1800 })
+  })
+
+  it('assigns correct team for dire rapier purchase', () => {
+    const players = [{
+      player_slot: 128, name: 'nisha',
+      purchase_log: [{ key: 'rapier', time: 2400 }],
+    }]
+    const events = extractMatchEvents(players)
+    expect(events[0].team).toBe('dire')
+  })
+
+  it('detects rampage from 5 kills within 30 seconds', () => {
+    const players = [{
+      player_slot: 0, name: 'yatoro',
+      kills_log: [
+        { time: 1200 }, { time: 1210 }, { time: 1220 }, { time: 1225 }, { time: 1228 },
+      ],
+    }]
+    const events = extractMatchEvents(players)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'rampage', team: 'radiant', player: 'yatoro', time: 1200 })
+  })
+
+  it('does NOT detect rampage when kills span more than 30 seconds', () => {
+    const players = [{
+      player_slot: 0, name: 'player',
+      kills_log: [
+        { time: 1000 }, { time: 1010 }, { time: 1020 }, { time: 1030 }, { time: 1035 },
+      ],
+    }]
+    const events = extractMatchEvents(players)
+    // last 4 kills are within 30s (1010-1035=25s) but first set: 1000-1035=35s > 30
+    // window [1010,1020,1030,1035]: diff = 25s < 30 but only 4 kills starting from index 1
+    // window [1000-1035]: 35s — no rampage
+    const rampages = events.filter(e => e.type === 'rampage')
+    expect(rampages).toHaveLength(0)
+  })
+
+  it('returns events sorted by time ascending', () => {
+    const players = [
+      { player_slot: 0, name: 'a', purchase_log: [{ key: 'rapier', time: 3000 }] },
+      { player_slot: 128, name: 'b', purchase_log: [{ key: 'rapier', time: 1500 }] },
+    ]
+    const events = extractMatchEvents(players)
+    expect(events[0].time).toBeLessThan(events[1].time)
+  })
+
+  it('returns empty array when no events present', () => {
+    const players = [{ player_slot: 0, name: 'player', purchase_log: [], kills_log: [] }]
+    expect(extractMatchEvents(players)).toEqual([])
+  })
+
+  it('handles missing purchase_log and kills_log gracefully', () => {
+    const players = [{ player_slot: 0, name: 'player' }]
+    expect(() => extractMatchEvents(players)).not.toThrow()
+    expect(extractMatchEvents(players)).toEqual([])
   })
 })
