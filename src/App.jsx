@@ -86,6 +86,9 @@ function usePullToRefresh(onRefresh) {
     if (!isStandalone) return
 
     function onTouchStart(e) {
+      // Don't initiate PTR when a modal/drawer is open — touches inside the dialog
+      // would otherwise race with initialLoading and blank the drawer
+      if (e.target.closest('[role="dialog"]')) return
       if (window.scrollY === 0) startY.current = e.touches[0].clientY
     }
 
@@ -969,7 +972,7 @@ function App() {
         error={redditPostsError}
       />
 
-      {selectedMatch && !initialLoading && (
+      {selectedMatch && (
         <MatchDrawer
           match={selectedMatch}
           onDismiss={dismissPanel}
