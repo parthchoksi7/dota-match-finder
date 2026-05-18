@@ -54,16 +54,6 @@ async function fetchPremiumLeagueIds() {
  * Gaming" or "BetBoom Team" vs "BetBoom". Does NOT match very different names like
  * "BB" vs "BetBoom Team" — the time-based dedup covers that fallback.
  */
-function psTeamsMatchOd(psRadiant, psDire, odRadiant, odDire) {
-  const a = (psRadiant || '').toLowerCase()
-  const b = (psDire || '').toLowerCase()
-  const r = (odRadiant || '').toLowerCase()
-  const d = (odDire || '').toLowerCase()
-  if (!a || !b || !r || !d) return false
-  const m = (x, y) => x.includes(y) || y.includes(x)
-  return (m(a, r) || m(a, d)) && (m(b, r) || m(b, d))
-}
-
 export function mergeWithPsGames(matches, psGames) {
   if (!psGames || psGames.length === 0) return matches
 
@@ -71,11 +61,11 @@ export function mergeWithPsGames(matches, psGames) {
   const odIdToSeriesId = {}
   for (const m of matches) odIdToSeriesId[m.id] = m.seriesId
 
-  // Time threshold: skip _tempId PS games older than 8h as a backstop for cases
-  // where fuzzy name matching fails (e.g. "BB" vs "BetBoom Team").
-  const PS_MAX_AGE_SECONDS = 8 * 3600
-  const psInjectAfter = Date.now() / 1000 - PS_MAX_AGE_SECONDS
-  const recentOdMatches = matches.filter(m => (m.startTime || 0) > psInjectAfter)
+  // Safety backstop: skip _tempId PS games older than 8h. The backend resolves real OD
+  // IDs via timestamp matching for indexed matches, so temp IDs only appear for games
+  // OD hasn't indexed yet (typically <1-4h old). Anything older is stale and shouldn't
+  // be injected — OD has it but the KV cache served old data.
+  const psInjectAfter = Date.now() / 1000 - 8 * 3600
 
   const psByMatch = {}
   for (const g of psGames) {
@@ -87,20 +77,18 @@ export function mergeWithPsGames(matches, psGames) {
   for (const pgames of Object.values(psByMatch)) {
     const inOD = pgames.filter(g => odIds.has(g.id))
     const notInOD = pgames.filter(g => !odIds.has(g.id))
-    if (notInOD.length === 0) continue
+    if (notInOD.length === 0) continue  // Case 1: all already in OD — skip
 
     if (inOD.length === 0) {
+      // Case 2: none in OD. If all have temp IDs (backend couldn't resolve), apply time
+      // backstop. No name-matching needed — backend handles PS→OD resolution now.
       if (pgames.every(g => g._tempId)) {
         const latestStartTime = Math.max(...pgames.map(g => g.startTime || 0))
-        // Time backstop: if the series is old, OD should have indexed it.
         if (latestStartTime < psInjectAfter) continue
-        // Fuzzy name match (same approach as match-streams.js): if OD has a recent
-        // game with the same two teams, skip injection to avoid duplicate cards.
-        const first = pgames[0]
-        if (recentOdMatches.some(m => psTeamsMatchOd(first.radiantTeam, first.direTeam, m.radiantTeam, m.direTeam))) continue
       }
       toInject.push(...pgames)
     } else {
+      // Case 3: partial — bridge seriesId from the OD game so groupIntoSeries merges them
       const bridgeSeriesId = odIdToSeriesId[inOD[0].id]
       toInject.push(...notInOD.map(g => ({ ...g, seriesId: bridgeSeriesId ?? g.seriesId })))
     }

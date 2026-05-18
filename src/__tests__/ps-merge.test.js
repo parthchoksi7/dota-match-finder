@@ -124,28 +124,10 @@ describe('mergeWithPsGames', () => {
     expect(result[1].startTime).toBe(1000)
   })
 
-  it('_tempId dedup: skips injection when OD already has matching team pair (recent)', () => {
-    // Use real-ish recent timestamps (within 72h of now)
-    const recent = Math.floor(Date.now() / 1000) - 3600 // 1 hour ago
-    const matches = [
-      makeOdMatch('8814473655', 1098540, recent - 200, 'Vici Gaming', 'Team Liquid'),
-      makeOdMatch('8814554021', 1098540, recent - 100, 'Vici Gaming', 'Team Liquid'),
-      makeOdMatch('8814642533', 1098540, recent,       'Vici Gaming', 'Team Liquid'),
-    ]
-    const psGames = [
-      makeTempPsGame(1487821, 1, 1487821, recent - 200, 'Team Liquid', 'Vici Gaming'),
-      makeTempPsGame(1487821, 2, 1487821, recent - 100, 'Team Liquid', 'Vici Gaming'),
-      makeTempPsGame(1487821, 3, 1487821, recent,       'Team Liquid', 'Vici Gaming'),
-    ]
-    const result = mergeWithPsGames(matches, psGames)
-    expect(result).toHaveLength(3)
-    expect(result.every(m => !m._fromPandaScore)).toBe(true)
-  })
-
-  it('_tempId dedup: injects when OD does not have matching team pair yet', () => {
+  it('_tempId: injects when OD does not have the match (backend returned temp ID = OD not indexed)', () => {
     const recent = Math.floor(Date.now() / 1000) - 3600
     const matches = [
-      makeOdMatch('8800000001', 1098400, recent, 'Aurora', 'Vici Gaming'),
+      makeOdMatch('8800000001', 1098400, recent, 'Aurora Gaming', 'Gaimin Gladiators'),
     ]
     const psGames = [
       makeTempPsGame(1487821, 1, 1487821, recent + 200, 'Team Liquid', 'Vici Gaming'),
@@ -154,58 +136,44 @@ describe('mergeWithPsGames', () => {
     ]
     const result = mergeWithPsGames(matches, psGames)
     expect(result).toHaveLength(4)
-    const injected = result.filter(m => m._fromPandaScore)
-    expect(injected).toHaveLength(3)
+    expect(result.filter(m => m._fromPandaScore)).toHaveLength(3)
   })
 
-  it('_tempId dedup: team pair comparison is order-independent', () => {
-    const recent = Math.floor(Date.now() / 1000) - 3600
-    const matches = [makeOdMatch('111', 500, recent, 'Team Liquid', 'Vici Gaming')]
-    const psGames = [
-      // PS has teams swapped (Vici as radiantTeam)
-      makeTempPsGame(99, 1, 99, recent, 'Vici Gaming', 'Team Liquid'),
-    ]
-    const result = mergeWithPsGames(matches, psGames)
-    expect(result).toHaveLength(1)
-    expect(result[0]._fromPandaScore).toBe(false)
-  })
-
-  it('_tempId dedup: does not suppress when OD match with same teams is older than 8h', () => {
-    const old = Math.floor(Date.now() / 1000) - 10 * 3600 // 10h ago — outside 8h window
-    const recent = Math.floor(Date.now() / 1000) - 1800   // 30min ago
-    const matches = [makeOdMatch('8800000001', 1098400, old, 'Team Liquid', 'Vici Gaming')]
+  it('_tempId backstop: injects when OD match is recent but for a different team pair', () => {
+    const recent = Math.floor(Date.now() / 1000) - 1800
+    const matches = [makeOdMatch('8800000001', 1098400, recent, 'Aurora Gaming', 'Gaimin Gladiators')]
     const psGames = [
       makeTempPsGame(1487821, 1, 1487821, recent, 'Team Liquid', 'Vici Gaming'),
       makeTempPsGame(1487821, 2, 1487821, recent + 100, 'Team Liquid', 'Vici Gaming'),
     ]
     const result = mergeWithPsGames(matches, psGames)
-    // Should inject because the OD match is outside the 8h window
     expect(result).toHaveLength(3)
-    const injected = result.filter(m => m._fromPandaScore)
-    expect(injected).toHaveLength(2)
+    expect(result.filter(m => m._fromPandaScore)).toHaveLength(2)
   })
 
-  it('name mismatch: "Aurora" (PS) vs "Aurora Gaming" (OD) - substring match deduplicates', () => {
-    // PS uses short names, OD uses full names — "aurora gaming".includes("aurora") = true
-    const recent = Math.floor(Date.now() / 1000) - 1800
-    const matches = [makeOdMatch('999', 500, recent, 'Aurora Gaming', 'Gaimin Gladiators')]
+  it('_tempId backstop: skips injection when all PS games are older than 8h', () => {
+    const old = Math.floor(Date.now() / 1000) - 9 * 3600  // 9h ago — outside 8h window
     const psGames = [
-      makeTempPsGame(7777, 1, 7777, recent, 'Aurora', 'Gaimin Gladiators'),
+      makeTempPsGame(1487821, 1, 1487821, old, 'Team Liquid', 'Vici Gaming'),
+      makeTempPsGame(1487821, 2, 1487821, old + 3600, 'Team Liquid', 'Vici Gaming'),
+    ]
+    const result = mergeWithPsGames([], psGames)
+    expect(result).toHaveLength(0)
+  })
+
+  it('backend-resolved IDs: if backend returns real OD ID, Case 1 fires and PS is skipped', () => {
+    // Simulates backend having resolved the OD match ID via timestamp lookup.
+    // The PS game now carries the real OD ID, so it matches in odIds → no injection.
+    const realOdId = '8814771003'
+    const matches = [makeOdMatch(realOdId, 1098540, 2000, 'Nigma Galaxy', 'BB')]
+    const psGames = [
+      // Backend resolved: id = real OD match ID, _tempId: false
+      { id: realOdId, _pandaMatchId: 1487824, seriesId: 1098540, startTime: 2000,
+        radiantScore: null, direScore: null, _fromPandaScore: true, _tempId: false,
+        radiantTeam: 'BetBoom Team', direTeam: 'Nigma Galaxy' },
     ]
     const result = mergeWithPsGames(matches, psGames)
     expect(result).toHaveLength(1)
-    expect(result[0]._fromPandaScore).toBe(false)
-  })
-
-  it('name mismatch: "BetBoom" (PS) vs "BetBoom Team" (OD) - substring match deduplicates', () => {
-    // "betboom team".includes("betboom") = true
-    const recent = Math.floor(Date.now() / 1000) - 1800
-    const matches = [makeOdMatch('888', 500, recent, 'BetBoom Team', 'Team Spirit')]
-    const psGames = [
-      makeTempPsGame(6666, 1, 6666, recent, 'BetBoom', 'Team Spirit'),
-    ]
-    const result = mergeWithPsGames(matches, psGames)
-    expect(result).toHaveLength(1)
-    expect(result[0]._fromPandaScore).toBe(false)
+    expect(result[0]._fromPandaScore).toBe(false)  // OD version kept, not PS version
   })
 })

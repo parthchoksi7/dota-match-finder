@@ -267,6 +267,29 @@ export function buildTournamentName(m) {
     .trim()
 }
 
+// Match a PS game (by begin_at Unix seconds + opponents array) against a list of OD promatches.
+// Uses the same bidirectional substring logic as teamsMatch() in match-streams.js.
+// Timestamp is the primary key (±5 min window); team names break ties when multiple candidates.
+// Returns the best OD match object, or null if nothing is within the time window.
+export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
+  const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < 300)
+  if (candidates.length === 0) return null
+  if (candidates.length === 1) return candidates[0]
+  const names = (psOpponents || []).map(o => (o.opponent?.name || '').toLowerCase())
+  if (names.length >= 2) {
+    const sub = (x, y) => x.includes(y) || y.includes(x)
+    const exact = candidates.find(c => {
+      const r = (c.radiant_team?.name || '').toLowerCase()
+      const d = (c.dire_team?.name || '').toLowerCase()
+      return (sub(names[0], r) || sub(names[0], d)) && (sub(names[1], r) || sub(names[1], d))
+    })
+    if (exact) return exact
+  }
+  return candidates.reduce((best, m) =>
+    Math.abs(m.start_time - beginAtUnix) < Math.abs(best.start_time - beginAtUnix) ? m : best
+  )
+}
+
 // Permanent tier1 league organizers -- always included regardless of PandaScore
 // tier assignment state. Covers the case where PandaScore creates a new series
 // before assigning a tier to its tournament object (e.g. DreamLeague S29 SEA qualifier

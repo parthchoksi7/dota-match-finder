@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY } from './_shared.js'
+import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -644,8 +644,7 @@ async function fetchTier1LeagueNames(token) {
 // Kill scores are unavailable from PandaScore; radiantScore/direScore are null.
 
 const KV_RC_KEY = 'dota2:recent_completed_v2'
-const RC_TTL = 60 * 5   // 5 minutes
-const RC_FETCH_CAP = 10  // max individual PS /matches/{id} calls per cache refresh
+const RC_TTL = 60 * 5  // 5 minutes
 
 const FORMAT_TO_SERIES_TYPE_RC = { best_of_1: 0, best_of_2: 3, best_of_3: 1, best_of_5: 2 }
 
@@ -658,7 +657,22 @@ function calcDuration(game) {
   return '00:00'
 }
 
-async function fetchRecentCompleted(token, bust = false, debug = false) {
+// Fetch OD promatches from the last 8h. Used to resolve PS game begin_at → OD match_id
+// without relying on PS's external_identifier (which requires OD to have already indexed).
+async function fetchOdPromatches() {
+  try {
+    const res = await fetch('https://api.opendota.com/api/promatches')
+    if (!res.ok) return []
+    const all = await res.json()
+    const cutoff = Date.now() / 1000 - 8 * 3600
+    return Array.isArray(all) ? all.filter(m => m.start_time > cutoff) : []
+  } catch {
+    return []
+  }
+}
+
+
+async function fetchRecentCompleted(token, bust = false) {
   if (!bust) {
     try {
       const cached = await kv.get(KV_RC_KEY)
@@ -671,25 +685,25 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
     }
   }
 
-  console.log('recent-completed: fetching from PandaScore')
+  console.log('recent-completed: fetching from PandaScore + OD promatches')
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
 
   const now = new Date().toISOString()
-  // 8-hour window: OD typically indexes within 1-4h. Keeping the window short prevents
-  // stale PS games from appearing alongside already-indexed OD matches as duplicates.
   // filter[tier] is not supported on /dota2/matches/* endpoints (returns 400) — fetch
   // without tier filter and apply isTier1Match / isTier1ByName client-side instead.
   const ago8h = new Date(Date.now() - 8 * 3600 * 1000).toISOString()
-  const url = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=${ago8h},${now}`
+  const psUrl = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=${ago8h},${now}`
 
-  let psMatches
+  let psMatches, odMatches
   try {
-    const res = await fetch(url, { headers })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
-    psMatches = Array.isArray(data) ? data : []
+    ;[psMatches, odMatches] = await Promise.all([
+      fetch(psUrl, { headers })
+        .then(r => { if (!r.ok) throw new Error(`PS HTTP ${r.status}`); return r.json() })
+        .then(d => Array.isArray(d) ? d : []),
+      fetchOdPromatches(),
+    ])
   } catch (err) {
-    throw new Error(`PandaScore recent-completed fetch failed: ${err.message}`)
+    throw new Error(`recent-completed fetch failed: ${err.message}`)
   }
 
   // Build name list for isTier1ByName fallback (catches leagues where tier is null)
@@ -703,15 +717,8 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
 
   const rawCount = psMatches.length
   psMatches = psMatches.filter(m => isTier1Match(m) || isTier1ByName(m, allNames))
-  console.log(`recent-completed: ${rawCount} raw → ${psMatches.length} tier-1 after filter`)
+  console.log(`recent-completed: ${rawCount} raw → ${psMatches.length} tier-1, ${odMatches.length} OD promatches in window`)
 
-  // Temporary debug: log game status breakdown for the first few tier-1 matches
-  for (const m of psMatches.slice(0, 3)) {
-    const gameStatuses = (m.games || []).map(g => `pos${g.position}:${g.status}:extId=${g.external_identifier ?? 'null'}`)
-    console.log(`recent-completed debug match ${m.id} (${m.opponents?.[0]?.opponent?.name} vs ${m.opponents?.[1]?.opponent?.name}) tier=${m.tournament?.tier} games=[${gameStatuses.join(', ')}]`)
-  }
-
-  let individualFetchBudget = RC_FETCH_CAP
   const games = []
 
   for (const m of psMatches) {
@@ -719,59 +726,38 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
     const matchGames = (m.games || []).filter(g => g.status === 'finished')
     if (matchGames.length === 0) continue
 
-    // --- Three-tier external_identifier lookup ---
-
-    // Tier 1: direct from bulk response
-    const extIds = {}
-    for (const g of matchGames) {
-      if (g.external_identifier) extIds[g.position] = String(g.external_identifier)
-    }
-
-    // Tier 2: KV batch (written by live-matches cron while game was running)
-    const missingAfterBulk = matchGames.filter(g => !extIds[g.position])
-    if (missingAfterBulk.length > 0) {
-      try {
-        const keys = missingAfterBulk.map(g => `live:game:${m.id}:${g.position}`)
-        const vals = await kv.mget(...keys)
-        missingAfterBulk.forEach((g, i) => {
-          if (vals[i]) extIds[g.position] = String(vals[i])
-        })
-      } catch {}
-    }
-
-    // Tier 3: individual PS fetch (capped to avoid rate limiting)
-    const missingAfterKv = matchGames.filter(g => !extIds[g.position])
-    if (missingAfterKv.length > 0 && individualFetchBudget > 0) {
-      individualFetchBudget--
-      try {
-        const detailRes = await fetch(`${PANDASCORE_BASE}/matches/${m.id}`, { headers })
-        if (detailRes.ok) {
-          const detail = await detailRes.json()
-          for (const g of (detail.games || [])) {
-            if (g.status === 'finished' && g.external_identifier) {
-              extIds[g.position] = String(g.external_identifier)
-              // Backfill KV so next cache refresh skips this fetch
-              kv.set(`live:game:${m.id}:${g.position}`, String(g.external_identifier), { ex: STREAM_TTL }).catch(() => {})
-            }
-          }
-        }
-      } catch {}
-    }
-
     const seriesType = FORMAT_TO_SERIES_TYPE_RC[m.match_type] ?? 1
     const tournamentName = buildMatchTournamentName(m)
 
-    for (const g of matchGames) {
-      const resolvedId = extIds[g.position]
-      // Fall back to a PS-scoped ID when the OD match ID isn't available yet.
-      // These games still appear in the feed (teams, series record, duration) but
-      // without kill scores or VOD links until OD indexes the match.
+    // Batch KV read for all games in this match (written by live-matches cron while running)
+    let kvVals = []
+    try {
+      kvVals = await kv.mget(...matchGames.map(g => `live:game:${m.id}:${g.position}`))
+    } catch {}
+
+    for (let i = 0; i < matchGames.length; i++) {
+      const g = matchGames[i]
+
+      // Tier 1: KV fast path (populated by live-matches cron during live phase)
+      let resolvedId = kvVals[i] ? String(kvVals[i]) : null
+
+      // Tier 2: OD promatches timestamp lookup — same approach as match-streams.js
+      // Resolves the OD match ID without needing PS external_identifier (which requires
+      // OD to have already indexed the match — defeating the purpose of this fallback).
+      if (!resolvedId && g.begin_at) {
+        const beginAtUnix = Math.floor(new Date(g.begin_at).getTime() / 1000)
+        const odMatch = findOdMatchByTime(odMatches, beginAtUnix, opponents)
+        if (odMatch) {
+          resolvedId = String(odMatch.match_id)
+          // Backfill KV so future cache refreshes skip the OD fetch for this game
+          kv.set(`live:game:${m.id}:${g.position}`, resolvedId, { ex: STREAM_TTL }).catch(() => {})
+        }
+      }
+
       const extId = resolvedId || `_ps-${m.id}-${g.position}`
 
       const radiantTeam = g.radiant_team?.name || opponents[0]?.opponent?.name || 'Radiant'
       const direTeam    = g.dire_team?.name    || opponents[1]?.opponent?.name || 'Dire'
-      // g.radiant_team is null in the bulk /matches/past response; fall back to opponents[0]
-      // so the series win/loss record is computed correctly.
       const radiantId   = g.radiant_team?.id ?? opponents[0]?.opponent?.id
       const radiantWin  = g.winner?.id != null && radiantId != null
         ? g.winner.id === radiantId
@@ -789,45 +775,21 @@ async function fetchRecentCompleted(token, bust = false, debug = false) {
         radiantWin,
         duration: calcDuration(g),
         startTime,
-        seriesId: m.id,      // PandaScore match.id; overridden by merge logic on the frontend
+        seriesId: m.id,
         seriesType,
         twitchVodId: null,
         twitchOffset: null,
         _fromPandaScore: true,
         _pandaMatchId: m.id,
-        _tempId: !resolvedId, // true when OD match ID not yet available; used by MatchDrawer
+        _tempId: !resolvedId,
       })
     }
   }
 
-  console.log(`recent-completed: ${games.length} games resolved with OD match IDs`)
+  const tempCount = games.filter(g => g._tempId).length
+  console.log(`recent-completed: ${games.length} games (${tempCount} pending OD indexing)`)
 
   const payload = { games, fetchedAt: new Date().toISOString() }
-
-  if (debug) {
-    // Debug mode: return raw PS data so we can diagnose 0-games issues without log viewer.
-    // Only activated by ?debug=1 — never cached or exposed in normal operation.
-    payload._debug = {
-      rawCount,
-      tier1Count: psMatches.length,
-      url: `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=50&range[end_at]=...`,
-      sampleMatches: psMatches.slice(0, 5).map(m => ({
-        id: m.id,
-        leagueName: m.league?.name,
-        tournamentTier: m.tournament?.tier,
-        opponents: m.opponents?.map(o => o.opponent?.name),
-        games: (m.games || []).map(g => ({
-          position: g.position,
-          status: g.status,
-          external_identifier: g.external_identifier,
-          winner_id: g.winner?.id,
-          radiant_team_id: g.radiant_team?.id,
-        })),
-      })),
-    }
-    return payload
-  }
-
   try {
     await kv.set(KV_RC_KEY, payload, { ex: RC_TTL })
   } catch (err) {
@@ -1279,13 +1241,12 @@ export default async function handler(req, res) {
   // Recent completed mode — PandaScore fallback for series not yet indexed by OpenDota.
   if (req.query?.mode === 'recent-completed') {
     const bust = req.query?.bust === '1'
-    const dbg  = req.query?.debug === '1'
     if (bust) {
       await kv.del(KV_RC_KEY).catch(() => {})
       console.log('recent-completed cache cleared')
     }
     try {
-      const data = await fetchRecentCompleted(token, bust, dbg)
+      const data = await fetchRecentCompleted(token, bust)
       res.setHeader('Cache-Control', 'no-store')
       return res.status(200).json(data)
     } catch (err) {
