@@ -59,13 +59,20 @@ This applies to: className edits, new components, loading/empty/error states, an
 - Always use `trackEvent` imported from `../utils` (or `../../utils`). **NEVER define a local `trackEvent` or `logEvent` function in a component** — this creates duplication and drift.
 
 ### 6. Automated Testing
+
+**This is a hard requirement, not optional.** New functionality ships with tests. No exceptions.
+
 - Write tests for all new features before marking them complete
 - Test files should live in `__tests__/` or `*.test.js` files
-- Cover:
+- Cover at minimum:
   - Happy path (feature works as expected)
-  - Edge cases (empty data, API failures, missing fields)
-  - User interactions (clicks, inputs, navigation)
+  - Edge cases (empty data, API failures, missing/null fields)
+  - Boundary conditions (off-by-one, empty arrays, zero values)
+  - User interactions (clicks, inputs, navigation) for UI changes
 - Use existing testing framework (React Testing Library + Vitest/Jest)
+- New pure utility functions (especially those in `api/_shared.js` or `src/utils.js`) must have dedicated unit tests in `__tests__/`
+- New API handler modes (`?mode=...`) must have integration-style tests covering the core logic path
+- Run `npm test` after writing tests and confirm they pass before proceeding
 
 ### 7. Code Review (as a completely different developer)
 
@@ -177,21 +184,32 @@ Use the `Explore` subagent to read and report on each modified file, then fix ev
 
 Before deploying to production:
 
-1. ✅ Run regression tests (`npm test`)
-2. ✅ **Code review**: re-read every modified file as an independent reviewer (see §7 above); fix all issues found
-3. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded. **CRITICAL: if you add a new query parameter to any external API URL, manually verify that the parameter is accepted by that exact endpoint before shipping** - mocked unit tests do not catch 400/404 responses from the real API. PandaScore note: `filter[tier]` only works on the generic `/tournaments` endpoint, not on game-specific `/dota2/*` endpoints.
-4. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
-5. ✅ Verify API rate limits won't be exceeded
-6. ✅ Test on mobile viewport
-7. ✅ Update `CONTEXT.md` with changes
-8. ✅ Update About page
-9. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
-10. ✅ **Bust KV caches affected by the change** — after any deploy that modifies tier filtering, stream caching, or tournament data logic, bust the relevant caches:
+1. ✅ **Tests written and passing**: confirm that every new function, API mode, or logic path added in this change has corresponding tests in `__tests__/` or `*.test.js`. Run `npm test` and confirm all new tests pass. Do not deploy if new code has no tests.
+2. ✅ Run full regression tests (`npm test`) and confirm no pre-existing tests are broken
+3. ✅ **Code review**: re-read every modified file as an independent reviewer (see §7 above); fix all issues found
+4. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded. **CRITICAL: if you add a new query parameter to any external API URL, manually verify that the parameter is accepted by that exact endpoint before shipping** - mocked unit tests do not catch 400/404 responses from the real API. PandaScore note: `filter[tier]` only works on the generic `/tournaments` endpoint, not on game-specific `/dota2/*` endpoints.
+5. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
+6. ✅ Verify API rate limits won't be exceeded
+7. ✅ Test on mobile viewport
+8. ✅ Update `CONTEXT.md` with changes
+9. ✅ Update About page
+10. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
+11. ✅ **Bust KV caches affected by the change** — after any deploy that modifies tier filtering, stream caching, or tournament data logic, bust the relevant caches:
     - Tier-1 league names (homepage match filter): `curl "https://spectateesports.live/api/tournaments?mode=tier1-leagues&bust=1"`
     - Live matches: `curl "https://spectateesports.live/api/live-matches?bust=1"`
     - Tournament list: `curl "https://spectateesports.live/api/tournaments?bust=1"`
     - Only bust what the change actually affects — not all caches every time.
-11. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
+12. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
+13. ✅ **Post-deploy production verification** — after every deploy that touches any API handler or data pipeline, run:
+    ```
+    npm run verify-prod
+    ```
+    The script hits the live production endpoints, busts the news cache for a fresh fetch, and checks:
+    - All three news sources (steam-news-api, liquipedia, currents) each return at least 1 article
+    - The most recent article is less than 48 hours old
+    - Liquipedia article URLs resolve to liquipedia.net (catches wrong-page regressions)
+    - Live-matches and tournaments endpoints respond with the expected shape
+    **If the script exits 1:** open Vercel → Functions tab → check runtime logs for the failing source. Fix the bug, commit, redeploy, and re-run `npm run verify-prod` until it exits 0. Do NOT mark the deploy as complete until all checks pass.
 
 ---
 
