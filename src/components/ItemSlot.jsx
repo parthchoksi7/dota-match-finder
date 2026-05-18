@@ -8,10 +8,12 @@ const SIZE_CLASSES = {
 export default function ItemSlot({ itemId, itemNames, size = 'md' }) {
   const [imgError, setImgError] = useState(false)
   const sizeClass = SIZE_CLASSES[size] ?? SIZE_CLASSES.md
-  const name = itemId ? itemNames?.[itemId] : null
-  const displayName = name ? name.replace(/_/g, ' ') : null
+  const item = itemId ? itemNames?.[itemId] : null
+  // item is { key, dname } — key is the CDN filename, dname is the proper display name
+  const cdnKey = item?.key ?? null
+  const displayName = item?.dname ?? null
 
-  if (!displayName || itemId === 0 || imgError) {
+  if (!cdnKey || itemId === 0 || imgError) {
     return (
       <div
         className={`${sizeClass} rounded-sm bg-gray-200 dark:bg-gray-800 flex-shrink-0`}
@@ -24,7 +26,7 @@ export default function ItemSlot({ itemId, itemNames, size = 'md' }) {
     // relative + group enables the CSS tooltip; no overflow-hidden so tooltip isn't clipped
     <div className={`${sizeClass} relative flex-shrink-0 group`}>
       <img
-        src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${name}_lg.png`}
+        src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${cdnKey}_lg.png`}
         alt={displayName}
         loading="lazy"
         className="w-full h-full object-cover rounded-sm"

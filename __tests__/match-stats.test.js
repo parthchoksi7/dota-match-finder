@@ -34,7 +34,7 @@ function extractPlayers(rawPlayers) {
 function buildItemNames(itemData) {
   const itemNames = {}
   for (const [name, meta] of Object.entries(itemData)) {
-    if (meta?.id != null) itemNames[meta.id] = name
+    if (meta?.id != null) itemNames[meta.id] = { key: name, dname: meta.dname || name.replace(/_/g, ' ') }
   }
   return itemNames
 }
@@ -130,14 +130,20 @@ describe('extractPlayers', () => {
 // ── Item name map tests ───────────────────────────────────────────────────────
 
 describe('buildItemNames', () => {
-  it('builds reverse map from item name to ID', () => {
+  it('stores key and dname for each item', () => {
     const raw = {
-      shadow_blade: { id: 36, cost: 3000 },
-      black_king_bar: { id: 38, cost: 4050 },
+      shadow_blade: { id: 36, cost: 3000, dname: 'Shadow Blade' },
+      black_king_bar: { id: 38, cost: 4050, dname: 'Black King Bar' },
     }
     const map = buildItemNames(raw)
-    expect(map[36]).toBe('shadow_blade')
-    expect(map[38]).toBe('black_king_bar')
+    expect(map[36]).toEqual({ key: 'shadow_blade', dname: 'Shadow Blade' })
+    expect(map[38]).toEqual({ key: 'black_king_bar', dname: 'Black King Bar' })
+  })
+
+  it('falls back to underscore-replaced key when dname is absent', () => {
+    const raw = { manta: { id: 119 } }  // no dname
+    const map = buildItemNames(raw)
+    expect(map[119]).toEqual({ key: 'manta', dname: 'manta' })
   })
 
   it('skips entries without an id field', () => {
@@ -150,12 +156,10 @@ describe('buildItemNames', () => {
     expect(buildItemNames({})).toEqual({})
   })
 
-  it('item ID 0 is excluded from the map (0 means empty slot)', () => {
-    const raw = { empty: { id: 0 } }
+  it('item ID 0 maps but ItemSlot treats itemId 0 as empty regardless', () => {
+    const raw = { empty: { id: 0, dname: 'Empty' } }
     const map = buildItemNames(raw)
-    // id: 0 can map but should render as empty slot in UI — map stores it fine
-    // (the ItemSlot component handles itemId 0 as empty regardless of map)
-    expect(map[0]).toBe('empty')
+    expect(map[0]).toEqual({ key: 'empty', dname: 'Empty' })
   })
 })
 
@@ -237,7 +241,7 @@ describe('?mode=match-stats handler', () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({               // item constants
         ok: true,
-        json: async () => ({ shadow_blade: { id: 36 }, black_king_bar: { id: 38 } }),
+        json: async () => ({ shadow_blade: { id: 36, dname: 'Shadow Blade' }, black_king_bar: { id: 38, dname: 'Black King Bar' } }),
       })
       .mockResolvedValueOnce({               // match data
         ok: true,
@@ -259,13 +263,13 @@ describe('?mode=match-stats handler', () => {
     expect(res._body.players[0].netWorth).toBe(52000)
     expect(res._body.players[0].items).toHaveLength(6)
     expect(res._body.players[0].isRadiant).toBe(true)
-    expect(res._body.itemNames[36]).toBe('shadow_blade')
+    expect(res._body.itemNames[36]).toEqual({ key: 'shadow_blade', dname: 'Shadow Blade' })
 
     vi.unstubAllGlobals()
   })
 
   it('returns cached data without calling OpenDota on KV hit', async () => {
-    const cached = { radiantGoldAdv: [100], players: [], itemNames: { 36: 'shadow_blade' } }
+    const cached = { radiantGoldAdv: [100], players: [], itemNames: { 36: { key: 'shadow_blade', dname: 'Shadow Blade' } } }
     mockKv.get.mockResolvedValueOnce(cached)  // stats cache HIT
 
     const fetchSpy = vi.fn()
@@ -323,7 +327,7 @@ describe('?mode=match-stats handler', () => {
   it('uses item map from KV cache without re-fetching constants', async () => {
     mockKv.get
       .mockResolvedValueOnce(null)                               // stats miss
-      .mockResolvedValueOnce({ 36: 'shadow_blade' })             // item map HIT
+      .mockResolvedValueOnce({ 36: { key: 'shadow_blade', dname: 'Shadow Blade' } })  // item map HIT
 
     const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
@@ -338,7 +342,7 @@ describe('?mode=match-stats handler', () => {
     // Only 1 fetch call (match data) — not 2 (item map was cached)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(fetchSpy.mock.calls[0][0]).toContain('api/matches/7890123')
-    expect(res._body.itemNames[36]).toBe('shadow_blade')
+    expect(res._body.itemNames[36]).toEqual({ key: 'shadow_blade', dname: 'Shadow Blade' })
 
     vi.unstubAllGlobals()
   })
@@ -423,23 +427,28 @@ describe('computePoints', () => {
 // ── Part 3: ItemSlot CDN URL logic (pure, no DOM required) ────────────────────
 
 describe('ItemSlot CDN URL logic', () => {
-  it('resolves the correct CDN URL for a known item ID', () => {
-    const itemNames = { 36: 'shadow_blade', 38: 'black_king_bar' }
-    const name36 = itemNames[36]
-    const name38 = itemNames[38]
-    expect(`https://cdn.dota2.com/apps/dota2/images/items/${name36}_lg.png`)
-      .toBe('https://cdn.dota2.com/apps/dota2/images/items/shadow_blade_lg.png')
-    expect(`https://cdn.dota2.com/apps/dota2/images/items/${name38}_lg.png`)
-      .toBe('https://cdn.dota2.com/apps/dota2/images/items/black_king_bar_lg.png')
+  it('resolves the correct CDN URL using item.key', () => {
+    const itemNames = {
+      36: { key: 'shadow_blade', dname: 'Shadow Blade' },
+      38: { key: 'black_king_bar', dname: 'Black King Bar' },
+    }
+    const base = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items'
+    expect(`${base}/${itemNames[36].key}_lg.png`).toBe(`${base}/shadow_blade_lg.png`)
+    expect(`${base}/${itemNames[38].key}_lg.png`).toBe(`${base}/black_king_bar_lg.png`)
+  })
+
+  it('uses dname for display (not underscore key)', () => {
+    const itemNames = { 119: { key: 'manta', dname: 'Manta Style' } }
+    expect(itemNames[119].dname).toBe('Manta Style')
   })
 
   it('returns undefined (empty slot) for itemId 0', () => {
-    const itemNames = { 36: 'shadow_blade' }
+    const itemNames = { 36: { key: 'shadow_blade', dname: 'Shadow Blade' } }
     expect(itemNames[0]).toBeUndefined()
   })
 
   it('returns undefined (empty slot) for an unknown itemId', () => {
-    const itemNames = { 36: 'shadow_blade' }
+    const itemNames = { 36: { key: 'shadow_blade', dname: 'Shadow Blade' } }
     expect(itemNames[999]).toBeUndefined()
   })
 

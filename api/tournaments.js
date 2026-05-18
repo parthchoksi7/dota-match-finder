@@ -1036,7 +1036,7 @@ export default async function handler(req, res) {
     const STATS_TTL = 60 * 60 * 24 * 7 // 7 days
     const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
     const STATS_KV_KEY = `stats:match:v1:${matchId}`
-    const ITEM_MAP_KV_KEY = 'opendota:item_map_v1'
+    const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
     const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {} }
 
@@ -1061,9 +1061,10 @@ export default async function handler(req, res) {
         const itemRes = await fetch('https://api.opendota.com/api/constants/items')
         if (itemRes.ok) {
           const itemData = await itemRes.json()
-          // itemData shape: { item_name: { id: N, ... }, ... } — build reverse map
+          // itemData shape: { item_name: { id: N, dname: "Display Name", ... } }
+          // Store both the CDN key and the proper display name
           for (const [name, meta] of Object.entries(itemData)) {
-            if (meta?.id != null) itemNames[meta.id] = name
+            if (meta?.id != null) itemNames[meta.id] = { key: name, dname: meta.dname || name.replace(/_/g, ' ') }
           }
           kv.set(ITEM_MAP_KV_KEY, itemNames, { ex: ITEM_MAP_TTL })
             .catch(err => console.warn('item-map KV write failed:', err?.message))
