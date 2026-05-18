@@ -1035,7 +1035,7 @@ export default async function handler(req, res) {
 
     const STATS_TTL = 60 * 60 * 24 * 7 // 7 days
     const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
-    const STATS_KV_KEY = `stats:match:v1:${matchId}`
+    const STATS_KV_KEY = `stats:match:v2:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
     const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {} }

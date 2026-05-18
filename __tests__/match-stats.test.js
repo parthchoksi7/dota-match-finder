@@ -318,7 +318,7 @@ describe('?mode=match-stats handler', () => {
     // res.ok guard: json() must not have been called for the match fetch
     // (it may have been called for items if items fetch also failed, but match fetch did not proceed)
     // The key invariant: KV must NOT be poisoned with empty/error data
-    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v1:'))
+    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v2:'))
     expect(statsKvWrite).toBeUndefined()
 
     vi.unstubAllGlobals()
