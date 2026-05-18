@@ -7,7 +7,7 @@ function formatNetWorth(val) {
   return `$${val}`
 }
 
-function PlayerRow({ player, heroKey, itemNames, maxNetWorth, isRadiant }) {
+function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadiant }) {
   const barColor = isRadiant ? 'bg-green-500' : 'bg-red-500'
   const barWidth = maxNetWorth > 0 ? Math.round((player.netWorth / maxNetWorth) * 100) : 0
 
@@ -17,9 +17,9 @@ function PlayerRow({ player, heroKey, itemNames, maxNetWorth, isRadiant }) {
       <div className="flex items-center gap-2 min-w-0">
         {heroKey ? (
           <img
-            src={`https://cdn.dota2.com/apps/dota2/images/heroes/${heroKey}_icon.png`}
-            alt=""
-            aria-hidden="true"
+            src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${heroKey}_icon.png`}
+            alt={heroName || heroKey}
+            title={heroName || heroKey}
             className="w-6 h-6 rounded-sm flex-shrink-0 object-cover"
             loading="lazy"
           />
@@ -87,6 +87,7 @@ function TeamGroup({ label, players, heroMap, itemNames, maxNetWorth, isRadiant,
               key={i}
               player={p}
               heroKey={heroMap?.[p.heroId]?.key ?? null}
+              heroName={heroMap?.[p.heroId]?.name ?? null}
               itemNames={itemNames}
               maxNetWorth={maxNetWorth}
               isRadiant={isRadiant}

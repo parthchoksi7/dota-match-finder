@@ -634,7 +634,7 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 ### ItemSlot
 - `w-6 h-6` (md, default) or `w-5 h-5` (sm). Always `rounded-sm`.
 - Empty slot (itemId=0 or name not found): `bg-gray-200 dark:bg-gray-800` placeholder, `aria-hidden="true"`.
-- CDN URL: `https://cdn.dota2.com/apps/dota2/images/items/{name}_lg.png` with `loading="lazy"` and `onError` fallback to empty slot.
+- CDN URL: `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/{name}_lg.png` with `loading="lazy"` and `onError` fallback to empty slot.
 - Tooltip: `title={name.replace(/_/g, ' ')}`.
 
 ---

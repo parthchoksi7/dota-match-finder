@@ -22,7 +22,7 @@ export default function ItemSlot({ itemId, itemNames, size = 'md' }) {
   return (
     <div className={`${sizeClass} rounded-sm overflow-hidden flex-shrink-0`} title={name.replace(/_/g, ' ')}>
       <img
-        src={`https://cdn.dota2.com/apps/dota2/images/items/${name}_lg.png`}
+        src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${name}_lg.png`}
         alt={name.replace(/_/g, ' ')}
         loading="lazy"
         className="w-full h-full object-cover"
