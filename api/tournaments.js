@@ -1025,6 +1025,100 @@ export default async function handler(req, res) {
     return handleWatchability(req, res)
   }
 
+  // ── match-stats mode ────────────────────────────────────────────────────────
+  // Returns per-player networth, items, and gold advantage array for a single match.
+  // Cached 7 days in KV (match data is immutable once indexed by OpenDota).
+  // Placed before PANDASCORE_TOKEN check — only calls OpenDota, not PandaScore.
+  if (req.query?.mode === 'match-stats') {
+    const { id: matchId } = req.query
+    if (!matchId) return res.status(400).json({ error: 'id required' })
+
+    const STATS_TTL = 60 * 60 * 24 * 7 // 7 days
+    const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
+    const STATS_KV_KEY = `stats:match:v1:${matchId}`
+    const ITEM_MAP_KV_KEY = 'opendota:item_map_v1'
+
+    const EMPTY = { radiantGoldAdv: [], players: [], itemNames: {} }
+
+    // KV cache hit
+    try {
+      const cached = await kv.get(STATS_KV_KEY)
+      if (cached != null) {
+        res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+        return res.status(200).json(cached)
+      }
+    } catch (err) {
+      console.warn('match-stats KV read failed:', err?.message)
+    }
+
+    // Fetch item ID → name map (shared across all match-stats calls)
+    let itemNames = {}
+    try {
+      const cachedItems = await kv.get(ITEM_MAP_KV_KEY)
+      if (cachedItems != null) {
+        itemNames = cachedItems
+      } else {
+        const itemRes = await fetch('https://api.opendota.com/api/constants/items')
+        if (itemRes.ok) {
+          const itemData = await itemRes.json()
+          // itemData shape: { item_name: { id: N, ... }, ... } — build reverse map
+          for (const [name, meta] of Object.entries(itemData)) {
+            if (meta?.id != null) itemNames[meta.id] = name
+          }
+          kv.set(ITEM_MAP_KV_KEY, itemNames, { ex: ITEM_MAP_TTL })
+            .catch(err => console.warn('item-map KV write failed:', err?.message))
+        }
+      }
+    } catch (err) {
+      console.warn('match-stats item map fetch failed:', err?.message)
+    }
+
+    // Fetch match data from OpenDota
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      let data
+      try {
+        const fetchRes = await fetch(`https://api.opendota.com/api/matches/${matchId}`, { signal: controller.signal })
+        if (!fetchRes.ok) {
+          console.warn(`match-stats OpenDota ${fetchRes.status} for ${matchId}`)
+          res.setHeader('Cache-Control', 'public, s-maxage=60')
+          return res.status(200).json(EMPTY)
+        }
+        data = await fetchRes.json()
+      } finally {
+        clearTimeout(timeout)
+      }
+
+      const isRadiantPlayer = (p) => (p.player_slot ?? 0) < 128
+      const stats = {
+        radiantGoldAdv: data.radiant_gold_adv ?? [],
+        players: (data.players || []).map(p => ({
+          slot: p.player_slot ?? 0,
+          heroId: p.hero_id ?? 0,
+          name: p.name || p.personaname || '',
+          netWorth: p.net_worth ?? 0,
+          items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].map(v => v ?? 0),
+          kills: p.kills ?? 0,
+          deaths: p.deaths ?? 0,
+          assists: p.assists ?? 0,
+          isRadiant: isRadiantPlayer(p),
+        })),
+        itemNames,
+      }
+
+      kv.set(STATS_KV_KEY, stats, { ex: STATS_TTL })
+        .catch(err => console.warn('match-stats KV write failed:', err?.message))
+
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+      return res.status(200).json(stats)
+    } catch (err) {
+      console.warn('match-stats fetch error:', err?.message)
+      res.setHeader('Cache-Control', 'public, s-maxage=60')
+      return res.status(200).json(EMPTY)
+    }
+  }
+
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
 
   const token = process.env.PANDASCORE_TOKEN

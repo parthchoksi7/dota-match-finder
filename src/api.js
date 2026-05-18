@@ -349,6 +349,7 @@ export async function fetchMatchSummary(matchId) {
 }
 
 const _indicatorsCache = new Map()
+const _statsCache = new Map()
 
 /**
  * Fetch game indicators for one or more match IDs.
@@ -374,6 +375,26 @@ export async function fetchMatchIndicators(matchIds) {
     if (_indicatorsCache.has(id)) result[id] = _indicatorsCache.get(id)
   }
   return result
+}
+
+/**
+ * Fetch end-game stats for a single match: player networth, items, and gold advantage array.
+ * Results cached in-memory for the browser session (backend also caches in Redis for 7 days).
+ * Returns { radiantGoldAdv, players, itemNames } or null on failure.
+ */
+export async function fetchMatchStats(matchId) {
+  if (!matchId) return null
+  const key = String(matchId)
+  if (_statsCache.has(key)) return _statsCache.get(key)
+  try {
+    const res = await fetch(`/api/tournaments?mode=match-stats&id=${key}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    _statsCache.set(key, data)
+    return data
+  } catch {
+    return null
+  }
 }
 
 let heroCache = null
