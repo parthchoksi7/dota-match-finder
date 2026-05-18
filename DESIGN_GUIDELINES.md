@@ -608,6 +608,37 @@ Used in `src/components/NewsCard.jsx` for the /news feed.
 
 ---
 
+## Match drawer — end-game stats (GoldGraph + PlayerStatsSection)
+
+Displayed below the collapsible draft section for completed OpenDota-indexed matches. Hidden in spoiler-free mode and for PandaScore-only matches.
+
+### Section headers
+Both sections use the tertiary label style: `text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`.
+
+### Gold advantage graph (GoldGraph)
+- Custom SVG, no chart library. Props: `radiantGoldAdv`, `radiantName`, `direName`, `loading`.
+- Two `<path>` elements clipped to above-zero (green-500/20 fill) and below-zero (red-500/20 fill) halves.
+- Zero line: dashed, `stroke-gray-200 dark:stroke-gray-700`, strokeWidth 0.75.
+- Data line: `stroke-gray-400 dark:stroke-gray-500`, strokeWidth 1.5.
+- SVG viewBox 480x140 with `preserveAspectRatio="none"` — fills the container width.
+- Loading: 140px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
+- Empty (< 2 data points): `text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600` — "Gold data unavailable".
+
+### Player stats row (PlayerStatsSection)
+- Per-player row (3 lines): hero icon (24px) + name (truncate, `text-sm font-semibold`) + networth (right, `text-xs tabular-nums text-gray-500`) / 6x ItemSlot (24px each, `gap-0.5`, indented 8px to align under name) / networth bar (`h-1 rounded-full`, green-500 for Radiant, red-500 for Dire).
+- Team group header: `text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-500` (Radiant) or `text-red-600 dark:text-red-500` (Dire).
+- Players sorted by netWorth descending within each team.
+- Dire group separated by `border-t border-gray-100 dark:border-gray-900 pt-4`.
+- Loading skeleton: 5 rows per team with `animate-pulse` bars matching the row shape.
+
+### ItemSlot
+- `w-6 h-6` (md, default) or `w-5 h-5` (sm). Always `rounded-sm`.
+- Empty slot (itemId=0 or name not found): `bg-gray-200 dark:bg-gray-800` placeholder, `aria-hidden="true"`.
+- CDN URL: `https://cdn.dota2.com/apps/dota2/images/items/{name}_lg.png` with `loading="lazy"` and `onError` fallback to empty slot.
+- Tooltip: `title={name.replace(/_/g, ' ')}`.
+
+---
+
 ## What to Avoid
 
 - Adding sections "just in case" — every section needs a job

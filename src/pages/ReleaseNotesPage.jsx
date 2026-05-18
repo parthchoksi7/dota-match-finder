@@ -4,6 +4,19 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 18, 2026",
+    tag: "new",
+    title: "End-game stats: gold graph and player networth",
+    desc: "Open any completed match to see the full economic story of the game.",
+    items: [
+      "Gold advantage graph shows which team was ahead every minute, with green fill for Radiant leads and red for Dire",
+      "Player networth, item builds (all 6 slots), and a proportional networth bar for every player",
+      "Players sorted by final networth within each team",
+      "Draft section in the match panel is now collapsible to keep the view focused",
+      "All stats are hidden in spoiler-free mode",
+    ],
+  },
+  {
     date: "May 17, 2026",
     tag: "improvement",
     title: "News feed: fresher sources, same-day articles",

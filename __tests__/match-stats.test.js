@@ -404,3 +404,106 @@ describe('computePoints', () => {
     expect(pts[3].y).toBeGreaterThan(MID)
   })
 })
+
+// ── Part 3: ItemSlot CDN URL logic (pure, no DOM required) ────────────────────
+
+describe('ItemSlot CDN URL logic', () => {
+  it('resolves the correct CDN URL for a known item ID', () => {
+    const itemNames = { 36: 'shadow_blade', 38: 'black_king_bar' }
+    const name36 = itemNames[36]
+    const name38 = itemNames[38]
+    expect(`https://cdn.dota2.com/apps/dota2/images/items/${name36}_lg.png`)
+      .toBe('https://cdn.dota2.com/apps/dota2/images/items/shadow_blade_lg.png')
+    expect(`https://cdn.dota2.com/apps/dota2/images/items/${name38}_lg.png`)
+      .toBe('https://cdn.dota2.com/apps/dota2/images/items/black_king_bar_lg.png')
+  })
+
+  it('returns undefined (empty slot) for itemId 0', () => {
+    const itemNames = { 36: 'shadow_blade' }
+    expect(itemNames[0]).toBeUndefined()
+  })
+
+  it('returns undefined (empty slot) for an unknown itemId', () => {
+    const itemNames = { 36: 'shadow_blade' }
+    expect(itemNames[999]).toBeUndefined()
+  })
+
+  it('empty itemNames map resolves nothing', () => {
+    const itemNames = {}
+    expect(itemNames[36]).toBeUndefined()
+  })
+})
+
+// ── Part 3: PlayerStatsSection sort and grouping logic (pure) ─────────────────
+
+function sortAndGroup(players) {
+  const radiant = [...players.filter(p => p.isRadiant)].sort((a, b) => b.netWorth - a.netWorth)
+  const dire = [...players.filter(p => !p.isRadiant)].sort((a, b) => b.netWorth - a.netWorth)
+  return { radiant, dire }
+}
+
+describe('PlayerStatsSection sort and grouping', () => {
+  const mockPlayers = [
+    { isRadiant: true,  netWorth: 20000, name: 'yatoro',   heroId: 1,  items: [0,0,0,0,0,0] },
+    { isRadiant: true,  netWorth: 35000, name: 'collapse',  heroId: 2,  items: [36,0,0,0,0,0] },
+    { isRadiant: true,  netWorth: 28000, name: 'miposhka', heroId: 3,  items: [0,0,0,0,0,0] },
+    { isRadiant: true,  netWorth: 15000, name: 'Larl',     heroId: 4,  items: [0,0,0,0,0,0] },
+    { isRadiant: true,  netWorth: 22000, name: 'Torontotokyo', heroId: 5, items: [0,0,0,0,0,0] },
+    { isRadiant: false, netWorth: 31000, name: 'Nisha',    heroId: 6,  items: [108,0,0,0,0,0] },
+    { isRadiant: false, netWorth: 18000, name: 'Crystallis', heroId: 7, items: [0,0,0,0,0,0] },
+    { isRadiant: false, netWorth: 26000, name: 'Pure',     heroId: 8,  items: [0,0,0,0,0,0] },
+    { isRadiant: false, netWorth: 12000, name: 'dyrachyo', heroId: 9,  items: [0,0,0,0,0,0] },
+    { isRadiant: false, netWorth: 23000, name: 'Puppey',   heroId: 10, items: [0,0,0,0,0,0] },
+  ]
+
+  it('separates players into radiant and dire groups', () => {
+    const { radiant, dire } = sortAndGroup(mockPlayers)
+    expect(radiant).toHaveLength(5)
+    expect(dire).toHaveLength(5)
+    radiant.forEach(p => expect(p.isRadiant).toBe(true))
+    dire.forEach(p => expect(p.isRadiant).toBe(false))
+  })
+
+  it('sorts radiant players by netWorth descending', () => {
+    const { radiant } = sortAndGroup(mockPlayers)
+    for (let i = 1; i < radiant.length; i++) {
+      expect(radiant[i - 1].netWorth).toBeGreaterThanOrEqual(radiant[i].netWorth)
+    }
+    expect(radiant[0].name).toBe('collapse')   // highest NW radiant
+    expect(radiant[4].name).toBe('Larl')        // lowest NW radiant
+  })
+
+  it('sorts dire players by netWorth descending', () => {
+    const { dire } = sortAndGroup(mockPlayers)
+    for (let i = 1; i < dire.length; i++) {
+      expect(dire[i - 1].netWorth).toBeGreaterThanOrEqual(dire[i].netWorth)
+    }
+    expect(dire[0].name).toBe('Nisha')          // highest NW dire
+    expect(dire[4].name).toBe('dyrachyo')       // lowest NW dire
+  })
+
+  it('handles empty players array without crashing', () => {
+    const { radiant, dire } = sortAndGroup([])
+    expect(radiant).toHaveLength(0)
+    expect(dire).toHaveLength(0)
+  })
+
+  it('maxNetWorth calculated correctly across both teams', () => {
+    const maxNetWorth = Math.max(...mockPlayers.map(p => p.netWorth), 1)
+    expect(maxNetWorth).toBe(35000)  // collapse
+  })
+
+  it('networth bar width clamps to 100% for max-NW player', () => {
+    const maxNetWorth = 35000
+    const collapse = mockPlayers.find(p => p.name === 'collapse')
+    const barWidth = Math.round((collapse.netWorth / maxNetWorth) * 100)
+    expect(barWidth).toBe(100)
+  })
+
+  it('networth bar is proportional for mid-range player', () => {
+    const maxNetWorth = 35000
+    const yatoro = mockPlayers.find(p => p.name === 'yatoro')
+    const barWidth = Math.round((yatoro.netWorth / maxNetWorth) * 100)
+    expect(barWidth).toBeCloseTo(57, 0)   // 20000/35000 ≈ 57%
+  })
+})

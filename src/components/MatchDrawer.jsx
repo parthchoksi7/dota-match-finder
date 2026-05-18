@@ -1,5 +1,6 @@
 import DraftDisplay from "./DraftDisplay"
 import GoldGraph from "./GoldGraph"
+import PlayerStatsSection from "./PlayerStatsSection"
 import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats } from "../api"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -432,19 +433,34 @@ function MatchDrawer({
             )}
           </div>
 
-          {/* Gold advantage graph — hidden in spoiler-free mode and for PandaScore-only matches */}
+          {/* Gold advantage graph + player stats — hidden in spoiler-free mode and for PandaScore-only matches */}
           {!spoilerFree && !match._fromPandaScore && (
-            <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
-                Gold Advantage
-              </h3>
-              <GoldGraph
-                radiantGoldAdv={matchStats?.radiantGoldAdv}
-                radiantName={match.radiantTeam}
-                direName={match.direTeam}
-                loading={statsLoading}
-              />
-            </div>
+            <>
+              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                  Gold Advantage
+                </h3>
+                <GoldGraph
+                  radiantGoldAdv={matchStats?.radiantGoldAdv}
+                  radiantName={match.radiantTeam}
+                  direName={match.direTeam}
+                  loading={statsLoading}
+                />
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                  Player Stats
+                </h3>
+                <PlayerStatsSection
+                  players={matchStats?.players}
+                  itemNames={matchStats?.itemNames}
+                  radiantName={match.radiantTeam}
+                  direName={match.direTeam}
+                  loading={statsLoading}
+                />
+              </div>
+            </>
           )}
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
