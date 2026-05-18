@@ -6,6 +6,7 @@ import { get as httpsGet } from 'node:https'
 import { createGunzip } from 'node:zlib'
 import { XMLParser } from 'fast-xml-parser'
 import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER } from './_shared.js'
+import { parseLiquipediaTransfers, getCurrentTransferPage } from './_liquipedia.js'
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -266,93 +267,7 @@ function httpsGetGzip(url, timeoutMs = 10000) {
   })
 }
 
-function getCurrentTransferPage() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const quarter = Math.ceil((now.getMonth() + 1) / 3)
-  const suffix = ['1st', '2nd', '3rd', '4th'][quarter - 1]
-  return `Transfers/${year}/${suffix}_Quarter`
-}
-
 // ── Liquipedia Transfers ──────────────────────────────────────────────────────
-
-// Liquipedia uses CSS div-tables (divRow/divCell), not <table> elements.
-// Each row has: Date | Name | Team OldTeam | Icon | Team NewTeam | Ref
-function parseLiquipediaTransfers(html, page = 'Portal:Transfers') {
-  const articles = []
-  const fourteenDaysAgo = Date.now() - 14 * 86400_000
-
-  // Split at each divRow boundary to isolate row chunks
-  const rowSections = html.split('<div class="divRow mainpage-transfer')
-
-  for (let i = 1; i < rowSections.length; i++) {
-    const chunk = rowSections[i]
-
-    // Split at divCell boundaries to isolate each cell's content
-    const cellParts = chunk.split('<div class="divCell ')
-    const cells = {}
-    for (const part of cellParts.slice(1)) {
-      const gtIdx = part.indexOf('>')
-      const cellKey = part.slice(0, gtIdx).replace(/"/g, '').trim()
-      cells[cellKey] = part.slice(gtIdx + 1)
-    }
-
-    const dateText = stripHtml(cells['Date'] || '').trim()
-    const dateMatch = dateText.match(/(\d{4}-\d{2}-\d{2})/)
-    if (!dateMatch) continue
-
-    const date = new Date(dateMatch[1])
-    if (isNaN(date.getTime()) || date.getTime() < fourteenDaysAgo) continue
-    const transferDate = dateMatch[1]
-
-    // Extract player links; skip red-links (index.php = page doesn't exist)
-    const nameHtml = cells['Name'] || ''
-    const playerLinks = [...nameHtml.matchAll(/href="(\/dota2\/(?!index\.php)[^"#?]+)"[^>]*>([^<]+)<\/a>/g)]
-    if (!playerLinks.length) continue
-
-    // Team names via data-highlighting-class (most reliable — avoids img alt ambiguity)
-    const fromTeamMatch = (cells['Team OldTeam'] || '').match(/data-highlighting-class="([^"]+)"/)
-    const toTeamMatch = (cells['Team NewTeam'] || '').match(/data-highlighting-class="([^"]+)"/)
-    const fromTeam = fromTeamMatch?.[1] || ''
-    const toTeam = toTeamMatch?.[1] || ''
-
-    if (!toTeam || /^(TBD|None)$/i.test(toTeam)) continue
-    if (fromTeam && fromTeam === toTeam) continue // skip renewals/extensions
-
-    if (playerLinks.length === 1) {
-      const [, playerPath, playerName] = playerLinks[0]
-      const title = fromTeam
-        ? `${playerName} moves to ${toTeam}`
-        : `${playerName} signs with ${toTeam}`
-      const excerpt = fromTeam ? `${fromTeam} → ${toTeam}` : toTeam
-      articles.push({
-        title,
-        link: `https://liquipedia.net${playerPath}#${transferDate}`,
-        description: excerpt,
-        pubDate: date.toISOString(),
-        categories: ['roster'],
-        enclosureUrl: null,
-      })
-    } else {
-      // Multiple players = roster signing
-      const playerNames = playerLinks.map(([, , n]) => n).join(', ')
-      const title = fromTeam
-        ? `${toTeam} acquires players from ${fromTeam}`
-        : `${toTeam} signs new roster`
-      const teamSlug = toTeam.replace(/ /g, '_')
-      articles.push({
-        title,
-        link: `https://liquipedia.net/dota2/${encodeURIComponent(teamSlug)}#${transferDate}`,
-        description: playerNames,
-        pubDate: date.toISOString(),
-        categories: ['roster'],
-        enclosureUrl: null,
-      })
-    }
-  }
-
-  return articles
-}
 
 async function fetchLiquipediaTransfers() {
   const page = getCurrentTransferPage()
@@ -361,7 +276,7 @@ async function fetchLiquipediaTransfers() {
   const data = JSON.parse(text)
   const html = data?.parse?.text?.['*'] || ''
   if (!html) throw new Error('Empty Liquipedia response')
-  return parseLiquipediaTransfers(html, page)
+  return parseLiquipediaTransfers(html)
 }
 
 // ── Currents API ──────────────────────────────────────────────────────────────

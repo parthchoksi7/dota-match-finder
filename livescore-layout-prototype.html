@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spectate Esports - Layout Prototype</title>
+  <style>
+    /* Design tokens -- matches DESIGN_GUIDELINES.md color system */
+    :root {
+      --surface:       #030712; /* gray-950 */
+      --raised:        #111827; /* gray-900 */
+      --hover:         #1f2937; /* gray-800 */
+      --border:        #1f2937; /* gray-800 */
+      --border-accent: #4b5563; /* gray-600 */
+      --text-primary:  #ffffff;
+      --text-secondary:#d1d5db; /* gray-300 */
+      --text-tertiary: #6b7280; /* gray-500 */
+      --accent:        #ef4444; /* red-500 -- live + active states only */
+      --watch:         #7e22ce; /* purple-700 -- VOD/replay actions only */
+      --watch-hover:   #6b21a8; /* purple-800 */
+      --win:           #22c55e; /* green-500 */
+      --blue:          #60a5fa; /* blue-400 -- upcoming/scheduled */
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: var(--surface);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding-bottom: 72px;
+    }
+    @media (min-width: 768px) { body { padding-bottom: 0; } }
+
+    /* ---- SITE HEADER ---- */
+    .site-header {
+      background: var(--raised);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-inner {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 0 16px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .logo-shield { width: 30px; height: 30px; }
+    .logo-text { display: none; }
+    @media (min-width: 640px) { .logo-text { display: block; } }
+    .logo-wordmark {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 900;
+      font-size: 17px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .logo-tagline {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+    .header-nav {
+      display: none;
+      margin-left: auto;
+      align-items: center;
+      gap: 20px;
+    }
+    @media (min-width: 768px) { .header-nav { display: flex; } }
+    .header-nav a {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .header-nav a:hover { color: var(--text-primary); }
+    .header-nav a.active { color: var(--text-primary); }
+
+    /* ---- STICKY STRIP (date + filter) ---- */
+    .sticky-strip {
+      background: var(--raised);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 52px;
+      z-index: 40;
+    }
+    .strip-inner {
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+
+    /* ---- DATE STRIP ---- */
+    .date-strip {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+    }
+    .date-strip::-webkit-scrollbar { display: none; }
+
+    .date-pill {
+      flex-shrink: 0;
+      padding: 0 14px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+    .date-pill:hover { color: var(--text-secondary); }
+    .date-pill.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ---- FILTER TABS ---- */
+    .filter-strip {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 0 16px;
+    }
+    .filter-strip::-webkit-scrollbar { display: none; }
+
+    .filter-tab {
+      flex-shrink: 0;
+      padding: 0 12px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+    .filter-tab:hover { color: var(--text-secondary); }
+    .filter-tab.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent);
+    }
+    .filter-count {
+      font-size: 10px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      background: var(--hover);
+      color: var(--text-tertiary);
+      border-radius: 99px;
+      padding: 1px 5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .filter-tab.active .filter-count {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ---- MAIN FEED ---- */
+    .main {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ---- SECTION LABEL (floating, above card) ---- */
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: -8px; /* pulls the card up under the label */
+    }
+    .section-label h2 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-tertiary);
+      padding-left: 8px;
+      border-left: 2px solid var(--border-accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-label h2.live { border-left-color: var(--accent); }
+    .section-label h2.upcoming { border-left-color: #3b82f6; }
+
+    /* ---- TOURNAMENT SECTION CARD ---- */
+    .tournament-section {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--raised);
+    }
+
+    .tournament-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      min-height: 52px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tournament-org {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+    }
+    .tournament-name {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tier-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 5px;
+      border-radius: 3px;
+      border: 1px solid var(--border-accent);
+      color: var(--text-tertiary);
+    }
+    .tier-badge.s { border-color: #f59e0b; color: #f59e0b; }
+    .tier-badge.a { border-color: #a78bfa; color: #a78bfa; }
+    .live-tag {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+    }
+    .match-count {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-tertiary);
+    }
+    .chevron {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: var(--text-tertiary);
+      transition: transform 0.15s;
+    }
+    .chevron.rotated { transform: rotate(-90deg); }
+
+    /* ---- MATCH ROW ---- */
+    .match-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 1fr;
+      align-items: center;
+      padding: 10px 12px;
+      min-height: 48px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      cursor: pointer;
+      gap: 6px;
+    }
+    /* On wider screens: add 4th column for replay button */
+    @media (min-width: 520px) {
+      .match-row { grid-template-columns: 1fr 80px 1fr auto; }
+    }
+    .match-row:last-child { border-bottom: none; }
+    .match-row:hover { background: var(--hover); }
+
+    .team-a { display: flex; align-items: center; min-width: 0; }
+    .team-b { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+
+    .team-name {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .team-name.winner {
+      font-weight: 900;
+      color: var(--text-primary);
+    }
+    .team-name.loser {
+      font-weight: 700;
+      color: var(--text-tertiary);
+    }
+
+    /* Center block */
+    .match-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .score-num {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 900;
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .score-num.dim { color: var(--text-tertiary); }
+    .score-sep {
+      font-size: 14px;
+      font-weight: 500;
+      /* de-emphasized per design guidelines -- structural glue, not content */
+      color: #374151;
+      line-height: 1;
+    }
+    .match-sub {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+    }
+    .match-time {
+      font-size: 13px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--blue);
+    }
+    .live-center {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .live-game-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+    }
+
+    /* Replay / Watch button */
+    .action-btn {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      white-space: nowrap;
+      min-height: 30px;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    @media (min-width: 520px) { .action-btn { display: inline-flex; } }
+    .action-btn.replay {
+      background: var(--watch);
+      color: #fff;
+    }
+    .action-btn.replay:hover { background: var(--watch-hover); }
+    .action-btn.watch-live {
+      background: var(--watch);
+      color: #fff;
+    }
+    .action-btn.watch-live:hover { background: var(--watch-hover); }
+
+    /* Stream indicator for upcoming */
+    .stream-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a78bfa; /* purple-400 -- stream info, not a button */
+    }
+
+    /* ---- LIVE PULSE DOT ---- */
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      animation: pulse-anim 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-anim {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.45; transform: scale(0.8); }
+    }
+
+    /* ---- EMPTY STATE ---- */
+    .empty-state {
+      padding: 48px 16px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-tertiary);
+    }
+
+    /* ---- BOTTOM TAB BAR (mobile only) ---- */
+    .bottom-tab-bar {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: var(--raised);
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    @media (min-width: 768px) { .bottom-tab-bar { display: none; } }
+
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 8px 0;
+      min-height: 56px;
+      color: var(--text-tertiary);
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      background: none;
+      transition: color 0.15s;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+    .tab-item:hover { color: var(--text-secondary); }
+    .tab-item.active { color: var(--accent); }
+    .tab-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ---- TOURNAMENT IDENTITY (clickable left zone in header) ---- */
+    .tournament-identity {
+      display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: opacity 0.15s;
+    }
+    .tournament-identity:hover .tournament-name { color: var(--text-secondary); }
+    .tournament-identity:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ---- CHEVRON BUTTON (right zone in header -- collapse only) ---- */
+    .chevron-btn {
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; padding: 4px; cursor: pointer;
+      border-radius: 3px; color: var(--text-tertiary); transition: color 0.15s; flex-shrink: 0;
+    }
+    .chevron-btn:hover { color: var(--text-secondary); }
+    .chevron-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* ---- TOURNAMENT DETAIL VIEW ---- */
+    .tournament-detail { display: flex; flex-direction: column; }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text-tertiary); font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.2em;
+      padding: 12px 16px; cursor: pointer; background: none; border: none;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      transition: color 0.15s;
+    }
+    .back-btn:hover { color: var(--text-primary); }
+
+    .detail-header {
+      padding: 12px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--raised);
+    }
+    .detail-name {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 18px; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-primary); margin: 4px 0 8px;
+    }
+    .detail-meta {
+      display: flex; flex-wrap: wrap; gap: 8px 14px;
+      font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.12em;
+    }
+    .detail-prize { color: var(--accent); font-weight: 700; }
+
+    .detail-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      padding: 0 8px; background: var(--raised);
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .detail-tabs::-webkit-scrollbar { display: none; }
+    .detail-tab {
+      flex-shrink: 0; padding: 0 12px; height: 40px;
+      display: flex; align-items: center;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-tertiary);
+      background: none; border: none; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; cursor: pointer; white-space: nowrap;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .detail-tab:hover { color: var(--text-secondary); }
+    .detail-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+
+    /* Standings table */
+    .standings-table { width: 100%; border-collapse: collapse; }
+    .standings-table th {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.2em; color: var(--text-tertiary);
+      text-align: left; padding: 8px 16px;
+    }
+    .standings-table th.stat { text-align: center; }
+    .standings-table td { padding: 10px 16px; font-size: 13px; border-top: 1px solid var(--border); }
+    .standings-table td.rank { color: var(--text-tertiary); font-size: 11px; width: 28px; padding-right: 4px; }
+    .standings-table td.standing-team { font-weight: 700; color: var(--text-primary); }
+    .standings-table td.stat { text-align: center; color: var(--text-tertiary); font-variant-numeric: tabular-nums; width: 40px; }
+    .standings-table td.pts { font-weight: 700; color: var(--text-primary); }
+
+    /* ---- MATCH SIDE SHEET ---- */
+    .sheet-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .sheet-overlay.open { opacity: 1; pointer-events: auto; }
+
+    .match-sheet {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: min(420px, 100vw);
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 101; overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .match-sheet.open { transform: translateX(0); }
+
+    .sheet-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--surface); z-index: 1;
+    }
+    .sheet-header-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .sheet-tournament {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-primary);
+    }
+    .sheet-close {
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; padding: 4px; cursor: pointer;
+      color: var(--text-tertiary); border-radius: 4px;
+      transition: color 0.15s; flex-shrink: 0; margin-left: 12px;
+    }
+    .sheet-close:hover { color: var(--text-primary); }
+
+    .sheet-score {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 24px 16px 8px;
+    }
+    .sheet-team { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .sheet-team.right { flex-direction: row-reverse; }
+    .sheet-team.winner .sheet-team-name { color: var(--text-primary); font-weight: 900; }
+    .sheet-team.loser .sheet-team-name { color: var(--text-tertiary); }
+    .sheet-team-name {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-secondary); flex: 1;
+    }
+    .sheet-team.right .sheet-team-name { text-align: right; }
+    .sheet-score-num {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums;
+      color: var(--text-primary); line-height: 1; flex-shrink: 0;
+    }
+    .sheet-score-num.dim { color: var(--text-tertiary); }
+    .sheet-sep { font-size: 22px; font-weight: 400; color: #374151; flex-shrink: 0; }
+    .sheet-score.upcoming {
+      flex-direction: column; align-items: center; gap: 6px;
+    }
+    .sheet-score.upcoming .sheet-sep {
+      font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+      color: var(--blue);
+    }
+    .sheet-score.upcoming .sheet-team-name {
+      font-size: 15px; font-weight: 700; text-align: center;
+    }
+    .sheet-meta {
+      text-align: center; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text-tertiary); padding: 0 16px 16px;
+    }
+    .sheet-meta.live-meta {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; color: var(--accent);
+    }
+
+    .sheet-actions { padding: 0 16px 16px; }
+    .sheet-replay-btn, .sheet-live-btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 12px; border-radius: 6px; border: none;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; cursor: pointer;
+      background: var(--watch); color: #fff; transition: background 0.15s;
+    }
+    .sheet-replay-btn:hover, .sheet-live-btn:hover { background: var(--watch-hover); }
+    .sheet-replay-btn[disabled], .sheet-live-btn[disabled] {
+      background: var(--hover); color: var(--text-tertiary); cursor: not-allowed;
+    }
+
+    .sheet-section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.2em; color: var(--text-tertiary);
+      padding: 14px 16px 8px; border-top: 1px solid var(--border);
+    }
+
+    .sheet-draft {
+      display: grid; grid-template-columns: 1fr 1fr; padding: 0 16px 4px;
+    }
+    .draft-col { display: flex; flex-direction: column; gap: 7px; }
+    .draft-col.right { align-items: flex-end; }
+
+    .hero-pick { display: flex; align-items: center; gap: 8px; }
+    .draft-col.right .hero-pick { flex-direction: row-reverse; }
+    .hero-pick.winner .hero-name { color: var(--text-primary); }
+    .hero-pick.loser .hero-name { color: var(--text-tertiary); }
+    .hero-icon {
+      width: 30px; height: 30px; border-radius: 4px; flex-shrink: 0;
+      background: var(--hover); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      color: var(--text-tertiary);
+    }
+    .hero-pick.winner .hero-icon { border-color: var(--border-accent); color: var(--text-secondary); }
+    .hero-name {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-tertiary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .sheet-summary {
+      font-size: 13px; line-height: 1.65; color: var(--text-tertiary);
+      padding: 0 16px 32px;
+    }
+
+    /* ---- PROTOTYPE NOTICE ---- */
+    .proto-notice {
+      background: #1e1b4b;
+      border: 1px solid #3730a3;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #a5b4fc;
+      margin: 16px;
+      max-width: 1024px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- SITE HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="#" class="logo" aria-label="Spectate Esports - Home">
+      <svg class="logo-shield" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M16 2L4 8v9c0 6.5 5.2 11.8 12 14 6.8-2.2 12-7.5 12-14V8L16 2z" fill="#ef4444" fill-opacity="0.12" stroke="#ef4444" stroke-width="1.5"/>
+        <path d="M12 16.5l2.5 2.5 5.5-6.5" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="logo-text">
+        <div class="logo-wordmark">Spectate Esports</div>
+        <div class="logo-tagline">Dota 2 Replay Finder</div>
+      </div>
+    </a>
+    <nav class="header-nav" aria-label="Main navigation">
+      <a href="#" class="active">Home</a>
+      <a href="#">Tournaments</a>
+      <a href="#">News</a>
+    </nav>
+  </div>
+</header>
+
+<!-- STICKY DATE + FILTER STRIP -->
+<div class="sticky-strip">
+  <div class="strip-inner">
+    <!-- Date navigation -->
+    <div class="date-strip" role="tablist" aria-label="Browse by date" id="date-strip">
+      <button type="button" class="date-pill" role="tab" data-date="may7"      aria-selected="false">May 7</button>
+      <button type="button" class="date-pill" role="tab" data-date="may8"      aria-selected="false">May 8</button>
+      <button type="button" class="date-pill" role="tab" data-date="yesterday" aria-selected="false">Yesterday</button>
+      <button type="button" class="date-pill active" role="tab" data-date="today" aria-selected="true">Today</button>
+      <button type="button" class="date-pill" role="tab" data-date="tomorrow"  aria-selected="false">Tomorrow</button>
+    </div>
+    <!-- Status filter -->
+    <div class="filter-strip" role="tablist" aria-label="Filter by match status" id="filter-strip">
+      <button type="button" class="filter-tab active" role="tab" data-filter="all"       aria-selected="true">All <span class="filter-count" id="cnt-all">0</span></button>
+      <button type="button" class="filter-tab"        role="tab" data-filter="live"      aria-selected="false">Live <span class="filter-count" id="cnt-live">0</span></button>
+      <button type="button" class="filter-tab"        role="tab" data-filter="upcoming"  aria-selected="false">Upcoming <span class="filter-count" id="cnt-upcoming">0</span></button>
+      <button type="button" class="filter-tab"        role="tab" data-filter="completed" aria-selected="false">Completed <span class="filter-count" id="cnt-completed">0</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- PROTOTYPE NOTICE -->
+<div class="proto-notice" role="note">
+  Visual prototype - all data is hardcoded. Resize the window to test 375px (mobile) and 1280px (desktop) layouts.
+</div>
+
+<!-- MAIN MATCH FEED -->
+<main class="main" id="feed" aria-live="polite" aria-label="Match feed"></main>
+
+<!-- BOTTOM TAB BAR (mobile) -->
+<nav class="bottom-tab-bar" aria-label="Mobile navigation">
+  <a href="#" class="tab-item active" aria-current="page">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a href="#" class="tab-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+      <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+    </svg>
+    <span class="tab-label">Tournaments</span>
+  </a>
+  <a href="#" class="tab-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 0-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+      <path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6z"/>
+    </svg>
+    <span class="tab-label">News</span>
+  </a>
+</nav>
+
+<!-- MATCH SIDE SHEET -->
+<div id="sheet-overlay" class="sheet-overlay" onclick="closeMatchSheet()"></div>
+<aside id="match-sheet" class="match-sheet" role="dialog" aria-modal="true" aria-label="Match details" tabindex="-1">
+  <div id="sheet-content"></div>
+</aside>
+
+<script>
+// ---- HARDCODED MATCH DATA ----
+const MATCHES = [
+  // --- MAY 9 (yesterday) ---
+  {
+    id:1, date:'yesterday', tournament:'ESL One Birmingham 2026', org:'ESL', tier:'s',
+    status:'completed', teamA:'Team Spirit', teamB:'Gaimin Gladiators', scoreA:2, scoreB:0,
+    format:'BO3', winner:'a', time:null, currentGame:null, stream:false
+  },
+  {
+    id:2, date:'yesterday', tournament:'ESL One Birmingham 2026', org:'ESL', tier:'s',
+    status:'completed', teamA:'Tundra Esports', teamB:'OG', scoreA:1, scoreB:2,
+    format:'BO3', winner:'b', time:null, currentGame:null, stream:false
+  },
+  {
+    id:3, date:'yesterday', tournament:'PGL Wallachia S8', org:'PGL', tier:'s',
+    status:'completed', teamA:'Team Liquid', teamB:'Aurora', scoreA:2, scoreB:1,
+    format:'BO3', winner:'a', time:null, currentGame:null, stream:false
+  },
+  {
+    id:4, date:'yesterday', tournament:'PGL Wallachia S8', org:'PGL', tier:'s',
+    status:'completed', teamA:'Xtreme Gaming', teamB:'Cloud9', scoreA:0, scoreB:2,
+    format:'BO3', winner:'b', time:null, currentGame:null, stream:false
+  },
+
+  // --- MAY 10 (today) ---
+  {
+    id:5, date:'today', tournament:'ESL One Birmingham 2026', org:'ESL', tier:'s',
+    status:'live', teamA:'Team Spirit', teamB:'Team Liquid', scoreA:1, scoreB:0,
+    format:'BO5', winner:null, time:null, currentGame:'G2', stream:true
+  },
+  {
+    id:6, date:'today', tournament:'ESL One Birmingham 2026', org:'ESL', tier:'s',
+    status:'completed', teamA:'OG', teamB:'Aurora', scoreA:2, scoreB:1,
+    format:'BO3', winner:'a', time:null, currentGame:null, stream:false
+  },
+  {
+    id:7, date:'today', tournament:'PGL Wallachia S8', org:'PGL', tier:'s',
+    status:'upcoming', teamA:'Tundra Esports', teamB:'Xtreme Gaming', scoreA:null, scoreB:null,
+    format:'BO3', winner:null, time:'19:00 UTC', currentGame:null, stream:false
+  },
+  {
+    id:8, date:'today', tournament:'PGL Wallachia S8', org:'PGL', tier:'s',
+    status:'upcoming', teamA:'Gaimin Gladiators', teamB:'Cloud9', scoreA:null, scoreB:null,
+    format:'BO3', winner:null, time:'21:00 UTC', currentGame:null, stream:false
+  },
+  {
+    id:9, date:'today', tournament:'DreamLeague S24', org:'DreamLeague', tier:'a',
+    status:'completed', teamA:'Cloud9', teamB:'Xtreme Gaming', scoreA:1, scoreB:2,
+    format:'BO3', winner:'b', time:null, currentGame:null, stream:false
+  },
+
+  // --- MAY 11 (tomorrow) ---
+  {
+    id:10, date:'tomorrow', tournament:'ESL One Birmingham 2026', org:'ESL', tier:'s',
+    status:'upcoming', teamA:'Tundra Esports', teamB:'Gaimin Gladiators', scoreA:null, scoreB:null,
+    format:'BO3', winner:null, time:'14:00 UTC', currentGame:null, stream:false
+  },
+  {
+    id:11, date:'tomorrow', tournament:'DreamLeague S24', org:'DreamLeague', tier:'a',
+    status:'upcoming', teamA:'Team Spirit', teamB:'OG', scoreA:null, scoreB:null,
+    format:'BO3', winner:null, time:'17:00 UTC', currentGame:null, stream:false
+  },
+  {
+    id:12, date:'tomorrow', tournament:'DreamLeague S24', org:'DreamLeague', tier:'a',
+    status:'upcoming', teamA:'Aurora', teamB:'Team Liquid', scoreA:null, scoreB:null,
+    format:'BO5', winner:null, time:'20:00 UTC', currentGame:null, stream:false
+  },
+];
+
+// ---- TOURNAMENT DETAIL DATA ----
+const TOURNAMENT_DATA = {
+  'ESL One Birmingham 2026': {
+    org: 'ESL', dates: 'May 5-18, 2026', prizePool: '$500,000', location: 'Birmingham, UK',
+    standings: [
+      { team: 'Team Spirit',       wins: 3, losses: 0, pts: 9 },
+      { team: 'Team Liquid',       wins: 2, losses: 1, pts: 6 },
+      { team: 'Gaimin Gladiators', wins: 2, losses: 1, pts: 6 },
+      { team: 'OG',                wins: 2, losses: 1, pts: 6 },
+      { team: 'Aurora',            wins: 1, losses: 2, pts: 3 },
+      { team: 'Tundra Esports',    wins: 1, losses: 2, pts: 3 },
+      { team: 'Cloud9',            wins: 0, losses: 3, pts: 0 },
+      { team: 'Xtreme Gaming',     wins: 0, losses: 3, pts: 0 },
+    ],
+    results: [
+      { id:101, tournament:'ESL One Birmingham 2026', status:'completed', teamA:'Team Spirit',       teamB:'Gaimin Gladiators', scoreA:2, scoreB:0, format:'BO3', winner:'a', time:null, currentGame:null, stream:false },
+      { id:102, tournament:'ESL One Birmingham 2026', status:'completed', teamA:'OG',               teamB:'Aurora',            scoreA:2, scoreB:1, format:'BO3', winner:'a', time:null, currentGame:null, stream:false },
+      { id:103, tournament:'ESL One Birmingham 2026', status:'completed', teamA:'Tundra Esports',   teamB:'OG',                scoreA:1, scoreB:2, format:'BO3', winner:'b', time:null, currentGame:null, stream:false },
+      { id:104, tournament:'ESL One Birmingham 2026', status:'completed', teamA:'Cloud9',           teamB:'Team Liquid',       scoreA:0, scoreB:2, format:'BO3', winner:'b', time:null, currentGame:null, stream:false },
+    ],
+    upcoming: [
+      { id:201, tournament:'ESL One Birmingham 2026', status:'upcoming', teamA:'Team Spirit',     teamB:'Team Liquid',       scoreA:null, scoreB:null, format:'BO5', winner:null, time:'15:00 UTC', currentGame:null, stream:false },
+      { id:202, tournament:'ESL One Birmingham 2026', status:'upcoming', teamA:'Tundra Esports',  teamB:'Gaimin Gladiators', scoreA:null, scoreB:null, format:'BO3', winner:null, time:'18:00 UTC', currentGame:null, stream:false },
+    ],
+  },
+  'PGL Wallachia S8': {
+    org: 'PGL', dates: 'May 7-19, 2026', prizePool: '$400,000', location: 'Wallachia, Romania',
+    standings: [
+      { team: 'Team Liquid',    wins: 3, losses: 0, pts: 9 },
+      { team: 'Aurora',         wins: 2, losses: 1, pts: 6 },
+      { team: 'Cloud9',         wins: 2, losses: 1, pts: 6 },
+      { team: 'Tundra Esports', wins: 1, losses: 2, pts: 3 },
+      { team: 'Xtreme Gaming',  wins: 1, losses: 2, pts: 3 },
+      { team: 'OG',             wins: 0, losses: 3, pts: 0 },
+    ],
+    results: [
+      { id:111, tournament:'PGL Wallachia S8', status:'completed', teamA:'Team Liquid',  teamB:'Aurora',        scoreA:2, scoreB:1, format:'BO3', winner:'a', time:null, currentGame:null, stream:false },
+      { id:112, tournament:'PGL Wallachia S8', status:'completed', teamA:'Xtreme Gaming',teamB:'Cloud9',        scoreA:0, scoreB:2, format:'BO3', winner:'b', time:null, currentGame:null, stream:false },
+      { id:113, tournament:'PGL Wallachia S8', status:'completed', teamA:'Aurora',       teamB:'Tundra Esports',scoreA:2, scoreB:0, format:'BO3', winner:'a', time:null, currentGame:null, stream:false },
+    ],
+    upcoming: [
+      { id:211, tournament:'PGL Wallachia S8', status:'upcoming', teamA:'Tundra Esports',teamB:'Xtreme Gaming',   scoreA:null, scoreB:null, format:'BO3', winner:null, time:'19:00 UTC', currentGame:null, stream:false },
+      { id:212, tournament:'PGL Wallachia S8', status:'upcoming', teamA:'Gaimin Gladiators',teamB:'Cloud9',       scoreA:null, scoreB:null, format:'BO3', winner:null, time:'21:00 UTC', currentGame:null, stream:false },
+    ],
+  },
+  'DreamLeague S24': {
+    org: 'DreamLeague', dates: 'May 8-22, 2026', prizePool: '$300,000', location: 'Stockholm, Sweden',
+    standings: [
+      { team: 'Xtreme Gaming',     wins: 3, losses: 0, pts: 9 },
+      { team: 'Cloud9',            wins: 2, losses: 1, pts: 6 },
+      { team: 'Team Spirit',       wins: 1, losses: 1, pts: 3 },
+      { team: 'Gaimin Gladiators', wins: 1, losses: 2, pts: 3 },
+      { team: 'OG',                wins: 0, losses: 2, pts: 0 },
+    ],
+    results: [
+      { id:121, tournament:'DreamLeague S24', status:'completed', teamA:'Cloud9',      teamB:'Xtreme Gaming', scoreA:1, scoreB:2, format:'BO3', winner:'b', time:null, currentGame:null, stream:false },
+      { id:122, tournament:'DreamLeague S24', status:'completed', teamA:'Team Spirit', teamB:'OG',            scoreA:2, scoreB:0, format:'BO3', winner:'a', time:null, currentGame:null, stream:false },
+    ],
+    upcoming: [
+      { id:221, tournament:'DreamLeague S24', status:'upcoming', teamA:'Team Spirit', teamB:'OG',            scoreA:null, scoreB:null, format:'BO3', winner:null, time:'17:00 UTC', currentGame:null, stream:false },
+      { id:222, tournament:'DreamLeague S24', status:'upcoming', teamA:'Aurora',      teamB:'Team Liquid',   scoreA:null, scoreB:null, format:'BO5', winner:null, time:'20:00 UTC', currentGame:null, stream:false },
+    ],
+  },
+};
+
+// ---- STATE ----
+let activeDate   = 'today';
+let activeFilter = 'all';
+const collapsed  = new Set(); // set of tournament names that are collapsed
+let activeTournament    = null; // null = main feed; string = tournament name for detail view
+let activeTournamentTab = 'results';
+
+// ---- HELPERS ----
+function pulseDot() {
+  return '<span class="pulse-dot" aria-hidden="true"></span>';
+}
+function playIcon() {
+  return '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+}
+function chevronSvg(isCollapsed) {
+  return `<svg class="chevron ${isCollapsed ? 'rotated' : ''}" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>`;
+}
+
+// ---- FILTER MATCHES ----
+function getVisible() {
+  return MATCHES.filter(m => {
+    if (m.date !== activeDate) return false;
+    if (activeFilter === 'all') return true;
+    return m.status === activeFilter;
+  });
+}
+
+// ---- GROUP BY TOURNAMENT ----
+function groupByTournament(matches) {
+  const order = [];
+  const map = {};
+  for (const m of matches) {
+    if (!map[m.tournament]) {
+      map[m.tournament] = { name: m.tournament, org: m.org, tier: m.tier, matches: [] };
+      order.push(m.tournament);
+    }
+    map[m.tournament].matches.push(m);
+  }
+  // Sort: live-containing groups first, then upcoming, then completed
+  const rank = g => {
+    const statuses = new Set(g.matches.map(m => m.status));
+    if (statuses.has('live')) return 0;
+    if (statuses.has('upcoming')) return 1;
+    return 2;
+  };
+  return order.map(t => map[t]).sort((a,b) => rank(a) - rank(b));
+}
+
+// ---- RENDER A SINGLE MATCH ROW ----
+function renderRow(m) {
+  const isLive      = m.status === 'live';
+  const isCompleted = m.status === 'completed';
+
+  const nameA = isCompleted
+    ? `<span class="team-name ${m.winner==='a'?'winner':'loser'}">${m.teamA}</span>`
+    : `<span class="team-name">${m.teamA}</span>`;
+  const nameB = isCompleted
+    ? `<span class="team-name ${m.winner==='b'?'winner':'loser'}">${m.teamB}</span>`
+    : `<span class="team-name">${m.teamB}</span>`;
+
+  let center = '';
+  if (isLive) {
+    center = `
+      <div class="score-row">
+        <span class="score-num">${m.scoreA}</span>
+        <span class="score-sep">-</span>
+        <span class="score-num">${m.scoreB}</span>
+      </div>
+      <div class="live-center">
+        ${pulseDot()}
+        <span class="live-game-tag">${m.currentGame}</span>
+      </div>`;
+  } else if (isCompleted) {
+    const dimA = m.winner === 'b' ? ' dim' : '';
+    const dimB = m.winner === 'a' ? ' dim' : '';
+    center = `
+      <div class="score-row">
+        <span class="score-num${dimA}">${m.scoreA}</span>
+        <span class="score-sep">-</span>
+        <span class="score-num${dimB}">${m.scoreB}</span>
+      </div>
+      <span class="match-sub">FT &middot; ${m.format}</span>`;
+  } else {
+    center = `
+      <span class="match-time">${m.time}</span>
+      <span class="match-sub">${m.format}</span>`;
+  }
+
+  let actionBtn = '';
+  if (isCompleted) {
+    actionBtn = `<button type="button" class="action-btn replay"
+      onclick="event.stopPropagation(); openMatchSheet(${m.id})"
+      aria-label="Watch ${m.teamA} vs ${m.teamB} replay">${playIcon()} Replay</button>`;
+  } else if (isLive && m.stream) {
+    actionBtn = `<button type="button" class="action-btn watch-live"
+      onclick="event.stopPropagation(); openMatchSheet(${m.id})"
+      aria-label="Watch ${m.teamA} vs ${m.teamB} live">${playIcon()} Watch Live</button>`;
+  }
+
+  return `
+    <div class="match-row" role="row" aria-label="${m.teamA} vs ${m.teamB}, ${m.status}"
+         onclick="openMatchSheet(${m.id})">
+      <div class="team-a">${nameA}</div>
+      <div class="match-center">${center}</div>
+      <div class="team-b">${nameB}</div>
+      ${actionBtn}
+    </div>`;
+}
+
+// ---- RENDER TOURNAMENT SECTION ----
+function renderTournament(group) {
+  const name  = group.name;
+  const isCollapsed = collapsed.has(name);
+  const hasLive = group.matches.some(m => m.status === 'live');
+
+  const safeId = name.replace(/[^a-z0-9]/gi, '-');
+
+  const liveTag = hasLive
+    ? `<span class="live-tag">${pulseDot()} Live</span>`
+    : '';
+
+  const rows = isCollapsed
+    ? ''
+    : `<div role="rowgroup">${group.matches.map(renderRow).join('')}</div>`;
+
+  const escapedName = name.replace(/'/g, "\\'");
+  return `
+    <div class="tournament-section" id="ts-${safeId}">
+      <div class="tournament-header">
+        <div class="tournament-identity"
+             role="button"
+             tabindex="0"
+             aria-label="View ${name} tournament details"
+             onclick="showTournament('${escapedName}', event)"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTournament('${escapedName}',event)}">
+          <span class="tournament-org">${group.org}</span>
+          <span class="tournament-name">${name}</span>
+        </div>
+        ${liveTag}
+        <span class="tier-badge ${group.tier}">${group.tier.toUpperCase()}</span>
+        <span class="match-count">${group.matches.length}</span>
+        <button type="button" class="chevron-btn"
+                aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${name}"
+                aria-expanded="${!isCollapsed}"
+                aria-controls="ts-rows-${safeId}"
+                onclick="toggleSection('${escapedName}', '${safeId}')">
+          ${chevronSvg(isCollapsed)}
+        </button>
+      </div>
+      <div id="ts-rows-${safeId}">${rows}</div>
+    </div>`;
+}
+
+// ---- UPDATE COUNTS ----
+function updateCounts() {
+  const dayMatches = MATCHES.filter(m => m.date === activeDate);
+  document.getElementById('cnt-all').textContent       = dayMatches.length;
+  document.getElementById('cnt-live').textContent      = dayMatches.filter(m => m.status === 'live').length;
+  document.getElementById('cnt-upcoming').textContent  = dayMatches.filter(m => m.status === 'upcoming').length;
+  document.getElementById('cnt-completed').textContent = dayMatches.filter(m => m.status === 'completed').length;
+}
+
+// ---- RENDER FEED ----
+function renderFeed() {
+  updateCounts();
+  const visible = getVisible();
+  const feed = document.getElementById('feed');
+
+  if (visible.length === 0) {
+    feed.innerHTML = '<div class="empty-state">No matches found</div>';
+    return;
+  }
+
+  const groups = groupByTournament(visible);
+  const hasLive      = visible.some(m => m.status === 'live');
+  const hasUpcoming  = visible.some(m => m.status === 'upcoming');
+
+  // Determine section label to show at top (only meaningful for 'all' filter)
+  let sectionLabel = '';
+  if (activeFilter === 'live' || (activeFilter === 'all' && hasLive)) {
+    sectionLabel = `<div class="section-label"><h2 class="live">${pulseDot()} Live Now</h2></div>`;
+  } else if (activeFilter === 'upcoming' || (activeFilter === 'all' && hasUpcoming && !hasLive)) {
+    sectionLabel = `<div class="section-label"><h2 class="upcoming">Upcoming</h2></div>`;
+  } else if (activeFilter === 'completed') {
+    sectionLabel = `<div class="section-label"><h2>Results</h2></div>`;
+  }
+
+  feed.innerHTML = sectionLabel + groups.map(renderTournament).join('');
+}
+
+// ---- INTERACTIONS ----
+function toggleSection(name, safeId) {
+  if (collapsed.has(name)) collapsed.delete(name);
+  else collapsed.add(name);
+
+  // Surgically update just the affected section instead of full re-render
+  const section = document.getElementById('ts-' + safeId);
+  if (!section) { renderFeed(); return; }
+  const isCollapsed = collapsed.has(name);
+  const header = section.querySelector('.tournament-header');
+  const rowsContainer = section.querySelector('[id^="ts-rows-"]');
+  const chevron = section.querySelector('.chevron');
+  const group = { name, org: section.querySelector('.tournament-org').textContent,
+    tier: section.querySelector('.tier-badge').textContent.toLowerCase(),
+    matches: MATCHES.filter(m => m.tournament === name && m.date === activeDate &&
+      (activeFilter === 'all' || m.status === activeFilter)) };
+
+  header.setAttribute('aria-expanded', !isCollapsed);
+  const chevronBtn = section.querySelector('.chevron-btn');
+  if (chevronBtn) {
+    chevronBtn.setAttribute('aria-expanded', !isCollapsed);
+    chevronBtn.setAttribute('aria-label', (isCollapsed ? 'Expand ' : 'Collapse ') + name);
+  }
+  chevron.classList.toggle('rotated', isCollapsed);
+  rowsContainer.innerHTML = isCollapsed ? '' : group.matches.map(renderRow).join('');
+}
+
+// ---- TOURNAMENT DETAIL NAVIGATION ----
+function showTournament(name, e) {
+  if (e) e.stopPropagation();
+  activeTournament = name;
+  activeTournamentTab = 'results';
+  renderTournamentDetail();
+}
+
+function hideTournament() {
+  activeTournament = null;
+  renderFeed();
+}
+
+function renderDetailTabContent() {
+  const data = TOURNAMENT_DATA[activeTournament];
+  if (!data) return '';
+
+  if (activeTournamentTab === 'results') {
+    if (!data.results.length) return '<div class="empty-state">No results yet</div>';
+    return `<div role="rowgroup">${data.results.map(renderRow).join('')}</div>`;
+  }
+  if (activeTournamentTab === 'upcoming') {
+    if (!data.upcoming.length) return '<div class="empty-state">No upcoming matches</div>';
+    return `<div role="rowgroup">${data.upcoming.map(renderRow).join('')}</div>`;
+  }
+  if (activeTournamentTab === 'standings') {
+    const sorted = [...data.standings].sort((a, b) => b.pts - a.pts || a.losses - b.losses);
+    const rows = sorted.map((s, i) => `
+      <tr>
+        <td class="rank">${i + 1}</td>
+        <td class="standing-team">${s.team}</td>
+        <td class="stat">${s.wins}</td>
+        <td class="stat">${s.losses}</td>
+        <td class="stat pts">${s.pts}</td>
+      </tr>`).join('');
+    return `
+      <table class="standings-table" aria-label="${activeTournament} standings">
+        <thead><tr>
+          <th class="rank"></th>
+          <th>Team</th>
+          <th class="stat">W</th>
+          <th class="stat">L</th>
+          <th class="stat">Pts</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+  return '';
+}
+
+function renderTournamentDetail() {
+  const data = TOURNAMENT_DATA[activeTournament];
+  if (!data) { renderFeed(); return; }
+  const feed = document.getElementById('feed');
+
+  const tabs = ['results', 'upcoming', 'standings'];
+  const tabsHtml = tabs.map(t =>
+    `<button type="button" role="tab" data-tab="${t}"
+       class="detail-tab${t === activeTournamentTab ? ' active' : ''}"
+       aria-selected="${t === activeTournamentTab}">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`
+  ).join('');
+
+  feed.innerHTML = `
+    <div class="tournament-detail tournament-section">
+      <button type="button" class="back-btn" onclick="hideTournament()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        All results
+      </button>
+      <div class="detail-header">
+        <span class="tournament-org">${data.org}</span>
+        <h1 class="detail-name">${activeTournament}</h1>
+        <div class="detail-meta">
+          <span>${data.dates}</span>
+          <span class="detail-prize">${data.prizePool}</span>
+          <span>${data.location}</span>
+        </div>
+      </div>
+      <div class="detail-tabs" role="tablist" id="detail-tabs">${tabsHtml}</div>
+      <div id="detail-content">${renderDetailTabContent()}</div>
+    </div>`;
+
+  document.getElementById('detail-tabs').addEventListener('click', e => {
+    const btn = e.target.closest('[data-tab]');
+    if (!btn) return;
+    activeTournamentTab = btn.dataset.tab;
+    document.querySelectorAll('.detail-tab').forEach(t => {
+      const sel = t.dataset.tab === activeTournamentTab;
+      t.classList.toggle('active', sel);
+      t.setAttribute('aria-selected', String(sel));
+    });
+    document.getElementById('detail-content').innerHTML = renderDetailTabContent();
+  });
+}
+
+// ---- MATCH SIDE SHEET ----
+const HERO_POOL = [
+  'Anti-Mage','Axe','Crystal Maiden','Drow Ranger','Earthshaker','Enigma',
+  'Faceless Void','Invoker','Juggernaut','Lina','Lion','Morphling','Puck',
+  'Pudge','Rubick','Shadow Fiend','Storm Spirit','Templar Assassin','Tidehunter',
+  'Tiny','Windranger','Zeus','Elder Titan','Ember Spirit','Arc Warden',
+];
+
+function pickHeroes(matchId, slot) {
+  const picks = [];
+  for (let i = 0; i < 5; i++) {
+    picks.push(HERO_POOL[(matchId * 7 + slot * 13 + i * 5) % HERO_POOL.length]);
+  }
+  return picks;
+}
+
+function getOrg(t) {
+  if (/dreamleague/i.test(t)) return 'DreamLeague';
+  if (/\besl\b/i.test(t)) return 'ESL';
+  if (/\bpgl\b/i.test(t)) return 'PGL';
+  if (/blast/i.test(t)) return 'BLAST';
+  if (/weplay/i.test(t)) return 'WePlay';
+  return '';
+}
+
+function findMatch(id) {
+  const fromMain = MATCHES.find(m => m.id === id);
+  if (fromMain) return fromMain;
+  for (const t of Object.values(TOURNAMENT_DATA)) {
+    const m = [...t.results, ...t.upcoming].find(m => m.id === id);
+    if (m) return m;
+  }
+  return null;
+}
+
+let activeMatchId = null;
+
+function openMatchSheet(id) {
+  const m = findMatch(id);
+  if (!m) return;
+  activeMatchId = id;
+
+  const isCompleted = m.status === 'completed';
+  const isLive      = m.status === 'live';
+  const winnerA     = m.winner === 'a';
+  const winnerB     = m.winner === 'b';
+
+  // Score block
+  let scoreHtml;
+  if (isCompleted) {
+    scoreHtml = `
+      <div class="sheet-score">
+        <div class="sheet-team ${winnerA ? 'winner' : 'loser'}">
+          <span class="sheet-team-name">${m.teamA}</span>
+          <span class="sheet-score-num${winnerA ? '' : ' dim'}">${m.scoreA}</span>
+        </div>
+        <span class="sheet-sep">-</span>
+        <div class="sheet-team right ${winnerB ? 'winner' : 'loser'}">
+          <span class="sheet-score-num${winnerB ? '' : ' dim'}">${m.scoreB}</span>
+          <span class="sheet-team-name">${m.teamB}</span>
+        </div>
+      </div>
+      <div class="sheet-meta">FT &middot; ${m.format}</div>`;
+  } else if (isLive) {
+    scoreHtml = `
+      <div class="sheet-score">
+        <div class="sheet-team">
+          <span class="sheet-team-name">${m.teamA}</span>
+          <span class="sheet-score-num">${m.scoreA}</span>
+        </div>
+        <span class="sheet-sep">-</span>
+        <div class="sheet-team right">
+          <span class="sheet-score-num">${m.scoreB}</span>
+          <span class="sheet-team-name">${m.teamB}</span>
+        </div>
+      </div>
+      <div class="sheet-meta live-meta">${pulseDot()} Live &middot; ${m.currentGame} &middot; ${m.format}</div>`;
+  } else {
+    scoreHtml = `
+      <div class="sheet-score upcoming">
+        <span class="sheet-team-name">${m.teamA}</span>
+        <span class="sheet-sep">${m.time}</span>
+        <span class="sheet-team-name">${m.teamB}</span>
+      </div>
+      <div class="sheet-meta">${m.format}</div>`;
+  }
+
+  // Watch button
+  let actionHtml = '';
+  if (isCompleted) {
+    actionHtml = `<div class="sheet-actions"><button type="button" class="sheet-replay-btn" disabled title="VOD links not available in prototype">${playIcon()} Watch Replay on Twitch</button></div>`;
+  } else if (isLive) {
+    actionHtml = `<div class="sheet-actions"><button type="button" class="sheet-live-btn" disabled title="Stream links not available in prototype">${playIcon()} Watch Live</button></div>`;
+  }
+
+  // Draft (completed + live only)
+  let draftHtml = '';
+  if (isCompleted || isLive) {
+    const picksA = pickHeroes(id, 0);
+    const picksB = pickHeroes(id, 1);
+    const heroCard = (name, cls) => `
+      <div class="hero-pick ${cls}">
+        <div class="hero-icon">${name.charAt(0)}</div>
+        <span class="hero-name">${name}</span>
+      </div>`;
+    draftHtml = `
+      <div class="sheet-section-label">Draft</div>
+      <div class="sheet-draft">
+        <div class="draft-col">${picksA.map(h => heroCard(h, winnerA ? 'winner' : 'loser')).join('')}</div>
+        <div class="draft-col right">${picksB.map(h => heroCard(h, winnerB ? 'winner' : 'loser')).join('')}</div>
+      </div>`;
+  }
+
+  // AI summary
+  let summaryHtml = '';
+  if (isCompleted) {
+    const winner = winnerA ? m.teamA : m.teamB;
+    const loser  = winnerA ? m.teamB : m.teamA;
+    const score  = winnerA ? `${m.scoreA}-${m.scoreB}` : `${m.scoreB}-${m.scoreA}`;
+    summaryHtml = `
+      <div class="sheet-section-label">AI Summary</div>
+      <p class="sheet-summary">${winner} closed out the series ${score} with a dominant display. Their draft allowed early aggression that ${loser} struggled to contain across maps. The mid-laner was the standout performer, converting two teamfight winners into decisive Roshan contests. ${loser} showed flashes of coordination but could not generate enough comeback pressure in the late game.</p>`;
+  }
+
+  document.getElementById('sheet-content').innerHTML = `
+    <div class="sheet-header">
+      <div class="sheet-header-info">
+        <span class="tournament-org">${getOrg(m.tournament)}</span>
+        <span class="sheet-tournament">${m.tournament}</span>
+      </div>
+      <button type="button" class="sheet-close" onclick="closeMatchSheet()" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    ${scoreHtml}
+    ${actionHtml}
+    ${draftHtml}
+    ${summaryHtml}`;
+
+  document.getElementById('sheet-overlay').classList.add('open');
+  const sheet = document.getElementById('match-sheet');
+  sheet.classList.add('open');
+  sheet.focus();
+}
+
+function closeMatchSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+  document.getElementById('match-sheet').classList.remove('open');
+  activeMatchId = null;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && activeMatchId !== null) closeMatchSheet();
+});
+
+// ---- DATE STRIP ----
+document.getElementById('date-strip').addEventListener('click', e => {
+  const pill = e.target.closest('[data-date]');
+  if (!pill) return;
+  activeDate = pill.dataset.date;
+  collapsed.clear();
+  document.querySelectorAll('.date-pill').forEach(p => {
+    const sel = p.dataset.date === activeDate;
+    p.classList.toggle('active', sel);
+    p.setAttribute('aria-selected', String(sel));
+  });
+  renderFeed();
+});
+
+// ---- FILTER TABS ----
+document.getElementById('filter-strip').addEventListener('click', e => {
+  const tab = e.target.closest('[data-filter]');
+  if (!tab) return;
+  activeFilter = tab.dataset.filter;
+  document.querySelectorAll('.filter-tab').forEach(t => {
+    const sel = t.dataset.filter === activeFilter;
+    t.classList.toggle('active', sel);
+    t.setAttribute('aria-selected', String(sel));
+  });
+  renderFeed();
+});
+
+// ---- INIT ----
+renderFeed();
+</script>
+</body>
+</html>
