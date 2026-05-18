@@ -328,3 +328,79 @@ describe('?mode=match-stats handler', () => {
     vi.unstubAllGlobals()
   })
 })
+
+// ── GoldGraph computePoints tests ─────────────────────────────────────────────
+
+import { computePoints } from '../src/components/GoldGraph.jsx'
+
+// SVG layout constants (must match GoldGraph.jsx)
+const PL = 40   // left padding
+const PR = 54   // right padding
+const PT = 14   // top padding
+const PB = 22   // bottom padding
+const VW = 480
+const VH = 140
+const CW = VW - PL - PR   // 386
+const CH = VH - PT - PB   // 104
+const MID = PT + CH / 2   // 66
+
+describe('computePoints', () => {
+  it('returns correct x/y coordinates for a simple 4-point series', () => {
+    const data = [0, 5000, 10000, -3000]
+    const pts = computePoints(data)
+    expect(pts).toHaveLength(4)
+
+    // Point 0: v=0, x=PL, y=MID (zero → center line)
+    expect(pts[0].x).toBeCloseTo(PL)
+    expect(pts[0].y).toBeCloseTo(MID)
+
+    // Point 2: v=10000 (max), x midway at 2/3, y at top of chart
+    expect(pts[2].x).toBeCloseTo(PL + (2 / 3) * CW)
+    expect(pts[2].y).toBeCloseTo(PT)   // MID - halfH = top
+
+    // Point 3: v=-3000, below MID (dire ahead at the end)
+    expect(pts[3].y).toBeGreaterThan(MID)
+    expect(pts[3].x).toBeCloseTo(PL + CW)  // rightmost point
+  })
+
+  it('points span the full chart width left-to-right', () => {
+    const data = [100, 200, 300, 400, 500]
+    const pts = computePoints(data)
+    expect(pts[0].x).toBeCloseTo(PL)
+    expect(pts[pts.length - 1].x).toBeCloseTo(PL + CW)
+  })
+
+  it('all-positive data keeps every point above the zero line', () => {
+    const data = [1000, 2000, 3000, 4000]
+    const pts = computePoints(data)
+    pts.forEach(p => expect(p.y).toBeLessThan(MID))
+  })
+
+  it('all-negative data keeps every point below the zero line', () => {
+    const data = [-1000, -2000, -3000, -4000]
+    const pts = computePoints(data)
+    pts.forEach(p => expect(p.y).toBeGreaterThan(MID))
+  })
+
+  it('returns empty array for fewer than 2 data points', () => {
+    expect(computePoints([])).toEqual([])
+    expect(computePoints([5000])).toEqual([])
+  })
+
+  it('handles all-zero data without crashing (max clamped to 1)', () => {
+    const data = [0, 0, 0, 0]
+    const pts = computePoints(data)
+    expect(pts).toHaveLength(4)
+    pts.forEach(p => expect(p.y).toBeCloseTo(MID))
+  })
+
+  it('mixed positive/negative data crosses the zero line', () => {
+    const data = [5000, 3000, -2000, -4000]
+    const pts = computePoints(data)
+    // First two points are above MID, last two below
+    expect(pts[0].y).toBeLessThan(MID)
+    expect(pts[1].y).toBeLessThan(MID)
+    expect(pts[2].y).toBeGreaterThan(MID)
+    expect(pts[3].y).toBeGreaterThan(MID)
+  })
+})

@@ -1,6 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
+import GoldGraph from "./GoldGraph"
 import { TeamIndicators } from "./GameIndicators"
-import { VOD_CHANNEL_LABELS, fetchMatchIndicators } from "../api"
+import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats } from "../api"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { formatDuration, trackEvent } from "../utils"
 
@@ -40,15 +41,33 @@ function MatchDrawer({
   const drawerRef = useRef(null)
   const [scoreRevealed, setScoreRevealed] = useState(false)
   const [gameIndicators, setGameIndicators] = useState(null)
+  const [draftExpanded, setDraftExpanded] = useState(true)
+  const [matchStats, setMatchStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   useEffect(() => {
     setScoreRevealed(false)
     setGameIndicators(null)
+    setDraftExpanded(true)
     if (!match?.id || match.unplayed || spoilerFree) return
     fetchMatchIndicators([match.id]).then(map => {
       setGameIndicators(map[match.id] ?? null)
     }).catch(() => {})
   }, [match?.id, spoilerFree])
+
+  useEffect(() => {
+    setMatchStats(null)
+    setStatsLoading(false)
+    if (!match?.id || match._fromPandaScore || spoilerFree) return
+    setStatsLoading(true)
+    fetchMatchStats(match.id).then(s => {
+      setMatchStats(s)
+      setStatsLoading(false)
+      if (s) trackEvent('match_stats_view', { match_id: match.id, tournament: match.tournament })
+    }).catch(() => {
+      setStatsLoading(false)
+    })
+  }, [match?.id, match?._fromPandaScore, spoilerFree])
 
   useEffect(() => {
     function onKey(e) {
@@ -380,13 +399,53 @@ function MatchDrawer({
             )}
           </div>
 
-          <DraftDisplay
-            matchId={match.id}
-            radiantTeam={match.radiantTeam}
-            direTeam={match.direTeam}
-            autoLoad={true}
-            spoilerFree={spoilerFree}
-          />
+          {/* Collapsible draft section */}
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+            <button
+              type="button"
+              onClick={() => setDraftExpanded(v => !v)}
+              className="flex items-center justify-between w-full min-h-[44px] py-1 text-left group"
+              aria-expanded={draftExpanded}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                Draft
+              </span>
+              <svg
+                viewBox="0 0 16 16"
+                className={`w-4 h-4 text-gray-400 dark:text-gray-600 transition-transform duration-150 ${draftExpanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {draftExpanded && (
+              <DraftDisplay
+                matchId={match.id}
+                radiantTeam={match.radiantTeam}
+                direTeam={match.direTeam}
+                autoLoad={true}
+                spoilerFree={spoilerFree}
+              />
+            )}
+          </div>
+
+          {/* Gold advantage graph — hidden in spoiler-free mode and for PandaScore-only matches */}
+          {!spoilerFree && !match._fromPandaScore && (
+            <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                Gold Advantage
+              </h3>
+              <GoldGraph
+                radiantGoldAdv={matchStats?.radiantGoldAdv}
+                radiantName={match.radiantTeam}
+                direName={match.direTeam}
+                loading={statsLoading}
+              />
+            </div>
+          )}
 
           <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
