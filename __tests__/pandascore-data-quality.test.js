@@ -218,6 +218,55 @@ describe('upcoming-matches deduplication', () => {
     expect(payload.matches[0].id).toBe(8817614909)
   })
 
+  it('removes stale entry when same team appears at same time with corrected opponent', async () => {
+    // PandaScore corrected fixture pairing: Falcons was changed from Spirit to PARIVISION.
+    // Old entry 1487835 (Falcons vs Spirit) should be dropped; new 1500252 (Falcons vs PARIVISION) kept.
+    const scheduledAt = '2026-05-21T13:30:00Z'
+    const stale = makePsMatch(1487835, 101, 102, scheduledAt, 'Team Falcons', 'Team Spirit')
+    const canonical = makePsMatch(1500252, 101, 103, scheduledAt, 'Team Falcons', 'PARIVISION')
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([stale, canonical]),
+    }))
+
+    const req = { query: {} }
+    const json = vi.fn()
+    const res = { setHeader: vi.fn(), status: vi.fn(() => ({ json })) }
+
+    await upcomingHandler(req, res)
+
+    const [payload] = json.mock.calls[0]
+    expect(payload.matches).toHaveLength(1)
+    expect(payload.matches[0].id).toBe(1500252)
+  })
+
+  it('handles paired corrected fixtures: two stale + two canonical at different times', async () => {
+    // DreamLeague S29 pattern: stale 1487835/1487836, canonical 1500252/1500253
+    const t1 = '2026-05-21T13:30:00Z'
+    const t2 = '2026-05-21T17:00:00Z'
+    const stale1 = makePsMatch(1487835, 101, 102, t1, 'Team Falcons', 'Team Spirit')
+    const stale2 = makePsMatch(1487836, 103, 104, t2, 'PARIVISION', 'Aurora')
+    const canon1 = makePsMatch(1500252, 101, 103, t1, 'Team Falcons', 'PARIVISION')
+    const canon2 = makePsMatch(1500253, 102, 104, t2, 'Team Spirit', 'Aurora')
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([stale1, stale2, canon1, canon2]),
+    }))
+
+    const req = { query: {} }
+    const json = vi.fn()
+    const res = { setHeader: vi.fn(), status: vi.fn(() => ({ json })) }
+
+    await upcomingHandler(req, res)
+
+    const [payload] = json.mock.calls[0]
+    expect(payload.matches).toHaveLength(2)
+    const ids = payload.matches.map(m => m.id).sort()
+    expect(ids).toEqual([1500252, 1500253])
+  })
+
   it('keeps two matches when teams differ (different fixtures, not duplicates)', async () => {
     const m1 = makePsMatch(100, 101, 102, '2026-05-20T14:00:00Z', 'Team A', 'Team B')
     const m2 = makePsMatch(101, 103, 104, '2026-05-20T14:00:00Z', 'Team C', 'Team D')

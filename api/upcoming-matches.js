@@ -101,16 +101,30 @@ export default async function handler(req, res) {
       .filter(m => isTier1(m) || isTier1ByName(m, names))
       .filter(m => m.opponents?.length === 2)
 
-    // PandaScore sometimes creates two entries for the same match (e.g. after a reschedule
-    // or data correction). Deduplicate by sorted opponent IDs + start time, keeping the
-    // highest match ID (most recently created = canonical record).
-    const seen = new Map()
+    // PandaScore sometimes creates stale duplicate entries when fixture pairings are
+    // corrected (e.g. team A's opponent changes from B to C, leaving both the old A-B
+    // and new A-C entries in the feed). Deduplicate by (teamId, scheduledAt): for each
+    // slot, keep the highest match ID. A match is canonical only if every one of its
+    // teams' slots still points back to it — otherwise the slot was claimed by a newer
+    // match and this one is stale.
+    const byTeamTime = new Map()
     for (const m of filtered) {
-      const ids = [m.opponents[0].opponent.id, m.opponents[1].opponent.id].sort().join(':')
-      const key = `${ids}|${m.scheduled_at || m.begin_at || ''}`
-      if (!seen.has(key) || m.id > seen.get(key).id) seen.set(key, m)
+      const t = m.scheduled_at || m.begin_at || ''
+      for (const opp of m.opponents) {
+        const teamId = opp.opponent?.id
+        if (!teamId) continue
+        const key = `${teamId}|${t}`
+        if (!byTeamTime.has(key) || m.id > byTeamTime.get(key).id) byTeamTime.set(key, m)
+      }
     }
-    const matches = [...seen.values()].map(mapMatch)
+    const matches = filtered.filter(m => {
+      const t = m.scheduled_at || m.begin_at || ''
+      return m.opponents.every(opp => {
+        const teamId = opp.opponent?.id
+        if (!teamId) return true
+        return byTeamTime.get(`${teamId}|${t}`)?.id === m.id
+      })
+    }).map(mapMatch)
 
     const payload = { matches, fetchedAt: new Date().toISOString() }
 
