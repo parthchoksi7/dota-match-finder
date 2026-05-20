@@ -150,8 +150,13 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
 
   const allTwitchOfficial = (streamsList || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
   // Prefer English streams to preserve existing behaviour for main events; fall back to any language
+  // only for regional events (CIS/Chinese qualifiers). For international events, fall through to the
+  // static mapping so Russian/Chinese streams from the bulk endpoint don't override English ones.
   const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')
-  const official = enOfficial.length > 0 ? enOfficial : allTwitchOfficial
+  const INTL_KEYWORDS = ['dreamleague', 'pgl', 'esl one', 'blast', 'weplay', 'the international']
+  const isQualifier = lower.includes('qualifier')
+  const isInternational = !isQualifier && INTL_KEYWORDS.some(k => lower.includes(k))
+  const official = enOfficial.length > 0 ? enOfficial : (isInternational ? [] : allTwitchOfficial)
   if (official.length > 0) {
     // When multiple concurrent matches share sub-channels (e.g. ESL One, DreamLeague), PandaScore
     // marks exactly one stream main:true per match on the individual endpoint. Narrow to it.

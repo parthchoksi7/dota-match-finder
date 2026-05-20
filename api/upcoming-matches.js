@@ -97,10 +97,20 @@ export default async function handler(req, res) {
       ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
     ])]
     const data = await response.json()
-    const matches = (data || [])
+    const filtered = (data || [])
       .filter(m => isTier1(m) || isTier1ByName(m, names))
       .filter(m => m.opponents?.length === 2)
-      .map(mapMatch)
+
+    // PandaScore sometimes creates two entries for the same match (e.g. after a reschedule
+    // or data correction). Deduplicate by sorted opponent IDs + start time, keeping the
+    // highest match ID (most recently created = canonical record).
+    const seen = new Map()
+    for (const m of filtered) {
+      const ids = [m.opponents[0].opponent.id, m.opponents[1].opponent.id].sort().join(':')
+      const key = `${ids}|${m.scheduled_at || m.begin_at || ''}`
+      if (!seen.has(key) || m.id > seen.get(key).id) seen.set(key, m)
+    }
+    const matches = [...seen.values()].map(mapMatch)
 
     const payload = { matches, fetchedAt: new Date().toISOString() }
 

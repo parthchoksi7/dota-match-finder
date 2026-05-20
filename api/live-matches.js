@@ -33,6 +33,15 @@ function getSeriesLabel(matchType, numberOfGames) {
 
 
 
+export function winsRequired(matchType, numberOfGames) {
+  if (matchType === 'best_of_1') return 1
+  if (matchType === 'best_of_2') return 2
+  if (matchType === 'best_of_3') return 2
+  if (matchType === 'best_of_5') return 3
+  if (matchType === 'best_of' && numberOfGames) return Math.ceil(numberOfGames / 2)
+  return Infinity
+}
+
 function getSeriesScore(m) {
   const opponents = m.opponents || []
   const results = m.results || []
@@ -42,7 +51,8 @@ function getSeriesScore(m) {
   const teamBId = opponents[1]?.opponent?.id
   const scoreA = results.find(r => r.team_id === teamAId)?.score ?? 0
   const scoreB = results.find(r => r.team_id === teamBId)?.score ?? 0
-  return `${scoreA}-${scoreB}`
+  const max = winsRequired(m.match_type, m.number_of_games)
+  return `${Math.min(scoreA, max)}-${Math.min(scoreB, max)}`
 }
 
 function getCurrentGame(m) {

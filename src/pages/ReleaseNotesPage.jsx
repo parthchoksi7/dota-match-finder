@@ -4,6 +4,17 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 19, 2026",
+    tag: "fix",
+    title: "Live match score and stream fixes",
+    desc: "Three data-quality issues from PandaScore's API are now handled correctly.",
+    items: [
+      "BO3 series score now shows series wins (2-0) instead of raw game count (3-0) for sweeps",
+      "Stream links for DreamLeague, PGL, ESL One, and other international events now show the correct English channel even when PandaScore's language metadata is missing",
+      "Duplicate match entries from PandaScore (same fixture with two different IDs) no longer appear twice in the upcoming matches list",
+    ],
+  },
+  {
     date: "May 18, 2026",
     tag: "new",
     title: "End-game stats: gold graph, player networth, and critical events",
