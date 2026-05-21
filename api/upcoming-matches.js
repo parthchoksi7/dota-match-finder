@@ -12,7 +12,7 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -21,18 +21,6 @@ function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_5') return 'BO5'
   if (matchType === 'best_of' && numberOfGames) return `BO${numberOfGames}`
   return null
-}
-
-function buildTournamentName(m) {
-  const league = m.league?.name || ''
-  const serie = m.serie?.full_name || m.serie?.name || ''
-  const rawName = league && serie
-    ? (serie.toLowerCase().includes(league.toLowerCase()) ? serie : `${league} ${serie}`)
-    : league || serie || 'Unknown'
-  return rawName
-    .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
-    .replace(/\s+\d{4}$/, '')
-    .trim()
 }
 
 function mapMatch(m) {

@@ -153,7 +153,7 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   // only for regional events (CIS/Chinese qualifiers). For international events, fall through to the
   // static mapping so Russian/Chinese streams from the bulk endpoint don't override English ones.
   const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')
-  const INTL_KEYWORDS = ['dreamleague', 'pgl', 'esl one', 'blast', 'weplay', 'the international']
+  const INTL_KEYWORDS = TIER1_LEAGUE_KEYWORDS
   const isQualifier = lower.includes('qualifier')
   const isInternational = !isQualifier && INTL_KEYWORDS.some(k => lower.includes(k))
   const official = enOfficial.length > 0 ? enOfficial : (isInternational ? [] : allTwitchOfficial)

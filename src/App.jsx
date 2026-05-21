@@ -11,33 +11,10 @@ import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, f
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache } from "./utils"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
-const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
 const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
-
-function getSummaryFromCache(matchId) {
-  if (typeof window === "undefined" || !matchId) return null
-  try {
-    const raw = localStorage.getItem(SUMMARY_CACHE_KEY)
-    if (!raw) return null
-    const map = JSON.parse(raw)
-    return map[matchId] ?? null
-  } catch {
-    return null
-  }
-}
-
-function setSummaryInCache(matchId, text) {
-  if (typeof window === "undefined" || !matchId || typeof text !== "string") return
-  try {
-    const raw = localStorage.getItem(SUMMARY_CACHE_KEY) || "{}"
-    const map = JSON.parse(raw)
-    map[matchId] = text
-    localStorage.setItem(SUMMARY_CACHE_KEY, JSON.stringify(map))
-  } catch (_) {}
-}
 
 function slugify(str) {
   return (str || "")

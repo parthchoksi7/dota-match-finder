@@ -162,6 +162,32 @@ export function winsRequiredForSeries(seriesType) {
   return 2
 }
 
+// ── Summary localStorage cache helpers ────────────────────────────────────
+
+const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
+
+export function getSummaryFromCache(matchId) {
+  if (typeof window === "undefined" || !matchId) return null
+  try {
+    const raw = localStorage.getItem(SUMMARY_CACHE_KEY)
+    if (!raw) return null
+    const map = JSON.parse(raw)
+    return map[matchId] ?? null
+  } catch {
+    return null
+  }
+}
+
+export function setSummaryInCache(matchId, text) {
+  if (typeof window === "undefined" || !matchId || typeof text !== "string") return
+  try {
+    const raw = localStorage.getItem(SUMMARY_CACHE_KEY) || "{}"
+    const map = JSON.parse(raw)
+    map[matchId] = text
+    localStorage.setItem(SUMMARY_CACHE_KEY, JSON.stringify(map))
+  } catch {}
+}
+
 // ── My Teams localStorage helpers ─────────────────────────────────────────
 
 const FOLLOWED_TEAMS_KEY = "followedTeams"

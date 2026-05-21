@@ -1,4 +1,4 @@
-import { matchesTier1Names } from './utils'
+import { matchesTier1Names, winsRequiredForSeries } from './utils'
 
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
 
@@ -89,7 +89,9 @@ export async function fetchProMatches(lastMatchId = null) {
   if (lastSeriesId != null && lastSeriesId !== 0) {
     const lastSeriesGames = allMatches.filter(m => m.series_id === lastSeriesId)
     const seriesType = lastSeriesGames[0]?.series_type
-    const winsNeeded = seriesType === 2 ? 3 : seriesType === 0 ? 1 : 2
+    // Note: BO2 draw (1-1) is intentionally not checked here — this guard only asks
+    // "could more games still be played?", not "has the series ended?".
+    const winsNeeded = winsRequiredForSeries(seriesType)
     const teamWins = {}
     for (const m of lastSeriesGames) {
       const winner = m.radiant_win ? 'radiant' : 'dire'
@@ -190,7 +192,8 @@ async function getTwitchToken() {
   return data.access_token
 }
 
-/** Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.). */
+// Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.).
+// Keep in sync with CHANNEL_LABELS in api/_shared.js (same entries, different runtime).
 export const VOD_CHANNEL_LABELS = {
   esl_dota2: 'ESL',
   esl_dota2ember: 'ESL Ember',
