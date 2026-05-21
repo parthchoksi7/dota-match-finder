@@ -1570,6 +1570,18 @@ export default async function handler(req, res) {
     const KV_PREFIX = 'indicators:match:v4:' // v4 — added rampage detection
     const result = {}
 
+    // ?bust=1 clears the KV cache for the requested IDs so they recompute from OpenDota.
+    // Use when a match was cached before OpenDota fully indexed it (e.g. multi_kills missing).
+    if (req.query?.bust === '1') {
+      try {
+        const keys = matchIds.map(id => `${KV_PREFIX}${id}`)
+        await Promise.all(keys.map(k => kv.del(k)))
+        console.log('match-indicators cache busted for:', matchIds.join(','))
+      } catch (err) {
+        console.warn('match-indicators KV bust failed:', err?.message)
+      }
+    }
+
     // Batch Redis read
     try {
       const keys = matchIds.map(id => `${KV_PREFIX}${id}`)
