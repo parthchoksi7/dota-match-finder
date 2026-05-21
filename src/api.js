@@ -29,6 +29,33 @@ export function seriesHasWinner(games) {
   return maxWins >= winsNeeded
 }
 
+/**
+ * Mutates raw OpenDota match objects in-place: assigns series_id/series_type to
+ * games that OpenDota returned with series_id=null (e.g. G3 of a BO3). Matches
+ * by same league + same team pair + start time within 12 hours of a numbered game
+ * in the same batch. Must run before the pagination boundary guard so the guard
+ * can count all games in a series when deciding whether to drop it.
+ */
+export function normalizeRawNullSeriesIds(matches) {
+  const TWELVE_HOURS_S = 12 * 3600
+  const reps = {}
+  for (const m of matches) {
+    if (m.series_id != null && m.series_id !== 0 && !reps[m.series_id]) reps[m.series_id] = m
+  }
+  for (const m of matches) {
+    if (m.series_id != null && m.series_id !== 0) continue
+    const teams = [m.radiant_name, m.dire_name].sort().join('|')
+    for (const [sid, rep] of Object.entries(reps)) {
+      if (rep.league_name !== m.league_name) continue
+      if ([rep.radiant_name, rep.dire_name].sort().join('|') !== teams) continue
+      if (Math.abs(m.start_time - rep.start_time) > TWELVE_HOURS_S) continue
+      m.series_id = Number(sid)
+      if (m.series_type == null) m.series_type = rep.series_type
+      break
+    }
+  }
+}
+
 // Module-level caches; persist for the browser session so successive
 // "load more" calls skip network round-trips.
 let _tier1LeagueNames = null
@@ -100,6 +127,12 @@ export async function fetchProMatches(lastMatchId = null) {
     return matchesTier1Names(m.league_name, tier1Names) === true     // rules 2+3: PandaScore tier s/a OR permanent list
   })
   const cursor = data[data.length - 1].match_id
+
+  // Pre-normalize null series_id on raw matches before the boundary guard runs.
+  // OpenDota occasionally omits series_id on the final game of a BO3 (G3 arrives
+  // Pre-normalize null series_id before the boundary guard so it can count
+  // all games (including a G3 returned by OpenDota without a series_id).
+  normalizeRawNullSeriesIds(allMatches)
 
   // Drop the last series only if it is genuinely incomplete (could be cut off by pagination).
   // Never drop series_id=0 (standalone BO1s) and never drop a series that already has a winner.
