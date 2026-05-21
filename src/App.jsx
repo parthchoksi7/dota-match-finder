@@ -3,6 +3,7 @@ import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import HomeFeed from "./components/HomeFeed"
 import MatchDrawer from "./components/MatchDrawer"
+import LiveSeriesSheet from "./components/LiveSeriesSheet"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
@@ -134,6 +135,9 @@ function App() {
   const [liveMatches, setLiveMatches] = useState([])
   const [upcomingMatches, setUpcomingMatches] = useState([])
   const [liveLoading, setLiveLoading] = useState(true)
+
+  // Mid-series side sheet (PS data while series is running)
+  const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
 
   // Tournament name → PandaScore ID map (for inline TournamentHub expand)
   const [tournamentIdMap, setTournamentIdMap] = useState(new Map())
@@ -458,16 +462,17 @@ function App() {
     }
   }
 
-  async function handleSelectLiveMatch(pandaScoreMatchId) {
-    try {
-      const res = await fetch(`/api/tournaments?mode=live-series-games&id=${pandaScoreMatchId}`)
-      if (!res.ok) return
-      const { gameIds } = await res.json()
-      if (!gameIds || gameIds.length === 0) return
-      await handleSelectMatchId(gameIds[gameIds.length - 1])
-    } catch {
-      // silently fail
-    }
+  function handleSelectLiveMatch(pandaScoreMatchId) {
+    const match = liveMatches.find(m => m.id === pandaScoreMatchId)
+    if (!match) return
+    const hasFinishedGame = (match.games || []).some(g => g.status === 'finished')
+    if (!hasFinishedGame) return
+    setSelectedLiveSeries(match)
+  }
+
+  async function handleLiveSeriesReplay(odMatchId) {
+    setSelectedLiveSeries(null)
+    await handleSelectMatchId(odMatchId)
   }
 
   async function handleDraftPosts(series) {
@@ -948,6 +953,15 @@ function App() {
         loading={redditPostsLoading}
         error={redditPostsError}
       />
+
+      {selectedLiveSeries && !selectedMatch && (
+        <LiveSeriesSheet
+          match={selectedLiveSeries}
+          onDismiss={() => setSelectedLiveSeries(null)}
+          onReplay={handleLiveSeriesReplay}
+          spoilerFree={spoilerFree}
+        />
+      )}
 
       {selectedMatch && (
         <MatchDrawer

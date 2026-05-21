@@ -20,7 +20,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -78,8 +78,14 @@ function mapGames(m) {
         winnerName: winnerOpponent?.opponent?.name || null,
         matchId: g.external_identifier || null,
         beginAt: g.begin_at || null,
+        length: g.length || null,
       }
     })
+}
+
+function getYoutubeStream(streamsList) {
+  const s = (streamsList || []).find(s => s.language === 'en' && s.raw_url?.includes('youtube.com'))
+  return s?.raw_url || null
 }
 
 function mapMatch(m) {
@@ -99,6 +105,7 @@ function mapMatch(m) {
     currentGame: getCurrentGame(m),
     games: mapGames(m),
     streams: getTwitchStreams(m.streams_list, leagueName, serieName),
+    youtubeStream: getYoutubeStream(m.streams_list),
   }
 }
 
@@ -285,6 +292,7 @@ export default async function handler(req, res) {
       console.log(`live-matches cron: ${written} stream writes`)
       return res.status(200).json({ written })
     } catch (err) {
+      await trackError('/api/live-matches', 500, err?.message)
       console.error('live-matches cron error:', err?.message)
       return res.status(500).json({ error: err?.message })
     }
@@ -327,6 +335,29 @@ export default async function handler(req, res) {
     await enrichMultiStreamMatches(tier1Raw, headers)
     const matches = tier1Raw.map(mapMatch)
 
+    // Enrich finished games with OD match IDs from KV (live:game:{psId}:{position}).
+    // external_identifier is only populated while a game is running; once it finishes
+    // we rely on the KV entry written by cacheRunningStreams() during that window.
+    const finishedGames = [] // { matchIdx, gameIdx, psMatchId, position }
+    matches.forEach((match, mi) => {
+      match.games.forEach((game, gi) => {
+        if (game.status === 'finished' && !game.matchId) {
+          finishedGames.push({ matchIdx: mi, gameIdx: gi, psMatchId: match.id, position: game.position })
+        }
+      })
+    })
+    if (finishedGames.length > 0) {
+      try {
+        const kvKeys = finishedGames.map(({ psMatchId, position }) => `live:game:${psMatchId}:${position}`)
+        const kvValues = await kv.mget(...kvKeys)
+        finishedGames.forEach(({ matchIdx, gameIdx }, i) => {
+          if (kvValues[i]) matches[matchIdx].games[gameIdx].matchId = String(kvValues[i])
+        })
+      } catch (err) {
+        console.warn('live:game KV enrichment failed:', err?.message)
+      }
+    }
+
     const payload = { matches, fetchedAt: new Date().toISOString() }
 
     try {
@@ -342,6 +373,7 @@ export default async function handler(req, res) {
     return res.status(200).json(payload)
 
   } catch (err) {
+    await trackError('/api/live-matches', 500, err?.message)
     console.error('Live matches error:', err?.message || err)
     return res.status(500).json({ error: 'Failed to fetch live matches', message: err?.message })
   }

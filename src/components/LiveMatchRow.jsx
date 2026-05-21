@@ -8,6 +8,14 @@ function TwitchIcon() {
   )
 }
 
+function YouTubeIcon() {
+  return (
+    <svg className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
+  )
+}
+
 function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch }) {
   const hasScore = match.seriesScore && match.seriesScore !== '0-0'
   const [scoreA, scoreB] = hasScore ? match.seriesScore.split('-').map(Number) : [0, 0]
@@ -74,47 +82,90 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
         </span>
       </div>
 
-      {/* Watch button — icon-only on mobile, full label on desktop */}
-      {watchUrl ? (
-        <>
-          <a
-            href={watchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => {
-              e.stopPropagation()
-              trackEvent('live_match_watch', {
-                channel: watchLabel,
-                teamA: match.teamA,
-                teamB: match.teamB,
-                tournament: match.tournament,
-              })
-            }}
-            className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
-            aria-label={`Watch ${match.teamA} vs ${match.teamB} live`}
-          >
-            <TwitchIcon />
-          </a>
-          <a
-            href={watchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => {
-              e.stopPropagation()
-              trackEvent('live_match_watch', {
-                channel: watchLabel,
-                teamA: match.teamA,
-                teamB: match.teamB,
-                tournament: match.tournament,
-              })
-            }}
-            className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
-            aria-label={`Watch ${match.teamA} vs ${match.teamB} live`}
-          >
-            <TwitchIcon />
-            Watch{watchLabel ? ` · ${watchLabel}` : ''}
-          </a>
-        </>
+      {/* Watch buttons — Twitch and/or YouTube. Icon-only on mobile, full label on desktop */}
+      {watchUrl || match.youtubeStream ? (
+        <div className="flex flex-col items-end gap-1">
+          {watchUrl && (
+            <>
+              <a
+                href={watchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => {
+                  e.stopPropagation()
+                  trackEvent('live_match_watch', {
+                    channel: watchLabel,
+                    teamA: match.teamA,
+                    teamB: match.teamB,
+                    tournament: match.tournament,
+                  })
+                }}
+                className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+                aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
+              >
+                <TwitchIcon />
+              </a>
+              <a
+                href={watchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => {
+                  e.stopPropagation()
+                  trackEvent('live_match_watch', {
+                    channel: watchLabel,
+                    teamA: match.teamA,
+                    teamB: match.teamB,
+                    tournament: match.tournament,
+                  })
+                }}
+                className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+                aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
+              >
+                <TwitchIcon />
+                Watch{watchLabel ? ` · ${watchLabel}` : ''}
+              </a>
+            </>
+          )}
+          {match.youtubeStream && (
+            <>
+              <a
+                href={match.youtubeStream}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => {
+                  e.stopPropagation()
+                  trackEvent('live_match_watch_youtube', {
+                    teamA: match.teamA,
+                    teamB: match.teamB,
+                    tournament: match.tournament,
+                  })
+                }}
+                className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-red-600 hover:bg-red-700 text-white transition-colors"
+                aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
+              >
+                <YouTubeIcon />
+              </a>
+              <a
+                href={match.youtubeStream}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => {
+                  e.stopPropagation()
+                  trackEvent('live_match_watch_youtube', {
+                    teamA: match.teamA,
+                    teamB: match.teamB,
+                    tournament: match.tournament,
+                  })
+                }}
+                className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-red-600 hover:bg-red-700 text-white transition-colors whitespace-nowrap"
+                aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
+              >
+                <YouTubeIcon />
+                YouTube
+              </a>
+            </>
+          )}
+        </div>
       ) : (
         <div className="hidden sm:block w-[68px]" aria-hidden="true" />
       )}
