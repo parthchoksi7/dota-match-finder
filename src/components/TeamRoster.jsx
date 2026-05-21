@@ -94,7 +94,7 @@ export default function TeamRoster({ team, tournamentName, defaultExpanded = fal
         <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
           {team.players && team.players.length > 0 ? (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {team.players.map((player, i) => {
+              {[...team.players].sort((a, b) => (Number(a.role) || 99) - (Number(b.role) || 99)).map((player, i) => {
                 const flag = getFlagEmoji(player.nationality)
                 return (
                   <div key={player.id || i} className="flex items-center gap-3 px-4 py-2">
