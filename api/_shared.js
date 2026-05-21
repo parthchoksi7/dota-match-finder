@@ -4,6 +4,8 @@
  * It does NOT count toward the 12-function limit.
  */
 
+import { Redis } from '@upstash/redis'
+
 /**
  * Known top-tier league name keywords. Single source of truth for the league-name override.
  *
@@ -313,3 +315,68 @@ export const PERMANENT_TIER1_NAMES = [
   'Riyadh Masters',
   '1win Essence',
 ]
+
+// ── Error telemetry ──────────────────────────────────────────────────────────
+
+let _monitorKv = null
+function _getMonitorKv() {
+  if (!_monitorKv && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    _monitorKv = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN })
+  }
+  return _monitorKv
+}
+
+// Fire-and-forget error telemetry. Writes to a daily KV list capped at 100
+// entries with a 3-day TTL. Never throws or blocks the calling handler.
+export async function trackError(endpoint, statusCode, detail) {
+  try {
+    const client = _getMonitorKv()
+    if (!client) return
+    const key = `monitor:errors:${new Date().toISOString().slice(0, 10)}`
+    const entry = JSON.stringify({ endpoint, statusCode, detail: String(detail).slice(0, 200), ts: Date.now() })
+    await client.lpush(key, entry)
+    await client.ltrim(key, 0, 99)
+    await client.expire(key, 259200) // 3 days
+  } catch (_) {}
+}
+
+// Probes the three external dependencies used by most endpoints.
+// Returns { pandascore, opendota, kv } each with { status, latency_ms[, error] }.
+export async function checkServices() {
+  const probe = async (name, fn) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 3000)
+    const start = Date.now()
+    try {
+      await fn(controller.signal)
+      clearTimeout(timer)
+      return { status: 'ok', latency_ms: Date.now() - start }
+    } catch (err) {
+      clearTimeout(timer)
+      return { status: 'error', error: err.name === 'AbortError' ? 'timeout' : err.message, latency_ms: Date.now() - start }
+    }
+  }
+
+  const [pandascore, opendota, kv] = await Promise.all([
+    probe('pandascore', signal =>
+      fetch(`${PANDASCORE_BASE}/leagues?page[size]=1`, {
+        signal,
+        headers: { Authorization: `Bearer ${process.env.PANDASCORE_TOKEN}` },
+      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`) })
+    ),
+    probe('opendota', signal =>
+      fetch('https://api.opendota.com/api/metadata', { signal })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`) })
+    ),
+    probe('kv', async (signal) => {
+      const client = _getMonitorKv()
+      if (!client) throw new Error('KV not configured')
+      const timeoutRace = new Promise((_, reject) =>
+        signal.addEventListener('abort', () => reject(new DOMException('timeout', 'AbortError')))
+      )
+      await Promise.race([client.set('monitor:_health', 1, { ex: 60 }), timeoutRace])
+    }),
+  ])
+
+  return { pandascore, opendota, kv }
+}
