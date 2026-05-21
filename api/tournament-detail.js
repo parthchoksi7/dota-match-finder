@@ -163,6 +163,25 @@ function mapSeriesTeam(t, qualified) {
   }
 }
 
+async function fetchSeriesRosters(tournamentId, headers) {
+  try {
+    // /dota2/tournaments/{id}/rosters was removed by PandaScore. The generic
+    // /tournaments/{id} endpoint includes expected_roster with full player data.
+    const res = await fetch(`${BASE}/tournaments/${tournamentId}`, { headers })
+    if (!res.ok) {
+      console.warn(`[rosters] ${tournamentId} HTTP ${res.status}`)
+      return []
+    }
+    const data = await res.json()
+    const arr = Array.isArray(data.expected_roster) ? data.expected_roster : []
+    console.log(`[rosters] ${tournamentId} OK — ${arr.length} entries, first has ${arr[0]?.players?.length ?? 'n/a'} players`)
+    return arr
+  } catch (e) {
+    console.warn(`[rosters] ${tournamentId} fetch error: ${e?.message}`)
+    return []
+  }
+}
+
 async function fetchSeriesStandings(tournamentId, headers) {
   try {
     const res = await fetch(`${BASE}/tournaments/${tournamentId}/standings`, { headers })
@@ -203,7 +222,7 @@ function parseRawBracket(bracketsRaw) {
 
 async function handleSeriesDetail(req, res, token) {
   const seriesId = req.query?.id
-  const cacheKey = `tournament:detail:series:v7:${seriesId}`
+  const cacheKey = `tournament:detail:series:v8:${seriesId}`
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
@@ -241,11 +260,12 @@ async function handleSeriesDetail(req, res, token) {
 
   const stageData = await Promise.all(
     tournaments.map(async (t) => {
-      const [standings, bracketsRaw] = await Promise.all([
+      const [rosters, standings, bracketsRaw] = await Promise.all([
+        fetchSeriesRosters(t.id, headers),
         fetchSeriesStandings(t.id, headers),
         t.has_bracket ? fetchStageBracket(t.id, headers) : Promise.resolve([]),
       ])
-      return { tournament: t, rosters: t.teams || [], standings, bracketsRaw }
+      return { tournament: t, rosters, standings, bracketsRaw }
     })
   )
 

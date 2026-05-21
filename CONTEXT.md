@@ -155,10 +155,10 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Series detail mode lives in `api/tournament-detail.js` behind `?series=1` query param (same reason)
 - AI tournament summaries live in `api/summarize.js` behind `type: 'tournament'` in POST body
 - Upcoming tournaments: `/dota2/series/upcoming` is often empty because PandaScore creates series records late. A fallback fetches `/dota2/tournaments/upcoming?filter[tier]=s`, groups by `serie_id`, and synthesizes series-like entries for any not already in the running list
-- Teams and standings: team data is read from `t.teams` (embedded in each tournament object in the series response — no extra fetch). PandaScore's `/dota2/tournaments/{id}/rosters` endpoint was removed and now returns 404. Player-level roster data is unavailable from PandaScore at the current plan tier; player names always show "Roster unavailable". If `t.teams` is empty for a stage (e.g. upcoming events before PandaScore populates participants), teams are built from standings as a fallback — team names and logos appear immediately.
+- Rosters and standings: `fetchSeriesRosters` calls the generic `/tournaments/{id}` endpoint (not `/dota2/tournaments/{id}` — that returns 404; the game-specific endpoint was removed by PandaScore). Player data comes from `expected_roster` in the response, which is an array of `{ team, players }` objects in the same format `mapSeriesTeam` already handles. If rosters are empty (common for upcoming events), teams are built from standings as a fallback — team names and logos appear immediately, player rosters show "Roster unavailable".
 - Winner display: `serie.winner` field (type === 'Team') shown as champion on cards and detail page header
 - Routing follows same pattern as AboutPage/ReleaseNotesPage - path check in `main.jsx`, Vercel rewrite to `/` in `vercel.json`
-- Cache keys: `tournaments:dota2:series_list_v4` (1h), `tournament:detail:series:v7:{id}` (30min, or 30d for completed events WITH player data — skips 30d TTL if rosters came back empty so it retries), `tournament:summary:{id}` (24h / 30d for completed)
+- Cache keys: `tournaments:dota2:series_list_v4` (1h), `tournament:detail:series:v8:{id}` (30min, or 30d for completed events WITH player data — skips 30d TTL if rosters came back empty so it retries), `tournament:summary:{id}` (24h / 30d for completed)
 - GA4 events: `tournament_list_view`, `tournament_card_click`, `tournament_detail_view`, `tournament_team_click`, `tournament_stage_click`, `tournament_summary_view`, `tournament_stream_click`, `tournament_bar_click`, `tournament_back_click`, `tournament_liquipedia_click`, `tournament_find_vods_click`, `tournament_teams_toggle`, `tournament_stages_toggle`
 - TournamentBar and Tournaments nav link are temporarily hidden until upcoming tournament data is confirmed reliable
 - Country-to-region mapping in `src/utils/regions.js` covers WEU, EEU, CN, SEA, NA, SA, ANZ, ME regions
@@ -429,6 +429,23 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 - Upcoming matches: `https://spectateesports.live/api/upcoming-matches?bust=1`
 - Tournament detail: `https://spectateesports.live/api/tournament-detail?id={id}&bust=1`
 - Tournament heroes: `https://spectateesports.live/api/tournament-heroes?id={id}&bust=1`
+
+### Monitoring & Error Alerting
+
+**`/api/monitor`** — Protected by `CRON_SECRET`. Returns a JSON health report.
+- `?mode=report` — also calls Claude Haiku for a 2-3 sentence triage summary (used by GitHub Actions)
+- Default (no mode) — raw stats only, no Claude call (quick manual check)
+- Response fields: `error_count`, `error_count_24h`, `errors_by_endpoint`, `recent_errors`, `services`, `critical`, `summary`, `action_required`
+
+**Error telemetry (KV)** — `trackError(endpoint, statusCode, detail)` in `_shared.js` writes to `monitor:errors:{YYYY-MM-DD}` (list, capped at 100, 3-day TTL). Called in catch blocks of: `live-matches`, `upcoming-matches`, `draft-posts`, `summarize`, `news`.
+
+**Alert threshold** — `critical: true` when ≥3 errors from the same endpoint in a 2h window, OR any service health probe fails.
+
+**GitHub Actions** — `.github/workflows/log-monitor.yml` runs every 2h. Creates a GitHub Issue labeled `monitoring` when critical; comments on existing open `[Alert]` issue to deduplicate. Daily digest at 08:00 UTC only if errors exist that day.
+
+**Cron failure alerts** — `auto-tweet.yml` and `sync-teams.yml` both have `if: failure()` steps that create `[Alert]` issues immediately on cron failure.
+
+**Quick check**: `curl -H "Authorization: Bearer $CRON_SECRET" https://spectateesports.live/api/monitor`
 
 
 ---
