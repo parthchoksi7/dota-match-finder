@@ -16,7 +16,7 @@ Before making any UI or visual change:
 
 This applies to: className edits, new components, loading/empty/error states, animations, and copy changes.
 
-4. **Check tab/label overflow on mobile** - any row of tabs, pills, or segmented controls must use `flex w-full` with `flex-1` on each item (not `inline-flex`) so labels never clip on narrow screens. Also avoid `tracking-widest` on tab labels; use `tracking-wide` at most. Verify mentally at ~320px width before committing.
+4. **Check tab/label overflow on mobile** - any row of tabs, pills, or segmented controls must use `flex w-full` with `flex-1` on each item (not `inline-flex`) so labels never clip on narrow screens. Avoid `tracking-widest` specifically on segmented control and underline tab labels — the extra letter-spacing compounds with the label width and causes clipping on 320px screens; use `tracking-wide` at most for those. Tertiary metadata labels (dates, formats, section headers, badges) should still use `tracking-widest` per the typography rules in DESIGN_GUIDELINES.md. Verify mentally at ~320px width before committing.
 
 ---
 
@@ -60,10 +60,11 @@ This applies to: className edits, new components, loading/empty/error states, an
 
 ### 6. Automated Testing
 
-**This is a hard requirement, not optional.** New functionality ships with tests. No exceptions.
+**New pure functions, API modes, and data-pipeline logic require dedicated tests. No exceptions.**
 
-- Write tests for all new features before marking them complete
-- Test files should live in `__tests__/` or `*.test.js` files
+UI-only additions (new copy, new static card, new route with no shared logic modified) do not require new tests but must not break existing ones.
+
+- Test files live in `__tests__/` or `*.test.js` files
 - Cover at minimum:
   - Happy path (feature works as expected)
   - Edge cases (empty data, API failures, missing/null fields)
@@ -87,6 +88,8 @@ After making any code change, do a fresh independent read of **every modified fi
 
 Use the `Explore` subagent to read and report on each modified file, then fix every issue before committing.
 
+If you notice a refactor opportunity (duplicate logic, untested pure function, dead code) while reviewing, add it to `.claude/pending-refactors.md` with file path + line range. Do not do it inline unless it is trivially small and isolated.
+
 ### 8. Regression Testing
 - Make a calculated decision on whether to run the full test suite based on the scope of changes. You are the expert - use your judgement.
 - Run regression (`npm test`) when:
@@ -107,7 +110,7 @@ Use the `Explore` subagent to read and report on each modified file, then fix ev
 
 - Count the deployable functions in `api/` before adding any new ones: `ls api/[^_]*.js | wc -l`
 - Current count is 12 (the maximum). Do NOT add new `.js` files to `api/` without first merging or removing an existing one.
-- **Exception**: Files prefixed with `_` (e.g. `api/_shared.js`) are NOT deployed as serverless functions and do NOT count toward the limit. Use `api/_shared.js` for shared utilities that multiple functions need. The plain `ls api/*.js | wc -l` will show 13 due to `_shared.js` — this is expected and correct.
+- **Exception**: Files prefixed with `_` (e.g. `api/_shared.js`, `api/_watchability.js`, `api/_liquipedia.js`) are NOT deployed as serverless functions and do NOT count toward the limit. The authoritative count is `ls api/[^_]*.js | wc -l` — this must equal 12. The plain `ls api/*.js | wc -l` will be higher (currently 15) because it includes the underscore-prefixed utility files; this is expected.
 - When a new feature needs a backend endpoint, merge it into the closest existing file using a query param or POST body field to distinguish behavior. Common patterns:
   - Add `?mode=newfeature` to an existing GET endpoint
   - Add `type: 'newfeature'` to an existing POST endpoint body
@@ -169,14 +172,13 @@ Use the `Explore` subagent to read and report on each modified file, then fix ev
 - Never let the app crash silently
 
 ### Comments
-- Add brief comments for complex logic
-- Document why, not what (code should be self-explanatory)
-- Add JSDoc for reusable utility functions
+- Default to no comments. Add one short line only when the WHY is non-obvious: a hidden constraint, a workaround for a known external bug, a subtle invariant that would surprise a reader.
+- Do not comment on WHAT the code does — well-named identifiers already do that.
+- No JSDoc, no multi-line comment blocks.
 
 ### Writing Style
-- **Never use em dashes (—)** in any user-facing text, code comments, or documentation
-- Use hyphens (-) or rewrite sentences to avoid the need for dashes
-- Keep language simple and clear for beginner-friendly communication
+- **Never use em dashes (—) in user-facing UI copy.** In technical documentation and code comments, hyphens or sentence rewrites are preferred but em dashes are acceptable where clarity benefits.
+- Keep user-facing copy direct and confident. No apologetic language ("Sorry, no results").
 
 ---
 
@@ -206,10 +208,11 @@ Before deploying to production:
     ```
     The script hits the live production endpoints, busts the news cache for a fresh fetch, and checks:
     - All three news sources (steam-news-api, liquipedia, currents) each return at least 1 article
-    - The most recent article is less than 48 hours old
+    - The most recent article is less than 168 hours (7 days) old
     - Liquipedia article URLs resolve to liquipedia.net (catches wrong-page regressions)
     - Live-matches and tournaments endpoints respond with the expected shape
-    **If the script exits 1:** open Vercel → Functions tab → check runtime logs for the failing source. Fix the bug, commit, redeploy, and re-run `npm run verify-prod` until it exits 0. Do NOT mark the deploy as complete until all checks pass.
+    - `?mode=tier1-leagues` returns at least 8 league names (fewer means the tier filter is broken and major events will be missing from the homepage)
+    **If the script exits 1:** first option is Vercel instant rollback (dashboard → Deployments → previous deploy → Promote to Production) to restore the site immediately while you fix the bug. Then fix, commit, redeploy, and re-run `npm run verify-prod` until it exits 0. Do NOT mark the deploy as complete until all checks pass.
 
 ---
 
@@ -235,8 +238,8 @@ These features are intentionally hidden from public documentation. They are gate
 - Enabled by the same `spectate-owner` localStorage flag
 - A "Draft Reddit" button (Reddit alien icon) appears next to the "Draft X posts" button on completed series cards
 - Button opens `RedditPostsModal` (src/components/RedditPostsModal.jsx)
-- `App.jsx` calls `/api/reddit-posts` with series metadata; no VOD fetching needed
-- `api/reddit-posts.js` uses Claude Haiku in a single call to generate two posts:
+- `App.jsx` calls `/api/draft-posts` with `{ type: "reddit", ...series metadata }`; no VOD fetching needed
+- `api/draft-posts.js` handles `type === 'reddit'` using Claude Haiku in a single call to generate two posts:
   - **VOD Roundup Post** - fully spoiler-free; suitable for r/DotaVods or r/Dota2; includes title and body separately so they can be pasted into Reddit's post form
   - **Match Thread Comment** - can reference the result; 2-4 sentences; suitable for dropping in a post-match discussion thread
 - All links use `?spoilers=off` so recipients land in spoiler-free mode automatically
@@ -264,7 +267,7 @@ Several KV entries are written on first miss and served on every subsequent hit 
 
 ## Notes for Claude Code
 
-- This is a beginner-friendly project - explain technical decisions
-- Always show what changed and why
-- If something breaks, explain how to fix it
-- When in doubt, ask before making breaking changes
+- Always show what changed and why. Use CONTEXT.md to document new behavior; commit messages to document intent.
+- If something breaks, explain the root cause, not just the fix.
+- When in doubt about scope or impact, ask before making changes — especially for anything touching tier filtering, KV cache keys, or the Vercel function list.
+- Document surprising or non-obvious behavior in CONTEXT.md. Don't over-explain things that follow established project patterns.

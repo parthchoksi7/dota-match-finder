@@ -98,10 +98,10 @@ async function checkNewsApi() {
 
 async function checkLiveMatchesApi() {
   console.log('\n[live] /api/live-matches')
-  const data = await fetchJson(`${BASE}/api/live-matches`, 'live-matches')
+  // bust=1 so we see the output of the deployed code, not a stale cached response
+  const data = await fetchJson(`${BASE}/api/live-matches?bust=1`, 'live-matches')
   if (!data) return
-  // Live matches may legitimately be empty (no matches running)
-  // Just verify the endpoint responds with the expected shape
+  // Live matches may legitimately be empty (no matches running right now)
   if (!Array.isArray(data) && !Array.isArray(data.matches) && !Array.isArray(data.live)) {
     fail('Unexpected response shape - expected an array or object with matches/live key')
   } else {
@@ -113,7 +113,8 @@ async function checkLiveMatchesApi() {
 
 async function checkTournamentsApi() {
   console.log('\n[tournaments] /api/tournaments')
-  const data = await fetchJson(`${BASE}/api/tournaments`, 'tournaments')
+  // bust=1 so we see the output of the deployed code, not a stale cached response
+  const data = await fetchJson(`${BASE}/api/tournaments?bust=1`, 'tournaments')
   if (!data) return
   // Response shape is {ongoing, upcoming, completed, meta} — not a flat array
   const list = Array.isArray(data)
@@ -134,6 +135,25 @@ async function checkTournamentsApi() {
   }
 }
 
+// ── Tier-1 league names (homepage match filter) ───────────────────────────────
+
+async function checkTier1LeaguesApi() {
+  console.log('\n[tier1] /api/tournaments?mode=tier1-leagues')
+  // This KV key controls which matches appear on the homepage.
+  // Fewer than 8 entries means DreamLeague, ESL One, PGL, or other majors
+  // are missing from completed match results.
+  const data = await fetchJson(`${BASE}/api/tournaments?mode=tier1-leagues&bust=1`, 'tier1-leagues')
+  if (!data) return
+  const names = data.names ?? []
+  if (names.length < 8) {
+    fail(`Only ${names.length} tier-1 league name(s) returned (expected >= 8) — homepage match filter is likely broken`)
+    if (names.length > 0) info(`Names returned: ${names.join(', ')}`)
+  } else {
+    pass(`${names.length} tier-1 league names returned`)
+    info(`Sample: ${names.slice(0, 5).join(', ')}`)
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -143,14 +163,16 @@ async function main() {
   await checkNewsApi()
   await checkLiveMatchesApi()
   await checkTournamentsApi()
+  await checkTier1LeaguesApi()
 
   console.log('')
   if (failed) {
     console.error('One or more checks FAILED. Do not mark this deploy as done.')
     console.error('Next steps:')
-    console.error('  1. Open Vercel dashboard → Functions tab → check runtime logs for errors')
-    console.error('  2. Fix the issue, commit, and redeploy')
-    console.error('  3. Re-run: node scripts/verify-prod.mjs')
+    console.error('  1. If the site is broken for users: Vercel dashboard → Deployments → previous deploy → Promote to Production (instant rollback)')
+    console.error('  2. Open Vercel → Functions tab → check runtime logs for the failing endpoint')
+    console.error('  3. Fix the issue, commit, and redeploy')
+    console.error('  4. Re-run: node scripts/verify-prod.mjs')
     process.exit(1)
   } else {
     console.log('All checks passed.')

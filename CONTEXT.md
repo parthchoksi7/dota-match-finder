@@ -24,8 +24,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ## Key Files
 
 ### Frontend
-- `src/pages/Tournaments.jsx` - Tournament list page at `/tournaments`; fetches from `/api/series-list`; shows live/upcoming/completed sections; fires `tournament_list_view` GA4 event
-- `src/pages/TournamentDetail.jsx` - Tournament detail page at `/tournament/:seriesId`; fetches from `/api/series-detail`; shows header, AI summary, teams+rosters, stages+standings, VOD search links
+- `src/pages/Tournaments.jsx` - Tournament list page at `/tournaments`; fetches from `/api/tournaments?mode=series`; shows live/upcoming/completed sections; fires `tournament_list_view` GA4 event
+- `src/pages/TournamentDetail.jsx` - Tournament detail page at `/tournament/:seriesId`; fetches from `api/tournament-detail.js` (with `?series=1` flag); shows header, AI summary, teams+rosters, stages+standings, VOD search links
 - `src/components/SearchSuggestions.jsx` - Replaces TournamentBar below the search bar on the homepage. Renders a single flex-wrap row of compact keyword chips (rounded-full border). Suggestion chips come first in this order: live tournament (red pulse dot + organizer name - first word of `leagueName`, e.g. "PGL", "ESL", "1Win"), then unique winning teams from the most recent completed matches (max 5 chips total). Recent searches (up to 5, stored in `localStorage` key `dota-recent-searches`) follow the suggestions, each with a clock icon + × remove button. Clicking any chip fires the search. Exports `addRecentSearch(query)` called by `App.jsx handleSearch` to persist every search automatically.
 - `src/components/TournamentCard.jsx` - Card used on /tournaments list page; shows status badge, date range, prize pool, stage pills
 - `src/components/TeamRoster.jsx` - Collapsible team card showing logo, region badge, qualification status, player list with nationality flags
@@ -70,11 +70,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - `src/components/CopyButton.jsx` - Shared copy-to-clipboard button with "Copied!" confirmation state; used by `XPostsModal` and `RedditPostsModal`
 
 ### Backend (Vercel Serverless)
-- `api/series-list.js` - Fetches Dota 2 series (live, upcoming, past) from PandaScore; filters to Tier 1; cached 1h in KV under `tournaments:dota2:series_list_v1`. Returns `{ live, upcoming, completed }` arrays for the /tournaments page and TournamentBar.
-- `api/series-detail.js` - Fetches a single series by ID, then fetches rosters and standings for each tournament sub-stage in parallel; cached 30min under `tournament:detail:series:{id}`. Accepts `?id=` param.
-- `api/tournament-summary.js` - Generates AI tournament summary via Claude Haiku; cached 24h (30 days for completed) under `tournament:summary:{id}`. POST with `{ seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages }`.
-- `api/summarize.js` - Generates AI match summary using Claude Haiku
-- `api/twitch-token.js` - Handles Twitch OAuth client credentials flow
+- `api/summarize.js` - Generates AI match summaries (Claude Haiku) and AI tournament summaries. Match mode: default POST with match data. Tournament mode: POST with `{ type: 'tournament', seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages }`; cached 24h (30 days for completed) under `tournament:summary:{id}`.
 - `api/live-matches.js` - Fetches live Dota 2 matches from PandaScore; cached in KV for 2 min. `getSeriesScore(m)` reads raw per-team win counts from `m.results[].score`; `winsRequired(matchType, numberOfGames)` caps each score at the series maximum (BO3→2, BO5→3, etc.) before returning the string — without this cap PandaScore reports all games played (e.g. 3-0 for a BO3 sweep) instead of the series wins needed (2-0).
 - `api/upcoming-matches.js` - Fetches upcoming matches (next 72h) from PandaScore; cached in KV. Uses `getTwitchStreams` from `_shared.js` (respects `main:true` flag from `streams_list`). `getSeriesLabel` handles both legacy `match_type` values (`"best_of_3"`) and the newer `"best_of"` + `number_of_games` format. **PandaScore duplicate deduplication**: after tier-filtering, matches are deduplicated by `(sorted opponent IDs | scheduled_at)` fingerprint, keeping the highest match ID (most recently created) when PandaScore creates two separate records for the same fixture (observed with DreamLeague S29: rescheduled or corrected matches left stale entries with different IDs and slightly different team/tournament name metadata).
 - `api/tournament-detail.js` - Fetches tournament standings, bracket, and sibling stages from PandaScore; cached in KV for 3 min. Stage sort order: "Group X" stages always sort alphabetically by letter (A before B) regardless of start date; all other stages sort by start date then name.
@@ -301,7 +297,7 @@ What was removed from the header: About, What's New (now in SiteFooter), Calenda
 
 ### Watchability Badge
 - `WatchBadge` component (`src/components/WatchBadge.jsx`) shown on each series card
-- Fetches score from `api/watchability.js` (POST with `seriesId` and `matchIds`)
+- Fetches score from `/api/tournaments?mode=watchability` (POST with `{ seriesId, matchIds }`). Logic lives in `api/_watchability.js` (underscore-prefixed so it is not deployed as a Vercel function; imported by `api/tournaments.js`).
 - Client-side decider bonus: if the series went to a deciding game, score is bumped by +1 (capped at 5)
 - Ratings: `must_watch` (5), `good` (4), `average` (3), `skip` (1-2) — "skip" badges are not shown
 - Signals: `gold_comeback`, `mega_comeback`, `back_and_forth`, `high_kills`, `good_duration`, `series_decider`
@@ -325,7 +321,7 @@ What was removed from the header: About, What's New (now in SiteFooter), Calenda
 - `/calendar` page: "All Tournaments" featured card at top of Tournament section with helper text + Subscribe button; individual per-tournament list below as secondary option; team selector with autocomplete + match preview
 - `CalendarSubscribeModal`: reusable modal with URL copy button, collapsible platform instructions (Google/Apple/Outlook)
 - `MyTeamsSection`: "Calendar" button in header opens subscribe modal pre-filled with followed team slugs
-- `SiteHeader`: "Calendar" nav link added between Tournaments and About
+- Calendar subscription is accessible via the `/calendar` page and via `CalendarSubscribeModal` opened from the My Teams section and TournamentHub. The SiteHeader does not have a Calendar nav link (it was removed in the May 2026 header redesign; calendar now lives in SettingsSheet).
 - GA4 events: `calendar_page_view`, `calendar_subscribe_modal_open` (source: `all_tournaments` | `tournament` | `calendar_page`), `calendar_url_copy` (feed_type), `calendar_team_select` (team_name), `calendar_team_remove` (team_name)
 - Team name to PandaScore slug mapping: `CAL_SLUG_ALIASES` in `api/tournaments.js` and `teamNameToSlug` helper in `MyTeamsSection.jsx`
 - Calendar modes are merged into `api/tournaments.js` to stay within the 12-function Vercel Hobby plan limit
@@ -390,7 +386,7 @@ Tournaments are filtered using the tier fields exposed by each data source. No h
 |---|---|---|---|
 | PandaScore `/dota2/matches/*` | match | `match.league.tier` | `'s'`, `'a'` |
 | PandaScore `/dota2/tournaments/*` | tournament | `t.tier` (direct, NOT `t.league.tier` which is always null) | `'s'`, `'a'` |
-| PandaScore `/dota2/series/*` | series | `series.tier` (direct) | `'s'`, `'a'` |
+| PandaScore `/dota2/series/*` | series | **no tier field** — always null | derive via `tier1RunningSerieIds` / `tier1UpcomingSerieIds` / `tier1PastSerieIds` sets built from tournament objects |
 | OpenDota (leagues/promatches) | league | `league.tier` | `'premium'` (equiv S), `'professional'` (equiv A) |
 
 **PandaScore tier S** = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, Riyadh Masters, Premier Series, ...).
