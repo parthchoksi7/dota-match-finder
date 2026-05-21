@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 20, 2026",
     tag: "fix",
+    title: "Missing series fix: 2-0 sweeps with alternating sides now appear",
+    desc: "Series where one team won both games but once as Radiant and once as Dire were silently dropped from results. The Parivision vs Nigma Galaxy series from DreamLeague S29 on May 16 is the known instance.",
+  },
+  {
+    date: "May 20, 2026",
+    tag: "fix",
     title: "Series grouping and team name fixes",
     desc: "Three data quality issues that caused missing games, wrong team names, and missing stream links are now fixed.",
     items: [

@@ -9,6 +9,26 @@ const TEAM_NAME_MAP = {
   'BB': 'BetBoom Team',
 }
 
+/**
+ * Returns true if the series already has a winner (one team has enough wins).
+ * Tracks wins by team name so a team that wins as both radiant and dire is
+ * correctly counted (e.g. a 2-0 sweep where sides alternate).
+ */
+export function seriesHasWinner(games) {
+  if (!games || games.length === 0) return false
+  const seriesType = games[0]?.series_type
+  const winsNeeded = winsRequiredForSeries(seriesType)
+  const teamWins = {}
+  for (const m of games) {
+    const winner = m.radiant_win
+      ? (m.radiant_name || 'radiant')
+      : (m.dire_name || 'dire')
+    teamWins[winner] = (teamWins[winner] || 0) + 1
+  }
+  const maxWins = Math.max(0, ...Object.values(teamWins))
+  return maxWins >= winsNeeded
+}
+
 // Module-level caches; persist for the browser session so successive
 // "load more" calls skip network round-trips.
 let _tier1LeagueNames = null
@@ -88,17 +108,9 @@ export async function fetchProMatches(lastMatchId = null) {
   let filtered = allMatches
   if (lastSeriesId != null && lastSeriesId !== 0) {
     const lastSeriesGames = allMatches.filter(m => m.series_id === lastSeriesId)
-    const seriesType = lastSeriesGames[0]?.series_type
     // Note: BO2 draw (1-1) is intentionally not checked here — this guard only asks
     // "could more games still be played?", not "has the series ended?".
-    const winsNeeded = winsRequiredForSeries(seriesType)
-    const teamWins = {}
-    for (const m of lastSeriesGames) {
-      const winner = m.radiant_win ? 'radiant' : 'dire'
-      teamWins[winner] = (teamWins[winner] || 0) + 1
-    }
-    const maxWins = Math.max(0, ...Object.values(teamWins))
-    if (maxWins < winsNeeded) {
+    if (!seriesHasWinner(lastSeriesGames)) {
       filtered = allMatches.filter(m => m.series_id !== lastSeriesId)
     }
   }
