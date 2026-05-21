@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -148,79 +148,10 @@ function HomeFeed({
   )
 
   // Build tournament cards sorted: live → upcoming → followed-team → completed
-  const tournamentCards = useMemo(() => {
-    const isFollowedSeries = s =>
-      !!followedTeams?.length &&
-      (followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
-    const isFollowedLive = m =>
-      !!followedTeams?.length &&
-      (followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
-
-    // Normalize "DreamLeague S29" and "DreamLeague Season 29" to the same key so
-    // PandaScore (live/upcoming) and OpenDota (results) names merge into one card.
-    const normKey = name =>
-      (name || 'Other')
-        .toLowerCase()
-        .replace(/\bs(\d+)\b/gi, 'season $1')
-        .replace(/[^a-z0-9 ]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-
-    // Build canonical key -> display name; live/upcoming names (PandaScore) preferred.
-    const keyToDisplay = new Map()
-    for (const name of [
-      ...activeLiveMatches.map(m => m.tournament || 'Other'),
-      ...activeUpcomingMatches.map(m => m.tournament || 'Other'),
-      ...activeCompletedSeries.map(s => s.tournament || 'Other'),
-    ]) {
-      const key = normKey(name)
-      if (!keyToDisplay.has(key)) keyToDisplay.set(key, name)
-    }
-
-    const cards = []
-    for (const [key, t] of keyToDisplay) {
-      const live = activeLiveMatches.filter(m => normKey(m.tournament || 'Other') === key)
-      const upcoming = activeUpcomingMatches.filter(m => normKey(m.tournament || 'Other') === key)
-      const completed = activeCompletedSeries.filter(s => normKey(s.tournament || 'Other') === key)
-
-      // Followed-team rows float to the top within each card
-      const liveSorted = [...live].sort((a, b) => (isFollowedLive(a) ? 0 : 1) - (isFollowedLive(b) ? 0 : 1))
-      const completedSorted = [...completed].sort((a, b) => (isFollowedSeries(a) ? 0 : 1) - (isFollowedSeries(b) ? 0 : 1))
-
-      const hasFollowed =
-        liveSorted.some(isFollowedLive) ||
-        upcoming.some(isFollowedLive) ||
-        completedSorted.some(isFollowedSeries)
-
-      const latestTime = Math.max(
-        ...live.map(() => Date.now() / 1000),
-        ...upcoming.map(m => new Date(m.scheduledAt).getTime() / 1000),
-        ...completed.map(s => s.startTime || 0),
-        0
-      )
-
-      cards.push({
-        tournament: t,
-        org: getLeagueLabel(t),
-        liveMatches: liveSorted,
-        upcomingMatches: upcoming,
-        completedSeries: completedSorted,
-        hasLive: live.length > 0,
-        hasUpcoming: upcoming.length > 0,
-        hasFollowed,
-        latestTime,
-      })
-    }
-
-    cards.sort((a, b) => {
-      if (a.hasLive !== b.hasLive) return a.hasLive ? -1 : 1
-      if (a.hasUpcoming !== b.hasUpcoming) return a.hasUpcoming ? -1 : 1
-      if (a.hasFollowed !== b.hasFollowed) return a.hasFollowed ? -1 : 1
-      return b.latestTime - a.latestTime
-    })
-
-    return cards
-  }, [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, followedTeams])
+  const tournamentCards = useMemo(
+    () => buildTournamentCards(activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, followedTeams),
+    [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, followedTeams]
+  )
 
   if (error) {
     return (

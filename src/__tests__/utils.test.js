@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -410,6 +410,164 @@ describe('getSeriesWins', () => {
       { radiantWin: false, radiantTeam: 'Team A', direTeam: 'Team B' }, // Dire (Team B) wins
     ])
     expect(getSeriesWins(series)).toEqual({ radiantWins: 1, direWins: 1 })
+  })
+})
+
+// ── normalizeTournamentKey ───────────────────────────────────────────────────
+
+describe('normalizeTournamentKey', () => {
+  it('expands abbreviated season number to match full form', () => {
+    expect(normalizeTournamentKey('DreamLeague S29')).toBe('dreamleague season 29')
+    expect(normalizeTournamentKey('DreamLeague Season 29')).toBe('dreamleague season 29')
+  })
+
+  it('strips punctuation and extra whitespace', () => {
+    expect(normalizeTournamentKey('PGL Wallachia S2!')).toBe('pgl wallachia season 2')
+  })
+
+  it('falls back to "other" for empty/falsy input', () => {
+    expect(normalizeTournamentKey(null)).toBe('other')
+    expect(normalizeTournamentKey('')).toBe('other')
+  })
+})
+
+// ── buildTournamentCards ─────────────────────────────────────────────────────
+
+const NOW = 1_700_000_000 // fixed unix timestamp for deterministic tests
+
+function makeLive(tournament, teamA = 'Team A', teamB = 'Team B') {
+  return { tournament, teamA, teamB }
+}
+
+function makeUpcoming(tournament, scheduledAt, teamA = 'Team A', teamB = 'Team B') {
+  return { tournament, scheduledAt, teamA, teamB }
+}
+
+function makeCompleted(tournament, startTime, radiantTeam = 'Team A', direTeam = 'Team B') {
+  return { tournament, startTime, games: [{ radiantTeam, direTeam, radiantWin: true }] }
+}
+
+describe('buildTournamentCards', () => {
+  it('returns one card per unique tournament', () => {
+    const cards = buildTournamentCards(
+      [makeLive('DreamLeague S29')],
+      [makeUpcoming('ESL One', new Date(NOW * 1000).toISOString())],
+      [],
+      [],
+      NOW
+    )
+    expect(cards).toHaveLength(2)
+    expect(cards.map(c => c.tournament)).toContain('DreamLeague S29')
+    expect(cards.map(c => c.tournament)).toContain('ESL One')
+  })
+
+  it('merges PandaScore "S29" name with OpenDota "Season 29" name into one card', () => {
+    const cards = buildTournamentCards(
+      [makeLive('DreamLeague S29')],
+      [],
+      [makeCompleted('DreamLeague Season 29', NOW - 3600)],
+      [],
+      NOW
+    )
+    expect(cards).toHaveLength(1)
+    expect(cards[0].liveMatches).toHaveLength(1)
+    expect(cards[0].completedSeries).toHaveLength(1)
+  })
+
+  it('puts live cards first', () => {
+    const cards = buildTournamentCards(
+      [makeLive('Live Event')],
+      [makeUpcoming('Upcoming Event', new Date((NOW + 3600) * 1000).toISOString())],
+      [makeCompleted('Old Event', NOW - 7200)],
+      [],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('Live Event')
+  })
+
+  it('puts upcoming cards before completed cards', () => {
+    const cards = buildTournamentCards(
+      [],
+      [makeUpcoming('Upcoming Event', new Date((NOW + 3600) * 1000).toISOString())],
+      [makeCompleted('Old Event', NOW - 7200)],
+      [],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('Upcoming Event')
+  })
+
+  it('floats a followed-team completed card above an unfollowed completed card', () => {
+    const cards = buildTournamentCards(
+      [],
+      [],
+      [
+        makeCompleted('Unfollowed Event', NOW - 1800, 'Other A', 'Other B'),
+        makeCompleted('Followed Event', NOW - 3600, 'Team Liquid', 'Tundra'),
+      ],
+      ['Team Liquid'],
+      NOW
+    )
+    // Followed card sorts first even though it is older
+    expect(cards[0].tournament).toBe('Followed Event')
+    expect(cards[0].hasFollowed).toBe(true)
+  })
+
+  it('sorts upcoming above followed-team completed (live > upcoming > followed > recency)', () => {
+    const cards = buildTournamentCards(
+      [],
+      [makeUpcoming('Upcoming Event', new Date((NOW + 3600) * 1000).toISOString(), 'Other A', 'Other B')],
+      [makeCompleted('Followed Event', NOW - 3600, 'Team Liquid', 'Tundra')],
+      ['Team Liquid'],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('Upcoming Event')
+    expect(cards[1].hasFollowed).toBe(true)
+  })
+
+  it('sorts two completed cards by recency when neither is followed', () => {
+    const cards = buildTournamentCards(
+      [],
+      [],
+      [
+        makeCompleted('Older Event', NOW - 7200),
+        makeCompleted('Newer Event', NOW - 1800),
+      ],
+      [],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('Newer Event')
+    expect(cards[1].tournament).toBe('Older Event')
+  })
+
+  it('floats followed-team rows to the top within a completed card', () => {
+    const cards = buildTournamentCards(
+      [],
+      [],
+      [
+        makeCompleted('DreamLeague S29', NOW - 3600, 'Random Team', 'Other Team'),
+        makeCompleted('DreamLeague S29', NOW - 1800, 'Team Liquid', 'Tundra'),
+      ],
+      ['Team Liquid'],
+      NOW
+    )
+    expect(cards).toHaveLength(1)
+    expect(cards[0].completedSeries[0].games[0].radiantTeam).toBe('Team Liquid')
+  })
+
+  it('returns empty array when all inputs are empty', () => {
+    expect(buildTournamentCards([], [], [], [], NOW)).toEqual([])
+  })
+
+  it('sets hasLive and hasUpcoming flags correctly', () => {
+    const cards = buildTournamentCards(
+      [makeLive('ESL One')],
+      [makeUpcoming('ESL One', new Date((NOW + 3600) * 1000).toISOString())],
+      [],
+      [],
+      NOW
+    )
+    expect(cards[0].hasLive).toBe(true)
+    expect(cards[0].hasUpcoming).toBe(true)
   })
 })
 

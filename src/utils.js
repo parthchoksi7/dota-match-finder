@@ -246,6 +246,99 @@ export function getLeagueLabel(name) {
   return null
 }
 
+/**
+ * Normalizes a tournament name to a grouping key so PandaScore and OpenDota names
+ * for the same event collapse to one card (e.g. "DreamLeague S29" == "DreamLeague Season 29").
+ * Deliberately expands "SN" -> "season N", the inverse of buildTournamentName's contraction,
+ * so both sources produce the same base string for comparison.
+ */
+export function normalizeTournamentKey(name) {
+  return (name || 'Other')
+    .toLowerCase()
+    .replace(/\bs(\d+)\b/gi, 'season $1')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Builds the sorted tournament card list for the homepage feed.
+ * Pure function — accepts the three active data slices and followed teams, returns
+ * an array of card objects ready for rendering.
+ *
+ * Sort order: live > upcoming > followed-team > most-recent.
+ * Within each card, followed-team rows float to the top.
+ *
+ * @param {object[]} live        - active live matches from PandaScore
+ * @param {object[]} upcoming    - upcoming matches from PandaScore
+ * @param {object[]} completed   - completed series from OpenDota (already filtered to active date)
+ * @param {string[]} followedTeams - team names the user follows
+ * @param {number}  [now]        - current unix timestamp in seconds (default: Date.now()/1000).
+ *                                 Accepted as a param so tests can pass a fixed value.
+ */
+export function buildTournamentCards(live, upcoming, completed, followedTeams, now = Date.now() / 1000) {
+  const isFollowedSeries = s =>
+    !!followedTeams?.length &&
+    (followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
+  const isFollowedLive = m =>
+    !!followedTeams?.length &&
+    (followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+
+  // Build canonical key -> display name; live/upcoming names (PandaScore) preferred.
+  const keyToDisplay = new Map()
+  for (const name of [
+    ...live.map(m => m.tournament || 'Other'),
+    ...upcoming.map(m => m.tournament || 'Other'),
+    ...completed.map(s => s.tournament || 'Other'),
+  ]) {
+    const key = normalizeTournamentKey(name)
+    if (!keyToDisplay.has(key)) keyToDisplay.set(key, name)
+  }
+
+  const cards = []
+  for (const [key, t] of keyToDisplay) {
+    const liveCard = live.filter(m => normalizeTournamentKey(m.tournament || 'Other') === key)
+    const upcomingCard = upcoming.filter(m => normalizeTournamentKey(m.tournament || 'Other') === key)
+    const completedCard = completed.filter(s => normalizeTournamentKey(s.tournament || 'Other') === key)
+
+    const liveSorted = [...liveCard].sort((a, b) => (isFollowedLive(a) ? 0 : 1) - (isFollowedLive(b) ? 0 : 1))
+    const completedSorted = [...completedCard].sort((a, b) => (isFollowedSeries(a) ? 0 : 1) - (isFollowedSeries(b) ? 0 : 1))
+
+    const hasFollowed =
+      liveSorted.some(isFollowedLive) ||
+      upcomingCard.some(isFollowedLive) ||
+      completedSorted.some(isFollowedSeries)
+
+    const latestTime = Math.max(
+      ...liveCard.map(() => now),
+      ...upcomingCard.map(m => new Date(m.scheduledAt).getTime() / 1000),
+      ...completedCard.map(s => s.startTime || 0),
+      0
+    )
+
+    cards.push({
+      tournament: t,
+      org: getLeagueLabel(t),
+      liveMatches: liveSorted,
+      upcomingMatches: upcomingCard,
+      completedSeries: completedSorted,
+      hasLive: liveCard.length > 0,
+      hasUpcoming: upcomingCard.length > 0,
+      hasFollowed,
+      latestTime,
+    })
+  }
+
+  cards.sort((a, b) => {
+    if (a.hasLive !== b.hasLive) return a.hasLive ? -1 : 1
+    if (a.hasUpcoming !== b.hasUpcoming) return a.hasUpcoming ? -1 : 1
+    if (a.hasFollowed !== b.hasFollowed) return a.hasFollowed ? -1 : 1
+    return b.latestTime - a.latestTime
+  })
+
+  return cards
+}
+
 export function isSeriesComplete(series) {
   if (!series || !series.games || !series.games.length) return false
   const teamWins = {}
