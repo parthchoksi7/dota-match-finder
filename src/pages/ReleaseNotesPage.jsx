@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 21, 2026",
+    tag: "fix",
+    title: "Draft panel no longer shows stale data when switching games",
+    desc: "When navigating between games in a series (e.g. G1 → G3), the Draft picks section was frozen on the first game loaded — showing the wrong heroes and wrong team assignments — while the Player Stats section correctly updated. The draft now remounts cleanly on every game switch.",
+  },
+  {
+    date: "May 21, 2026",
     tag: "new",
     title: "Mid-series game results and YouTube stream links",
     desc: "Two improvements to the live match experience while a series is in progress.",

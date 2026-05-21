@@ -215,7 +215,7 @@ function buildMentions(team1, team2, tournament) {
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
-import { getPremiumLeagueIds } from './_shared.js'
+import { getPremiumLeagueIds, trackError } from './_shared.js'
 
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1
@@ -589,6 +589,7 @@ Return ONLY a valid JSON object, no explanation, no markdown:
       return res.status(200).json({ posts, summaryPost })
     }
   } catch (err) {
+    await trackError('/api/draft-posts', 500, err?.message)
     console.error('draft-posts error:', err?.message || err)
     return res.status(500).json({ error: 'Failed to generate posts', message: err?.message })
   }

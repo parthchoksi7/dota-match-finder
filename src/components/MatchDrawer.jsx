@@ -433,6 +433,7 @@ function MatchDrawer({
             </button>
             {draftExpanded && (
               <DraftDisplay
+                key={match.id}
                 matchId={match.id}
                 radiantTeam={match.radiantTeam}
                 direTeam={match.direTeam}

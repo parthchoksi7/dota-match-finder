@@ -62,6 +62,7 @@ async function getHeroNames() {
 // Caches 24h for live/upcoming, 30 days for completed.
 
 import { Redis } from '@upstash/redis'
+import { trackError } from './_shared.js'
 
 const _kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -247,6 +248,7 @@ Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringi
 
     return res.status(200).json({ summary: text })
   } catch (error) {
+    await trackError('/api/summarize', 500, error?.message)
     console.error('Summarize API error:', error?.message || error)
     return res.status(500).json({
       error: 'Failed to generate summary',

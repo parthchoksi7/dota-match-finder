@@ -12,7 +12,7 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -125,6 +125,7 @@ export default async function handler(req, res) {
     return res.status(200).json(payload)
 
   } catch (err) {
+    await trackError('/api/upcoming-matches', 500, err?.message)
     console.error('Upcoming matches error:', err?.message || err)
     return res.status(500).json({ error: 'Failed to fetch upcoming matches', message: err?.message })
   }

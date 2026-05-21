@@ -5,7 +5,7 @@ dotenv.config({ path: '.env.local' })
 import { get as httpsGet } from 'node:https'
 import { createGunzip } from 'node:zlib'
 import { XMLParser } from 'fast-xml-parser'
-import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER } from './_shared.js'
+import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER, trackError } from './_shared.js'
 import { parseLiquipediaTransfers, getCurrentTransferPage } from './_liquipedia.js'
 
 const kv = new Redis({
@@ -528,6 +528,7 @@ export default async function handler(req, res) {
     try {
       result = await fetchAndCacheNews(game)
     } catch (err) {
+      await trackError('/api/news', 500, err?.message)
       console.error('[news] ingestion failed:', err?.message)
       return res.status(200).json({
         articles: [],
