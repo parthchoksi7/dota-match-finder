@@ -5,6 +5,16 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 21, 2026",
+    tag: "new",
+    title: "Mid-series game results and YouTube stream links",
+    desc: "Two improvements to the live match experience while a series is in progress.",
+    items: [
+      "Clicking a live match row (once a game has finished) now opens a side sheet showing each completed game's winner, duration, and a Replay button that jumps straight to that game's VOD in the full match drawer",
+      "YouTube stream links now appear alongside Twitch when PandaScore provides an English YouTube stream for a match",
+    ],
+  },
+  {
+    date: "May 21, 2026",
     tag: "fix",
     title: "Twitch VOD replay links now work",
     desc: "Replay links for completed matches were never resolving due to misconfigured Twitch credentials on the server. The API was reading TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET but the environment only had VITE_-prefixed versions of those variables. This caused the token endpoint to silently fail on every request. Credentials are now correctly configured and replay links will appear for matches where the Twitch channel is known.",

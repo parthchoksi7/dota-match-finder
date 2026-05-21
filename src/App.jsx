@@ -467,10 +467,12 @@ function App() {
     if (!match) return
     const hasFinishedGame = (match.games || []).some(g => g.status === 'finished')
     if (!hasFinishedGame) return
+    trackEvent('live_series_sheet_open', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
     setSelectedLiveSeries(match)
   }
 
   async function handleLiveSeriesReplay(odMatchId) {
+    trackEvent('live_series_replay', { odMatchId })
     setSelectedLiveSeries(null)
     await handleSelectMatchId(odMatchId)
   }
