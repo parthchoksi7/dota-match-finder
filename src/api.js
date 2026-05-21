@@ -120,6 +120,31 @@ export async function fetchProMatches(lastMatchId = null) {
     twitchOffset: null,
   }))
 
+  // Normalize null series_id: OpenDota occasionally omits series_id on the final game
+  // of a BO3 (e.g. game 3 returned with series_id: null). This breaks seriesMatchMap in
+  // App.jsx (which keys by seriesId) so the G3 tab never appears in the drawer.
+  // Fix: find the matching numbered series by teams + tournament + ±12h, then copy its
+  // seriesId and seriesType onto the orphan game.
+  const TWELVE_HOURS_S = 12 * 3600
+  const seriesRepresentatives = {}
+  for (const m of matches) {
+    if (m.seriesId != null && m.seriesId !== 0 && !seriesRepresentatives[m.seriesId]) {
+      seriesRepresentatives[m.seriesId] = m
+    }
+  }
+  for (const m of matches) {
+    if (m.seriesId != null && m.seriesId !== 0) continue
+    const teams = [m.radiantTeam, m.direTeam].sort().join('|')
+    for (const [sid, rep] of Object.entries(seriesRepresentatives)) {
+      if (rep.tournament !== m.tournament) continue
+      if ([rep.radiantTeam, rep.direTeam].sort().join('|') !== teams) continue
+      if (Math.abs(m.startTime - rep.startTime) > TWELVE_HOURS_S) continue
+      m.seriesId = Number(sid)
+      if (m.seriesType == null) m.seriesType = rep.seriesType
+      break
+    }
+  }
+
   // Enrich seriesType using PandaScore format cached in Redis by the live-matches cron.
   // Fixes cases where OpenDota reports the wrong series_type (e.g. BO2 group stage as BO3).
   try {
