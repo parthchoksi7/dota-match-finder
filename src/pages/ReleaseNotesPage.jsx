@@ -6,12 +6,13 @@ const RELEASES = [
   {
     date: "May 20, 2026",
     tag: "fix",
-    title: "Series scores now always accurate",
-    desc: "Removed PandaScore as a data source for completed matches, which was causing incorrect series scores (e.g. '2-3' for a BO3) in rare cases.",
+    title: "Series grouping and team name fixes",
+    desc: "Three data quality issues that caused missing games, wrong team names, and missing stream links are now fixed.",
     items: [
+      "BO3 game 3 no longer goes missing when OpenDota returns it without a series ID - it is now correctly grouped with games 1 and 2",
+      "BetBoom Team now displays as 'BetBoom Team' instead of 'BB' (OpenDota's abbreviation)",
+      "Twitch stream links now resolve correctly for matches involving BetBoom Team",
       "Completed matches are now sourced exclusively from OpenDota - no more phantom games from the PandaScore bridge",
-      "Series records (2-1, 1-0, etc.) are always correct",
-      "Matches appear in the feed once OpenDota indexes them, typically within 30min to a few hours of a series ending",
     ],
   },
   {
