@@ -228,13 +228,17 @@ export async function fetchGrandFinalMatchIds() {
   }
 }
 
+let _twitchAuth = null
 async function getTwitchToken() {
-  const res = await fetch(
-    'https://id.twitch.tv/oauth2/token?client_id=' + import.meta.env.VITE_TWITCH_CLIENT_ID + '&client_secret=' + import.meta.env.VITE_TWITCH_CLIENT_SECRET + '&grant_type=client_credentials',
-    { method: 'POST' }
-  )
-  const data = await res.json()
-  return data.access_token
+  if (_twitchAuth) return _twitchAuth
+  try {
+    const res = await fetch('/api/match-streams?mode=twitch-token')
+    if (!res.ok) return null
+    _twitchAuth = await res.json()
+    return _twitchAuth
+  } catch {
+    return null
+  }
 }
 
 // Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.).
@@ -304,10 +308,11 @@ export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam 
  *   Searched exclusively — no fallback to other channels if the VOD isn't there yet.
  */
 export async function findTwitchVod(matchStartTime, _tournamentName, preferredChannel = null) {
-  const token = await getTwitchToken()
+  const auth = await getTwitchToken()
+  if (!auth?.token || !auth?.clientId) return { url: null, channel: null, allVods: [] }
   const headers = {
-    'Client-ID': import.meta.env.VITE_TWITCH_CLIENT_ID,
-    'Authorization': 'Bearer ' + token
+    'Client-ID': auth.clientId,
+    'Authorization': 'Bearer ' + auth.token
   }
 
   // PandaScore told us the exact channel — trust it. Don't fall back to other channels

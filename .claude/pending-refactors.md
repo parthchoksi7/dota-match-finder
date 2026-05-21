@@ -26,11 +26,6 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 ## Frontend refactors (no API impact)
 
-### Extract `buildTournamentCards()` from HomeFeed
-- **File:** `src/components/HomeFeed.jsx:150-222`
-- **What:** The 70-line `tournamentCards` useMemo (live/upcoming/completed merging + sort) is untested business logic. Extract to a pure function in `src/utils.js` and cover with Vitest.
-- **Effort:** Low | **Payoff:** Medium (testability)
-
 ### Extract `resolveMatchStreams()` from `handleSelectMatch`
 - **File:** `src/App.jsx:386-428`
 - **What:** The stream + VOD resolution logic inside `handleSelectMatch` is coupled to React state and untestable. Extract the data-fetching portion as a standalone async function.
@@ -48,10 +43,3 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 ---
 
-## Security (schedule separately)
-
-### Move Twitch client secret server-side
-- **File:** `src/api.js:186` - `VITE_TWITCH_CLIENT_SECRET` is compiled into the browser bundle via `import.meta.env`; the secret is visible in the built JS
-- **What:** Create `api/twitch-token.js` (replacing a lower-value existing function to stay within the 12-function limit, or using `_shared.js`). Move `getTwitchToken()` server-side. Frontend calls `/api/twitch-token` instead of Twitch directly. Remove `VITE_TWITCH_CLIENT_SECRET` from the client build; keep only `TWITCH_CLIENT_SECRET` as a server-only env var.
-- Note: `api/twitch-token.js` does NOT currently exist — this refactor is not started.
-- **Effort:** Low-Medium | **Payoff:** Critical (credential security)

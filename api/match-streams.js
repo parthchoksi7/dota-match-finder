@@ -36,9 +36,41 @@ function teamsMatch(psOpponents, radiantTeam, direTeam) {
  * 3. ts fallback — if fuzzy match finds nothing, read `stream:ts:{bucket}` which now
  *    stores a JSON array of all channels that were live in that time window.
  *    Returned as `_candidates` so the frontend can narrow its Twitch VOD search.
+ *
+ * GET /api/match-streams?mode=twitch-token
+ * Returns a short-lived Twitch OAuth token for the frontend to use with Twitch Helix API.
+ * TWITCH_CLIENT_SECRET stays server-side only; the client never sees it.
+ * Token is cached in KV for ~50 days (re-fetched 1h before Twitch expires it).
  */
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
+
+  if (req.query?.mode === 'twitch-token') {
+    const clientId = process.env.TWITCH_CLIENT_ID
+    const clientSecret = process.env.TWITCH_CLIENT_SECRET
+    if (!clientId || !clientSecret) {
+      return res.status(503).json({ error: 'Twitch credentials not configured' })
+    }
+    try {
+      const cached = await kv.get('twitch:token:v1')
+      if (cached) return res.status(200).json(cached)
+    } catch {}
+    try {
+      const tokenRes = await fetch(
+        `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+        { method: 'POST' }
+      )
+      if (!tokenRes.ok) return res.status(502).json({ error: 'Twitch token fetch failed' })
+      const { access_token, expires_in } = await tokenRes.json()
+      const payload = { token: access_token, clientId }
+      const ttl = Math.max(3600, (expires_in || 5_184_000) - 3600)
+      kv.set('twitch:token:v1', payload, { ex: ttl }).catch(() => {})
+      return res.status(200).json(payload)
+    } catch (err) {
+      console.error('twitch-token fetch failed:', err?.message)
+      return res.status(502).json({ error: 'Twitch token fetch failed' })
+    }
+  }
 
   const { ids, ts, radiantTeam, direTeam } = req.query
   if (!ids) return res.status(400).json({ error: 'ids required' })
