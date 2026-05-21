@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 21, 2026",
+    tag: "fix",
+    title: "Tournament teams section restored after PandaScore endpoint removal",
+    desc: "PandaScore removed the /dota2/tournaments/{id}/rosters endpoint, causing all tournament team cards to silently show empty. Teams are now sourced from the tournament object directly, which is already in memory. Player-level roster data remains unavailable at the current PandaScore plan tier.",
+  },
+  {
     date: "May 20, 2026",
     tag: "fix",
     title: "Missing series fix: 2-0 sweeps with alternating sides now appear",
