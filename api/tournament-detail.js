@@ -202,7 +202,7 @@ async function fetchStageBracket(tournamentId, headers) {
 
 function parseRawBracket(bracketsRaw) {
   const roundMap = {}
-  for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
+  for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : []).filter(m => m.status !== 'canceled')) {
     const { section, round, label, matchPosition } = parseBracketPosition(m.name)
     const key = `${section}__${round}`
     if (!roundMap[key]) roundMap[key] = { section, round, label, matches: [] }

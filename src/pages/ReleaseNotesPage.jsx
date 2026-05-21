@@ -4,6 +4,17 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 20, 2026",
+    tag: "fix",
+    title: "Series scores now always accurate",
+    desc: "Removed PandaScore as a data source for completed matches, which was causing incorrect series scores (e.g. '2-3' for a BO3) in rare cases.",
+    items: [
+      "Completed matches are now sourced exclusively from OpenDota - no more phantom games from the PandaScore bridge",
+      "Series records (2-1, 1-0, etc.) are always correct",
+      "Matches appear in the feed once OpenDota indexes them, typically within 30min to a few hours of a series ending",
+    ],
+  },
+  {
     date: "May 19, 2026",
     tag: "fix",
     title: "Live match score and stream fixes",

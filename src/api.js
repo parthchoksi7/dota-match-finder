@@ -39,64 +39,6 @@ async function fetchPremiumLeagueIds() {
   return _premiumLeagueIds || new Set()
 }
 
-/**
- * Merge PandaScore recent-completed games into an OD match array.
- * Three cases per PS series (grouped by _pandaMatchId):
- *   1. All games already in OD - skip (OD is authoritative, has kill scores)
- *   2. No games in OD - inject all PS games (series shows "Stats pending")
- *   3. Some games in OD - inject missing PS games, bridging seriesId from the
- *      matching OD game so groupIntoSeries puts them all in the same bucket.
- * Returns a new array sorted by startTime descending.
- */
-/**
- * Fuzzy team-name match: same bidirectional substring logic as teamsMatch() in
- * api/match-streams.js. Handles PS/OD name discrepancies like "Aurora" vs "Aurora
- * Gaming" or "BetBoom Team" vs "BetBoom". Does NOT match very different names like
- * "BB" vs "BetBoom Team" — the time-based dedup covers that fallback.
- */
-export function mergeWithPsGames(matches, psGames) {
-  if (!psGames || psGames.length === 0) return matches
-
-  const odIds = new Set(matches.map(m => m.id))
-  const odIdToSeriesId = {}
-  for (const m of matches) odIdToSeriesId[m.id] = m.seriesId
-
-  // Safety backstop: skip _tempId PS games older than 8h. The backend resolves real OD
-  // IDs via timestamp matching for indexed matches, so temp IDs only appear for games
-  // OD hasn't indexed yet (typically <1-4h old). Anything older is stale and shouldn't
-  // be injected — OD has it but the KV cache served old data.
-  const psInjectAfter = Date.now() / 1000 - 8 * 3600
-
-  const psByMatch = {}
-  for (const g of psGames) {
-    const pid = String(g._pandaMatchId)
-    ;(psByMatch[pid] = psByMatch[pid] || []).push(g)
-  }
-
-  const toInject = []
-  for (const pgames of Object.values(psByMatch)) {
-    const inOD = pgames.filter(g => odIds.has(g.id))
-    const notInOD = pgames.filter(g => !odIds.has(g.id))
-    if (notInOD.length === 0) continue  // Case 1: all already in OD — skip
-
-    if (inOD.length === 0) {
-      // Case 2: none in OD. If all have temp IDs (backend couldn't resolve), apply time
-      // backstop. No name-matching needed — backend handles PS→OD resolution now.
-      if (pgames.every(g => g._tempId)) {
-        const latestStartTime = Math.max(...pgames.map(g => g.startTime || 0))
-        if (latestStartTime < psInjectAfter) continue
-      }
-      toInject.push(...pgames)
-    } else {
-      // Case 3: partial — bridge seriesId from the OD game so groupIntoSeries merges them
-      const bridgeSeriesId = odIdToSeriesId[inOD[0].id]
-      toInject.push(...notInOD.map(g => ({ ...g, seriesId: bridgeSeriesId ?? g.seriesId })))
-    }
-  }
-
-  if (toInject.length === 0) return matches
-  return [...matches, ...toInject].sort((a, b) => b.startTime - a.startTime)
-}
 
 export async function fetchProMatches(lastMatchId = null) {
   const url = lastMatchId
@@ -106,10 +48,7 @@ export async function fetchProMatches(lastMatchId = null) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25000)
 
-  // Fetch tier1 names, premium IDs, OD promatches, and PS recent-completed in parallel.
-  // PS fetch only runs on initial load (not load-more pages) to avoid re-injecting data
-  // already in allMatches. All caches are warm after the first call so latency is minimal.
-  let res, psGames = []
+  let res
   const [tier1Names, premiumIds] = await Promise.all([
     fetchTier1LeagueNames(),
     fetchPremiumLeagueIds(),
@@ -120,12 +59,6 @@ export async function fetchProMatches(lastMatchId = null) {
         clearTimeout(timeoutId)
       }
     })(),
-    lastMatchId === null
-      ? fetch('/api/tournaments?mode=recent-completed')
-          .then(r => r.ok ? r.json() : { games: [] })
-          .then(d => { psGames = Array.isArray(d.games) ? d.games : [] })
-          .catch(() => {})
-      : Promise.resolve(),
   ])
 
   if (!res.ok) throw new Error(`OpenDota promatches error: ${res.status}`)
@@ -197,7 +130,7 @@ export async function fetchProMatches(lastMatchId = null) {
     }
   } catch {}
 
-  return { matches: mergeWithPsGames(matches, psGames), nextMatchId: cursor }
+  return { matches, nextMatchId: cursor }
 }
 
 /**
