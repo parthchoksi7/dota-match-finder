@@ -92,7 +92,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                     <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
                   )}
                   {!spoilerFree && game.length && (
-                    <p className="text-[10px] text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
                   )}
                 </div>
               </div>

@@ -140,7 +140,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                     tournament: match.tournament,
                   })
                 }}
-                className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-red-600 hover:bg-red-700 text-white transition-colors"
+                className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
                 aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
               >
                 <YouTubeIcon />
@@ -157,7 +157,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                     tournament: match.tournament,
                   })
                 }}
-                className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-red-600 hover:bg-red-700 text-white transition-colors whitespace-nowrap"
+                className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
                 aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
               >
                 <YouTubeIcon />
