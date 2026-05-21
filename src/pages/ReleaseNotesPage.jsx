@@ -6,8 +6,8 @@ const RELEASES = [
   {
     date: "May 21, 2026",
     tag: "fix",
-    title: "Tournament rosters restored after PandaScore endpoint removal",
-    desc: "PandaScore removed the /dota2/tournaments/{id}/rosters endpoint, causing all team roster cards to silently show empty. Rosters are now fetched from the generic /tournaments/{id} endpoint using the expected_roster field, which includes full player names, roles, flags, and photos.",
+    title: "Tournament rosters restored and sorted by position",
+    desc: "PandaScore removed the /dota2/tournaments/{id}/rosters endpoint, causing all team roster cards to silently show empty. Rosters are now fetched from the generic /tournaments/{id} endpoint using the expected_roster field, which includes full player names, roles, flags, and photos. Players are now listed in position order (1 Carry through 5 Hard Support).",
   },
   {
     date: "May 20, 2026",
