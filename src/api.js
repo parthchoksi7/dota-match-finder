@@ -75,29 +75,21 @@ async function fetchTier1LeagueNames() {
 
 async function fetchPremiumLeagueIds() {
   if (_premiumLeagueIds) return _premiumLeagueIds
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 8000)
   try {
-    const res = await fetch(`${OPENDOTA_BASE}/leagues`, { signal: controller.signal })
+    const res = await fetch('/api/tournaments?mode=premium-league-ids')
     if (res.ok) {
-      const leagues = await res.json()
-      _premiumLeagueIds = new Set(
-        (Array.isArray(leagues) ? leagues : [])
-          .filter(l => l.tier === 'premium')
-          .map(l => l.leagueid)
-      )
+      const data = await res.json()
+      _premiumLeagueIds = new Set(Array.isArray(data.ids) ? data.ids : [])
     }
-  } catch {} finally {
-    clearTimeout(timeoutId)
-  }
+  } catch {}
   return _premiumLeagueIds || new Set()
 }
 
 
 export async function fetchProMatches(lastMatchId = null) {
-  const url = lastMatchId
-    ? `${OPENDOTA_BASE}/promatches?less_than_match_id=${lastMatchId}`
-    : `${OPENDOTA_BASE}/promatches`
+  const proxyUrl = lastMatchId
+    ? `/api/tournaments?mode=promatches-proxy&less_than=${lastMatchId}`
+    : `/api/tournaments?mode=promatches-proxy`
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25000)
@@ -108,7 +100,7 @@ export async function fetchProMatches(lastMatchId = null) {
     fetchPremiumLeagueIds(),
     (async () => {
       try {
-        res = await fetch(url, { signal: controller.signal })
+        res = await fetch(proxyUrl, { signal: controller.signal })
       } finally {
         clearTimeout(timeoutId)
       }

@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime } from './_shared.js'
+import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime, buildPremiumLeagueIds } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -1360,6 +1360,37 @@ export default async function handler(req, res) {
     } catch (err) {
       console.warn('match-formats KV read failed:', err?.message)
       return res.status(200).json({ formats: {} })
+    }
+  }
+
+  // Proxy for OpenDota /api/leagues — returns premium league IDs to avoid client-side CORS errors.
+  if (req.query?.mode === 'premium-league-ids') {
+    try {
+      const odRes = await fetch('https://api.opendota.com/api/leagues')
+      if (!odRes.ok) return res.status(200).json({ ids: [] })
+      const leagues = await odRes.json()
+      const ids = [...buildPremiumLeagueIds(leagues)]
+      return res.status(200).json({ ids })
+    } catch (err) {
+      console.warn('premium-league-ids: OpenDota fetch failed:', err?.message)
+      return res.status(200).json({ ids: [] })
+    }
+  }
+
+  // Proxy for OpenDota /api/promatches — avoids client-side CORS restrictions.
+  if (req.query?.mode === 'promatches-proxy') {
+    const lessThan = req.query?.less_than
+    const odUrl = lessThan
+      ? `https://api.opendota.com/api/promatches?less_than_match_id=${lessThan}`
+      : 'https://api.opendota.com/api/promatches'
+    try {
+      const odRes = await fetch(odUrl)
+      if (!odRes.ok) return res.status(200).json([])
+      const data = await odRes.json()
+      return res.status(200).json(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.warn('promatches-proxy: OpenDota fetch failed:', err?.message)
+      return res.status(200).json([])
     }
   }
 

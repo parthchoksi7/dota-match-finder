@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 21, 2026",
     tag: "fix",
+    title: "Match history loading reliably again",
+    desc: "OpenDota stopped sending CORS headers for spectateesports.live, which silently broke the match history browser. The league list and past-match fetches now go through the server rather than directly from the browser.",
+  },
+  {
+    date: "May 21, 2026",
+    tag: "fix",
     title: "Draft panel no longer shows stale data when switching games",
     desc: "When navigating between games in a series (e.g. G1 → G3), the Draft picks section was frozen on the first game loaded — showing the wrong heroes and wrong team assignments — while the Player Stats section correctly updated. The draft now remounts cleanly on every game switch.",
   },
