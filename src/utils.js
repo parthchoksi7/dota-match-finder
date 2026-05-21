@@ -116,6 +116,31 @@ export function groupIntoSeries(matches) {
     }
   }
 
+  // Second pass: orphaned games (series_id null/0) that share teams + tournament
+  // with an existing numbered series and started within 12h of it belong to that
+  // series. OpenDota occasionally returns the final game of a BO3 with null
+  // series_id, which would otherwise split it into a separate bucket.
+  const TWELVE_HOURS = 12 * 3600
+  const numberedKeys = new Set(
+    Object.keys(seriesMap).filter(k => /^\d+$/.test(k))
+  )
+  for (const [fallbackKey, orphanSeries] of Object.entries(seriesMap)) {
+    if (/^\d+$/.test(fallbackKey)) continue // already a numbered series
+    for (const numberedKey of numberedKeys) {
+      const numbered = seriesMap[numberedKey]
+      const teamsMatch = [orphanSeries.games[0].radiantTeam, orphanSeries.games[0].direTeam].sort().join('|') ===
+        [numbered.games[0].radiantTeam, numbered.games[0].direTeam].sort().join('|')
+      if (!teamsMatch || orphanSeries.games[0].tournament !== numbered.games[0].tournament) continue
+      const timeDiff = Math.abs(orphanSeries.games[0].startTime - numbered.startTime)
+      if (timeDiff > TWELVE_HOURS) continue
+      // Merge orphan games into the numbered series
+      for (const g of orphanSeries.games) numbered.games.push(g)
+      if (orphanSeries.startTime > numbered.startTime) numbered.startTime = orphanSeries.startTime
+      delete seriesMap[fallbackKey]
+      break
+    }
+  }
+
   let series = Object.values(seriesMap)
   series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)

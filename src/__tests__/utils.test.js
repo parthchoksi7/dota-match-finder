@@ -287,6 +287,43 @@ describe('groupIntoSeries — BO2 draw is not dropped as incomplete', () => {
   })
 })
 
+// ── groupIntoSeries — null series_id orphan merge ─────────────────────────────
+
+describe('groupIntoSeries — null series_id game merged into numbered series', () => {
+  it('merges a null-seriesId game into a numbered series with the same teams, tournament, and within 12h', () => {
+    // Games 1 & 2 have seriesId 1099664 (1-1 BO3, incomplete without G3)
+    const g1 = makeGame({ seriesId: 1099664, seriesType: 1, startTime: 1_741_800_000, radiantWin: true })
+    const g2 = makeGame({ seriesId: 1099664, seriesType: 1, startTime: 1_741_803_600, radiantWin: false })
+    // Game 3 has null seriesId — OpenDota omitted it
+    const g3 = makeGame({ seriesId: null, seriesType: 1, startTime: 1_741_807_200, radiantWin: true })
+
+    const result = groupIntoSeries([g1, g2, g3])
+    // All three games should be in one series, making it complete (2-1)
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(3)
+    expect(result[0].id).toBe('1099664')
+  })
+
+  it('does not merge null-seriesId game into a numbered series with different teams', () => {
+    const g1 = makeGame({ seriesId: 55, seriesType: 0, radiantTeam: 'Team A', direTeam: 'Team B', startTime: 1_741_800_000, radiantWin: true })
+    const g2 = makeGame({ seriesId: null, seriesType: 0, radiantTeam: 'Team C', direTeam: 'Team D', startTime: 1_741_800_100, radiantWin: true })
+
+    const result = groupIntoSeries([g1, g2])
+    expect(result).toHaveLength(2)
+  })
+
+  it('does not merge null-seriesId game into a numbered series more than 12h apart', () => {
+    const BASE = 1_741_800_000
+    const g1 = makeGame({ seriesId: 77, seriesType: 0, startTime: BASE, radiantWin: true })
+    // 13h later — too far
+    const g2 = makeGame({ seriesId: null, seriesType: 0, startTime: BASE + 13 * 3600, radiantWin: true })
+
+    const result = groupIntoSeries([g1, g2])
+    // Each is its own complete BO1, and they're too far apart to merge
+    expect(result).toHaveLength(2)
+  })
+})
+
 // ── formatDateRange ──────────────────────────────────────────────────────────
 
 describe('formatDateRange', () => {
