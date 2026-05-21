@@ -94,8 +94,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 ---
 
 ## Environment Variables (Vercel)
-- `VITE_TWITCH_CLIENT_ID` - Twitch app client ID (frontend build — used in Helix API headers by the browser)
-- `TWITCH_CLIENT_ID` - Same Twitch client ID, server-side copy (used by `match-streams.js ?mode=twitch-token` to return clientId to the browser without requiring VITE_ there)
+- `TWITCH_CLIENT_ID` - Twitch app client ID (server-side; returned to browser via `match-streams.js ?mode=twitch-token` so the client can call Twitch Helix API — no `VITE_` prefix needed)
 - `TWITCH_CLIENT_SECRET` - Twitch app client secret (server only — never exposed to the client)
 - `ANTHROPIC_API_KEY` - Claude API key for AI summaries
 - `PANDASCORE_TOKEN` - PandaScore API token for live/upcoming/tournament data

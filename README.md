@@ -54,7 +54,7 @@ npm run dev       # starts Vite dev server
 ```
 
 Requires `.env.local` with:
-- `VITE_TWITCH_CLIENT_ID`
+- `TWITCH_CLIENT_ID`
 - `TWITCH_CLIENT_SECRET`
 - `ANTHROPIC_API_KEY`
 - `PANDASCORE_TOKEN`

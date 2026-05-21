@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 21, 2026",
     tag: "fix",
+    title: "Twitch VOD replay links now work",
+    desc: "Replay links for completed matches were never resolving due to misconfigured Twitch credentials on the server. The API was reading TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET but the environment only had VITE_-prefixed versions of those variables. This caused the token endpoint to silently fail on every request. Credentials are now correctly configured and replay links will appear for matches where the Twitch channel is known.",
+  },
+  {
+    date: "May 21, 2026",
+    tag: "fix",
     title: "Tournament rosters restored and sorted by position",
     desc: "PandaScore removed the /dota2/tournaments/{id}/rosters endpoint, causing all team roster cards to silently show empty. Rosters are now fetched from the generic /tournaments/{id} endpoint using the expected_roster field, which includes full player names, roles, flags, and photos. Players are now listed in position order (1 Carry through 5 Hard Support).",
   },
