@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { RoshanSvg, RampageSvg, RapierSvg } from './GameIndicators'
 import { trackEvent } from '../utils'
 
 // SVG coordinate constants (viewBox: 480 × 140)
@@ -37,6 +38,13 @@ function formatHoverLabel(val, radiantName, direName) {
   const formatted = abs >= 1000 ? `${(abs / 1000).toFixed(1)}k` : `${abs}`
   const team = (val > 0 ? (radiantName || 'Radiant') : (direName || 'Dire')).toUpperCase()
   return `+${formatted} ${team}`
+}
+
+// Icon component per event type — same SVG shapes as GameIndicators chips for visual consistency
+const MARKER_SVG = {
+  roshan: RoshanSvg,
+  rampage: RampageSvg,
+  rapier: RapierSvg,
 }
 
 // Adds event.time seconds to an existing Twitch VOD URL's ?t= offset
@@ -191,9 +199,11 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     const y1 = pts[lo + 1].y
     const eventX = PL + (minuteFloat / (n - 1)) * CW
     const eventY = y0 + (y1 - y0) * frac
-    const color = event.type === 'rampage' ? 'rgb(239,68,68)' : event.type === 'roshan' ? 'rgb(56,189,248)' : 'rgb(251,191,36)'
+    // Color = side that triggered the event (not event type), so a Dire Roshan in the
+    // Radiant-lead (green) band renders red — that contradiction tells the story.
+    const sideColor = event.team === 'radiant' ? '#22c55e' : '#ef4444'
     const eventUrl = vodUrl ? buildEventUrl(vodUrl, event.time) : null
-    return [{ i, event, x: eventX, y: eventY, color, eventUrl }]
+    return [{ i, event, x: eventX, y: eventY, sideColor, eventUrl }]
   })
 
   // Hover state derived values
@@ -266,10 +276,10 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         </defs>
 
         {/* Radiant (green) fill — above zero */}
-        <path d={fillPath} fill="rgba(34,197,94,0.20)" clipPath={`url(#${aboveId})`} />
+        <path d={fillPath} fill="rgba(34,197,94,0.25)" clipPath={`url(#${aboveId})`} />
 
         {/* Dire (red) fill — below zero */}
-        <path d={fillPath} fill="rgba(239,68,68,0.20)" clipPath={`url(#${belowId})`} />
+        <path d={fillPath} fill="rgba(239,68,68,0.25)" clipPath={`url(#${belowId})`} />
 
         {/* Dashed zero line */}
         <line
@@ -284,7 +294,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           points={linePts}
           fill="none"
           className="stroke-gray-400 dark:stroke-gray-500"
-          strokeWidth="1.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -357,82 +367,123 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
             <circle
               cx={hoverPt.x.toFixed(1)}
               cy={hoverPt.y.toFixed(1)}
-              r="4"
+              r="5"
               fill="white"
               stroke={hoverColor}
-              strokeWidth="2"
+              strokeWidth="2.5"
               pointerEvents="none"
             />
           </>
         )}
 
-        {/* Critical event markers — rendered last so they sit on top of the gold line and crosshair */}
-        {eventMarkers.map(({ i, event, x, y, color, eventUrl }) =>
-          event.type === 'roshan' ? (
-            <polygon
-              key={`ev-${i}`}
-              points={`${x.toFixed(1)},${(y - 5.5).toFixed(1)} ${(x + 5.5).toFixed(1)},${y.toFixed(1)} ${x.toFixed(1)},${(y + 5.5).toFixed(1)} ${(x - 5.5).toFixed(1)},${y.toFixed(1)}`}
-              fill={color}
-              stroke="white"
-              strokeWidth="1.5"
-              style={{ cursor: eventUrl ? 'pointer' : 'default' }}
-              onMouseEnter={() => setActiveEvent({ event, x, y, eventUrl })}
-              onMouseLeave={() => setActiveEvent(null)}
-              onClick={eventUrl ? () => window.open(eventUrl, '_blank', 'noopener') : undefined}
-            />
-          ) : (
-            <circle
-              key={`ev-${i}`}
-              cx={x.toFixed(1)}
-              cy={y.toFixed(1)}
-              r="5"
-              fill={color}
-              stroke="white"
-              strokeWidth="1.5"
-              style={{ cursor: eventUrl ? 'pointer' : 'default' }}
-              onMouseEnter={() => setActiveEvent({ event, x, y, eventUrl })}
-              onMouseLeave={() => setActiveEvent(null)}
-              onClick={eventUrl ? () => window.open(eventUrl, '_blank', 'noopener') : undefined}
-            />
-          )
+        {/* Vertical dashed ruler at the active marker's x — drawn before markers so markers sit on top */}
+        {activeEvent && (
+          <line
+            x1={activeEvent.x.toFixed(1)} y1={PT}
+            x2={activeEvent.x.toFixed(1)} y2={VH - PB}
+            stroke="#374151" strokeWidth="1" strokeDasharray="3 4"
+            pointerEvents="none"
+          />
         )}
+
+        {/* Event markers — active marker rendered last so it sits above all siblings */}
+        {[
+          ...eventMarkers.filter(m => m.i !== activeEvent?.markerIdx),
+          ...eventMarkers.filter(m => m.i === activeEvent?.markerIdx),
+        ].map(({ i, event, x, y, sideColor, eventUrl }) => {
+          const isActive = activeEvent?.markerIdx === i
+          const Icon = MARKER_SVG[event.type] || RapierSvg
+          return (
+            <g
+              key={`ev-${i}`}
+              className="gold-graph-marker"
+              style={{ color: sideColor }}
+              transform={`translate(${(x - 6).toFixed(1)},${(y - 6).toFixed(1)})`}
+              onMouseEnter={() => setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i })}
+              onMouseLeave={() => setActiveEvent(null)}
+              onClick={eventUrl ? () => { trackEvent('gold_graph_marker_click', { type: event.type, team: event.team }); window.open(eventUrl, '_blank', 'noopener') } : undefined}
+            >
+              {/* 24px transparent hit area */}
+              <circle cx="6" cy="6" r="12" fill="transparent" />
+              {/* Focus ring — visible only on the active marker */}
+              {isActive && (
+                <circle cx="6" cy="6" r="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              )}
+              {/* Icon: same shape as the GameIndicators chip for this event type */}
+              <Icon className="w-3 h-3" />
+            </g>
+          )
+        })}
       </svg>
 
       {/* Desktop hover tooltip — floats near cursor, yields to event tooltip */}
       {hoverPt && hoverSourceRef.current === 'mouse' && !activeEvent && (
         <div
-          className="absolute pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap"
+          className="absolute pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
           style={{
             left: tooltipLeft,
-            top: `${Math.max(0, hoverPt.y - 30)}px`,
+            top: `${Math.max(0, hoverPt.y - 40)}px`,
             transform: tooltipTransform,
           }}
         >
-          <span className="text-gray-400 tabular-nums">{hoverMinute}m</span>
-          <span className="mx-1 text-gray-600">·</span>
+          <span className="text-gray-400 font-medium tabular-nums">{hoverMinute}m</span>
+          <span className="mx-1.5 text-gray-600">·</span>
           <span style={{ color: hoverColor }}>{formatHoverLabel(hoverVal, radiantName, direName)}</span>
         </div>
       )}
 
-      {/* Event tooltip — takes priority over the hover tooltip on desktop */}
-      {activeEvent && (
-        <div
-          className="absolute pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-1 rounded shadow-lg whitespace-nowrap"
-          style={{
-            left: `${(activeEvent.x / VW) * 100}%`,
-            top: `${activeEvent.y - 30}px`,
-            transform: 'translateX(-50%)',
-          }}
-        >
-          {activeEvent.event.type === 'roshan'
-            ? `Roshan ${activeEvent.event.index} · ${activeEvent.event.team === 'radiant' ? (radiantName || 'Radiant') : (direName || 'Dire')} · ${Math.floor(activeEvent.event.time / 60)}m`
-            : `${activeEvent.event.type === 'rampage' ? 'Rampage' : 'Rapier'}${activeEvent.event.player ? ` · ${activeEvent.event.player}` : ''} · ${Math.floor(activeEvent.event.time / 60)}m`
-          }
-          {activeEvent.eventUrl && (
-            <span className="ml-1.5 text-amber-400">Watch</span>
-          )}
-        </div>
-      )}
+      {/* Event marker tooltip — replaces the scrub tooltip while a marker is active */}
+      {activeEvent && (() => {
+        const ev = activeEvent.event
+        const Icon = MARKER_SVG[ev.type] || RapierSvg
+        const teamName = ev.team === 'radiant' ? (radiantName || 'Radiant') : (direName || 'Dire')
+        const minute = Math.floor(ev.time / 60)
+        const eventLabel = ev.type === 'roshan'
+          ? `Roshan${ev.index ? ` ${ev.index}` : ''}`
+          : ev.type === 'rampage' ? 'Rampage' : 'Divine Rapier'
+        const subject = ev.type === 'roshan'
+          ? teamName
+          : ev.type === 'rampage'
+          ? (ev.player || teamName)
+          : ev.player ? `${ev.player}${ev.hero ? ` · ${ev.hero}` : ''}` : teamName
+        // Flip tooltip left when within ~40% of the right chart edge
+        const flipLeft = (activeEvent.x - PL) / CW > 0.60
+        return (
+          <div
+            className="absolute pointer-events-none z-50 whitespace-nowrap"
+            style={{
+              left: `${(activeEvent.x / VW) * 100}%`,
+              top: `${Math.max(0, activeEvent.y - 46)}px`,
+              transform: flipLeft ? 'translateX(-100%)' : 'translateX(4px)',
+              background: '#030712',
+              border: '1px solid #1f2937',
+              borderRadius: '4px',
+              padding: '7px 10px',
+              fontSize: '13px',
+              lineHeight: 1,
+              color: '#fff',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span style={{ color: activeEvent.sideColor, display: 'inline-flex' }}>
+              <Icon style={{ width: 12, height: 12 }} />
+            </span>
+            <span style={{ fontWeight: 700 }}>{eventLabel}</span>
+            <span style={{ color: '#374151' }}>·</span>
+            <span style={{ color: '#9ca3af', fontWeight: 500 }}>{subject}</span>
+            <span style={{ color: '#374151' }}>·</span>
+            <span style={{ color: '#9ca3af', fontWeight: 500 }} className="tabular-nums">{minute}m</span>
+            {activeEvent.eventUrl && (
+              <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginLeft: 2 }}>
+                Watch
+              </span>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -37,3 +37,16 @@
 .animate-slide-in {
   animation: slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }
+
+/* Gold-graph event markers */
+.gold-graph-marker { cursor: pointer; }
+.gold-graph-marker svg {
+  /* thin dark outline so the marker stays readable when sitting on its own band color */
+  stroke: #030712;
+  stroke-width: 0.8;
+  paint-order: stroke;
+  transition: transform 120ms ease-out;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.gold-graph-marker:hover svg { transform: scale(1.15); }

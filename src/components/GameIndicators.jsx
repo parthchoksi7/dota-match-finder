@@ -29,11 +29,20 @@ function Tooltip({ label, children }) {
   )
 }
 
-// ── SVG icons — exported so CompactSeriesRow / MatchDrawer can use them inline ─
+// ── SVG icons — exported so CompactSeriesRow / MatchDrawer / GoldGraph can use them ─
 
-export function RapierSvg({ className = 'w-3.5 h-3.5' }) {
+// Aegis of the Immortal shield — used as a graph marker for Roshan kills
+export function RoshanSvg({ className = 'w-3.5 h-3.5', ...props }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true" {...props}>
+      <path d="M8 2 L13 4 V8 C13 10.5 11 12.5 8 13.5 C5 12.5 3 10.5 3 8 V4 Z" />
+    </svg>
+  )
+}
+
+export function RapierSvg({ className = 'w-3.5 h-3.5', ...props }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true" {...props}>
       <line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       <line x1="4" y1="8" x2="8" y2="12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       <circle cx="3" cy="13" r="1.25" fill="currentColor" />
@@ -41,9 +50,9 @@ export function RapierSvg({ className = 'w-3.5 h-3.5' }) {
   )
 }
 
-export function GoldSwingSvg({ className = 'w-3.5 h-3.5' }) {
+export function GoldSwingSvg({ className = 'w-3.5 h-3.5', ...props }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true" {...props}>
       <polyline
         points="2,4 6,11 14,3"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -56,9 +65,9 @@ export function GoldSwingSvg({ className = 'w-3.5 h-3.5' }) {
   )
 }
 
-export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
+export function MegaComebackSvg({ className = 'w-3.5 h-3.5', ...props }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true" {...props}>
       <path d="M3 9 L 4 5 L 5 7.5 L 6.5 3 L 8 7 L 9.5 3.5 L 11 7 L 12 5.5 L 13 9 Z" />
       <path d="M3 9 Q 3 12 5 13 L 11 13 Q 13 12 13 9 Z" />
       <path d="M3.5 11.5 L 0.5 10.5 L 0.5 13 L 3.5 12.5 Z" />
@@ -69,9 +78,9 @@ export function MegaComebackSvg({ className = 'w-3.5 h-3.5' }) {
   )
 }
 
-export function RampageSvg({ className = 'w-3.5 h-3.5' }) {
+export function RampageSvg({ className = 'w-3.5 h-3.5', ...props }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true" {...props}>
       <path
         fillRule="evenodd"
         clipRule="evenodd"

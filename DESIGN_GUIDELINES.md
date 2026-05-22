@@ -623,8 +623,8 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - SVG viewBox 480x140 with `preserveAspectRatio="none"` — fills the container width.
 - Loading: 140px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
 - Empty (< 2 data points): `text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600` — "Gold data unavailable".
-- **Event markers**: SVG `<circle>` elements at the interpolated y-position of the gold line at the event's minute. Amber (`rgb(251,191,36)`) for rapier purchases, red (`rgb(239,68,68)`) for rampages. White stroke 1.5px so they stand out against both fills. R=5.
-- **Hover tooltip**: React state (`activeEvent`). Positioned via `left: (x/VW)*100%` and `top: y-30px` as an absolutely-positioned `<div>` over the SVG. Shows event type, player name, minute, and "Watch" hint in amber when `vodUrl` is available.
+- **Event markers**: See `## Game event markers` section below. Three types: Roshan kill, Rampage, Divine Rapier. Colored by side (#22c55e Radiant / #ef4444 Dire), not by event type.
+- **Hover tooltip**: `activeEvent` state. Inline-styled dark card (#030712 bg, #1f2937 border, 4px radius) positioned via `left: (x/VW)*100%`. Flips left when marker is past 60% of chart width. Shows: colored icon · event label · separator · subject · separator · minute · "WATCH" in amber. Yields to scrub tooltip when `activeEvent` is null.
 - **Click-to-VOD**: `buildEventUrl(vodUrl, event.time)` parses the Twitch `?t=` offset already in the VOD URL, adds `event.time` seconds, reformats to `Xh Ym Zs`, opens in new tab. No-op if no `vodUrl`.
 - Tooltip and click work on desktop hover/click. Touch devices get click-only (no hover tooltip).
 
@@ -657,3 +657,73 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - Team names or tournament names that truncate on mobile — use two-line layouts instead of one-line with ellipsis
 - Putting interactive elements (stream pills, watch buttons, replay links) in positions that are invisible on mobile without providing an alternative touch-friendly path. **Established pattern**: Watch (Live) and Replay (Results) use a `sm:hidden` icon-only purple button (44px tap target) + `hidden sm:inline-flex` full-text button — same 4th-column slot, different density per breakpoint.
 - Using red for YouTube stream buttons. YouTube is a watch action — it uses `bg-purple-700 hover:bg-purple-800` just like Twitch. The platform icon (YouTube SVG vs Twitch SVG) provides the visual distinction between platforms; color should not carry that meaning. This keeps red reserved for its semantic uses (CTAs, live, loss).
+
+---
+
+## Game event markers
+
+Three event types appear as icon markers on the gold-advantage graph, plotted at their event timestamp along the gold line.
+
+### Event types
+
+| Event | Icon component | Triggered by |
+|-------|----------------|--------------|
+| Roshan kill | `RoshanSvg` (Aegis shield) | Team that killed Roshan |
+| Rampage | `RampageSvg` (skull + crossed daggers) | Player who got the rampage |
+| Divine Rapier purchase | `RapierSvg` (sword slash) | Player/team that bought |
+
+All three SVG components live in `src/components/GameIndicators.jsx`.
+
+### Coloring rule
+
+**Marker color = the side that triggered the event, not the event type.**
+
+- Radiant event → `#22c55e` (green-500)
+- Dire event → `#ef4444` (red-500)
+
+A Dire Roshan kill during Radiant's gold lead renders a **red marker in the green band** — that visual contradiction tells the story.
+
+### Implementation (GoldGraph.jsx)
+
+- `MARKER_SVG` maps event type strings to icon components: `{ roshan: RoshanSvg, rampage: RampageSvg, rapier: RapierSvg }`
+- Each marker is a `<g className="gold-graph-marker">` with `style={{ color: sideColor }}` — icon fills via `currentColor`
+- 24px transparent `<circle r="12">` hit area inside the `<g>` for easy hover targeting
+- Active marker gets a `<circle r="10" stroke="currentColor">` focus ring
+- Markers positioned with `translate(x - 6, y - 6)` so the 12×12 icon is centered on the data point
+- Z-ordering: inactive markers rendered first, active marker rendered last (sits on top of siblings)
+- Vertical dashed ruler (`stroke="#374151" strokeDasharray="3 4"`) rendered behind all markers at the active marker's x position
+
+### Tooltip structure
+
+Dark inline-styled card (#030712 bg, 1px #1f2937 border, 4px radius, `0 10px 30px rgba(0,0,0,0.55)` shadow):
+
+```
+[icon in sideColor]  [Event Label]  ·  [Subject]  ·  [Xm]  [WATCH?]
+```
+
+- **Icon**: 12×12 icon in side color
+- **Event label**: "Roshan", "Roshan 2", "Rampage", or "Divine Rapier"
+- **Subject**: team name for Roshan; player name for Rampage; `player · hero` for Rapier (falls back to team name)
+- **Minute**: `Math.floor(event.time / 60)` in tabular-nums, color #9ca3af
+- **WATCH**: amber `#f59e0b`, 11px, uppercase, shown only when `eventUrl` is non-null
+
+**Flip logic**: when `(markerX - PL) / CW > 0.60`, flip left with `translateX(-100%)`, otherwise offset 4px right.
+
+### CSS (index.css)
+
+```css
+.gold-graph-marker { cursor: pointer; }
+.gold-graph-marker svg {
+  stroke: #030712;           /* thin dark outline for readability on same-color bands */
+  stroke-width: 0.8;
+  paint-order: stroke;       /* stroke behind fill so outline doesn't obscure icon */
+  transition: transform 120ms ease-out;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.gold-graph-marker:hover svg { transform: scale(1.15); }
+```
+
+### Click-to-VOD
+
+`buildEventUrl(vodUrl, event.time)` adds `event.time` seconds to the existing `?t=` offset in the Twitch VOD URL, reformats as `Xh Ym Zs`, opens in new tab. No-op when `vodUrl` is null.

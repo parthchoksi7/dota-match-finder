@@ -6,6 +6,17 @@ const RELEASES = [
   {
     date: "May 22, 2026",
     tag: "improvement",
+    title: "Gold chart: Roshan, Rampage, and Rapier markers redesigned",
+    desc: "Event markers on the gold advantage chart now use the same icon language as the series card badges — an Aegis shield for Roshan kills, a skull for Rampages, a sword for Divine Rapier purchases.",
+    items: [
+      "Markers are colored by side rather than event type: Radiant events appear green, Dire events appear red — so a Dire Roshan during Radiant's gold lead shows a red shield in the green band, telling the story at a glance",
+      "Hovering a marker scales it up, draws a vertical ruler at that moment, and shows a tooltip with the event name, player or team, and minute",
+      "Click any marker to jump to that exact moment in the Twitch VOD",
+    ],
+  },
+  {
+    date: "May 22, 2026",
+    tag: "improvement",
     title: "Bracket round shown on live and upcoming match rows",
     desc: "Live and upcoming match cards now display the bracket context below the score or time -- e.g. Upper Bracket Final, Lower Bracket Semifinal, Grand Final. The label is derived from PandaScore's match name and shown in the tertiary style so it adds context without competing with team names.",
   },
