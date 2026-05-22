@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 22, 2026",
     tag: "improvement",
+    title: "Error monitoring now covers all API endpoints",
+    desc: "Production errors from all nine API handlers are now captured and surfaced through the automated monitoring pipeline. Alerts fire within two hours of a sustained error pattern on any endpoint.",
+  },
+  {
+    date: "May 22, 2026",
+    tag: "improvement",
     title: "Gold chart: Roshan, Rampage, and Rapier markers redesigned",
     desc: "Event markers on the gold advantage chart now use the same icon language as the series card badges — an Aegis shield for Roshan kills, a skull for Rampages, a sword for Divine Rapier purchases.",
     items: [

@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
+import { trackError } from './_shared.js'
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -396,6 +397,7 @@ export default async function handler(req, res) {
       return await handleSeriesDetail(req, res, token)
     } catch (err) {
       console.error('Series detail error:', err?.message || err)
+      await trackError('/api/tournament-detail', 500, err?.message)
       return res.status(500).json({ error: 'Failed to fetch tournament details', message: err?.message })
     }
   }
@@ -526,6 +528,7 @@ export default async function handler(req, res) {
     return res.status(200).json(payload)
   } catch (err) {
     console.error('Tournament detail error:', err?.message)
+    await trackError('/api/tournament-detail', 500, err?.message)
     return res.status(500).json({ error: 'Failed to fetch tournament detail' })
   }
 }

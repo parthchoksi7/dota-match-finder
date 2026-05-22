@@ -500,12 +500,12 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 
 ### Monitoring & Error Alerting
 
-**`/api/monitor`** — Protected by `CRON_SECRET`. Returns a JSON health report.
-- `?mode=report` — also calls Claude Haiku for a 2-3 sentence triage summary (used by GitHub Actions)
-- Default (no mode) — raw stats only, no Claude call (quick manual check)
+**`/api/tournaments?mode=monitor`** — Protected by `CRON_SECRET`. Merged into `tournaments.js` to stay within the 12-function limit. Returns a JSON health report.
+- `?mode=monitor&report=1` — also calls Claude Haiku for a 2-3 sentence triage summary (used by GitHub Actions)
+- `?mode=monitor` (no `report=1`) — raw stats only, no Claude call (quick manual check)
 - Response fields: `error_count`, `error_count_24h`, `errors_by_endpoint`, `recent_errors`, `services`, `critical`, `summary`, `action_required`
 
-**Error telemetry (KV)** — `trackError(endpoint, statusCode, detail)` in `_shared.js` writes to `monitor:errors:{YYYY-MM-DD}` (list, capped at 100, 3-day TTL). Called in catch blocks of: `live-matches`, `upcoming-matches`, `draft-posts`, `summarize`, `news`.
+**Error telemetry (KV)** — `trackError(endpoint, statusCode, detail)` in `_shared.js` writes to `monitor:errors:{YYYY-MM-DD}` (list, capped at 100, 3-day TTL). Called in catch blocks of: `live-matches`, `upcoming-matches`, `draft-posts`, `summarize`, `news`, `tournaments`, `tournament-detail`, `tournament-heroes`, `match-streams`.
 
 **Alert threshold** — `critical: true` when ≥3 errors from the same endpoint in a 2h window, OR any service health probe fails.
 
@@ -513,7 +513,7 @@ with open('src/components/MatchDrawer.jsx', 'w') as f:
 
 **Cron failure alerts** — `auto-tweet.yml` and `sync-teams.yml` both have `if: failure()` steps that create `[Alert]` issues immediately on cron failure.
 
-**Quick check**: `curl -H "Authorization: Bearer $CRON_SECRET" https://spectateesports.live/api/monitor`
+**Quick check**: `curl -H "Authorization: Bearer $CRON_SECRET" "https://spectateesports.live/api/tournaments?mode=monitor"`
 
 
 ---

@@ -7,7 +7,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams } from './_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
@@ -68,6 +68,7 @@ export default async function handler(req, res) {
       return res.status(200).json(payload)
     } catch (err) {
       console.error('twitch-token fetch failed:', err?.message)
+      await trackError('/api/match-streams', 502, err?.message)
       return res.status(502).json({ error: 'Twitch token fetch failed' })
     }
   }

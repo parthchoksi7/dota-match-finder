@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
+import { trackError } from './_shared.js'
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -151,6 +152,7 @@ export default async function handler(req, res) {
     return res.status(200).json(payload)
   } catch (err) {
     console.error('Tournament heroes error:', err?.message)
+    await trackError('/api/tournament-heroes', 500, err?.message)
     return res.status(500).json({ error: 'Failed to fetch hero stats' })
   }
 }
