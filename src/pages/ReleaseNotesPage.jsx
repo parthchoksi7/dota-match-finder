@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 22, 2026",
     tag: "improvement",
+    title: "Date strip shows all upcoming match days",
+    desc: "The date navigation strip now shows every day with scheduled matches, not just Today and Tomorrow. If matches are scheduled three, four, or more days out, those date pills appear automatically.",
+  },
+  {
+    date: "May 22, 2026",
+    tag: "improvement",
     title: "Error monitoring now covers all API endpoints",
     desc: "Production errors from all nine API handlers are now captured and surfaced through the automated monitoring pipeline. Alerts fire within two hours of a sustained error pattern on any endpoint.",
   },

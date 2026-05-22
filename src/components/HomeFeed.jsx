@@ -52,6 +52,7 @@ function HomeFeed({
   liveMatches = [],
   upcomingMatches = [],
   allMatches = [],
+  justEndedSeries = [],
   onSelectMatch,
   onSelectSeries,
   spoilerFree = false,
@@ -82,7 +83,7 @@ function HomeFeed({
     () => !!localStorage.getItem('spectate-cal-nudge-dismissed')
   )
 
-  // Build chronological date list: past days → today → tomorrow
+  // Build chronological date list: past days → today → tomorrow → future days
   const availableDates = useMemo(() => {
     const dayTimestamps = {}
     for (const s of completeSeries) {
@@ -107,6 +108,23 @@ function HomeFeed({
     const hasTomorrow = upcomingMatches.some(m => new Date(m.scheduledAt).toDateString() === tomorrowKey)
     if (hasTomorrow) {
       dates.push({ key: tomorrowKey, label: 'Tomorrow' })
+    }
+
+    // Collect any future dates beyond tomorrow from upcoming matches
+    const futureDayMap = {}
+    for (const m of upcomingMatches) {
+      const d = new Date(m.scheduledAt)
+      const key = d.toDateString()
+      if (key !== todayKey && key !== tomorrowKey) {
+        const ts = Math.floor(d.getTime() / 1000)
+        if (!futureDayMap[key] || ts < futureDayMap[key]) futureDayMap[key] = ts
+      }
+    }
+    const futureKeys = Object.keys(futureDayMap)
+      .filter(k => new Date(k) > new Date(tomorrowKey))
+      .sort((a, b) => new Date(a) - new Date(b))
+    for (const k of futureKeys) {
+      dates.push({ key: k, label: getDateLabel(futureDayMap[k]) })
     }
 
     return dates
@@ -146,6 +164,16 @@ function HomeFeed({
     () => completeSeries.filter(s => getDayKey(s.startTime) === resolvedDate),
     [completeSeries, resolvedDate]
   )
+
+  const activeJustEndedByTournament = useMemo(() => {
+    if (!isToday) return {}
+    const map = {}
+    for (const s of justEndedSeries) {
+      if (!map[s.tournament]) map[s.tournament] = []
+      map[s.tournament].push(s)
+    }
+    return map
+  }, [justEndedSeries, isToday])
 
   // Build tournament cards sorted: live → upcoming → followed-team → completed
   const tournamentCards = useMemo(
@@ -294,7 +322,8 @@ function HomeFeed({
         function renderCard(card) {
           const isHubExpanded = expandedTournamentName === card.tournament
           const hubId = findTournamentId(card.tournament, tournamentIdMap)
-          const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length
+          const justEnded = activeJustEndedByTournament[card.tournament] || []
+          const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length + justEnded.length
 
           function toggleHub() {
             if (hubId) {
@@ -355,7 +384,7 @@ function HomeFeed({
               )}
 
               <div role="rowgroup">
-                {card.liveMatches.length > 0 && (card.upcomingMatches.length > 0 || card.completedSeries.length > 0) && (
+                {card.liveMatches.length > 0 && (card.upcomingMatches.length > 0 || card.completedSeries.length > 0 || justEnded.length > 0) && (
                   <div className="flex items-center gap-1.5 px-3 py-1 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">Live</span>
@@ -371,7 +400,32 @@ function HomeFeed({
                     isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
                   />
                 ))}
-                {card.upcomingMatches.length > 0 && (card.liveMatches.length > 0 || card.completedSeries.length > 0) && (
+                {justEnded.length > 0 && (
+                  <>
+                    {(card.liveMatches.length > 0 || card.upcomingMatches.length > 0 || card.completedSeries.length > 0) && (
+                      <div className="px-3 py-1 border-t border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">Just Ended</span>
+                      </div>
+                    )}
+                    {justEnded.map(s => {
+                      const allTemp = s.games.every(g => g._tempId)
+                      return (
+                        <CompactSeriesRow
+                          key={s.id}
+                          series={s}
+                          onSelectGame={allTemp ? null : onSelectMatch}
+                          onSelectSeries={allTemp ? null : onSelectSeries}
+                          spoilerFree={spoilerFree}
+                          followedTeams={followedTeams}
+                          onToggleFollow={onToggleFollow}
+                          isGrandFinal={false}
+                          isFollowedMatch={!!(followedTeams?.includes(s.games[0]?.radiantTeam) || followedTeams?.includes(s.games[0]?.direTeam))}
+                        />
+                      )
+                    })}
+                  </>
+                )}
+                {card.upcomingMatches.length > 0 && (card.liveMatches.length > 0 || card.completedSeries.length > 0 || justEnded.length > 0) && (
                   <div className="px-3 py-1 border-t border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 dark:text-blue-500">Upcoming</span>
                   </div>
@@ -384,7 +438,7 @@ function HomeFeed({
                     spoilerFree={spoilerFree}
                   />
                 ))}
-                {card.completedSeries.length > 0 && (card.liveMatches.length > 0 || card.upcomingMatches.length > 0) && (
+                {card.completedSeries.length > 0 && (card.liveMatches.length > 0 || card.upcomingMatches.length > 0 || justEnded.length > 0) && (
                   <div className="px-3 py-1 border-t border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">Results</span>
                   </div>
@@ -413,7 +467,22 @@ function HomeFeed({
           )
         }
 
-        return tournamentCards.map(renderCard)
+        const existingTournaments = new Set(tournamentCards.map(c => c.tournament))
+        const standaloneJustEnded = Object.keys(activeJustEndedByTournament)
+          .filter(tn => !existingTournaments.has(tn))
+          .map(tn => ({
+            tournament: tn,
+            org: null,
+            hasLive: false,
+            liveMatches: [],
+            upcomingMatches: [],
+            completedSeries: [],
+          }))
+
+        return [
+          ...tournamentCards.map(renderCard),
+          ...standaloneJustEnded.map(renderCard),
+        ]
       })()}
     </div>
   )
