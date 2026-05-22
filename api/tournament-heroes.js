@@ -29,7 +29,8 @@ function findLeague(leagues, search) {
     if (overlap < 2) continue
     // On tie, prefer non-qualifier over qualifier (e.g. "DreamLeague S29" over "DreamLeague S29 Qualifiers")
     const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
-    const isBetter = overlap > bestScore || (overlap === bestScore && !isQualifier && best && (best.name || '').toLowerCase().includes('qualifier'))
+    const bestIsQualifier = best && (best.name || '').toLowerCase().includes('qualifier')
+    const isBetter = overlap > bestScore || (overlap === bestScore && bestIsQualifier && !isQualifier)
     if (isBetter) { best = league; bestScore = overlap }
   }
   return best
