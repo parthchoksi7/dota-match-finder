@@ -13,17 +13,17 @@ function Tooltip({ label, children }) {
         role="tooltip"
         className="
           pointer-events-none absolute z-50
-          bottom-full left-1/2 -translate-x-1/2 mb-2
+          top-full left-1/2 -translate-x-1/2 mt-2
           px-2.5 py-1.5 rounded-md
           bg-gray-950 text-white text-[11px] font-medium leading-snug text-center
           shadow-2xl whitespace-nowrap
-          opacity-0 -translate-y-0.5
+          opacity-0 translate-y-0.5
           group-hover/indicator:opacity-100 group-hover/indicator:translate-y-0
           transition-all duration-150 ease-out
         "
       >
         {label}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-950" />
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-gray-950" />
       </span>
     </span>
   )

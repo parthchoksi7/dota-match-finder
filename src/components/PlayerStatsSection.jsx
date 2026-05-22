@@ -15,7 +15,7 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
   return (
     <div className="space-y-1.5">
       {/* Hero icon (with CSS tooltip) + player name + networth */}
-      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+      <div className="flex items-center gap-2 min-w-0">
         {heroKey ? (
           <div className="relative flex-shrink-0 group">
             <img
@@ -44,7 +44,7 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
       </div>
 
       {/* Main items + divider + backpack items */}
-      <div className="flex items-center gap-0.5 ml-8 overflow-x-hidden">
+      <div className="flex items-center gap-0.5 ml-8">
         {player.items.map((itemId, i) => (
           <ItemSlot key={i} itemId={itemId} itemNames={itemNames} size="md" />
         ))}
