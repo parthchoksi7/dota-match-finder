@@ -6,25 +6,9 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 ## Safe to do anytime (low blast radius)
 
-### Sync `findLeague` test copy with production implementation
-- **File:** `src/__tests__/tournament-heroes.test.js:14`
-- **What:** The test file mirrors `findLeague` verbatim but its `tokens` helper uses `t.length > 1` without the `|| /^\d+$/.test(t)` guard that was added to the real API to preserve single-digit season numbers ("8"). Single-digit season tests would silently pass against the old logic.
-- **Fix:** Update the test copy's `tokens` function to match `api/tournament-heroes.js:21` exactly, then add a test case for a single-digit season (e.g. "ESL One Season 8").
-- **Effort:** Trivial | **Payoff:** Medium (test fidelity)
-
-
-
-### Remove dead `rawUrl` fallback in LiveMatchRow
-- **File:** `src/components/LiveMatchRow.jsx:23`
-- **What:** `match.streams?.[0]?.rawUrl || match.streams?.[0]?.url` — `rawUrl` is never set on stream objects (getTwitchStreams returns `{ label, url }`). The fallback is dead code.
-- **Fix:** Remove the `?.rawUrl ||` prefix, use `match.streams?.[0]?.url` directly.
-- **Effort:** Trivial | **Payoff:** Low (cleanup only)
-
-### Extract `getSeriesLabel()` to `_shared.js`
-- **Files:** `api/live-matches.js:25-31`, `api/upcoming-matches.js:17-24`, `api/_shared.js`
-- **What:** Identical function defined in both files. Export from `_shared.js`, import in both.
-- **Why deferred:** Touches `live-matches.js` which is on the hot path during live matches.
-- **Effort:** Trivial | **Payoff:** Medium
+~~### Sync `findLeague` test copy with production implementation~~ ✅ Done
+~~### Remove dead `rawUrl` fallback in LiveMatchRow~~ ✅ Done
+~~### Extract `getSeriesLabel()` to `_shared.js`~~ ✅ Done
 
 ### Extract KV singleton to `_shared.js`
 - **Files:** All `api/*.js` files
@@ -44,6 +28,17 @@ Tracked from the May 2026 deep code review. Completed items removed.
 - **File:** `src/App.jsx:386-428`
 - **What:** The stream + VOD resolution logic inside `handleSelectMatch` is coupled to React state and untestable. Extract the data-fetching portion as a standalone async function.
 - **Effort:** Low | **Payoff:** Medium (testability, readability)
+
+---
+
+## Blocked on external dependency
+
+### WhatsApp Channel auto-posting
+- **Spec:** Full product spec exists in conversation history (May 2026)
+- **Blocker:** Meta has no public API for posting to WhatsApp Channels (the public broadcast/Updates feature) as of May 2026. The WhatsApp Business Cloud API only covers 1:1 and template-based messaging.
+- **When to revisit:** When Meta opens a Channel posting API. Monitor Meta's WhatsApp Business Platform changelog.
+- **What's ready to drop in:** Caption generation (`buildWaCaption()`), image pipeline (reuses `api/og.js?mode=series`), indicator aggregation — all covered by the X auto-tweet infrastructure. The only missing piece is the actual `sendWhatsAppChannelMessage()` call.
+- **Channel URL:** https://whatsapp.com/channel/0029VbD1pLaEawdlikSoLf0t
 
 ---
 

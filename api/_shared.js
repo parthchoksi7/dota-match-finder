@@ -138,6 +138,15 @@ export const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
 export const STREAM_TTL = 60 * 60 * 24 * 14 // 14 days
 
+export function getSeriesLabel(matchType, numberOfGames) {
+  if (matchType === 'best_of_1') return 'BO1'
+  if (matchType === 'best_of_2') return 'BO2'
+  if (matchType === 'best_of_3') return 'BO3'
+  if (matchType === 'best_of_5') return 'BO5'
+  if (matchType === 'best_of' && numberOfGames) return `BO${numberOfGames}`
+  return null
+}
+
 export const CHANNEL_LABELS = {
   pgl_dota2: 'PGL',
   pgl_dota2en2: 'PGL EN2',

@@ -20,16 +20,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound } from './_shared.js'
-
-function getSeriesLabel(matchType, numberOfGames) {
-  if (matchType === 'best_of_1') return 'BO1'
-  if (matchType === 'best_of_2') return 'BO2'
-  if (matchType === 'best_of_3') return 'BO3'
-  if (matchType === 'best_of_5') return 'BO5'
-  if (matchType === 'best_of' && numberOfGames) return `BO${numberOfGames}`
-  return null
-}
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel } from './_shared.js'
 
 
 

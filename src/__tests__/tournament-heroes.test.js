@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest'
 // --- findLeague: mirrors the function in api/tournament-heroes.js verbatim ---
 
 const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
-const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => t.length > 1 && !STOP.has(t))
+const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
 
 function findLeague(leagues, search) {
   if (!search || !leagues?.length) return null
@@ -130,6 +130,16 @@ describe('findLeague', () => {
     ]
     // Tokens: ['weplay', 'dota2', 'pushka', 'league']
     const result = findLeague(leagues, 'WePlay Pushka League')
+    expect(result?.leagueid).toBe(1)
+  })
+
+  it('matches a single-digit season number (e.g. Season 8)', () => {
+    const leagues = [
+      { leagueid: 1, name: 'ESL One Season 8 2026' },
+      { leagueid: 2, name: 'ESL One Birmingham 2026' },
+    ]
+    // "8" is a single-digit token — must be kept by the /^\d+$/ guard
+    const result = findLeague(leagues, 'ESL One Season 8')
     expect(result?.leagueid).toBe(1)
   })
 })

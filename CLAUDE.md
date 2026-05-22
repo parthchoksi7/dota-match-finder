@@ -4,6 +4,7 @@ Before pushing anything to production, read `.claude/claude_instructions_templat
 
 ## Read before starting work (not just before deploying)
 
+- **Any new feature request or product planning** — read `.claude/pm_instructions.md` first; produce a full product specification before touching any code
 - **Any UI or visual change** — read `DESIGN_GUIDELINES.md` before touching any className, component, or copy
 - **Any feature work, bug fix, or API change** — read the relevant section of `CONTEXT.md` first; understand existing patterns before writing new code
 - **Any refactor** — check `.claude/pending-refactors.md` before starting; if you spot a refactor opportunity while working, add it there rather than doing it unplanned inline

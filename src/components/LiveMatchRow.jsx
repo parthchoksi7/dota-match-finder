@@ -20,7 +20,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
   const hasScore = match.seriesScore && match.seriesScore !== '0-0'
   const [scoreA, scoreB] = hasScore ? match.seriesScore.split('-').map(Number) : [0, 0]
 
-  const watchUrl = match.streams?.[0]?.rawUrl || match.streams?.[0]?.url || null
+  const watchUrl = match.streams?.[0]?.url || null
   const watchLabel = match.streams?.[0]?.label || null
 
   const amberStyle = 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10'
