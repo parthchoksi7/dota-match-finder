@@ -143,7 +143,7 @@ async function enrichMultiStreamMatches(matches, headers) {
  * Called by both the normal handler (client poll) and the cron mode.
  * nx=true on stream:match so the first recorded channel is never overwritten.
  */
-const FORMAT_MATCH_TTL = 7 * 24 * 3600 // 7 days — survives full group stage duration
+const FORMAT_MATCH_TTL = 14 * 24 * 3600 // 14 days
 
 async function cacheRunningStreams(rawMatches) {
   const streamWrites = []
