@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { trackEvent } from '../utils'
 
 // SVG coordinate constants (viewBox: 480 × 140)
 const VW = 480
@@ -30,6 +31,14 @@ function formatGold(val) {
   return `${sign}${abs}`
 }
 
+function formatHoverLabel(val, radiantName, direName) {
+  if (val === 0) return 'Even'
+  const abs = Math.abs(val)
+  const formatted = abs >= 1000 ? `${(abs / 1000).toFixed(1)}k` : `${abs}`
+  const team = (val > 0 ? (radiantName || 'Radiant') : (direName || 'Dire')).toUpperCase()
+  return `+${formatted} ${team}`
+}
+
 // Adds event.time seconds to an existing Twitch VOD URL's ?t= offset
 function buildEventUrl(vodUrl, eventTimeSecs) {
   try {
@@ -53,16 +62,91 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   // Strip colons so the id is safe in url(#...) references
   const uid = useId().replace(/:/g, '')
   const [activeEvent, setActiveEvent] = useState(null)
-
-  if (loading) {
-    return <div className="h-[140px] rounded animate-pulse bg-gray-200 dark:bg-gray-800" />
-  }
+  const [hoverMinute, setHoverMinute] = useState(null)
+  // 'mouse' | 'touch' — tracked via ref so tooltip source reads correctly on the same render cycle
+  const hoverSourceRef = useRef(null)
+  const wrapperRef = useRef(null)
+  const svgRef = useRef(null)
+  const touchStateRef = useRef({ startX: 0, startY: 0, intent: null, hideTimer: null })
+  // Fire gold_chart_scrub GA event once per scrub session (not on every pixel)
+  const hasTrackedScrubRef = useRef(false)
 
   const data = radiantGoldAdv || []
+  const n = data.length
 
-  if (data.length < 2) {
+  const minuteFromSvgX = useCallback((svgX) => {
+    const raw = ((svgX - PL) / CW) * (n - 1)
+    return Math.max(0, Math.min(n - 1, Math.round(raw)))
+  }, [n])
+
+  // Imperative touch listeners — must be passive:false for touchmove so we can call preventDefault()
+  // when the user is scrubbing horizontally (prevents page scroll during horizontal drag).
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el || n < 2) return
+
+    function onTouchStart(e) {
+      clearTimeout(touchStateRef.current.hideTimer)
+      const t = e.touches[0]
+      touchStateRef.current = { startX: t.clientX, startY: t.clientY, intent: null, hideTimer: null }
+    }
+
+    function onTouchMove(e) {
+      const t = e.touches[0]
+      const state = touchStateRef.current
+
+      // Determine intent on first meaningful movement
+      if (state.intent === null) {
+        const dx = Math.abs(t.clientX - state.startX)
+        const dy = Math.abs(t.clientY - state.startY)
+        if (dx < 5 && dy < 5) return
+        state.intent = dx > dy ? 'horizontal' : 'vertical'
+      }
+
+      // Vertical swipe → let the drawer scroll, ignore
+      if (state.intent === 'vertical') return
+
+      // Horizontal scrub → block page scroll and show crosshair
+      e.preventDefault()
+
+      const svg = svgRef.current
+      if (!svg) return
+      const rect = svg.getBoundingClientRect()
+      const svgX = ((t.clientX - rect.left) / rect.width) * VW
+      hoverSourceRef.current = 'touch'
+      if (!hasTrackedScrubRef.current) {
+        trackEvent('gold_chart_scrub', { source: 'touch' })
+        hasTrackedScrubRef.current = true
+      }
+      setHoverMinute(minuteFromSvgX(svgX))
+    }
+
+    function onTouchEnd() {
+      touchStateRef.current.intent = null
+      hasTrackedScrubRef.current = false
+      // Brief linger so user can read the value before it disappears
+      touchStateRef.current.hideTimer = setTimeout(() => setHoverMinute(null), 600)
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      clearTimeout(touchStateRef.current.hideTimer)
+    }
+  }, [n, minuteFromSvgX])
+
+  if (loading) {
+    return <div ref={wrapperRef} className="h-[140px] rounded animate-pulse bg-gray-200 dark:bg-gray-800" />
+  }
+
+  if (n < 2) {
     return (
-      <div className="h-[140px] flex items-center justify-center">
+      <div ref={wrapperRef} className="h-[140px] flex items-center justify-center">
         <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600">
           Gold data unavailable
         </p>
@@ -71,7 +155,6 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   }
 
   const pts = computePoints(data)
-  const n = data.length
 
   const linePts = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
 
@@ -113,10 +196,54 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     return [{ i, event, x: eventX, y: eventY, color, eventUrl }]
   })
 
+  // Hover state derived values
+  const hoverPt = hoverMinute !== null ? pts[hoverMinute] : null
+  const hoverVal = hoverMinute !== null ? data[hoverMinute] : null
+  const hoverColor = hoverVal != null
+    ? hoverVal > 0 ? 'rgb(34,197,94)' : hoverVal < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
+    : null
+
+  // Desktop tooltip: float near cursor, flip alignment at left/right edges
+  const hoverXPct = hoverPt ? (hoverPt.x / VW) * 100 : 0
+  const tooltipLeft = `${Math.max(5, Math.min(95, hoverXPct))}%`
+  const tooltipTransform = hoverXPct < 15 ? 'translateX(0)' : hoverXPct > 85 ? 'translateX(-100%)' : 'translateX(-50%)'
+
+  function handleMouseMove(e) {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const svgX = ((e.clientX - rect.left) / rect.width) * VW
+    hoverSourceRef.current = 'mouse'
+    if (!hasTrackedScrubRef.current) {
+      trackEvent('gold_chart_scrub', { source: 'mouse' })
+      hasTrackedScrubRef.current = true
+    }
+    setHoverMinute(minuteFromSvgX(svgX))
+  }
+
+  function handleMouseLeave() {
+    hoverSourceRef.current = null
+    hasTrackedScrubRef.current = false
+    setHoverMinute(null)
+  }
+
   return (
-    // relative wrapper so the hover tooltip can be absolutely positioned over the SVG
-    <div className="relative select-none">
+    // relative wrapper so tooltips can be absolutely positioned over the SVG
+    <div ref={wrapperRef} className="relative select-none">
+
+      {/* Mobile tooltip strip — fixed at top of chart so the finger never occludes it */}
+      {hoverPt && hoverSourceRef.current === 'touch' && (
+        <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-2 py-0.5 pointer-events-none">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 tabular-nums">
+            {hoverMinute}m
+          </span>
+          <span className="text-[10px] font-bold tabular-nums" style={{ color: hoverColor }}>
+            {formatHoverLabel(hoverVal, radiantName, direName)}
+          </span>
+        </div>
+      )}
+
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${VW} ${VH}`}
         width="100%"
         height={VH}
@@ -124,6 +251,8 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         overflow="hidden"
         role="img"
         aria-label={`Gold advantage: ${radiantName || 'Radiant'} vs ${direName || 'Dire'}`}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         <defs>
           {/* Clip the fill path to the above-zero half (radiant green area) */}
@@ -214,7 +343,30 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           {formatGold(finalVal)}
         </text>
 
-        {/* Critical event markers — rendered last so they sit on top of the gold line */}
+        {/* Crosshair — rendered before event markers so markers always sit on top */}
+        {hoverPt && (
+          <>
+            <line
+              x1={hoverPt.x.toFixed(1)} y1={PT}
+              x2={hoverPt.x.toFixed(1)} y2={VH - PB}
+              stroke="rgb(156,163,175)"
+              strokeWidth="0.75"
+              strokeDasharray="3 2"
+              pointerEvents="none"
+            />
+            <circle
+              cx={hoverPt.x.toFixed(1)}
+              cy={hoverPt.y.toFixed(1)}
+              r="4"
+              fill="white"
+              stroke={hoverColor}
+              strokeWidth="2"
+              pointerEvents="none"
+            />
+          </>
+        )}
+
+        {/* Critical event markers — rendered last so they sit on top of the gold line and crosshair */}
         {eventMarkers.map(({ i, event, x, y, color, eventUrl }) => (
           <circle
             key={`ev-${i}`}
@@ -232,7 +384,23 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         ))}
       </svg>
 
-      {/* Hover tooltip — positioned using SVG coordinate math */}
+      {/* Desktop hover tooltip — floats near cursor, yields to event tooltip */}
+      {hoverPt && hoverSourceRef.current === 'mouse' && !activeEvent && (
+        <div
+          className="absolute pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap"
+          style={{
+            left: tooltipLeft,
+            top: `${Math.max(0, hoverPt.y - 30)}px`,
+            transform: tooltipTransform,
+          }}
+        >
+          <span className="text-gray-400 tabular-nums">{hoverMinute}m</span>
+          <span className="mx-1 text-gray-600">·</span>
+          <span style={{ color: hoverColor }}>{formatHoverLabel(hoverVal, radiantName, direName)}</span>
+        </div>
+      )}
+
+      {/* Event tooltip — takes priority over the hover tooltip on desktop */}
       {activeEvent && (
         <div
           className="absolute pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-1 rounded shadow-lg whitespace-nowrap"

@@ -5,6 +5,17 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 21, 2026",
+    tag: "improvement",
+    title: "Gold chart: scrub through every minute of the game",
+    desc: "The gold advantage chart now shows the gold differential for any minute of the game on demand.",
+    items: [
+      "Desktop: hover anywhere on the chart to see a crosshair and tooltip showing the minute and which team was ahead — e.g. \"23m · +8.3k RADIANT\"",
+      "Mobile: drag your finger horizontally across the chart; the tooltip appears at the top of the chart so your finger never covers it. Vertical scrolling through the match panel still works normally",
+      "Event markers (rapier, rampage) remain interactive and take priority when hovered",
+    ],
+  },
+  {
+    date: "May 21, 2026",
     tag: "fix",
     title: "Match history loading reliably again",
     desc: "OpenDota stopped sending CORS headers for spectateesports.live, which silently broke the match history browser. The league list and past-match fetches now go through the server rather than directly from the browser.",
