@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 22, 2026",
     tag: "fix",
+    title: "Show all scheduled matches including TBD vs TBD",
+    desc: "Upcoming matches now appear in the home feed regardless of how many opponents are confirmed. TBD vs TBD bracket slots (fixture time set but teams not yet determined) are now shown alongside one-known-one-TBD matches.",
+  },
+  {
+    date: "May 22, 2026",
+    tag: "fix",
     title: "Heroes tab blank for DreamLeague S29",
     desc: "Fixed the Heroes tab showing no data for DreamLeague Season 29.",
     items: [

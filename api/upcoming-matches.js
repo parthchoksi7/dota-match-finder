@@ -87,18 +87,17 @@ export default async function handler(req, res) {
     const data = await response.json()
     const filtered = (data || [])
       .filter(m => isTier1(m) || isTier1ByName(m, names))
-      .filter(m => m.opponents?.length >= 1)
 
     // PandaScore sometimes creates stale duplicate entries when fixture pairings are
     // corrected (e.g. team A's opponent changes from B to C, leaving both the old A-B
     // and new A-C entries in the feed). Deduplicate by (teamId, scheduledAt): for each
     // slot, keep the highest match ID. A match is canonical only if every one of its
     // teams' slots still points back to it — otherwise the slot was claimed by a newer
-    // match and this one is stale.
+    // match and this one is stale. TBD slots (no teamId) are always kept.
     const byTeamTime = new Map()
     for (const m of filtered) {
       const t = m.scheduled_at || m.begin_at || ''
-      for (const opp of m.opponents) {
+      for (const opp of (m.opponents || [])) {
         const teamId = opp.opponent?.id
         if (!teamId) continue
         const key = `${teamId}|${t}`
@@ -107,7 +106,7 @@ export default async function handler(req, res) {
     }
     const matches = filtered.filter(m => {
       const t = m.scheduled_at || m.begin_at || ''
-      return m.opponents.every(opp => {
+      return (m.opponents || []).every(opp => {
         const teamId = opp.opponent?.id
         if (!teamId) return true
         return byTeamTime.get(`${teamId}|${t}`)?.id === m.id
