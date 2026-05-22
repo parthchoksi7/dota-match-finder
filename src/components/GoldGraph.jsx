@@ -410,7 +410,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
                 <circle cx="6" cy="6" r="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
               )}
               {/* Icon: same shape as the GameIndicators chip for this event type */}
-              <Icon className="w-3 h-3" />
+              <Icon width="12" height="12" />
             </g>
           )
         })}
@@ -446,8 +446,8 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           : ev.type === 'rampage'
           ? (ev.player || teamName)
           : ev.player ? `${ev.player}${ev.hero ? ` · ${ev.hero}` : ''}` : teamName
-        // Flip tooltip left when within ~40% of the right chart edge
-        const flipLeft = (activeEvent.x - PL) / CW > 0.60
+        // Flip tooltip left when past the chart midpoint — keeps it on-screen on narrow mobile viewports
+        const flipLeft = (activeEvent.x - PL) / CW > 0.45
         return (
           <div
             className="absolute pointer-events-none z-50 whitespace-nowrap"
