@@ -99,10 +99,16 @@ export default async function handler(req, res) {
     const matchList = await matchListRes.json()
     if (!Array.isArray(matchList) || !matchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
-    // Fetch full match details in batches of 10 for picks_bans
+    // Fetch full match details in batches of 10 for picks_bans.
+    // Cap at 60 games (6 batches) and abort if elapsed > 7s to stay within
+    // Vercel's 10s function timeout for large tournaments (DL S29 has 169+ games).
     const CONCURRENCY = 10
+    const MAX_GAMES = 60
+    const TIME_BUDGET_MS = 7000
+    const fetchStart = Date.now()
     const allMatches = []
-    for (let i = 0; i < Math.min(matchList.length, 200); i += CONCURRENCY) {
+    for (let i = 0; i < Math.min(matchList.length, MAX_GAMES); i += CONCURRENCY) {
+      if (Date.now() - fetchStart > TIME_BUDGET_MS) break
       const batch = matchList.slice(i, i + CONCURRENCY)
       const results = await Promise.all(batch.map(async m => {
         const r = await fetch(`${OPENDOTA}/matches/${m.match_id}`)

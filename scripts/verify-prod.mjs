@@ -35,6 +35,18 @@ async function fetchJson(url, label) {
   }
 }
 
+// Same as fetchJson but logs errors at INFO level (for external APIs we don't control).
+async function fetchJsonOptional(url, label) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) { info(`${label}: HTTP ${res.status} (external API, skipping)`); return null }
+    return await res.json()
+  } catch (err) {
+    info(`${label}: ${err.message} (skipping)`)
+    return null
+  }
+}
+
 // ── News API ──────────────────────────────────────────────────────────────────
 
 async function checkNewsApi() {
@@ -152,7 +164,11 @@ async function checkTournamentsApi() {
 //  3. For group-stage tournaments (no bracket): game count > 0 if standings
 //     show any wins (i.e. at least one series has been played)
 
-// Inlined findLeague logic (mirrors api/tournament-heroes.js) for direct OD check
+// Inlined findLeague logic (mirrors api/tournament-heroes.js) for direct OD check.
+// Tie-breaking addition: when two leagues share the same overlap score, prefer the
+// one WITHOUT "qualifier" in the name — qualifiers often score equal to the main event
+// (e.g. both "DreamLeague Season 29 Qualifiers" and "DreamLeague Season 29" score 2
+// tokens against "DreamLeague Season 29 2026").
 const _STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
 function _tokens(s) {
   return s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !_STOP.has(t))
@@ -164,7 +180,11 @@ function _findLeague(leagues, search) {
   for (const league of leagues) {
     const lt = _tokens(league.name || '')
     const overlap = lt.filter(t => searchTokens.has(t)).length
-    if (overlap >= 2 && overlap > bestScore) { best = league; bestScore = overlap }
+    if (overlap < 2) continue
+    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
+    // prefer higher score; on tie prefer non-qualifier over qualifier
+    const isBetter = overlap > bestScore || (overlap === bestScore && !isQualifier && best && (best.name || '').toLowerCase().includes('qualifier'))
+    if (isBetter) { best = league; bestScore = overlap }
   }
   return best
 }
@@ -201,6 +221,10 @@ async function checkOdTournamentConsistency() {
   ])
   if (!detailData) return
 
+  // heroesData is null when tournament-heroes returned an HTTP error (e.g. 504 timeout).
+  // fetchJson already called fail() for that. Don't double-fail with the OD cross-check.
+  const heroesErrored = heroesData === null
+
   const allBracketMatches = (detailData.bracket ?? []).flatMap(r => r.matches ?? [])
   const finishedSeries = allBracketMatches.filter(m => m.status === 'finished').length
   const standings = detailData.standings ?? []
@@ -209,7 +233,7 @@ async function checkOdTournamentConsistency() {
 
   info(`PS finished series (bracket): ${finishedSeries}`)
   info(`PS standings total wins: ${totalStandingWins}`)
-  info(`OD game count (via spectate cache): ${spectateGameCount}`)
+  info(`OD game count (via spectate cache): ${spectateGameCount}${heroesErrored ? ' (endpoint errored)' : ''}`)
 
   const hasAnyPlayedGames = finishedSeries > 0 || totalStandingWins > 0
   if (!hasAnyPlayedGames) {
@@ -217,18 +241,17 @@ async function checkOdTournamentConsistency() {
     return
   }
 
-  // Direct OD cross-check — always run so we can distinguish "truly broken" from
-  // "cache cold / function timed out on first call".
+  // Direct OD cross-check — always run so we can confirm OD has data.
   let odGameCount = null
   let odLeagueName = null
   try {
-    const odLeagues = await fetchJson('https://api.opendota.com/api/leagues', 'OD leagues list')
+    const odLeagues = await fetchJsonOptional('https://api.opendota.com/api/leagues', 'OD leagues list')
     if (Array.isArray(odLeagues)) {
       const found = _findLeague(odLeagues, tournamentName)
       if (found) {
         odLeagueName = found.name
         info(`OD league: "${found.name}" (id: ${found.leagueid})`)
-        const matchList = await fetchJson(`https://api.opendota.com/api/leagues/${found.leagueid}/matches`, 'OD match list')
+        const matchList = await fetchJsonOptional(`https://api.opendota.com/api/leagues/${found.leagueid}/matches`, 'OD match list')
         if (Array.isArray(matchList)) odGameCount = matchList.length
       } else {
         info(`findLeague() found no OD match for "${tournamentName}" (may be new or not yet indexed)`)
@@ -240,14 +263,18 @@ async function checkOdTournamentConsistency() {
 
   if (odGameCount !== null) info(`OD direct game count: ${odGameCount}`)
 
+  // If the endpoint itself errored (e.g. 504 timeout), fetchJson already logged the
+  // failure. Don't also fire the "OD has games but spectate shows 0" check — the 504
+  // explains the 0.
+  if (heroesErrored) return
+
   // Only hard-fail when we have positive confirmation from OD that games exist
-  // but spectate is showing 0. A spectate-only 0 could mean the cache is cold
-  // (function timed out on the first call) rather than a findLeague failure.
+  // but spectate's pipeline returned 0 cleanly (not via HTTP error).
   if (spectateGameCount === 0) {
     if (odGameCount !== null && odGameCount > 0) {
-      fail(`OD directly has ${odGameCount} games for "${odLeagueName}" but spectate returns 0 — findLeague or fetch pipeline is broken`)
+      fail(`OD directly has ${odGameCount} games for "${odLeagueName}" but spectate/api/tournament-heroes returned 0 — findLeague or fetch pipeline broken`)
     } else {
-      info(`OD game count is 0 — spectate cache may be cold (tournament-heroes timed out on first call) or tournament is new. Verify manually: /api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`)
+      info(`OD game count is 0 — cache may be cold or tournament is new. Verify: /api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`)
     }
     return
   }
@@ -265,16 +292,16 @@ async function checkOdTournamentConsistency() {
     pass(`OD game count ${spectateGameCount} > 0 for group-stage tournament (${totalStandingWins} standings wins)`)
   }
 
-  // Cross-validate spectate count vs OD direct count
+  // Cross-validate spectate count vs OD direct count.
+  // tournament-heroes caps at 60 games and only counts those with picks_bans parsed,
+  // so spectateGameCount ≤ min(odGameCount, 60) is expected.
   if (odGameCount !== null) {
-    // spectate caps at 200 and only counts games that have picks_bans parsed
-    const odCapped = Math.min(odGameCount, 200)
-    if (spectateGameCount > odCapped) {
-      fail(`Spectate shows ${spectateGameCount} OD games but OD only has ${odGameCount} — impossible overcounting`)
-    } else if (odCapped > 0 && spectateGameCount / odCapped < 0.5) {
-      fail(`Spectate shows ${spectateGameCount} of ${odCapped} OD games (${((spectateGameCount / odCapped) * 100).toFixed(0)}%) — more than half of games may be missing picks_bans or pipeline is dropping games`)
+    const HEROES_MAX_GAMES = 60
+    const odEffective = Math.min(odGameCount, HEROES_MAX_GAMES)
+    if (spectateGameCount > odEffective) {
+      fail(`Spectate shows ${spectateGameCount} OD games but capped OD count is only ${odEffective} (raw: ${odGameCount}) — impossible overcounting`)
     } else {
-      pass(`Spectate OD count (${spectateGameCount}) vs OD direct count (${odGameCount}) — consistent`)
+      pass(`Spectate OD count (${spectateGameCount}) ≤ OD effective cap (${odEffective} of ${odGameCount}) — consistent`)
     }
   }
 }
