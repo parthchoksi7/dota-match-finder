@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     const data = await response.json()
     const filtered = (data || [])
       .filter(m => isTier1(m) || isTier1ByName(m, names))
-      .filter(m => m.opponents?.length === 2)
+      .filter(m => m.opponents?.length >= 1)
 
     // PandaScore sometimes creates stale duplicate entries when fixture pairings are
     // corrected (e.g. team A's opponent changes from B to C, leaving both the old A-B

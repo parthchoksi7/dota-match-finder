@@ -246,6 +246,16 @@ export function getLeagueLabel(name) {
   return null
 }
 
+// Combines a PandaScore league name and serie name into a full display name.
+// PandaScore sometimes omits the org prefix from serie.full_name (e.g. "Season 29 2026"
+// instead of "DreamLeague Season 29 2026"), so we prepend league when it's missing.
+export function buildTournamentName(league, serie) {
+  if (league && serie) {
+    return serie.toLowerCase().includes(league.toLowerCase()) ? serie : `${league} ${serie}`
+  }
+  return league || serie || ''
+}
+
 /**
  * Normalizes a tournament name to a grouping key so PandaScore and OpenDota names
  * for the same event collapse to one card (e.g. "DreamLeague S29" == "DreamLeague Season 29").

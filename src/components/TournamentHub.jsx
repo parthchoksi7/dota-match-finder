@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
-import { trackEvent, toTitleCase, getLeagueLabel } from '../utils'
+import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
 import HighlightsTab from './HighlightsTab'
 
@@ -315,7 +315,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
     if (activeTab !== 'Heroes' || !tournament) return
     if (heroStats?.fetchedForId === tournament.id) return
     setHeroStatsLoading(true)
-    const serieName = encodeURIComponent(tournament.serie || tournament.league || '')
+    const serieName = encodeURIComponent(buildTournamentName(tournament.league || '', tournament.serie || ''))
     fetch(`/api/tournament-heroes?id=${tournament.id}&name=${serieName}`)
       .then(r => r.json())
       .then(d => setHeroStats({ ...d, fetchedForId: tournament.id }))

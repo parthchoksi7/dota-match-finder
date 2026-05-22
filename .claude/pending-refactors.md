@@ -6,6 +6,14 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 ## Safe to do anytime (low blast radius)
 
+### Sync `findLeague` test copy with production implementation
+- **File:** `src/__tests__/tournament-heroes.test.js:14`
+- **What:** The test file mirrors `findLeague` verbatim but its `tokens` helper uses `t.length > 1` without the `|| /^\d+$/.test(t)` guard that was added to the real API to preserve single-digit season numbers ("8"). Single-digit season tests would silently pass against the old logic.
+- **Fix:** Update the test copy's `tokens` function to match `api/tournament-heroes.js:21` exactly, then add a test case for a single-digit season (e.g. "ESL One Season 8").
+- **Effort:** Trivial | **Payoff:** Medium (test fidelity)
+
+
+
 ### Extract `getSeriesLabel()` to `_shared.js`
 - **Files:** `api/live-matches.js:25-31`, `api/upcoming-matches.js:17-24`, `api/_shared.js`
 - **What:** Identical function defined in both files. Export from `_shared.js`, import in both.

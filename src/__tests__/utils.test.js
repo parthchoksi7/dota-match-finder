@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -334,22 +334,20 @@ describe('formatDateRange', () => {
   })
 
   it('returns just the start date when endAt is missing', () => {
-    const result = formatDateRange('2025-03-01T00:00:00Z', null)
+    const result = formatDateRange('2025-03-01T20:00:00Z', null)
     expect(result).toBe('Mar 1')
   })
 
   it('returns a range string when both dates are provided', () => {
-    const result = formatDateRange('2025-03-01T00:00:00Z', '2025-03-15T00:00:00Z')
+    const result = formatDateRange('2025-03-01T20:00:00Z', '2025-03-15T20:00:00Z')
     expect(result).toMatch(/Mar 1/)
     expect(result).toMatch(/Mar 15/)
     expect(result).toContain(' - ')
   })
 
   it('includes the year in the end date but not the start date', () => {
-    const result = formatDateRange('2025-03-01T00:00:00Z', '2025-03-15T00:00:00Z')
-    // End date should include the year; start date should not
+    const result = formatDateRange('2025-03-01T20:00:00Z', '2025-03-15T20:00:00Z')
     expect(result).toMatch(/2025/)
-    // Result format: "Mar 1 - Mar 15, 2025"
     const parts = result.split(' - ')
     expect(parts[0]).not.toMatch(/\d{4}/)
     expect(parts[1]).toMatch(/\d{4}/)
@@ -428,6 +426,36 @@ describe('normalizeTournamentKey', () => {
   it('falls back to "other" for empty/falsy input', () => {
     expect(normalizeTournamentKey(null)).toBe('other')
     expect(normalizeTournamentKey('')).toBe('other')
+  })
+})
+
+// ── buildTournamentName ──────────────────────────────────────────────────────
+
+describe('buildTournamentName', () => {
+  it('prepends league when serie lacks the org prefix', () => {
+    // PandaScore DreamLeague S29 sends serie="Season 29 2026", league="DreamLeague"
+    expect(buildTournamentName('DreamLeague', 'Season 29 2026')).toBe('DreamLeague Season 29 2026')
+  })
+
+  it('returns serie unchanged when it already contains the league name', () => {
+    expect(buildTournamentName('DreamLeague', 'DreamLeague Season 29 2026')).toBe('DreamLeague Season 29 2026')
+  })
+
+  it('is case-insensitive when checking if serie contains league', () => {
+    expect(buildTournamentName('PGL', 'pgl wallachia season 7')).toBe('pgl wallachia season 7')
+  })
+
+  it('returns league alone when serie is empty', () => {
+    expect(buildTournamentName('DreamLeague', '')).toBe('DreamLeague')
+  })
+
+  it('returns serie alone when league is empty', () => {
+    // Residual edge case: still only produces the suffix, but at least does not crash
+    expect(buildTournamentName('', 'Season 29 2026')).toBe('Season 29 2026')
+  })
+
+  it('returns empty string when both are empty', () => {
+    expect(buildTournamentName('', '')).toBe('')
   })
 })
 

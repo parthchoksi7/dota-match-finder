@@ -402,7 +402,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=180')
 
-  const KV_KEY = `dota2:tournament_detail_v3:${tournamentId}`
+  const KV_KEY = `dota2:tournament_detail_v4:${tournamentId}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -429,32 +429,11 @@ export default async function handler(req, res) {
       bracketsRes.ok ? bracketsRes.json() : [],
     ])
 
-    // Group bracket matches by section + round
-    const roundMap = {}
-    for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
-      const { section, round, label, matchPosition } = parseBracketPosition(m.name)
-      const key = `${section}__${round}`
-      if (!roundMap[key]) roundMap[key] = { section, round, label, matches: [] }
-      roundMap[key].matches.push(normalizeMatch(m, matchPosition))
-    }
-    // Sort matches within each round by their position so SVG connector indices are correct
-    for (const r of Object.values(roundMap)) {
-      r.matches.sort((a, b) => {
-        if (a.matchPosition !== null && b.matchPosition !== null)
-          return a.matchPosition - b.matchPosition
-        return a.id - b.id
-      })
-    }
-    // Sort: upper first, lower second, main third, grand_final last; within section by round
-    const SECTION_ORDER = { upper: 0, lower: 1, main: 2, grand_final: 3 }
-    const bracket = Object.values(roundMap)
-      .sort((a, b) =>
-        (SECTION_ORDER[a.section] - SECTION_ORDER[b.section]) || (a.round - b.round)
-      )
+    const bracket = parseRawBracket(bracketsRaw)
 
     // Count rounds for format inference (only main/upper rounds)
     const roundCounts = {}
-    for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : [])) {
+    for (const m of (Array.isArray(bracketsRaw) ? bracketsRaw : []).filter(m => m.status !== 'canceled')) {
       const { section, round } = parseBracketPosition(m.name)
       if (section === 'main' || section === 'upper') {
         roundCounts[round] = (roundCounts[round] || 0) + 1

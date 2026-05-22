@@ -4,6 +4,26 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 22, 2026",
+    tag: "fix",
+    title: "Heroes tab blank for DreamLeague S29",
+    desc: "Fixed the Heroes tab showing no data for DreamLeague Season 29.",
+    items: [
+      "PandaScore returns the series name without the org prefix for some tournaments (e.g. \"Season 29 2026\" instead of \"DreamLeague Season 29 2026\"), which prevented the OpenDota league lookup from finding enough matching tokens",
+      "The name sent to the heroes API now always combines the league and series fields, matching the pattern used elsewhere in the codebase",
+    ],
+  },
+  {
+    date: "May 22, 2026",
+    tag: "fix",
+    title: "Bracket: correct round counts and missing TBD matches",
+    desc: "Two scheduling fixes for live tournaments.",
+    items: [
+      "Bracket stages (e.g. Upper Bracket Semifinal) no longer show double the expected number of series — PandaScore creates placeholder entries when fixtures are TBD then cancels them once the real pairing is set; these canceled entries are now filtered from both bracket paths",
+      "Upcoming matches with one TBD opponent (e.g. Aurora vs TBD) now appear in the home feed — previously filtered out because PandaScore only includes the confirmed team in the opponents array",
+    ],
+  },
+  {
     date: "May 21, 2026",
     tag: "improvement",
     title: "Roshan kills on the gold chart",
