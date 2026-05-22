@@ -279,14 +279,16 @@ async function checkOdTournamentConsistency() {
     return
   }
 
-  // Sanity-range check when spectate has data
+  // Upper-bound sanity check when spectate has data.
+  // We don't enforce a lower bound: OD picks_bans requires server-side match parsing,
+  // and recent games in an ongoing tournament often aren't parsed yet. Having any
+  // parsed games (> 0, already checked above) means the pipeline is working.
   if (finishedSeries > 0) {
-    const minExpected = finishedSeries
     const maxExpected = finishedSeries * 5
-    if (spectateGameCount < minExpected || spectateGameCount > maxExpected) {
-      fail(`OD game count ${spectateGameCount} outside expected range [${minExpected}, ${maxExpected}] for ${finishedSeries} finished PS series`)
+    if (spectateGameCount > maxExpected) {
+      fail(`OD game count ${spectateGameCount} exceeds max of ${maxExpected} (${finishedSeries} series × 5 games) — possible overcounting bug`)
     } else {
-      pass(`${spectateGameCount} OD games / ${finishedSeries} PS series (${(spectateGameCount / finishedSeries).toFixed(1)} games/series avg)`)
+      pass(`${spectateGameCount} OD parsed games / ${finishedSeries} PS series (some games may be unparsed by OD)`)
     }
   } else {
     pass(`OD game count ${spectateGameCount} > 0 for group-stage tournament (${totalStandingWins} standings wins)`)
