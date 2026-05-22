@@ -32,9 +32,12 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
   return (
     <div
       onClick={() => { if (isClickable) onSelectLiveMatch(match.id) }}
-      className={`grid items-center gap-2 px-4 py-2.5 min-h-[48px] border-b border-gray-100 dark:border-gray-900 last:border-b-0 ${
+      className={`border-b border-gray-100 dark:border-gray-900 last:border-b-0 ${
         isFollowedMatch ? amberStyle : redStyle
       } ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
+    >
+    <div
+      className="grid items-center gap-2 px-4 py-2.5 min-h-[48px]"
       style={{ gridTemplateColumns: '1fr 80px 1fr auto' }}
     >
       {/* Team A (left) */}
@@ -172,6 +175,12 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
       ) : (
         <div className="hidden sm:block w-[68px]" aria-hidden="true" />
       )}
+    </div>
+    {match.bracketRound && (
+      <p className="px-4 pb-2 -mt-1 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-600">
+        {match.bracketRound}
+      </p>
+    )}
     </div>
   )
 }

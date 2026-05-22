@@ -7,12 +7,12 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_KEY = 'dota2:upcoming_matches_v5'
+const KV_KEY = 'dota2:upcoming_matches_v6'
 const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -37,6 +37,7 @@ function mapMatch(m) {
     teamB,
     tournament: buildTournamentName(m),
     seriesLabel: getSeriesLabel(m.match_type, m.number_of_games),
+    bracketRound: parseBracketRound(m.name),
     streams: getTwitchStreams(m.streams_list, leagueName, serieName),
   }
 }

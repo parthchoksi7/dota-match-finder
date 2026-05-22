@@ -8,7 +8,7 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
-const KV_KEY = 'dota2:live_matches_v3'
+const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes
 const PUSH_SUB_TTL = 30 * 24 * 3600 // 30 days
 
@@ -20,7 +20,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound } from './_shared.js'
 
 function getSeriesLabel(matchType, numberOfGames) {
   if (matchType === 'best_of_1') return 'BO1'
@@ -101,6 +101,7 @@ function mapMatch(m) {
     teamB,
     tournament: buildTournamentName(m),
     seriesLabel: getSeriesLabel(m.match_type, m.number_of_games),
+    bracketRound: parseBracketRound(m.name),
     seriesScore: getSeriesScore(m),
     currentGame: getCurrentGame(m),
     games: mapGames(m),

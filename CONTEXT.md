@@ -132,7 +132,8 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ### Live Matches (PandaScore)
 - `api/live-matches.js` calls PandaScore `/dota2/matches/running`
-- Filters to tier-S and tier-A tournaments using `isTier1(m) || isTier1ByName(m, names)`. Primary: checks `match.tournament.tier`. Fallback: checks `match.league.name` against a merged names array: KV-cached tier1 names plus `PERMANENT_TIER1_NAMES` (hardcoded in `_shared.js`). The hardcoded list ensures DreamLeague, ESL One, PGL, etc. always pass even when KV is cold (e.g. fresh Redis flush). This matters for qualifier matches where PandaScore sets `tournament.tier = "c"` despite being a tier1 organizer event. Maps each match to `{id, teamA, teamB, tournament, seriesLabel, seriesScore, currentGame, games, streams}`
+- Filters to tier-S and tier-A tournaments using `isTier1(m) || isTier1ByName(m, names)`. Primary: checks `match.tournament.tier`. Fallback: checks `match.league.name` against a merged names array: KV-cached tier1 names plus `PERMANENT_TIER1_NAMES` (hardcoded in `_shared.js`). The hardcoded list ensures DreamLeague, ESL One, PGL, etc. always pass even when KV is cold (e.g. fresh Redis flush). This matters for qualifier matches where PandaScore sets `tournament.tier = "c"` despite being a tier1 organizer event. Maps each match to `{id, teamA, teamB, tournament, seriesLabel, bracketRound, seriesScore, currentGame, games, streams}`
+- `bracketRound` - extracted from `m.name` by stripping everything after the first `:` and applying title case (e.g. "Upper Bracket Final: PARI vs TS" → "Upper Bracket Final"). Shown in `LiveMatchRow` below the score row. KV key: `dota2:live_matches_v4`
 - `seriesScore` - derived from `m.results` (per-team win counts mapped by team ID), capped by `winsRequired(m.match_type, m.number_of_games)` to prevent showing raw game totals (e.g. BO3 score is capped at 2; PandaScore can report score=3 for a BO3 sweep)
 - `currentGame` - position of the game with `status === 'running'`
 - `games` - array of `{position, status, winnerName, matchId, beginAt, length}` where `matchId` is `external_identifier` (OpenDota match ID). For finished games where `external_identifier` is null (only populated while a game is running), the handler does a batch `mget` of `live:game:{psMatchId}:{position}` KV keys and merges the resolved OD IDs back into the game objects.
@@ -142,7 +143,7 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 - Spoiler-free mode: hides series score (shows "vs"), hides winner names in chips and LiveSeriesSheet rows, disables team dimming
 
 ### Upcoming Matches (PandaScore)
-- `api/upcoming-matches.js` fetches next 72h of scheduled matches; tier-filters using same `isTier1(m) || isTier1ByName(m, names)` pattern as live-matches (same fallback for newly-created series with no tier assigned); deduplicates by `(sorted opponent IDs | scheduled_at)` fingerprint to suppress PandaScore duplicate entries
+- `api/upcoming-matches.js` fetches next 72h of scheduled matches; tier-filters using same `isTier1(m) || isTier1ByName(m, names)` pattern as live-matches (same fallback for newly-created series with no tier assigned); deduplicates by `(sorted opponent IDs | scheduled_at)` fingerprint to suppress PandaScore duplicate entries. Maps each match to `{id, scheduledAt, teamA, teamB, tournament, seriesLabel, bracketRound, streams}`. `bracketRound` strips after `:` from `m.name` and applies title case; shown in `UpcomingMatchRow` below teams, above time. KV key: `dota2:upcoming_matches_v6`
 - Displayed with scheduled time in user's local timezone
 - Searchable by team or tournament name (shared search bar with live section)
 - Shows first 2 by default, "Show N more" button to expand all

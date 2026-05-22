@@ -60,6 +60,21 @@ export const isTier1ByName = (match, tier1Names) => {
   return tier1Names.some(n => n.length >= 3 && leagueName.includes(n))
 }
 
+/**
+ * Extracts a display-ready bracket round label from a PandaScore match name.
+ * PandaScore encodes round context in m.name as "Upper Bracket Final: TEAM vs TEAM".
+ * This strips the team part (after the first colon) and applies title case.
+ * Returns null when no name is present or the label is empty.
+ * @param {string|null} name - raw PandaScore match name (e.g. "Grand final: TBD vs TBD")
+ * @returns {string|null} e.g. "Grand Final", "Lower Bracket Semifinal"
+ */
+export function parseBracketRound(name) {
+  if (!name) return null
+  const label = name.split(':')[0].trim()
+  if (!label) return null
+  return label.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '').join(' ')
+}
+
 /** KV key for the tier1 league names cache (written by api/tournaments.js ?mode=tier1-leagues) */
 export const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
 

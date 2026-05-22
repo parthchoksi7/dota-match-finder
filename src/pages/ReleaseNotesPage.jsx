@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 22, 2026",
+    tag: "improvement",
+    title: "Bracket round shown on live and upcoming match rows",
+    desc: "Live and upcoming match cards now display the bracket context below the score or time -- e.g. Upper Bracket Final, Lower Bracket Semifinal, Grand Final. The label is derived from PandaScore's match name and shown in the tertiary style so it adds context without competing with team names.",
+  },
+  {
+    date: "May 22, 2026",
     tag: "fix",
     title: "Show all scheduled matches including TBD vs TBD",
     desc: "Upcoming matches now appear in the home feed regardless of how many opponents are confirmed. TBD vs TBD bracket slots (fixture time set but teams not yet determined) are now shown alongside one-known-one-TBD matches.",

@@ -16,6 +16,11 @@ function UpcomingMatchRow({ match, isFollowedMatch, spoilerFree }) {
           <span className="font-normal text-gray-400 dark:text-gray-600 text-xs mx-1.5">vs</span>
           {match.teamB}
         </p>
+        {match.bracketRound && (
+          <p className="text-[10px] font-medium uppercase tracking-widest text-gray-500 dark:text-gray-500 mt-0.5 leading-tight">
+            {match.bracketRound}
+          </p>
+        )}
         {timeStr && (
           <p className="text-[11px] font-semibold tabular-nums text-blue-500 dark:text-blue-400 mt-0.5 leading-tight">
             {timeStr}

@@ -14,6 +14,12 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 
 
+### Remove dead `rawUrl` fallback in LiveMatchRow
+- **File:** `src/components/LiveMatchRow.jsx:23`
+- **What:** `match.streams?.[0]?.rawUrl || match.streams?.[0]?.url` — `rawUrl` is never set on stream objects (getTwitchStreams returns `{ label, url }`). The fallback is dead code.
+- **Fix:** Remove the `?.rawUrl ||` prefix, use `match.streams?.[0]?.url` directly.
+- **Effort:** Trivial | **Payoff:** Low (cleanup only)
+
 ### Extract `getSeriesLabel()` to `_shared.js`
 - **Files:** `api/live-matches.js:25-31`, `api/upcoming-matches.js:17-24`, `api/_shared.js`
 - **What:** Identical function defined in both files. Export from `_shared.js`, import in both.
