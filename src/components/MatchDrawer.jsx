@@ -6,6 +6,13 @@ import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats } from "../ap
 import { useEffect, useMemo, useRef, useState } from "react"
 import { formatDuration, trackEvent } from "../utils"
 
+function formatGameTime(seconds) {
+  if (seconds == null || seconds < 0) return null
+  const m = Math.floor(seconds / 60)
+  const s = String(seconds % 60).padStart(2, '0')
+  return `${m}:${s}`
+}
+
 function StarIcon({ filled }) {
   return (
     <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden="true">
@@ -105,6 +112,12 @@ function MatchDrawer({
     }
     return { rapier, goldSwing, megaComeback, rampage }
   }, [gameIndicators, match, spoilerFree])
+
+  // Player-level rampage set — drives the per-card badge in DraftDisplay
+  const rampagePlayers = useMemo(() => {
+    if (!matchStats?.events || spoilerFree) return new Set()
+    return new Set(matchStats.events.filter(e => e.type === 'rampage').map(e => e.player))
+  }, [matchStats, spoilerFree])
 
   if (!match) return null
 
@@ -287,33 +300,55 @@ function MatchDrawer({
             </div>
           </div>
 
-          {/* Score row — centered, standalone */}
-          <div className="flex items-center justify-center gap-3 mt-1">
-            {hideScore ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setScoreRevealed(true)
-                  trackEvent("spoiler_reveal", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam })
-                }}
-                className="font-display text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Reveal score
-              </button>
-            ) : match._fromPandaScore && match.radiantScore == null ? (
-              <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
-                Stats pending
-              </span>
-            ) : (
-              <>
-                <span className={`font-display text-4xl font-black ${match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-                  {match.radiantScore ?? (match.radiantWin ? 1 : 0)}
+          {/* Score + game facts — grouped so they stay visually tight */}
+          <div className="mt-1">
+            {/* Score row — centered, standalone */}
+            <div className="flex items-center justify-center gap-3">
+              {hideScore ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScoreRevealed(true)
+                    trackEvent("spoiler_reveal", { matchId: match.id, radiantTeam: match.radiantTeam, direTeam: match.direTeam })
+                  }}
+                  className="font-display text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Reveal score
+                </button>
+              ) : match._fromPandaScore && match.radiantScore == null ? (
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                  Stats pending
                 </span>
-                <span className="text-gray-300 dark:text-gray-700 text-2xl font-medium select-none">—</span>
-                <span className={`font-display text-4xl font-black ${!match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
-                  {match.direScore ?? (!match.radiantWin ? 1 : 0)}
-                </span>
-              </>
+              ) : (
+                <>
+                  <span className={`font-display text-4xl font-black ${match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {match.radiantScore ?? (match.radiantWin ? 1 : 0)}
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-700 text-2xl font-medium select-none">—</span>
+                  <span className={`font-display text-4xl font-black ${!match.radiantWin ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {match.direScore ?? (!match.radiantWin ? 1 : 0)}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Game facts: first blood time + Roshan kill count */}
+            {!spoilerFree && !match._fromPandaScore && matchStats && (matchStats.firstBloodTime != null || matchStats.roshanKills > 0) && (
+              <div className="flex items-center justify-center gap-2 mt-1.5">
+                {matchStats.firstBloodTime != null && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 tabular-nums">
+                    First blood {formatGameTime(matchStats.firstBloodTime)}
+                  </span>
+                )}
+                {matchStats.firstBloodTime != null && matchStats.roshanKills > 0 && (
+                  <span className="text-[10px] text-gray-300 dark:text-gray-700 select-none" aria-hidden="true">·</span>
+                )}
+                {matchStats.roshanKills > 0 && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 tabular-nums">
+                    {matchStats.roshanKills} {matchStats.roshanKills === 1 ? 'Roshan' : 'Roshans'}
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -439,6 +474,7 @@ function MatchDrawer({
                 direTeam={match.direTeam}
                 autoLoad={true}
                 spoilerFree={spoilerFree}
+                rampagePlayers={rampagePlayers}
               />
             )}
           </div>

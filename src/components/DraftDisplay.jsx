@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { fetchHeroes } from "../api"
 import { track } from "@vercel/analytics"
+import { RampageSvg } from "./GameIndicators"
 
 function logEvent(name, props) {
   track(name, props)
@@ -11,7 +12,7 @@ function logEvent(name, props) {
 
 const LANE_ORDER = { Carry: 1, Mid: 2, Off: 3, "Soft Sup": 4, "Hard Sup": 5, Unknown: 6 }
 
-function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoilerFree = false }) {
+function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoilerFree = false, rampagePlayers = new Set() }) {
   const [draft, setDraft] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -49,7 +50,8 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoile
       const players = (matchRes.players || [])
         .map((p) => ({
           heroName: heroes[p.hero_id]?.name || `Hero ${p.hero_id}`,
-          personaname: p.name || p.personaname || "Unknown",
+          heroKey: heroes[p.hero_id]?.key || null,
+          personaname: p.name || p.personaname || '',
           isRadiant: p.isRadiant ?? p.player_slot < 128,
           kills: p.kills,
           deaths: p.deaths,
@@ -109,26 +111,49 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoile
             </p>
             {draft.players
               .filter((p) => p.isRadiant)
-              .map((p, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col px-3 py-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50"
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-semibold text-xs text-gray-900 dark:text-white truncate">
-                      {p.heroName}
-                    </span>
-                    {!spoilerFree && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-                        {p.kills}/{p.deaths}/{p.assists}
-                      </span>
+              .map((p, i) => {
+                const hasRampage = !spoilerFree && rampagePlayers.has(p.personaname)
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 ${hasRampage ? 'border-l-2 border-l-orange-500 dark:border-l-orange-400' : ''}`}
+                  >
+                    {p.heroKey ? (
+                      <img
+                        src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${p.heroKey}.png`}
+                        alt={p.heroName}
+                        className="w-8 h-8 rounded-sm flex-shrink-0 object-cover"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-sm flex-shrink-0 bg-green-200 dark:bg-green-900" aria-hidden="true" />
                     )}
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center justify-between gap-1 min-w-0">
+                        <span className="font-semibold text-xs text-gray-900 dark:text-white truncate min-w-0">
+                          {p.heroName}
+                        </span>
+                        {!spoilerFree && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
+                            {p.kills}/{p.deaths}/{p.assists}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate min-w-0">
+                          {p.personaname}
+                        </span>
+                        {hasRampage && (
+                          <span className="flex-shrink-0 text-orange-500 dark:text-orange-400" title="Rampage — 5-kill streak" aria-label="Rampage">
+                            <RampageSvg className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                    {p.personaname}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
           </div>
 
           <div className="space-y-1.5">
@@ -137,26 +162,49 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoile
             </p>
             {draft.players
               .filter((p) => !p.isRadiant)
-              .map((p, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col px-3 py-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50"
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-semibold text-xs text-gray-900 dark:text-white truncate">
-                      {p.heroName}
-                    </span>
-                    {!spoilerFree && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-                        {p.kills}/{p.deaths}/{p.assists}
-                      </span>
+              .map((p, i) => {
+                const hasRampage = !spoilerFree && rampagePlayers.has(p.personaname)
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 ${hasRampage ? 'border-l-2 border-l-orange-500 dark:border-l-orange-400' : ''}`}
+                  >
+                    {p.heroKey ? (
+                      <img
+                        src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${p.heroKey}.png`}
+                        alt={p.heroName}
+                        className="w-8 h-8 rounded-sm flex-shrink-0 object-cover"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-sm flex-shrink-0 bg-red-200 dark:bg-red-900" aria-hidden="true" />
                     )}
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center justify-between gap-1 min-w-0">
+                        <span className="font-semibold text-xs text-gray-900 dark:text-white truncate min-w-0">
+                          {p.heroName}
+                        </span>
+                        {!spoilerFree && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
+                            {p.kills}/{p.deaths}/{p.assists}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate min-w-0">
+                          {p.personaname}
+                        </span>
+                        {hasRampage && (
+                          <span className="flex-shrink-0 text-orange-500 dark:text-orange-400" title="Rampage — 5-kill streak" aria-label="Rampage">
+                            <RampageSvg className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                    {p.personaname}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
           </div>
         </div>
       </div>

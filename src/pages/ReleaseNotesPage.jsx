@@ -6,6 +6,17 @@ const RELEASES = [
   {
     date: "May 21, 2026",
     tag: "improvement",
+    title: "Richer completed match details: hero portraits, first blood, Roshans, rampage attribution",
+    desc: "The match details panel now shows more game data at a glance.",
+    items: [
+      "Hero portrait icons now appear on every draft pick card — no more text-only names",
+      "First blood time and Roshan kill count appear below the game score (e.g. \"First blood 1:32 · 3 Roshans\")",
+      "The player who scored a rampage is highlighted in the picks section with an orange left border and a rampage icon next to their name",
+    ],
+  },
+  {
+    date: "May 21, 2026",
+    tag: "improvement",
     title: "Gold chart: scrub through every minute of the game",
     desc: "The gold advantage chart now shows the gold differential for any minute of the game on demand.",
     items: [

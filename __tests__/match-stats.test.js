@@ -298,7 +298,7 @@ describe('?mode=match-stats handler', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {} })
+    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0 })
 
     vi.unstubAllGlobals()
   })
@@ -318,7 +318,7 @@ describe('?mode=match-stats handler', () => {
     // res.ok guard: json() must not have been called for the match fetch
     // (it may have been called for items if items fetch also failed, but match fetch did not proceed)
     // The key invariant: KV must NOT be poisoned with empty/error data
-    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v2:'))
+    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v3:'))
     expect(statsKvWrite).toBeUndefined()
 
     vi.unstubAllGlobals()

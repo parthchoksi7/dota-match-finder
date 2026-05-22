@@ -15,7 +15,7 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
   return (
     <div className="space-y-1.5">
       {/* Hero icon (with CSS tooltip) + player name + networth */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
         {heroKey ? (
           <div className="relative flex-shrink-0 group">
             <img
@@ -25,8 +25,8 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
               loading="lazy"
             />
             {heroName && (
-              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
-                <span className="block bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap">
+              <div className="pointer-events-none absolute bottom-full left-0 mb-1 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+                <span className="block bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg max-w-[160px] truncate">
                   {heroName}
                 </span>
               </div>
@@ -44,7 +44,7 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
       </div>
 
       {/* Main items + divider + backpack items */}
-      <div className="flex items-center gap-0.5 ml-8">
+      <div className="flex items-center gap-0.5 ml-8 overflow-x-hidden">
         {player.items.map((itemId, i) => (
           <ItemSlot key={i} itemId={itemId} itemNames={itemNames} size="md" />
         ))}
