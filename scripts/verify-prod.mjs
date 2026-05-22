@@ -135,6 +135,121 @@ async function checkTournamentsApi() {
   }
 }
 
+// ── OD game count vs PS series count for an active tournament ────────────────
+//
+// Catches regressions where findLeague() stops mapping a tournament name to an
+// OD league, or where the OD game-count pipeline drops/duplicates games.
+//
+// Checks:
+//  1. If PS bracket shows finished series → OD game count must be > 0
+//  2. Game count must fall in [finishedSeries, finishedSeries * 5]
+//     (minimum 1 game per series, max 5 for a BO5)
+//  3. For group-stage tournaments (no bracket): game count > 0 if standings
+//     show any wins (i.e. at least one series has been played)
+
+// Inlined findLeague logic (mirrors api/tournament-heroes.js) for direct OD check
+const _STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
+function _tokens(s) {
+  return s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !_STOP.has(t))
+}
+function _findLeague(leagues, search) {
+  if (!search || !leagues?.length) return null
+  const searchTokens = new Set(_tokens(search))
+  let best = null, bestScore = 0
+  for (const league of leagues) {
+    const lt = _tokens(league.name || '')
+    const overlap = lt.filter(t => searchTokens.has(t)).length
+    if (overlap >= 2 && overlap > bestScore) { best = league; bestScore = overlap }
+  }
+  return best
+}
+
+async function checkOdTournamentConsistency() {
+  console.log('\n[od-consistency] OD game count vs PS series count')
+
+  const tournamentsData = await fetchJson(`${BASE}/api/tournaments`, 'tournaments list')
+  if (!tournamentsData) return
+
+  const ongoing = tournamentsData.ongoing ?? []
+  if (ongoing.length === 0) {
+    info('No ongoing tournaments — skipping OD consistency check')
+    return
+  }
+
+  const tournament = ongoing[0]
+  const { id: tournamentId, name: tournamentName } = tournament
+  info(`Tournament: "${tournamentName}" (PS id: ${tournamentId})`)
+
+  const [detailData, heroesData] = await Promise.all([
+    fetchJson(`${BASE}/api/tournament-detail?id=${tournamentId}&bust=1`, 'tournament-detail'),
+    fetchJson(`${BASE}/api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}&bust=1`, 'tournament-heroes'),
+  ])
+  if (!detailData || !heroesData) return
+
+  const allBracketMatches = (detailData.bracket ?? []).flatMap(r => r.matches ?? [])
+  const finishedSeries = allBracketMatches.filter(m => m.status === 'finished').length
+  const standings = detailData.standings ?? []
+  const totalStandingWins = standings.reduce((sum, s) => sum + (s.wins || 0), 0)
+  const spectateGameCount = heroesData.gameCount ?? 0
+
+  info(`PS finished series (bracket): ${finishedSeries}`)
+  info(`PS standings total wins: ${totalStandingWins}`)
+  info(`OD game count (via spectate): ${spectateGameCount}`)
+
+  const hasAnyPlayedGames = finishedSeries > 0 || totalStandingWins > 0
+
+  if (!hasAnyPlayedGames) {
+    info('Tournament has no finished series or standings wins yet — too early to compare')
+    return
+  }
+
+  if (spectateGameCount === 0) {
+    fail(`OD gameCount is 0 but PS shows games have been played (${finishedSeries} finished series, ${totalStandingWins} standings wins) — findLeague() may not be matching "${tournamentName}" to an OD league`)
+    return
+  }
+
+  if (finishedSeries > 0) {
+    const minExpected = finishedSeries
+    const maxExpected = finishedSeries * 5
+    if (spectateGameCount < minExpected || spectateGameCount > maxExpected) {
+      fail(`OD game count ${spectateGameCount} is outside expected range [${minExpected}, ${maxExpected}] for ${finishedSeries} finished PS series`)
+    } else {
+      pass(`${spectateGameCount} OD games / ${finishedSeries} PS series (${(spectateGameCount / finishedSeries).toFixed(1)} games/series avg)`)
+    }
+  } else {
+    pass(`OD game count ${spectateGameCount} > 0 (group-stage tournament, ${totalStandingWins} standings wins)`)
+  }
+
+  // Direct OD cross-check: fetch OD leagues and verify game count matches
+  try {
+    const odLeagues = await fetchJson('https://api.opendota.com/api/leagues', 'OD leagues list')
+    if (!Array.isArray(odLeagues)) { info('OD leagues list unavailable — skipping direct OD check'); return }
+
+    const league = _findLeague(odLeagues, tournamentName)
+    if (!league) { info(`findLeague() found no OD league for "${tournamentName}" — OK if tournament is new`); return }
+
+    info(`OD league: "${league.name}" (id: ${league.leagueid})`)
+    const matchList = await fetchJson(`https://api.opendota.com/api/leagues/${league.leagueid}/matches`, 'OD match list')
+    if (!Array.isArray(matchList)) { info('OD match list unavailable — skipping'); return }
+
+    const odGameCount = matchList.length
+    info(`OD direct game count: ${odGameCount}`)
+
+    // spectate caps at 200 and only counts games with picks_bans data
+    // so spectateGameCount ≤ min(odGameCount, 200) is expected
+    const odCapped = Math.min(odGameCount, 200)
+    if (spectateGameCount > odCapped) {
+      fail(`Spectate shows ${spectateGameCount} OD games but OD only has ${odGameCount} — impossible overcounting`)
+    } else if (odCapped > 0 && spectateGameCount / odCapped < 0.5) {
+      fail(`Spectate shows only ${spectateGameCount} of ${odCapped} OD games (${((spectateGameCount / odCapped) * 100).toFixed(0)}%) — >50% of games may be missing picks_bans or pipeline is dropping games`)
+    } else {
+      pass(`Spectate OD count (${spectateGameCount}) vs OD direct count (${odGameCount}) — consistent`)
+    }
+  } catch (err) {
+    info(`Direct OD check failed: ${err.message}`)
+  }
+}
+
 // ── Tier-1 league names (homepage match filter) ───────────────────────────────
 
 async function checkTier1LeaguesApi() {
@@ -164,6 +279,7 @@ async function main() {
   await checkLiveMatchesApi()
   await checkTournamentsApi()
   await checkTier1LeaguesApi()
+  await checkOdTournamentConsistency()
 
   console.log('')
   if (failed) {
