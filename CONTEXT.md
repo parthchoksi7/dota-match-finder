@@ -112,6 +112,71 @@ GitHub: https://github.com/parthchoksi7/dota-match-finder
 
 ---
 
+## PS ↔ OD Data Connection
+
+This is the core mechanism that ties PandaScore's live/tournament data to OpenDota's match data (drafts, gold graphs, stats, VODs). Understanding it is essential before touching any live match, stream, or VOD logic.
+
+### The only true linking field: `external_identifier`
+
+Each PandaScore **game** object exposes `game.external_identifier`, which **is** the OpenDota match ID. It is mapped in `api/live-matches.js` `mapGames()`:
+
+```js
+matchId: g.external_identifier || null
+```
+
+**Critical constraint**: PandaScore only populates this field while the game is **running** (live). Once the game finishes, PandaScore clears it. Any logic that relies on this field must account for the null-after-finish behaviour.
+
+### How the connection is persisted: KV cache during live play
+
+Because `external_identifier` disappears after a game ends, `cacheRunningStreams()` in `api/live-matches.js` writes three KV entries while a game is live:
+
+| KV key | Value | Written when | TTL |
+|---|---|---|---|
+| `live:game:{psMatchId}:{position}` | OD match ID | `game.status === 'running'` | 14 days |
+| `stream:match:{odMatchId}` | Twitch channel handle | `game.status === 'running'`, `nx:true` (write-once) | 14 days |
+| `format:match:{odMatchId}` | PS match_type (e.g. `"best_of_2"`) | any game in the match | 14 days |
+
+The `live:game:` key is what allows finished games to recover their OD match ID: the normal handler does a batch `mget` of these keys and merges the IDs back into the `games` array before caching the response. The `format:match:` key allows the completed-match feed to correct OpenDota's `series_type` when it disagrees with PandaScore (e.g. DreamLeague group stage BO2s reported by OD as series_type 1 = BO3).
+
+This caching is written by **both** the normal client-poll handler and the 30-min GitHub Actions cron (`?cron=1`). The cron runs even when no user is watching, ensuring coverage for games that start between user polls.
+
+### Series-level: no direct ID mapping
+
+There is **no PandaScore `serie_id` → OpenDota `series_id` mapping**. The two IDs come from completely separate systems. A series connection is derived by aggregating game-level links — once Game 1 and Game 2 each have an OD match ID, they share the same OpenDota `series_id`. This is implicit, not stored.
+
+### Fallback: time + team name fuzzy matching
+
+When no cached `external_identifier` exists (historical matches, qualifier series, cold KV), two fallbacks resolve the OD match:
+
+1. **`findOdMatchByTime()`** in `api/_shared.js`: given a PS game's `begin_at` (Unix seconds) and its opponents array, filters OD promatches to a **±5 min** timestamp window, then uses bidirectional substring team name matching to break ties. Used by `?mode=recent-completed`.
+
+2. **`match-streams.js` PandaScore fuzzy match**: given an OD match's `start_time` and team names (`radiantTeam`/`direTeam` query params), queries PandaScore `/dota2/matches` with a **±1h** time window and runs `teamsMatch()`. If a match is found, its Twitch stream is extracted via `getTwitchStreams()` and cached to `stream:match:{odMatchId}` for future hits.
+
+Both use the same **bidirectional substring** pattern (the `teamsMatch`/`sub` helper):
+```js
+x.includes(y) || y.includes(x)
+```
+This handles name truncation or abbreviation on either side (e.g. `"BetBoom Team"` vs `"BetBoom"`, `"Yakult Brothers"` vs `"Yakult S Brothers"`). **Never replace this with exact equality or one-directional contains.** The canonical pattern lives in `api/_shared.js` `findOdMatchByTime()` — any new PS↔OD name matching must use the same logic.
+
+### Full resolution flow (drawer open)
+
+```
+User opens match drawer (OD match ID known)
+  ↓
+fetchMatchStreams(matchIds, ts, radiantTeam, direTeam)  [src/api.js]
+  ↓
+api/match-streams.js checks in order:
+  1. KV  stream:match:{id}        — fast path (written during live play or prior fuzzy match)
+  2. PandaScore fuzzy match        — ±1h time window + bidirectional team name match
+     → on hit: cache result to KV, return channel
+  3. ts bucket  stream:ts:{bucket} — candidate channels list (returned as _candidates;
+     no longer used for VOD search — kept only for diagnostics)
+```
+
+The frontend (`findTwitchVod` in `src/api.js`) uses only `preferredChannel` from step 1 or 2 — it does **not** fall back to other channels. This prevents returning a VOD from a concurrent match on the same channel.
+
+---
+
 ## Core Features
 
 ### Match Discovery

@@ -83,6 +83,17 @@ Run through these after any significant code change. Focus on the areas touched 
 - [ ] A 2-0 BO2 sweep appears in "Latest Results"
 - [ ] BO2 series card shows "BO2" label (not "BO3")
 
+### PS ↔ OD VOD Linking (core data pipeline)
+
+These tests verify the PandaScore → OpenDota match ID connection and the VOD resolution chain. Run after any change to `live-matches.js`, `match-streams.js`, `_shared.js`, or the stream/format KV keys.
+
+- [ ] Open a completed match drawer for a recent Tier 1 game — a "Watch" button with a channel label (ESL / PGL / BLAST etc.) appears
+- [ ] The channel label matches the known broadcaster for that tournament (e.g. DreamLeague → ESL channel, PGL event → PGL channel)
+- [ ] Open a drawer for a match that is several days old — VOD link still resolves (confirms `stream:match:{id}` KV entry was written during live play and survives the 14-day TTL)
+- [ ] If a live match has at least one finished game, clicking the live row opens `LiveSeriesSheet` and the Replay button opens the correct OD `MatchDrawer` — confirms `live:game:{psId}:{position}` KV lookup works for finished-but-not-yet-indexed games
+- [ ] For a recent BO2 match: the series label shows "BO2" not "BO3" — confirms `format:match:{odId}` KV entry was written and the completed-match feed read it correctly
+- [ ] For a match with no cached channel: the drawer shows "No VOD found" rather than crashing or showing a wrong channel
+
 ### Auto-Tweet (owner only)
 
 1. Manually trigger the GitHub Actions workflow: Actions tab → "Auto Tweet Dota 2 Results" → Run workflow
@@ -113,6 +124,7 @@ For features that touch core match data, series grouping, or new API integration
 | Calendar changes | Subscribe URL generates; .ics downloads; events appear in calendar app |
 | Search changes | Search and clear both work; query is tracked in GA4 |
 | Tier filter changes | At least one known tier-S or tier-A event (e.g. DreamLeague, PGL, Premier Series, ESL Challenger) appears in live/upcoming/tournaments; a known non-pro event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results. Any new `filter[param]=value` added to a PandaScore URL must be tested for multi-value support before using comma-separated syntax -- write a unit test that mocks `fetch` and asserts the URL contains the expected single-value parameter |
+| `live-matches.js` / `match-streams.js` / `_shared.js` changes | Run the PS ↔ OD VOD Linking scenarios above; confirm `stream:match:*` and `live:game:*` entries are written during live matches; confirm `format:match:*` is written for at least one running game; verify `findOdMatchByTime` still uses bidirectional substring matching |
 
 ---
 

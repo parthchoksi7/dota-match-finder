@@ -31,6 +31,10 @@ Live at: **https://spectateesports.live**
 | AI summaries | Anthropic Claude Haiku |
 | Analytics | Vercel Analytics + GA4 + BigQuery |
 
+### PS ↔ OD Bridge
+
+PandaScore is the authoritative source for live match state, stream channels, and tournament structure. OpenDota is the authoritative source for completed match data (draft, stats, gold graph). The two are connected at the **game level** via PandaScore's `game.external_identifier` field, which equals the OpenDota match ID — but only while the game is running. A KV write-through cache (`live:game:*`, `stream:match:*`, `format:match:*`) persists the link after the game ends. See [CONTEXT.md — PS ↔ OD Data Connection](./CONTEXT.md) for the full flow.
+
 ## Project Structure
 
 ```
