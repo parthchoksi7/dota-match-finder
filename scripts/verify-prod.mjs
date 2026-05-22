@@ -22,12 +22,17 @@ function fail(msg) { console.error(`  FAIL  ${msg}`); failed = true }
 function info(msg) { console.log(`        ${msg}`) }
 
 async function fetchJson(url, label) {
-  const res = await fetch(url)
-  if (!res.ok) {
-    fail(`${label}: HTTP ${res.status}`)
+  try {
+    const res = await fetch(url)
+    if (!res.ok) {
+      fail(`${label}: HTTP ${res.status}`)
+      return null
+    }
+    return await res.json()
+  } catch (err) {
+    fail(`${label}: ${err.message}`)
     return null
   }
-  return res.json()
 }
 
 // ── News API ──────────────────────────────────────────────────────────────────
@@ -177,76 +182,100 @@ async function checkOdTournamentConsistency() {
   }
 
   const tournament = ongoing[0]
-  const { id: tournamentId, name: tournamentName } = tournament
-  info(`Tournament: "${tournamentName}" (PS id: ${tournamentId})`)
+  const { id: tournamentId } = tournament
+  // Mirror TournamentHub.jsx: buildTournamentName(league, serie) — omits stage suffix
+  // so findLeague() matches the overall OD league, not a Playoffs-specific entry.
+  const leagueName = tournament.league || ''
+  const serieName = tournament.serie || ''
+  const tournamentName = (leagueName && serieName)
+    ? (serieName.toLowerCase().includes(leagueName.toLowerCase()) ? serieName : `${leagueName} ${serieName}`)
+    : (leagueName || serieName || tournament.name || '')
+  info(`Tournament: "${tournament.name}" (OD search name: "${tournamentName}", PS id: ${tournamentId})`)
 
+  // NOTE: do NOT pass bust=1 to tournament-heroes. For large tournaments (100+ games)
+  // the cold fetch times out within Vercel's function limit. Use the cached result,
+  // which is correct once the function has completed at least once via normal traffic.
   const [detailData, heroesData] = await Promise.all([
     fetchJson(`${BASE}/api/tournament-detail?id=${tournamentId}&bust=1`, 'tournament-detail'),
-    fetchJson(`${BASE}/api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}&bust=1`, 'tournament-heroes'),
+    fetchJson(`${BASE}/api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`, 'tournament-heroes'),
   ])
-  if (!detailData || !heroesData) return
+  if (!detailData) return
 
   const allBracketMatches = (detailData.bracket ?? []).flatMap(r => r.matches ?? [])
   const finishedSeries = allBracketMatches.filter(m => m.status === 'finished').length
   const standings = detailData.standings ?? []
   const totalStandingWins = standings.reduce((sum, s) => sum + (s.wins || 0), 0)
-  const spectateGameCount = heroesData.gameCount ?? 0
+  const spectateGameCount = heroesData?.gameCount ?? 0
 
   info(`PS finished series (bracket): ${finishedSeries}`)
   info(`PS standings total wins: ${totalStandingWins}`)
-  info(`OD game count (via spectate): ${spectateGameCount}`)
+  info(`OD game count (via spectate cache): ${spectateGameCount}`)
 
   const hasAnyPlayedGames = finishedSeries > 0 || totalStandingWins > 0
-
   if (!hasAnyPlayedGames) {
-    info('Tournament has no finished series or standings wins yet — too early to compare')
+    info('No finished PS series or standings wins yet — too early to compare')
     return
   }
 
+  // Direct OD cross-check — always run so we can distinguish "truly broken" from
+  // "cache cold / function timed out on first call".
+  let odGameCount = null
+  let odLeagueName = null
+  try {
+    const odLeagues = await fetchJson('https://api.opendota.com/api/leagues', 'OD leagues list')
+    if (Array.isArray(odLeagues)) {
+      const found = _findLeague(odLeagues, tournamentName)
+      if (found) {
+        odLeagueName = found.name
+        info(`OD league: "${found.name}" (id: ${found.leagueid})`)
+        const matchList = await fetchJson(`https://api.opendota.com/api/leagues/${found.leagueid}/matches`, 'OD match list')
+        if (Array.isArray(matchList)) odGameCount = matchList.length
+      } else {
+        info(`findLeague() found no OD match for "${tournamentName}" (may be new or not yet indexed)`)
+      }
+    }
+  } catch (err) {
+    info(`Direct OD check unavailable: ${err.message}`)
+  }
+
+  if (odGameCount !== null) info(`OD direct game count: ${odGameCount}`)
+
+  // Only hard-fail when we have positive confirmation from OD that games exist
+  // but spectate is showing 0. A spectate-only 0 could mean the cache is cold
+  // (function timed out on the first call) rather than a findLeague failure.
   if (spectateGameCount === 0) {
-    fail(`OD gameCount is 0 but PS shows games have been played (${finishedSeries} finished series, ${totalStandingWins} standings wins) — findLeague() may not be matching "${tournamentName}" to an OD league`)
+    if (odGameCount !== null && odGameCount > 0) {
+      fail(`OD directly has ${odGameCount} games for "${odLeagueName}" but spectate returns 0 — findLeague or fetch pipeline is broken`)
+    } else {
+      info(`OD game count is 0 — spectate cache may be cold (tournament-heroes timed out on first call) or tournament is new. Verify manually: /api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`)
+    }
     return
   }
 
+  // Sanity-range check when spectate has data
   if (finishedSeries > 0) {
     const minExpected = finishedSeries
     const maxExpected = finishedSeries * 5
     if (spectateGameCount < minExpected || spectateGameCount > maxExpected) {
-      fail(`OD game count ${spectateGameCount} is outside expected range [${minExpected}, ${maxExpected}] for ${finishedSeries} finished PS series`)
+      fail(`OD game count ${spectateGameCount} outside expected range [${minExpected}, ${maxExpected}] for ${finishedSeries} finished PS series`)
     } else {
       pass(`${spectateGameCount} OD games / ${finishedSeries} PS series (${(spectateGameCount / finishedSeries).toFixed(1)} games/series avg)`)
     }
   } else {
-    pass(`OD game count ${spectateGameCount} > 0 (group-stage tournament, ${totalStandingWins} standings wins)`)
+    pass(`OD game count ${spectateGameCount} > 0 for group-stage tournament (${totalStandingWins} standings wins)`)
   }
 
-  // Direct OD cross-check: fetch OD leagues and verify game count matches
-  try {
-    const odLeagues = await fetchJson('https://api.opendota.com/api/leagues', 'OD leagues list')
-    if (!Array.isArray(odLeagues)) { info('OD leagues list unavailable — skipping direct OD check'); return }
-
-    const league = _findLeague(odLeagues, tournamentName)
-    if (!league) { info(`findLeague() found no OD league for "${tournamentName}" — OK if tournament is new`); return }
-
-    info(`OD league: "${league.name}" (id: ${league.leagueid})`)
-    const matchList = await fetchJson(`https://api.opendota.com/api/leagues/${league.leagueid}/matches`, 'OD match list')
-    if (!Array.isArray(matchList)) { info('OD match list unavailable — skipping'); return }
-
-    const odGameCount = matchList.length
-    info(`OD direct game count: ${odGameCount}`)
-
-    // spectate caps at 200 and only counts games with picks_bans data
-    // so spectateGameCount ≤ min(odGameCount, 200) is expected
+  // Cross-validate spectate count vs OD direct count
+  if (odGameCount !== null) {
+    // spectate caps at 200 and only counts games that have picks_bans parsed
     const odCapped = Math.min(odGameCount, 200)
     if (spectateGameCount > odCapped) {
       fail(`Spectate shows ${spectateGameCount} OD games but OD only has ${odGameCount} — impossible overcounting`)
     } else if (odCapped > 0 && spectateGameCount / odCapped < 0.5) {
-      fail(`Spectate shows only ${spectateGameCount} of ${odCapped} OD games (${((spectateGameCount / odCapped) * 100).toFixed(0)}%) — >50% of games may be missing picks_bans or pipeline is dropping games`)
+      fail(`Spectate shows ${spectateGameCount} of ${odCapped} OD games (${((spectateGameCount / odCapped) * 100).toFixed(0)}%) — more than half of games may be missing picks_bans or pipeline is dropping games`)
     } else {
       pass(`Spectate OD count (${spectateGameCount}) vs OD direct count (${odGameCount}) — consistent`)
     }
-  } catch (err) {
-    info(`Direct OD check failed: ${err.message}`)
   }
 }
 
