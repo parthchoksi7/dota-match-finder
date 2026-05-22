@@ -21,10 +21,11 @@ function findLeague(leagues, search) {
   for (const league of leagues) {
     const lt = tokens(league.name || '')
     const overlap = lt.filter(t => searchTokens.has(t)).length
-    if (overlap >= 2 && overlap > bestScore) {
-      best = league
-      bestScore = overlap
-    }
+    if (overlap < 2) continue
+    // On tie, prefer non-qualifier over qualifier (e.g. "DreamLeague S29" over "DreamLeague S29 Qualifiers")
+    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
+    const isBetter = overlap > bestScore || (overlap === bestScore && !isQualifier && best && (best.name || '').toLowerCase().includes('qualifier'))
+    if (isBetter) { best = league; bestScore = overlap }
   }
   return best
 }
@@ -141,6 +142,17 @@ describe('findLeague', () => {
     // "8" is a single-digit token — must be kept by the /^\d+$/ guard
     const result = findLeague(leagues, 'ESL One Season 8')
     expect(result?.leagueid).toBe(1)
+  })
+
+  it('prefers the main event over qualifiers when both score the same overlap', () => {
+    // "DreamLeague Season 29 Qualifiers" and "DreamLeague Season 29" both score 2 tokens
+    // against "DreamLeague Season 29 2026" — qualifiers should lose the tie-break
+    const leagues = [
+      { leagueid: 19448, name: 'DreamLeague Season 29 Qualifiers' },
+      { leagueid: 19696, name: 'DreamLeague Season 29' },
+    ]
+    const result = findLeague(leagues, 'DreamLeague Season 29 2026')
+    expect(result?.leagueid).toBe(19696)
   })
 })
 

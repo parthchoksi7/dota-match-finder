@@ -26,10 +26,11 @@ function findLeague(leagues, search) {
   for (const league of leagues) {
     const lt = tokens(league.name || '')
     const overlap = lt.filter(t => searchTokens.has(t)).length
-    if (overlap >= 2 && overlap > bestScore) {
-      best = league
-      bestScore = overlap
-    }
+    if (overlap < 2) continue
+    // On tie, prefer non-qualifier over qualifier (e.g. "DreamLeague S29" over "DreamLeague S29 Qualifiers")
+    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
+    const isBetter = overlap > bestScore || (overlap === bestScore && !isQualifier && best && (best.name || '').toLowerCase().includes('qualifier'))
+    if (isBetter) { best = league; bestScore = overlap }
   }
   return best
 }
