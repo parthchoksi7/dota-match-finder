@@ -3,7 +3,7 @@
  * ?mode=recent-completed to resolve real OD match IDs without relying on
  * PS external_identifier (which is only populated after OD indexes the match).
  *
- * Strategy: timestamp is the primary key (±5 min window). Team names break ties
+ * Strategy: timestamp is the primary key (±15 min window). Team names break ties
  * when multiple OD matches fall in the window. Uses bidirectional substring matching,
  * same as match-streams.js teamsMatch() — the canonical PS↔OD name matching pattern.
  */
@@ -29,22 +29,22 @@ describe('findOdMatchByTime', () => {
     expect(findOdMatchByTime([], 1000, [])).toBeNull()
   })
 
-  it('returns null when no OD match is within ±5 min', () => {
+  it('returns null when no OD match is within ±15 min', () => {
     const odMatches = [makeOdMatch(1, 1000, 'Team A', 'Team B')]
-    expect(findOdMatchByTime(odMatches, 1000 + 301, [])).toBeNull()
-    expect(findOdMatchByTime(odMatches, 1000 - 301, [])).toBeNull()
+    expect(findOdMatchByTime(odMatches, 1000 + 901, [])).toBeNull()
+    expect(findOdMatchByTime(odMatches, 1000 - 901, [])).toBeNull()
   })
 
-  it('returns exact match when timestamp is within ±5 min', () => {
+  it('returns exact match when timestamp is within ±15 min', () => {
     const odMatches = [makeOdMatch(99, 1000, 'Team A', 'Team B')]
     const result = findOdMatchByTime(odMatches, 1002, [])  // 2 seconds off
     expect(result?.match_id).toBe(99)
   })
 
-  it('returns match when timestamp is exactly at the 5-min boundary (exclusive)', () => {
+  it('returns match when timestamp is within ±15 min window (exclusive at boundary)', () => {
     const odMatches = [makeOdMatch(99, 1000, 'Team A', 'Team B')]
-    expect(findOdMatchByTime(odMatches, 1299, [])).not.toBeNull()  // 299s — inside
-    expect(findOdMatchByTime(odMatches, 1300, [])).toBeNull()       // 300s — outside
+    expect(findOdMatchByTime(odMatches, 1899, [])).not.toBeNull()  // 899s — inside
+    expect(findOdMatchByTime(odMatches, 1900, [])).toBeNull()       // 900s — outside
   })
 
   it('with single candidate, returns it regardless of team names (timestamp is sufficient)', () => {

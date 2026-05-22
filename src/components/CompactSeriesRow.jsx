@@ -18,7 +18,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
   const [indicatorsMap, setIndicatorsMap] = useState({})
   useEffect(() => {
     if (spoilerFree) return
-    const gameIds = series.games.map(g => g.id).filter(Boolean)
+    const gameIds = series.games.map(g => g.id).filter(id => id && !id.startsWith('_ps-'))
     if (gameIds.length === 0) return
     fetchMatchIndicators(gameIds).then(map => {
       if (Object.keys(map).length > 0) setIndicatorsMap(map)
@@ -52,20 +52,24 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
   const radiantWinner = !spoilerFree && radiantWins > direWins
   const direWinner = !spoilerFree && direWins > radiantWins
 
+  const isClickable = !!(onSelectSeries || onSelectGame)
+
   function handleRowClick() {
+    if (!isClickable) return
     trackEvent('compact_row_click', { series_id: series.id, tournament: series.tournament })
     if (onSelectSeries) onSelectSeries(series)
     else onSelectGame(lastGame)
   }
 
   function handleReplayClick(e) {
+    if (!isClickable) return
     e.stopPropagation()
     trackEvent('compact_replay_click', { series_id: series.id, tournament: series.tournament })
     if (onSelectSeries) onSelectSeries(series)
     else onSelectGame({ ...series.games[0], _skipExpand: true })
   }
 
-  const rowBase = `px-4 py-2.5 border-b border-gray-100 dark:border-gray-900 last:border-b-0 cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+  const rowBase = `px-4 py-2.5 border-b border-gray-100 dark:border-gray-900 last:border-b-0 transition-colors duration-150 ${isClickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50' : ''} ${
     (isGrandFinal || isFollowedMatch) ? 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10' : ''
   }`
 

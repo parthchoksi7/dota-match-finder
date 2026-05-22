@@ -301,10 +301,12 @@ export function buildTournamentName(m) {
 
 // Match a PS game (by begin_at Unix seconds + opponents array) against a list of OD promatches.
 // Uses the same bidirectional substring logic as teamsMatch() in match-streams.js.
-// Timestamp is the primary key (±5 min window); team names break ties when multiple candidates.
+// Timestamp is the primary key (±15 min window); team names break ties when multiple candidates.
+// Window is 900s (not 300s) — PS begin_at is the scheduled series time; OD start_time is the
+// actual in-engine start after drafting, which empirically diverges by 7–10 minutes.
 // Returns the best OD match object, or null if nothing is within the time window.
 export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
-  const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < 300)
+  const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < 900)
   if (candidates.length === 0) return null
   if (candidates.length === 1) return candidates[0]
   const names = (psOpponents || []).map(o => (o.opponent?.name || '').toLowerCase())

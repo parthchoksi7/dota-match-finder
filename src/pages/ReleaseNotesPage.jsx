@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 22, 2026",
+    tag: "new",
+    title: "Just Ended — see results the moment a series finishes",
+    desc: "Completed series now appear on the homepage within about a minute of ending, before OpenDota has indexed the games. Results, series score, and tournament context come from PandaScore. Replay links and draft data appear automatically once OpenDota catches up, then the entry fades out of the Just Ended section.",
+  },
+  {
+    date: "May 22, 2026",
     tag: "improvement",
     title: "Date strip shows all upcoming match days",
     desc: "The date navigation strip now shows every day with scheduled matches, not just Today and Tomorrow. If matches are scheduled three, four, or more days out, those date pills appear automatically.",

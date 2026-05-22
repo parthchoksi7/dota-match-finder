@@ -16,6 +16,7 @@ import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeri
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
+const JUST_ENDED_ENABLED = true
 
 function slugify(str) {
   return (str || "")
@@ -135,6 +136,8 @@ function App() {
   const [liveMatches, setLiveMatches] = useState([])
   const [upcomingMatches, setUpcomingMatches] = useState([])
   const [liveLoading, setLiveLoading] = useState(true)
+  const [justEndedSeries, setJustEndedSeries] = useState([])
+  const allMatchesRef = useRef([])
 
   // Mid-series side sheet (PS data while series is running)
   const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
@@ -220,6 +223,54 @@ function App() {
       })
   }, [])
 
+  function groupPsGamesIntoSeries(games) {
+    const byId = {}
+    for (const g of games) {
+      if (!g.seriesId) continue
+      if (!byId[g.seriesId]) byId[g.seriesId] = []
+      byId[g.seriesId].push(g)
+    }
+    return Object.values(byId).map(gs => ({
+      id: `ps-${gs[0].seriesId}`,
+      games: gs,
+      tournament: gs[0].tournament,
+      seriesType: gs[0].seriesType,
+      _pandaMatchId: gs[0]._pandaMatchId,
+      _fromPandaScore: true,
+    }))
+  }
+
+  function buildVisibleJustEnded(psGames, currentAllMatches) {
+    const psSeries = groupPsGamesIntoSeries(psGames)
+    const odIds = new Set(currentAllMatches.map(m => String(m.id)))
+    return psSeries.filter(entry => {
+      const resolved = entry.games.map(g => g.id).filter(id => !id.startsWith('_ps-'))
+      if (resolved.length > 0) return !resolved.some(id => odIds.has(id))
+      const psTeams = [entry.games[0]?.radiantTeam, entry.games[0]?.direTeam]
+        .map(t => (t || '').toLowerCase()).filter(Boolean)
+      if (psTeams.length < 2) return true
+      const psTime = entry.games[0]?.startTime || 0
+      const sub = (x, y) => x.includes(y) || y.includes(x)
+      return !currentAllMatches.some(m => {
+        if (Math.abs((m.start_time || 0) - psTime) > 3600) return false
+        const r = (m.radiant_team?.name || '').toLowerCase()
+        const d = (m.dire_team?.name || '').toLowerCase()
+        return (sub(psTeams[0], r) || sub(psTeams[0], d)) && (sub(psTeams[1], r) || sub(psTeams[1], d))
+      })
+    })
+  }
+
+  async function fetchJustEnded() {
+    if (!JUST_ENDED_ENABLED) return
+    try {
+      const res = await fetch('/api/tournaments?mode=recent-completed')
+      if (!res.ok) return
+      const { games } = await res.json()
+      if (!Array.isArray(games)) return
+      setJustEndedSeries(buildVisibleJustEnded(games, allMatchesRef.current))
+    } catch {}
+  }
+
   async function fetchLiveData() {
     try {
       const [liveRes, upcomingRes] = await Promise.all([
@@ -239,12 +290,16 @@ function App() {
     ? new URLSearchParams(window.location.search).get("q") || ""
     : ""
 
+  useEffect(() => { allMatchesRef.current = allMatches }, [allMatches])
+
   useEffect(() => {
     loadMatches()
     fetchGrandFinalMatchIds().then(ids => setGrandFinalMatchIds(new Set(ids)))
     fetchLiveData()
+    fetchJustEnded()
     const liveInterval = setInterval(fetchLiveData, 2 * 60 * 1000)
-    return () => clearInterval(liveInterval)
+    const justEndedInterval = setInterval(fetchJustEnded, 5 * 60 * 1000)
+    return () => { clearInterval(liveInterval); clearInterval(justEndedInterval) }
   }, [loadMatches])
 
   // Build tournament name → ID map for inline TournamentHub expand.
@@ -815,6 +870,7 @@ function App() {
               liveMatches={liveMatches}
               upcomingMatches={upcomingMatches}
               allMatches={allMatches}
+              justEndedSeries={JUST_ENDED_ENABLED ? justEndedSeries : []}
               onSelectMatch={handleSelectMatch}
               onSelectSeries={handleOpenSeries}
               spoilerFree={spoilerFree}
