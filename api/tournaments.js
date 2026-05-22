@@ -1035,7 +1035,7 @@ export default async function handler(req, res) {
 
     const STATS_TTL = 60 * 60 * 24 * 7 // 7 days
     const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
-    const STATS_KV_KEY = `stats:match:v3:${matchId}`
+    const STATS_KV_KEY = `stats:match:v4:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
     const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0 }
@@ -1134,7 +1134,14 @@ export default async function handler(req, res) {
           assists: p.assists ?? 0,
           isRadiant: isRadiantPlayer(p),
         })),
-        events: extractMatchEvents(data.players || []),
+        events: (() => {
+          const playerEvents = extractMatchEvents(data.players || [])
+          const roshanEvents = (data.objectives || [])
+            .filter(o => o.type === 'CHAT_MESSAGE_ROSHAN_KILL' && typeof o.time === 'number' && o.time >= 0 && (o.team === 2 || o.team === 3))
+            .sort((a, b) => a.time - b.time)
+            .map((o, idx) => ({ type: 'roshan', time: o.time, team: o.team === 2 ? 'radiant' : 'dire', index: idx + 1 }))
+          return [...playerEvents, ...roshanEvents].sort((a, b) => a.time - b.time)
+        })(),
         itemNames,
         firstBloodTime: data.first_blood_time ?? null,
         roshanKills: (data.objectives || []).filter(o => o.type === 'CHAT_MESSAGE_ROSHAN_KILL').length,

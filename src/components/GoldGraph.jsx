@@ -191,7 +191,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     const y1 = pts[lo + 1].y
     const eventX = PL + (minuteFloat / (n - 1)) * CW
     const eventY = y0 + (y1 - y0) * frac
-    const color = event.type === 'rampage' ? 'rgb(239,68,68)' : 'rgb(251,191,36)'
+    const color = event.type === 'rampage' ? 'rgb(239,68,68)' : event.type === 'roshan' ? 'rgb(56,189,248)' : 'rgb(251,191,36)'
     const eventUrl = vodUrl ? buildEventUrl(vodUrl, event.time) : null
     return [{ i, event, x: eventX, y: eventY, color, eventUrl }]
   })
@@ -367,21 +367,35 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         )}
 
         {/* Critical event markers — rendered last so they sit on top of the gold line and crosshair */}
-        {eventMarkers.map(({ i, event, x, y, color, eventUrl }) => (
-          <circle
-            key={`ev-${i}`}
-            cx={x.toFixed(1)}
-            cy={y.toFixed(1)}
-            r="5"
-            fill={color}
-            stroke="white"
-            strokeWidth="1.5"
-            style={{ cursor: eventUrl ? 'pointer' : 'default' }}
-            onMouseEnter={() => setActiveEvent({ event, x, y, eventUrl })}
-            onMouseLeave={() => setActiveEvent(null)}
-            onClick={eventUrl ? () => window.open(eventUrl, '_blank', 'noopener') : undefined}
-          />
-        ))}
+        {eventMarkers.map(({ i, event, x, y, color, eventUrl }) =>
+          event.type === 'roshan' ? (
+            <polygon
+              key={`ev-${i}`}
+              points={`${x.toFixed(1)},${(y - 5.5).toFixed(1)} ${(x + 5.5).toFixed(1)},${y.toFixed(1)} ${x.toFixed(1)},${(y + 5.5).toFixed(1)} ${(x - 5.5).toFixed(1)},${y.toFixed(1)}`}
+              fill={color}
+              stroke="white"
+              strokeWidth="1.5"
+              style={{ cursor: eventUrl ? 'pointer' : 'default' }}
+              onMouseEnter={() => setActiveEvent({ event, x, y, eventUrl })}
+              onMouseLeave={() => setActiveEvent(null)}
+              onClick={eventUrl ? () => window.open(eventUrl, '_blank', 'noopener') : undefined}
+            />
+          ) : (
+            <circle
+              key={`ev-${i}`}
+              cx={x.toFixed(1)}
+              cy={y.toFixed(1)}
+              r="5"
+              fill={color}
+              stroke="white"
+              strokeWidth="1.5"
+              style={{ cursor: eventUrl ? 'pointer' : 'default' }}
+              onMouseEnter={() => setActiveEvent({ event, x, y, eventUrl })}
+              onMouseLeave={() => setActiveEvent(null)}
+              onClick={eventUrl ? () => window.open(eventUrl, '_blank', 'noopener') : undefined}
+            />
+          )
+        )}
       </svg>
 
       {/* Desktop hover tooltip — floats near cursor, yields to event tooltip */}
@@ -410,9 +424,10 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
             transform: 'translateX(-50%)',
           }}
         >
-          {activeEvent.event.type === 'rampage' ? 'Rampage' : 'Rapier'}
-          {activeEvent.event.player ? ` · ${activeEvent.event.player}` : ''}
-          {` · ${Math.floor(activeEvent.event.time / 60)}m`}
+          {activeEvent.event.type === 'roshan'
+            ? `Roshan ${activeEvent.event.index} · ${activeEvent.event.team === 'radiant' ? (radiantName || 'Radiant') : (direName || 'Dire')} · ${Math.floor(activeEvent.event.time / 60)}m`
+            : `${activeEvent.event.type === 'rampage' ? 'Rampage' : 'Rapier'}${activeEvent.event.player ? ` · ${activeEvent.event.player}` : ''} · ${Math.floor(activeEvent.event.time / 60)}m`
+          }
           {activeEvent.eventUrl && (
             <span className="ml-1.5 text-amber-400">Watch</span>
           )}

@@ -6,6 +6,17 @@ const RELEASES = [
   {
     date: "May 21, 2026",
     tag: "improvement",
+    title: "Roshan kills on the gold chart",
+    desc: "Each Roshan kill now appears as a sky-blue diamond marker on the gold advantage chart.",
+    items: [
+      "Markers are numbered and show which team killed Roshan and at what minute — e.g. \"Roshan 2 · Tundra Esports · 28m\"",
+      "Click any marker to jump directly to that moment in the Twitch VOD",
+      "Diamond shape distinguishes Roshan kills from the existing circle markers for rapier and rampage",
+    ],
+  },
+  {
+    date: "May 21, 2026",
+    tag: "improvement",
     title: "Richer completed match details: hero portraits, first blood, Roshans, rampage attribution",
     desc: "The match details panel now shows more game data at a glance.",
     items: [

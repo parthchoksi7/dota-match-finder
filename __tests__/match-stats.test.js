@@ -318,7 +318,7 @@ describe('?mode=match-stats handler', () => {
     // res.ok guard: json() must not have been called for the match fetch
     // (it may have been called for items if items fetch also failed, but match fetch did not proceed)
     // The key invariant: KV must NOT be poisoned with empty/error data
-    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v3:'))
+    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v4:'))
     expect(statsKvWrite).toBeUndefined()
 
     vi.unstubAllGlobals()
@@ -626,5 +626,74 @@ describe('extractMatchEvents', () => {
     const players = [{ player_slot: 0, name: 'player' }]
     expect(() => extractMatchEvents(players)).not.toThrow()
     expect(extractMatchEvents(players)).toEqual([])
+  })
+})
+
+// ── Roshan event extraction ───────────────────────────────────────────────────
+
+function extractRoshanEvents(objectives) {
+  return (objectives || [])
+    .filter(o => o.type === 'CHAT_MESSAGE_ROSHAN_KILL' && typeof o.time === 'number' && o.time >= 0 && (o.team === 2 || o.team === 3))
+    .sort((a, b) => a.time - b.time)
+    .map((o, idx) => ({ type: 'roshan', time: o.time, team: o.team === 2 ? 'radiant' : 'dire', index: idx + 1 }))
+}
+
+describe('extractRoshanEvents', () => {
+  it('extracts radiant and dire roshan kills with index and team', () => {
+    const objectives = [
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 1800, team: 2 },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 3600, team: 3 },
+    ]
+    const events = extractRoshanEvents(objectives)
+    expect(events).toHaveLength(2)
+    expect(events[0]).toEqual({ type: 'roshan', time: 1800, team: 'radiant', index: 1 })
+    expect(events[1]).toEqual({ type: 'roshan', time: 3600, team: 'dire', index: 2 })
+  })
+
+  it('sorts kills by time ascending and numbers them sequentially', () => {
+    const objectives = [
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 3600, team: 3 },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 1200, team: 2 },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 2400, team: 2 },
+    ]
+    const events = extractRoshanEvents(objectives)
+    expect(events.map(e => e.time)).toEqual([1200, 2400, 3600])
+    expect(events.map(e => e.index)).toEqual([1, 2, 3])
+  })
+
+  it('filters out non-roshan objective types', () => {
+    const objectives = [
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 1800, team: 2 },
+      { type: 'CHAT_MESSAGE_COURIER_LOST', time: 900, team: 2 },
+    ]
+    expect(extractRoshanEvents(objectives)).toHaveLength(1)
+  })
+
+  it('filters out objectives with missing or invalid time', () => {
+    const objectives = [
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: undefined, team: 2 },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: -1, team: 2 },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 1800, team: 2 },
+    ]
+    const events = extractRoshanEvents(objectives)
+    expect(events).toHaveLength(1)
+    expect(events[0].time).toBe(1800)
+  })
+
+  it('filters out objectives with unknown team value', () => {
+    const objectives = [
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 1800, team: 99 },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 2400, team: null },
+      { type: 'CHAT_MESSAGE_ROSHAN_KILL', time: 3000, team: 3 },
+    ]
+    const events = extractRoshanEvents(objectives)
+    expect(events).toHaveLength(1)
+    expect(events[0].team).toBe('dire')
+  })
+
+  it('returns empty array for null/missing objectives', () => {
+    expect(extractRoshanEvents(null)).toEqual([])
+    expect(extractRoshanEvents(undefined)).toEqual([])
+    expect(extractRoshanEvents([])).toEqual([])
   })
 })
