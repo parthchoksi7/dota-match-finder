@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -169,8 +169,9 @@ function HomeFeed({
     if (!isToday) return {}
     const map = {}
     for (const s of justEndedSeries) {
-      if (!map[s.tournament]) map[s.tournament] = []
-      map[s.tournament].push(s)
+      const key = normalizeTournamentKey(s.tournament)
+      if (!map[key]) map[key] = []
+      map[key].push(s)
     }
     return map
   }, [justEndedSeries, isToday])
@@ -322,7 +323,7 @@ function HomeFeed({
         function renderCard(card) {
           const isHubExpanded = expandedTournamentName === card.tournament
           const hubId = findTournamentId(card.tournament, tournamentIdMap)
-          const justEnded = activeJustEndedByTournament[card.tournament] || []
+          const justEnded = activeJustEndedByTournament[normalizeTournamentKey(card.tournament)] || []
           const rowCount = card.liveMatches.length + card.upcomingMatches.length + card.completedSeries.length + justEnded.length
 
           function toggleHub() {
@@ -467,7 +468,7 @@ function HomeFeed({
           )
         }
 
-        const existingTournaments = new Set(tournamentCards.map(c => c.tournament))
+        const existingTournaments = new Set(tournamentCards.map(c => normalizeTournamentKey(c.tournament)))
         const standaloneJustEnded = Object.keys(activeJustEndedByTournament)
           .filter(tn => !existingTournaments.has(tn))
           .map(tn => ({
