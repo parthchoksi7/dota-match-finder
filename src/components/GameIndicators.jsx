@@ -5,25 +5,27 @@
  * Named export TeamIndicators: per-team inline badges next to team names.
  */
 
-function Tooltip({ label, children }) {
+function Tooltip({ label, children, align = 'center' }) {
+  const posClass = align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
+  const arrowClass = align === 'right' ? 'right-2' : 'left-1/2 -translate-x-1/2'
   return (
     <span className="relative group/indicator inline-flex">
       {children}
       <span
         role="tooltip"
-        className="
+        className={`
           pointer-events-none absolute z-50
-          top-full left-1/2 -translate-x-1/2 mt-2
+          top-full ${posClass} mt-2
           px-2.5 py-1.5 rounded-md
           bg-gray-950 text-white text-[11px] font-medium leading-snug text-center
           shadow-2xl whitespace-nowrap
           opacity-0 translate-y-0.5
           group-hover/indicator:opacity-100 group-hover/indicator:translate-y-0
           transition-all duration-150 ease-out
-        "
+        `}
       >
         {label}
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-gray-950" />
+        <span className={`absolute bottom-full ${arrowClass} border-[5px] border-transparent border-b-gray-950`} />
       </span>
     </span>
   )
@@ -132,7 +134,7 @@ export function RampageSvg({ className = 'w-3.5 h-3.5', ...props }) {
  * @param {Set<string>} rampageTeams       — had at least one rampage (5-kill streak)
  * @param {string}      teamName
  */
-export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams, rampageTeams, teamName }) {
+export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams, rampageTeams, teamName, tooltipAlign = 'center' }) {
   const icons = []
   if (rapierTeams?.has(teamName)) {
     icons.push({ key: 'rapier', label: 'Had Divine Rapier in this game', Icon: RapierSvg, color: 'text-red-500 dark:text-red-400' })
@@ -152,7 +154,7 @@ export function TeamIndicators({ rapierTeams, goldSwingTeams, megaComebackTeams,
   return (
     <span className="inline-flex items-center gap-0.5 flex-shrink-0">
       {icons.map(({ key, label, Icon, color }) => (
-        <Tooltip key={key} label={label}>
+        <Tooltip key={key} label={label} align={tooltipAlign}>
           <span className={`inline-flex items-center justify-center w-4 h-4 ${color}`}>
             <Icon className="w-3 h-3" />
           </span>

@@ -123,7 +123,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           {/* Dire side — right-aligned, truncates */}
           <div className="flex items-center justify-end gap-1 min-w-0 flex-1">
             {!spoilerFree && hasAnyIndicators && (
-              <TeamIndicators {...indicatorProps} teamName={direTeam} />
+              <TeamIndicators {...indicatorProps} teamName={direTeam} tooltipAlign="right" />
             )}
             <span className={`truncate text-right font-display text-sm tracking-wide uppercase leading-tight ${
               direWinner ? 'font-black text-gray-900 dark:text-white'
@@ -199,7 +199,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         {/* Dire team + indicators (right-aligned) */}
         <div className="flex items-center justify-end gap-1.5 min-w-0">
           {!spoilerFree && hasAnyIndicators && (
-            <TeamIndicators {...indicatorProps} teamName={direTeam} />
+            <TeamIndicators {...indicatorProps} teamName={direTeam} tooltipAlign="right" />
           )}
           <span className={`font-display text-sm tracking-wide uppercase truncate text-right ${
             direWinner ? 'font-black text-gray-900 dark:text-white'
