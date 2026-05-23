@@ -487,14 +487,16 @@ function MatchDrawer({
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
                   Gold Advantage
                 </h3>
-                <GoldGraph
-                  radiantGoldAdv={matchStats?.radiantGoldAdv}
-                  radiantName={match.radiantTeam}
-                  direName={match.direTeam}
-                  loading={statsLoading}
-                  events={matchStats?.events}
-                  vodUrl={allVods[0]?.url}
-                />
+                <div className="-mx-5">
+                  <GoldGraph
+                    radiantGoldAdv={matchStats?.radiantGoldAdv}
+                    radiantName={match.radiantTeam}
+                    direName={match.direTeam}
+                    loading={statsLoading}
+                    events={matchStats?.events}
+                    vodUrl={allVods[0]?.url}
+                  />
+                </div>
               </div>
 
               <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">

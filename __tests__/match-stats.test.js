@@ -353,15 +353,15 @@ describe('?mode=match-stats handler', () => {
 import { computePoints } from '../src/components/GoldGraph.jsx'
 
 // SVG layout constants (must match GoldGraph.jsx)
-const PL = 40   // left padding
-const PR = 54   // right padding
-const PT = 14   // top padding
+const PL = 4    // left stroke-buffer only — labels are HTML
+const PR = 4    // right stroke-buffer only — gold value is HTML
+const PT = 10   // top padding
 const PB = 22   // bottom padding
 const VW = 480
-const VH = 140
-const CW = VW - PL - PR   // 386
-const CH = VH - PT - PB   // 104
-const MID = PT + CH / 2   // 66
+const VH = 160
+const CW = VW - PL - PR   // 472
+const CH = VH - PT - PB   // 128
+const MID = PT + CH / 2   // 74
 
 describe('computePoints', () => {
   it('returns correct x/y coordinates for a simple 4-point series', () => {

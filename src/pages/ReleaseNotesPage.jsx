@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 23, 2026",
+    tag: "improvement",
+    title: "Gold advantage chart redesigned with more breathing space",
+    desc: "The chart now stretches edge-to-edge in the match drawer — no more wasted margins on either side. The RADIANT/DIRE labels and the current gold lead moved to a clean header row above the chart, freeing the full visual width for the data. The chart is also taller. On a phone the visible data area is roughly 40% wider than before.",
+  },
+  {
+    date: "May 23, 2026",
     tag: "fix",
     title: "Gold chart event tooltips no longer clip at the edge",
     desc: "Roshan, Rampage, and Rapier tooltips on the gold advantage chart were being cut off at the edge of the screen. The tooltip now uses fixed viewport positioning with measured clamping so it is always fully visible. On mobile, tapping a marker now shows the tooltip first — tap again to open the VOD link. Tap anywhere else on the chart to dismiss.",

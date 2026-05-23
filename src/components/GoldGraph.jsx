@@ -2,16 +2,16 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { RoshanSvg, RampageSvg, RapierSvg } from './GameIndicators'
 import { trackEvent } from '../utils'
 
-// SVG coordinate constants (viewBox: 480 × 140)
+// SVG coordinate constants (viewBox: 480 × 160)
 const VW = 480
-const VH = 140
-const PL = 40     // left padding for RADIANT/DIRE labels
-const PR = 54     // right padding for final gold value
-const PT = 14     // top padding
+const VH = 160
+const PL = 4      // minimal stroke-buffer only — labels are HTML
+const PR = 4      // minimal stroke-buffer only — gold value is HTML
+const PT = 10     // top padding
 const PB = 22     // bottom padding for time axis labels
-const CW = VW - PL - PR    // chart width: 386
-const CH = VH - PT - PB    // chart height: 104
-const MID = PT + CH / 2    // y-coordinate of the zero line: 66
+const CW = VW - PL - PR    // chart width: 472
+const CH = VH - PT - PB    // chart height: 128
+const MID = PT + CH / 2    // y-coordinate of the zero line: 74
 
 // Maps data array to SVG {x, y} points. Exported for unit tests.
 export function computePoints(data) {
@@ -71,6 +71,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   const uid = useId().replace(/:/g, '')
   const [activeEvent, setActiveEvent] = useState(null)
   const [hoverMinute, setHoverMinute] = useState(null)
+  const [hoverViewport, setHoverViewport] = useState(null)
   const tooltipRef = useRef(null)
   // Computed fixed-position coords for the event tooltip — measured after render so we
   // can clamp to the viewport and escape the drawer's overflow-x-hidden context.
@@ -187,12 +188,17 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   }, [n, minuteFromSvgX])
 
   if (loading) {
-    return <div ref={wrapperRef} className="h-[140px] rounded animate-pulse bg-gray-200 dark:bg-gray-800" />
+    return (
+      <>
+        <div className="h-5 mb-1.5" />
+        <div ref={wrapperRef} className="h-[160px] rounded animate-pulse bg-gray-200 dark:bg-gray-800" />
+      </>
+    )
   }
 
   if (n < 2) {
     return (
-      <div ref={wrapperRef} className="h-[140px] flex items-center justify-center">
+      <div ref={wrapperRef} className="h-[160px] flex items-center justify-center">
         <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600">
           Gold data unavailable
         </p>
@@ -219,10 +225,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   }
 
   const finalVal = data[n - 1]
-  const finalPt = pts[n - 1]
   const finalColor = finalVal > 0 ? 'rgb(34,197,94)' : finalVal < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
-  // Clamp label so it stays inside the chart bounds
-  const finalLabelY = Math.max(PT + 10, Math.min(VH - PB - 2, finalPt.y + 4))
 
   const aboveId = `gold-above-${uid}`
   const belowId = `gold-below-${uid}`
@@ -251,11 +254,6 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     ? hoverVal > 0 ? 'rgb(34,197,94)' : hoverVal < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
     : null
 
-  // Desktop tooltip: float near cursor, flip alignment at left/right edges
-  const hoverXPct = hoverPt ? (hoverPt.x / VW) * 100 : 0
-  const tooltipLeft = `${Math.max(5, Math.min(95, hoverXPct))}%`
-  const tooltipTransform = hoverXPct < 15 ? 'translateX(0)' : hoverXPct > 85 ? 'translateX(-100%)' : 'translateX(-50%)'
-
   function handleMouseMove(e) {
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -266,17 +264,33 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
       hasTrackedScrubRef.current = true
     }
     setHoverMinute(minuteFromSvgX(svgX))
+    setHoverViewport({ x: e.clientX, y: e.clientY })
   }
 
   function handleMouseLeave() {
     hoverSourceRef.current = null
     hasTrackedScrubRef.current = false
     setHoverMinute(null)
+    setHoverViewport(null)
   }
 
   return (
-    // relative wrapper so tooltips can be absolutely positioned over the SVG
-    <div ref={wrapperRef} className="relative select-none">
+    <>
+      {/* Team labels + current gold diff — HTML row so the SVG can be full-bleed */}
+      <div className="flex items-center justify-between px-5 mb-1.5">
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(34,197,94)' }}>
+          RADIANT
+        </span>
+        <span className="text-[10px] font-bold tabular-nums" style={{ color: finalColor }}>
+          {formatGold(finalVal)}
+        </span>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(239,68,68)' }}>
+          DIRE
+        </span>
+      </div>
+
+      {/* relative wrapper so tooltips can be absolutely positioned over the SVG */}
+      <div ref={wrapperRef} className="relative select-none">
 
       {/* Mobile tooltip strip — fixed at top of chart so the finger never occludes it */}
       {hoverPt && hoverSourceRef.current === 'touch' && (
@@ -352,45 +366,6 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
             {label}
           </text>
         ))}
-
-        {/* RADIANT label (top-left) */}
-        <text
-          x={PL - 3}
-          y={PT + 10}
-          textAnchor="end"
-          fontSize="8"
-          fill="rgb(34,197,94)"
-          fontWeight="bold"
-          fontFamily="inherit"
-        >
-          RADIANT
-        </text>
-
-        {/* DIRE label (bottom-left) */}
-        <text
-          x={PL - 3}
-          y={PT + CH - 2}
-          textAnchor="end"
-          fontSize="8"
-          fill="rgb(239,68,68)"
-          fontWeight="bold"
-          fontFamily="inherit"
-        >
-          DIRE
-        </text>
-
-        {/* Final gold advantage value (right edge) */}
-        <text
-          x={PL + CW + 6}
-          y={finalLabelY}
-          textAnchor="start"
-          fontSize="10"
-          fill={finalColor}
-          fontWeight="bold"
-          fontFamily="inherit"
-        >
-          {formatGold(finalVal)}
-        </text>
 
         {/* Crosshair — rendered before event markers so markers always sit on top */}
         {hoverPt && (
@@ -469,14 +444,15 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         })}
       </svg>
 
-      {/* Desktop hover tooltip — floats near cursor, yields to event tooltip */}
-      {hoverPt && hoverSourceRef.current === 'mouse' && !activeEvent && (
+      {/* Desktop hover tooltip — position: fixed so it escapes overflow-x-hidden on the drawer,
+          viewport-clamped so it never clips at left/right edges regardless of screen width */}
+      {hoverPt && hoverSourceRef.current === 'mouse' && !activeEvent && hoverViewport && (
         <div
-          className="absolute pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
+          className="pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
           style={{
-            left: tooltipLeft,
-            top: `${Math.max(0, hoverPt.y - 40)}px`,
-            transform: tooltipTransform,
+            position: 'fixed',
+            left: Math.max(8, Math.min(window.innerWidth - 210, hoverViewport.x - 80)),
+            top: Math.max(8, hoverViewport.y - 50),
           }}
         >
           <span className="text-gray-400 font-medium tabular-nums">{hoverMinute}m</span>
@@ -540,5 +516,6 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         )
       })()}
     </div>
+    </>
   )
 }

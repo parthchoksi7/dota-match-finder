@@ -620,11 +620,15 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - Two `<path>` elements clipped to above-zero (green-500/20 fill) and below-zero (red-500/20 fill) halves.
 - Zero line: dashed, `stroke-gray-200 dark:stroke-gray-700`, strokeWidth 0.75.
 - Data line: `stroke-gray-400 dark:stroke-gray-500`, strokeWidth 1.5.
-- SVG viewBox 480x140 with `preserveAspectRatio="none"` — fills the container width.
-- Loading: 140px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
-- Empty (< 2 data points): `text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600` — "Gold data unavailable".
+- SVG viewBox 480x160 with `preserveAspectRatio="none"` — fills the container width.
+- **SVG constants**: `VW=480, VH=160, PL=4, PR=4, PT=10, PB=22, CW=472, CH=128, MID=74`. PL/PR are minimal stroke-buffer only — no labels inside the SVG.
+- **Full-bleed rendering**: In MatchDrawer, GoldGraph is wrapped in `-mx-5` so the SVG spans the full drawer panel width. GoldGraph returns a React fragment: an HTML header row + the SVG wrapper div.
+- **HTML header row** (above SVG): `flex justify-between px-5 mb-1.5` — RADIANT label (green-500) · current gold diff in advantage color · DIRE label (red-500). The `px-5` realigns text with the rest of the drawer content despite the bleed.
+- Loading: fragment with `h-5 mb-1.5` spacer + 160px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
+- Empty (< 2 data points): 160px `h-[160px]` div — "Gold data unavailable".
 - **Event markers**: See `## Game event markers` section below. Three types: Roshan kill, Rampage, Divine Rapier. Colored by side (#22c55e Radiant / #ef4444 Dire), not by event type.
-- **Hover tooltip**: `activeEvent` state. Inline-styled dark card (#030712 bg, #1f2937 border, 4px radius) positioned via `left: (x/VW)*100%`. Flips left when marker is past 60% of chart width. Shows: colored icon · event label · separator · subject · separator · minute · "WATCH" in amber. Yields to scrub tooltip when `activeEvent` is null.
+- **Hover tooltip** (desktop scrub): `position: fixed`, viewport-clamped via `Math.max(8, Math.min(window.innerWidth - 210, clientX - 80))` — escapes drawer's `overflow-x-hidden` so it never clips at left/right screen edges. Uses `hoverViewport` state (set on `mousemove`).
+- **Event tooltip**: `activeEvent` state. `position: fixed`, measured by `useLayoutEffect` after render. Shows: colored icon · event label · separator · subject · separator · minute · "WATCH" in amber.
 - **Click-to-VOD**: `buildEventUrl(vodUrl, event.time)` parses the Twitch `?t=` offset already in the VOD URL, adds `event.time` seconds, reformats to `Xh Ym Zs`, opens in new tab. No-op if no `vodUrl`.
 - Tooltip and click work on desktop hover/click. Touch devices get click-only (no hover tooltip).
 
