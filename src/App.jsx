@@ -138,6 +138,7 @@ function App() {
   const [liveLoading, setLiveLoading] = useState(true)
   const [justEndedSeries, setJustEndedSeries] = useState([])
   const allMatchesRef = useRef([])
+  const lastPsGamesRef = useRef([])
 
   // Mid-series side sheet (PS data while series is running)
   const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
@@ -252,9 +253,9 @@ function App() {
       const psTime = entry.games[0]?.startTime || 0
       const sub = (x, y) => x.includes(y) || y.includes(x)
       return !currentAllMatches.some(m => {
-        if (Math.abs((m.start_time || 0) - psTime) > 3600) return false
-        const r = (m.radiant_team?.name || '').toLowerCase()
-        const d = (m.dire_team?.name || '').toLowerCase()
+        if (Math.abs((m.startTime || 0) - psTime) > 3600) return false
+        const r = (m.radiantTeam || '').toLowerCase()
+        const d = (m.direTeam || '').toLowerCase()
         return (sub(psTeams[0], r) || sub(psTeams[0], d)) && (sub(psTeams[1], r) || sub(psTeams[1], d))
       })
     })
@@ -267,6 +268,7 @@ function App() {
       if (!res.ok) return
       const { games } = await res.json()
       if (!Array.isArray(games)) return
+      lastPsGamesRef.current = games
       setJustEndedSeries(buildVisibleJustEnded(games, allMatchesRef.current))
     } catch {}
   }
@@ -290,7 +292,12 @@ function App() {
     ? new URLSearchParams(window.location.search).get("q") || ""
     : ""
 
-  useEffect(() => { allMatchesRef.current = allMatches }, [allMatches])
+  useEffect(() => {
+    allMatchesRef.current = allMatches
+    if (JUST_ENDED_ENABLED && lastPsGamesRef.current.length > 0) {
+      setJustEndedSeries(buildVisibleJustEnded(lastPsGamesRef.current, allMatches))
+    }
+  }, [allMatches])
 
   useEffect(() => {
     loadMatches()

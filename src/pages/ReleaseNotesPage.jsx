@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 23, 2026",
+    tag: "fix",
+    title: "Same match no longer appears in both Just Ended and Results",
+    desc: "A match could appear simultaneously in the Just Ended section and the Results section. The dedup logic that hides a Just Ended entry once OpenDota indexes it was using the wrong field names and only ran every 5 minutes. Both issues are now fixed.",
+  },
+  {
     date: "May 22, 2026",
     tag: "fix",
     title: "Missing series fixed for cross-page BO3s",

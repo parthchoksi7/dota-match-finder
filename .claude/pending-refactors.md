@@ -42,17 +42,6 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 ---
 
-## API performance / correctness
-
-### Fix tournament-heroes timeout for large tournaments
-- **File:** `api/tournament-heroes.js:102-113`
-- **What:** The endpoint fetches individual match details in sequential batches of 10 (up to 200 games). For DreamLeague S29 (169 games), this requires 17 batches × ~3-5s each = 50-85s total, which exceeds Vercel's function timeout (~10-30s). The first cold call returns empty JSON (truncated), so the KV cache is never populated.
-- **Fix options:** (1) Add a wall-clock budget — stop fetching new batches if elapsed > 8s and return partial results; or (2) reduce max games to 50 (enough for hero stats quality); or (3) add a separate warm-cache endpoint that populates lazily in the background.
-- **Discovered:** May 2026 via verify-prod od-consistency check on DreamLeague Season 29 Playoffs.
-- **Effort:** Low | **Payoff:** High (Heroes tab broken for large tournaments)
-
----
-
 ## Medium-effort, high-payoff
 
 ### App.jsx state machine for async clusters
