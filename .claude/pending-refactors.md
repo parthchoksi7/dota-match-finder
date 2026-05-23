@@ -44,6 +44,13 @@ Tracked from the May 2026 deep code review. Completed items removed.
 
 ## Medium-effort, high-payoff
 
+### Tighten `live:game:` KV trust in `fetchRecentCompleted`
+- **File:** `api/tournaments.js` — `fetchRecentCompleted` KV fast-path (~line 742)
+- **What:** Currently trusts a `live:game:` cached ID when it's not in the current OD promatches window (match older than 8h), assuming it was written correctly by the live cron. But `findOdMatchByTime` was previously buggy (radiant_name field mismatch), so some entries in that window were written with wrong IDs. The current fix validates and self-heals IDs that are still in the OD window, but silently trusts stale ones.
+- **Fix:** Store a team-name fingerprint alongside the resolved ID in KV (e.g., `{ id, radiantTeam, direTeam }`). Validate against PS opponents even when the match is no longer in OD promatches.
+- **Discovered:** 2026-05-23 — Falcons vs Playtime wrongly resolved to Teiko/Nethercore.
+- **Effort:** Low | **Payoff:** Medium (makes the KV fast-path self-healing at all ages)
+
 ### App.jsx state machine for async clusters
 - **File:** `src/App.jsx:134-194`
 - **What:** Replace the 5-state summary cluster (`summary`, `summaryMatchId`, `summaryError`, `summaryErrorMatchId`, `summaryLoading`) with a `useReducer`. Same for xPosts and redditPosts clusters.
