@@ -6,10 +6,10 @@ import { trackEvent } from '../utils'
 const VW = 480
 const VH = 160
 const PL = 4      // minimal stroke-buffer only — labels are HTML
-const PR = 4      // minimal stroke-buffer only — gold value is HTML
+const PR = 16     // right buffer: keeps last marker's 24px hit circle (r=12) within viewBox
 const PT = 10     // top padding
 const PB = 22     // bottom padding for time axis labels
-const CW = VW - PL - PR    // chart width: 472
+const CW = VW - PL - PR    // chart width: 460
 const CH = VH - PT - PB    // chart height: 128
 const MID = PT + CH / 2    // y-coordinate of the zero line: 74
 
@@ -276,8 +276,10 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
 
   return (
     <>
-      {/* Team labels + current gold diff — HTML row so the SVG can be full-bleed */}
-      <div className="flex items-center justify-between px-5 mb-1.5">
+      {/* Team labels + current gold diff — HTML row so the SVG can be full-bleed.
+          pl-5 aligns RADIANT with drawer content; pr-0 lets DIRE sit at the wrapper's
+          right edge (which is the content boundary when the wrapper is -ml-5). */}
+      <div className="flex items-center justify-between pl-5 pr-0 mb-1.5">
         <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(34,197,94)' }}>
           RADIANT
         </span>

@@ -354,12 +354,12 @@ import { computePoints } from '../src/components/GoldGraph.jsx'
 
 // SVG layout constants (must match GoldGraph.jsx)
 const PL = 4    // left stroke-buffer only — labels are HTML
-const PR = 4    // right stroke-buffer only — gold value is HTML
+const PR = 16   // right buffer: keeps last marker hit circle within viewBox
 const PT = 10   // top padding
 const PB = 22   // bottom padding
 const VW = 480
 const VH = 160
-const CW = VW - PL - PR   // 472
+const CW = VW - PL - PR   // 460
 const CH = VH - PT - PB   // 128
 const MID = PT + CH / 2   // 74
 
