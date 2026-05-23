@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 23, 2026",
     tag: "fix",
+    title: "Gold chart event tooltips no longer clip at the edge",
+    desc: "Roshan, Rampage, and Rapier tooltips on the gold advantage chart were being cut off at the left (and sometimes right) edge of the screen. The tooltip now uses fixed viewport positioning, measures its own width before painting, and clamps its position so the full label is always visible regardless of where in the game the event occurred.",
+  },
+  {
+    date: "May 23, 2026",
+    tag: "fix",
     title: "Just Ended dedup now correctly matches OD games to PS series",
     desc: "The team name tiebreaker in the PS-to-OD match resolver was reading the wrong field names on OpenDota promatches objects, causing it to resolve to random amateur games that happened to start at the same time. Those wrong IDs were then cached for 14 days. The resolver now reads the correct fields, and stale cached IDs are validated and discarded on the next cache refresh.",
   },

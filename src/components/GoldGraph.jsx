@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RoshanSvg, RampageSvg, RapierSvg } from './GameIndicators'
 import { trackEvent } from '../utils'
 
@@ -71,6 +71,10 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   const uid = useId().replace(/:/g, '')
   const [activeEvent, setActiveEvent] = useState(null)
   const [hoverMinute, setHoverMinute] = useState(null)
+  const tooltipRef = useRef(null)
+  // Computed fixed-position coords for the event tooltip — measured after render so we
+  // can clamp to the viewport and escape the drawer's overflow-x-hidden context.
+  const [tooltipFixed, setTooltipFixed] = useState(null)
   // 'mouse' | 'touch' — tracked via ref so tooltip source reads correctly on the same render cycle
   const hoverSourceRef = useRef(null)
   const wrapperRef = useRef(null)
@@ -78,6 +82,24 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   const touchStateRef = useRef({ startX: 0, startY: 0, intent: null, hideTimer: null })
   // Fire gold_chart_scrub GA event once per scrub session (not on every pixel)
   const hasTrackedScrubRef = useRef(false)
+
+  // Convert SVG-space marker coords → viewport-space fixed coords, clamped to stay on screen.
+  // Runs synchronously after DOM paint so the tooltip never visibly snaps.
+  useLayoutEffect(() => {
+    if (!activeEvent || !tooltipRef.current || !svgRef.current) {
+      setTooltipFixed(null)
+      return
+    }
+    const svgRect = svgRef.current.getBoundingClientRect()
+    const markerVPX = svgRect.left + activeEvent.x * (svgRect.width / VW)
+    const markerVPY = svgRect.top + activeEvent.y * (svgRect.height / VH)
+    const tipW = tooltipRef.current.offsetWidth
+    const flipLeft = (activeEvent.x - PL) / CW > 0.45
+    const left = flipLeft
+      ? Math.max(8, markerVPX - tipW)
+      : Math.min(window.innerWidth - tipW - 8, markerVPX + 4)
+    setTooltipFixed({ left, top: Math.max(8, markerVPY - 46) })
+  }, [activeEvent])
 
   const data = radiantGoldAdv || []
   const n = data.length
@@ -432,7 +454,8 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         </div>
       )}
 
-      {/* Event marker tooltip — replaces the scrub tooltip while a marker is active */}
+      {/* Event marker tooltip — position: fixed so it escapes overflow-x-hidden on the drawer's
+          scroll container. useLayoutEffect measures actual width and clamps to viewport before paint. */}
       {activeEvent && (() => {
         const ev = activeEvent.event
         const Icon = MARKER_SVG[ev.type] || RapierSvg
@@ -446,15 +469,16 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           : ev.type === 'rampage'
           ? (ev.player || teamName)
           : ev.player ? `${ev.player}${ev.hero ? ` · ${ev.hero}` : ''}` : teamName
-        // Flip tooltip left when past the chart midpoint — keeps it on-screen on narrow mobile viewports
-        const flipLeft = (activeEvent.x - PL) / CW > 0.45
         return (
           <div
-            className="absolute pointer-events-none z-50 whitespace-nowrap"
+            ref={tooltipRef}
+            className="pointer-events-none z-[200] whitespace-nowrap"
             style={{
-              left: `${(activeEvent.x / VW) * 100}%`,
-              top: `${Math.max(0, activeEvent.y - 46)}px`,
-              transform: flipLeft ? 'translateX(-100%)' : 'translateX(4px)',
+              // Off-screen until useLayoutEffect computes the clamped viewport position.
+              // fixed escapes all overflow:hidden ancestors (drawer panel + scroll container).
+              position: 'fixed',
+              left: tooltipFixed?.left ?? -9999,
+              top: tooltipFixed?.top ?? 0,
               background: '#030712',
               border: '1px solid #1f2937',
               borderRadius: '4px',
