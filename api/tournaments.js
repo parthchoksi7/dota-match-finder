@@ -1052,9 +1052,10 @@ export default async function handler(req, res) {
     const { id: matchId } = req.query
     if (!matchId) return res.status(400).json({ error: 'id required' })
 
-    const STATS_TTL = 60 * 60 * 24 * 7 // 7 days
+    const STATS_TTL = 60 * 60 * 24 * 7 // 7 days — only for parsed matches (immutable)
+    const STATS_TTL_UNPARSED = 60 * 30  // 30 min — match not yet parsed by OD; retry soon
     const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
-    const STATS_KV_KEY = `stats:match:v4:${matchId}`
+    const STATS_KV_KEY = `stats:match:v5:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
     const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0 }
@@ -1166,7 +1167,11 @@ export default async function handler(req, res) {
         roshanKills: (data.objectives || []).filter(o => o.type === 'CHAT_MESSAGE_ROSHAN_KILL').length,
       }
 
-      kv.set(STATS_KV_KEY, stats, { ex: STATS_TTL })
+      // Use short TTL when OD hasn't parsed the replay yet — radiant_gold_adv will be
+      // null until parsing completes, which can take hours. Long TTL here would cache
+      // the empty gold array for 7 days even after OD finishes parsing.
+      const cacheTtl = data.radiant_gold_adv != null ? STATS_TTL : STATS_TTL_UNPARSED
+      kv.set(STATS_KV_KEY, stats, { ex: cacheTtl })
         .catch(err => console.warn('match-stats KV write failed:', err?.message))
 
       res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')

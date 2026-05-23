@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 23, 2026",
     tag: "fix",
+    title: "Gold chart now appears once OpenDota parses the replay",
+    desc: "Gold data was missing permanently for matches where OpenDota hadn't finished parsing the replay when the drawer was first opened. The result was cached for 7 days. It now retries every 30 minutes until the parse completes.",
+  },
+  {
+    date: "May 23, 2026",
+    tag: "fix",
     title: "Same match no longer appears in both Just Ended and Results",
     desc: "A match could appear simultaneously in the Just Ended section and the Results section. The dedup logic that hides a Just Ended entry once OpenDota indexes it was using the wrong field names and only ran every 5 minutes. Both issues are now fixed.",
   },
