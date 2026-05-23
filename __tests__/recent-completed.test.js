@@ -130,4 +130,17 @@ describe('findOdMatchByTime', () => {
     // Only 1 candidate — returns it even without team name data
     expect(result?.match_id).toBe(99)
   })
+
+  it('tiebreaker works with flat radiant_name/dire_name shape (OD promatches format)', () => {
+    // OD /api/promatches returns radiant_name and dire_name as flat fields,
+    // not radiant_team.name — the tiebreaker must handle both shapes.
+    const T = 50000
+    const odMatches = [
+      { match_id: 1, start_time: T + 295, radiant_name: 'Teiko', dire_name: 'Nethercore' },
+      { match_id: 2, start_time: T - 67,  radiant_name: 'PlayTime', dire_name: 'Team Falcons' },
+    ]
+    const opponents = [makeOpp('PlayTime'), makeOpp('Team Falcons')]
+    const result = findOdMatchByTime(odMatches, T, opponents)
+    expect(result?.match_id).toBe(2)  // must pick the correct match, not Teiko vs Nethercore
+  })
 })

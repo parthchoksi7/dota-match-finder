@@ -643,7 +643,7 @@ async function fetchTier1LeagueNames(token) {
 // to bridge the 30min–several-hour OpenDota /promatches indexing lag.
 // Kill scores are unavailable from PandaScore; radiantScore/direScore are null.
 
-const KV_RC_KEY = 'dota2:recent_completed_v2'
+const KV_RC_KEY = 'dota2:recent_completed_v3'
 const RC_TTL = 60 * 5  // 5 minutes
 
 const FORMAT_TO_SERIES_TYPE_RC = { best_of_1: 0, best_of_2: 3, best_of_3: 1, best_of_5: 2 }
@@ -740,6 +740,26 @@ async function fetchRecentCompleted(token, bust = false) {
 
       // Tier 1: KV fast path (populated by live-matches cron during live phase)
       let resolvedId = kvVals[i] ? String(kvVals[i]) : null
+
+      // Validate KV-cached ID: if the match ID is in the current OD window, verify
+      // team names match. Catches stale entries written by a prior buggy resolution
+      // (findOdMatchByTime previously used radiant_team?.name which was always undefined
+      // on promatches objects, making every candidate match → wrong game cached).
+      if (resolvedId) {
+        const sub = (x, y) => x.includes(y) || y.includes(x)
+        const cachedOd = odMatches.find(m => String(m.match_id) === resolvedId)
+        if (cachedOd) {
+          const r = (cachedOd.radiant_name || '').toLowerCase()
+          const d = (cachedOd.dire_name || '').toLowerCase()
+          const psTeams = opponents.map(o => (o.opponent?.name || '').toLowerCase()).filter(Boolean)
+          const valid = psTeams.length >= 2 && psTeams.every(t => sub(t, r) || sub(t, d))
+          if (!valid) {
+            console.warn(`recent-completed: KV cached ID ${resolvedId} teams (${r}/${d}) don't match PS opponents — re-resolving`)
+            resolvedId = null
+          }
+        }
+        // If cachedOd not found (match older than 8h window): trust the cached ID
+      }
 
       // Tier 2: OD promatches timestamp lookup — same approach as match-streams.js
       // Resolves the OD match ID without needing PS external_identifier (which requires

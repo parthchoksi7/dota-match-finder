@@ -313,8 +313,8 @@ export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
   if (names.length >= 2) {
     const sub = (x, y) => x.includes(y) || y.includes(x)
     const exact = candidates.find(c => {
-      const r = (c.radiant_team?.name || '').toLowerCase()
-      const d = (c.dire_team?.name || '').toLowerCase()
+      const r = (c.radiant_name || c.radiant_team?.name || '').toLowerCase()
+      const d = (c.dire_name || c.dire_team?.name || '').toLowerCase()
       return (sub(names[0], r) || sub(names[0], d)) && (sub(names[1], r) || sub(names[1], d))
     })
     if (exact) return exact
