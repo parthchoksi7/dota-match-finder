@@ -422,8 +422,8 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
               className="gold-graph-marker"
               style={{ color: sideColor }}
               transform={`translate(${(x - 6).toFixed(1)},${(y - 6).toFixed(1)})`}
-              onMouseEnter={() => setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i })}
-              onMouseLeave={() => setActiveEvent(null)}
+              onPointerEnter={(e) => { if (e.pointerType === 'mouse') setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i }) }}
+              onPointerLeave={(e) => { if (e.pointerType === 'mouse') setActiveEvent(null) }}
               onClick={(e) => {
                 e.stopPropagation() // prevent SVG onClick from dismissing immediately
                 if (activeEvent?.markerIdx === i) {
