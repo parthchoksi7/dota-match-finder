@@ -285,6 +285,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         aria-label={`Gold advantage: ${radiantName || 'Radiant'} vs ${direName || 'Dire'}`}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onClick={() => setActiveEvent(null)}
       >
         <defs>
           {/* Clip the fill path to the above-zero half (radiant green area) */}
@@ -423,7 +424,21 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
               transform={`translate(${(x - 6).toFixed(1)},${(y - 6).toFixed(1)})`}
               onMouseEnter={() => setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i })}
               onMouseLeave={() => setActiveEvent(null)}
-              onClick={eventUrl ? () => { trackEvent('gold_graph_marker_click', { type: event.type, team: event.team }); window.open(eventUrl, '_blank', 'noopener') } : undefined}
+              onClick={(e) => {
+                e.stopPropagation() // prevent SVG onClick from dismissing immediately
+                if (activeEvent?.markerIdx === i) {
+                  // Second tap (or desktop click-while-hovered): open VOD link
+                  if (eventUrl) {
+                    trackEvent('gold_graph_marker_click', { type: event.type, team: event.team })
+                    window.open(eventUrl, '_blank', 'noopener')
+                  } else {
+                    setActiveEvent(null)
+                  }
+                } else {
+                  // First tap on mobile: show tooltip
+                  setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i })
+                }
+              }}
             >
               {/* 24px transparent hit area */}
               <circle cx="6" cy="6" r="12" fill="transparent" />

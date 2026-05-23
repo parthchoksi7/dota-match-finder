@@ -7,7 +7,7 @@ const RELEASES = [
     date: "May 23, 2026",
     tag: "fix",
     title: "Gold chart event tooltips no longer clip at the edge",
-    desc: "Roshan, Rampage, and Rapier tooltips on the gold advantage chart were being cut off at the left (and sometimes right) edge of the screen. The tooltip now uses fixed viewport positioning, measures its own width before painting, and clamps its position so the full label is always visible regardless of where in the game the event occurred.",
+    desc: "Roshan, Rampage, and Rapier tooltips on the gold advantage chart were being cut off at the edge of the screen. The tooltip now uses fixed viewport positioning with measured clamping so it is always fully visible. On mobile, tapping a marker now shows the tooltip first — tap again to open the VOD link. Tap anywhere else on the chart to dismiss.",
   },
   {
     date: "May 23, 2026",
