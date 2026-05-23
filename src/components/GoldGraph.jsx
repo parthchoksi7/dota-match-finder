@@ -83,6 +83,22 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   // Fire gold_chart_scrub GA event once per scrub session (not on every pixel)
   const hasTrackedScrubRef = useRef(false)
 
+  // Dismiss event tooltip on any outside click, scroll, or resize while it is open.
+  // Scroll: fixed tooltip would float disconnected from the chart as the drawer scrolls.
+  // Resize/orientation change: cached viewport coords become stale.
+  useEffect(() => {
+    if (!activeEvent) return
+    function dismiss() { setActiveEvent(null) }
+    document.addEventListener('click', dismiss)
+    document.addEventListener('scroll', dismiss, { capture: true })
+    window.addEventListener('resize', dismiss)
+    return () => {
+      document.removeEventListener('click', dismiss)
+      document.removeEventListener('scroll', dismiss, { capture: true })
+      window.removeEventListener('resize', dismiss)
+    }
+  }, [activeEvent])
+
   // Convert SVG-space marker coords → viewport-space fixed coords, clamped to stay on screen.
   // Runs synchronously after DOM paint so the tooltip never visibly snaps.
   useLayoutEffect(() => {
