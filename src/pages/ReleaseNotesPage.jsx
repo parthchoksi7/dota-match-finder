@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 22, 2026",
     tag: "fix",
+    title: "Missing series fixed for cross-page BO3s",
+    desc: "Series that spanned a page boundary could be permanently hidden from the results. BetBoom vs Vici Gaming (May 20, DreamLeague S29) is the known case. Loading more results now correctly surfaces all three games once enough pages are fetched.",
+  },
+  {
+    date: "May 22, 2026",
+    tag: "fix",
     title: "Team indicator tooltips no longer clip on the right side",
     desc: "Tooltips for game event badges (Rampage, Rapier, etc.) next to the right-side team name were being cut off by the page edge. They now anchor to the right so the full label is always visible.",
   },

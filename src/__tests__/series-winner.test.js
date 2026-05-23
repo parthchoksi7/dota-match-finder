@@ -1,13 +1,20 @@
 /**
  * Tests for seriesHasWinner — the pure helper in src/api.js that determines
- * whether the last series on a pagination page is complete.
+ * whether a series (a set of raw match objects) has a clear winner.
  *
- * The root bug (fixed May 2026): the old code tracked wins by radiant/dire SIDE
+ * Previously used for a per-page pagination boundary guard in fetchProMatches.
+ * That guard was removed (May 22 2026) because it permanently dropped games 2+3 of
+ * cross-page BO3s where the older game landed on the next page (root cause of the
+ * BetBoom vs Vici series being invisible on May 20 2026). HomeFeed's groupIntoSeries
+ * now handles the boundary case on the accumulated allMatches state instead.
+ *
+ * seriesHasWinner is still exported (used in the normalizeRawNullSeriesIds tests below
+ * to verify that merged games are correctly counted toward a series winner).
+ *
+ * The side-tracking bug (fixed May 2026): the old code tracked wins by radiant/dire SIDE
  * rather than by team name, so a 2-0 sweep where the winner played once as radiant
- * and once as dire looked like a 1-1 tie — causing the series to be silently dropped.
- *
+ * and once as dire looked like a 1-1 tie.
  * Regression case: PARIVISION vs Nigma Galaxy (DreamLeague S29, May 16 2026).
- * PARIVISION won game 1 as dire and game 2 as radiant → appeared as a 1-1 BO3.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -154,9 +161,10 @@ describe('seriesHasWinner', () => {
 // ── normalizeRawNullSeriesIds ─────────────────────────────────────────────────
 //
 // Regression: Tundra vs VP, DreamLeague S29, May 20 2026.
-// G3 had series_id=null. The boundary guard only sees G1+G2 (both 1 win) →
-// thinks it's an incomplete BO3 → drops G1+G2. With pre-normalization G3 is
-// included in the win count → Tundra has 2 wins → series correctly kept.
+// G3 had series_id=null. Without pre-normalization, HomeFeed's groupIntoSeries
+// sees G1+G2 as a separate bucket and G3 as an orphan → series appears 1-1
+// (incomplete) → dropped. With pre-normalization G3 gets the correct series_id
+// → groupIntoSeries groups all three → Tundra has 2 wins → series correctly kept.
 
 describe('normalizeRawNullSeriesIds', () => {
   function rawGame(matchId, radiantName, direName, radiantWin, seriesId, startTime, leagueName = 'DreamLeague Season 29', seriesType = 1) {
@@ -203,10 +211,12 @@ describe('normalizeRawNullSeriesIds', () => {
     expect(() => normalizeRawNullSeriesIds([])).not.toThrow()
   })
 
-  it('combined: boundary guard correctly keeps a BO3 where G3 has null series_id', () => {
+  it('combined: groupIntoSeries correctly keeps a BO3 where G3 has null series_id', () => {
     // Regression: Tundra vs VP. G1: VP wins, G2: Tundra wins, G3: Tundra wins (null id).
-    // Without pre-normalization, guard sees G1+G2 as 1-1 incomplete → drops them.
-    // With pre-normalization, G3 gets series_id assigned → Tundra has 2 wins → kept.
+    // Without pre-normalization, groupIntoSeries buckets G1+G2 separately from G3 →
+    // the G1+G2 bucket is 1-1 (incomplete) and gets dropped.
+    // With pre-normalization, G3 gets series_id assigned → all three in one bucket
+    // → Tundra has 2 wins → series correctly marked complete.
     const G1 = rawGame(100, 'Tundra Esports', 'Virtus.pro', false, 1099664, 10000)
     const G2 = rawGame(101, 'Virtus.pro', 'Tundra Esports', false, 1099664, 14000)
     const G3 = rawGame(102, 'Virtus.pro', 'Tundra Esports', false, null,    18000)

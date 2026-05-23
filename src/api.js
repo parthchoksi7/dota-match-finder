@@ -120,27 +120,21 @@ export async function fetchProMatches(lastMatchId = null) {
   })
   const cursor = data[data.length - 1].match_id
 
-  // Pre-normalize null series_id on raw matches before the boundary guard runs.
-  // OpenDota occasionally omits series_id on the final game of a BO3 (G3 arrives
-  // Pre-normalize null series_id before the boundary guard so it can count
+  // Pre-normalize null series_id on raw matches so groupIntoSeries can count
   // all games (including a G3 returned by OpenDota without a series_id).
   normalizeRawNullSeriesIds(allMatches)
 
-  // Drop the last series only if it is genuinely incomplete (could be cut off by pagination).
-  // Never drop series_id=0 (standalone BO1s) and never drop a series that already has a winner.
-  const last = allMatches[allMatches.length - 1]
-  const lastSeriesId = last?.series_id
-  let filtered = allMatches
-  if (lastSeriesId != null && lastSeriesId !== 0) {
-    const lastSeriesGames = allMatches.filter(m => m.series_id === lastSeriesId)
-    // Note: BO2 draw (1-1) is intentionally not checked here — this guard only asks
-    // "could more games still be played?", not "has the series ended?".
-    if (!seriesHasWinner(lastSeriesGames)) {
-      filtered = allMatches.filter(m => m.series_id !== lastSeriesId)
-    }
-  }
+  // No per-page boundary guard here. HomeFeed's groupIntoSeries already drops the
+  // oldest incomplete series from the accumulated allMatches state, and it operates
+  // on the full combined dataset rather than a single page. A per-page guard here
+  // caused a data-loss bug: when a BO3 was split so that the older game fell on the
+  // next page (e.g. game 1 on page N+1, games 2+3 on page N), the guard permanently
+  // dropped games 2+3 from the page N output. Page N+1 then only contributed game 1,
+  // leaving the series permanently incomplete and invisible. Without this guard,
+  // all games reach allMatches and the HomeFeed guard + auto-load together ensure the
+  // full series appears once enough pages are loaded.
 
-  const matches = filtered.map((m) => ({
+  const matches = allMatches.map((m) => ({
     id: String(m.match_id),
     tournament: m.league_name,
     date: new Date(m.start_time * 1000).toLocaleDateString('en-US', {
