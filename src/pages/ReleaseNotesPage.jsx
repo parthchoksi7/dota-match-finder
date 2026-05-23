@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 22, 2026",
+    tag: "fix",
+    title: "Team indicator tooltips no longer clip on the right side",
+    desc: "Tooltips for game event badges (Rampage, Rapier, etc.) next to the right-side team name were being cut off by the page edge. They now anchor to the right so the full label is always visible.",
+  },
+  {
+    date: "May 22, 2026",
     tag: "new",
     title: "Just Ended — see results the moment a series finishes",
     desc: "Completed series now appear on the homepage within about a minute of ending, before OpenDota has indexed the games. Results, series score, and tournament context come from PandaScore. Replay links and draft data appear automatically once OpenDota catches up, then the entry fades out of the Just Ended section.",

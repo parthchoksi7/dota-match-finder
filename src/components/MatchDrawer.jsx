@@ -292,6 +292,7 @@ function MatchDrawer({
                   megaComebackTeams={drawerIndicatorSets.megaComeback}
                   rampageTeams={drawerIndicatorSets.rampage}
                   teamName={match.direTeam}
+                  tooltipAlign="right"
                 />
               )}
               <span className={`font-display font-black text-base sm:text-lg uppercase tracking-wide truncate text-right ${direNameColor}`}>
