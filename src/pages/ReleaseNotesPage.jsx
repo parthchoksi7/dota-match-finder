@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 25, 2026",
+    tag: "fix",
+    title: "G4 and G5 now reachable in BO5 series",
+    desc: "The game switcher tab bar in the match drawer was clipping on narrow screens — only G1–G3 were visible and there was no way to scroll to G4 or G5. The tab bar now scrolls horizontally so all games in a BO5 series are always reachable.",
+  },
+  {
     date: "May 24, 2026",
     tag: "new",
     title: "Tournament player leaderboards",

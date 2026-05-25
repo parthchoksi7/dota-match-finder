@@ -751,7 +751,7 @@ function App() {
             key={game.id}
             type="button"
             onClick={() => handleSelectMatch(game, 'game_switcher')}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors ${
+            className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors ${
               game.id === selectedMatch?.id
                 ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'

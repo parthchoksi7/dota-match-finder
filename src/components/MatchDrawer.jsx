@@ -235,7 +235,7 @@ function MatchDrawer({
         </div>
 
         {gameSwitcher && (
-          <div className="px-5 py-2.5 border-b border-gray-800 shrink-0">
+          <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden px-5 py-2.5 border-b border-gray-800 shrink-0" style={{ scrollbarWidth: 'none' }}>
             {gameSwitcher}
           </div>
         )}
