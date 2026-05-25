@@ -1,0 +1,110 @@
+# Spectate Esports
+
+> Real-time pro Dota 2 esports platform. Live match scores, timestamped Twitch VODs, hero drafts, gold advantage graphs, player stats, tournament brackets, and AI match summaries. Covers Tier 1 international events: DreamLeague, ESL One, PGL, BLAST, WePlay, The International.
+
+Spectate Esports (https://spectateesports.live) is a Dota 2 esports intelligence platform serving professional match data in real time. It aggregates live scores from PandaScore, match statistics and draft data from OpenDota, video-on-demand links from Twitch, and news from Steam, Liquipedia, and editorial sources. Every completed match includes a direct Twitch VOD link timestamped to game start, the full hero pick-and-ban sequence, a per-minute gold advantage graph, end-game player stats (kills, deaths, assists, net worth, items), and an AI-generated match summary. The platform covers only Tier 1 professional Dota 2 matches.
+
+## Main Pages
+
+- [Home](https://spectateesports.live/): Live match scores with series progress, upcoming scheduled matches, and completed results. Automatically updates every 2 minutes. Shows current game scores, active streams (Twitch/YouTube), and series format (BO1/BO3/BO5).
+- [Tournaments](https://spectateesports.live/tournaments): All active, upcoming, and recently completed Tier 1 Dota 2 tournaments. Shows prize pools, team counts, date ranges, and tournament status.
+- [News](https://spectateesports.live/news): Aggregated Dota 2 esports headlines from Steam Community, Liquipedia (roster transfers), editorial sources (PCGamesN, Dot Esports), and Currents API. Updated every 30 minutes.
+- [Calendar](https://spectateesports.live/calendar): Subscribe to .ics calendar feeds for specific teams or entire tournaments. Compatible with Google Calendar, Apple Calendar, and Outlook.
+- [About](https://spectateesports.live/about): Site description, data sources, methodology, and contact information.
+- [Release Notes](https://spectateesports.live/release-notes): Feature changelog and version history.
+
+## Tournament Pages
+
+Each tournament at /tournament/{id} includes:
+- Team rosters with player names, nationalities, and regional affiliations (WEU/EEU/CN/SEA/NA/SA)
+- Group stage standings (W-L records, seedings)
+- Playoff bracket (upper/lower bracket, round labels: Grand Final, Semifinal, Quarterfinal)
+- Hero pick/ban frequency statistics across all tournament games
+- AI-generated tournament summary
+- Full match schedule with dates and times
+
+## Match Pages
+
+Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
+- Direct Twitch VOD link timestamped to exact game start
+- Hero draft in pick/ban order with player assignments
+- Per-minute gold advantage graph (radiant vs dire gold lead over time)
+- End-game player statistics: kills, deaths, assists, net worth, items, GPM
+- AI match summary: draft analysis, strategy breakdown, MVP, key moments
+- Series context: BO format, series score, game number within the series
+
+## Data Coverage
+
+### Tier 1 Tournaments Covered
+- DreamLeague (ESL Gaming / DreamHack) — premier international LAN circuit
+- ESL One — international LAN events (Birmingham, Kuala Lumpur, etc.)
+- PGL — major international LAN organizer (PGL Wallachia, PGL Lausanne)
+- BLAST — international circuit (BLAST Slam, BLAST Bounty)
+- WePlay — international esports organizer (WePlay Esport)
+- The International (TI) — Valve's annual Dota 2 world championship, largest prize pool in esports history ($40M+)
+- Riyadh Masters — Saudi Arabia-based super tournament
+- Beyond The Summit (BTS) — boutique production studio events
+
+### Top Teams (2025-2026 Pro Circuit)
+- Team Spirit (EEU) — TI12 champions, Russian-led roster
+- Gaimin Gladiators (WEU) — Western European powerhouse
+- Tundra Esports (WEU)
+- Team Liquid (WEU)
+- OG (WEU) — two-time TI champions (TI8, TI9)
+- Team Falcons (WEU/international)
+- BetBoom Team (EEU)
+- Nigma Galaxy (WEU/Middle East)
+- Virtus.pro (EEU)
+- Evil Geniuses (NA)
+- Talon Esports (SEA)
+- Xtreme Gaming (CN)
+- Azure Ray (CN)
+
+## Dota 2 Glossary
+
+- **Dota 2**: A multiplayer online battle arena (MOBA) game developed by Valve Corporation. Two teams of 5 players compete to destroy the opponent's Ancient structure.
+- **Draft / Pick-Ban**: The pre-game hero selection phase. Teams alternate banning heroes from the pool and picking heroes for their lineup. Strategy and counterpicks are central to professional play.
+- **BO1/BO3/BO5**: Series format. Best-of-1 (single game decides winner), Best-of-3 (first to 2 wins), Best-of-5 (first to 3 wins). BO2 (best-of-2, scored as 1-1 draw possible) also exists in group stages.
+- **VOD**: Video on Demand — a recorded broadcast of a match, typically hosted on Twitch. Spectate Esports provides direct VOD links timestamped to game start.
+- **GPM**: Gold Per Minute — a key economy metric measuring a player's gold income rate. Carries (position 1 players) typically have the highest GPM.
+- **Radiant / Dire**: The two factions in Dota 2. Radiant = light side (bottom-left of map), Dire = dark side (top-right).
+- **Roshan**: A powerful neutral boss on the map. Killing Roshan grants the Aegis of the Immortal (prevents death once) to the killing team's designated carry player.
+- **Rampage**: Killing 5 enemy heroes within approximately 40 seconds. The highest kill streak achievement in Dota 2.
+- **Divine Rapier**: A high-risk high-reward item (item ID 133) that grants massive attack damage but drops on the ground when the carrier dies. Teams purchasing it signal desperation or a decisive push.
+- **Gold Swing**: A large shift in gold advantage between teams. Spectate Esports tracks swings of 20,000+ gold as a notable match event.
+- **Mega Creeps**: Empowered lane creeps that spawn when all barracks of one team are destroyed. Extremely difficult to defend against without team coordination.
+- **Tier 1 Tournaments**: Elite professional Dota 2 events with prize pools typically $500K–$40M. Organized by Valve partners (ESL, PGL, BLAST, WePlay) or Valve directly (The International).
+- **Series Score**: The count of individual games won within a series. In a BO3, a 2-0 score means the winner won both games consecutively.
+- **TI (The International)**: Dota 2's annual world championship organized by Valve. The largest prize pool in esports history. Teams qualify through regional leagues, direct invites, and regional qualifiers.
+- **DPC (Dota Pro Circuit)**: Valve's official competitive circuit, the primary qualification pathway for The International.
+- **Carry (Position 1)**: A late-game scaling hero role that farms gold early to become powerful late. Highest GPM player on each team.
+- **Midlaner (Position 2)**: Solo mid-lane hero, typically a playmaking or tempo-setting role.
+- **Offlaner (Position 3)**: The "hard lane" solo hero, often a tanky or initiating role.
+- **Support (Position 4/5)**: Utility and vision-oriented roles. Position 5 is the "hard support" who sacrifices farm for team utility.
+- **Bracket Stage**: Playoff format using single or double elimination brackets. Upper Bracket winners have advantage; Lower Bracket losers are eliminated.
+- **Group Stage**: Swiss system or round-robin format used in the early stage of tournaments to determine playoff seedings.
+- **Aegis of the Immortal**: The item obtained by killing Roshan. Grants one free death (respawn in place) to the carrier.
+- **Buyback**: Spending gold to immediately respawn after death. A critical decision point in late-game team fights.
+- **Net Worth**: Total gold value of a player's items plus their bank gold. A key metric for assessing player economy and team advantages.
+
+## Data Sources & Methodology
+
+- **Match results and statistics**: OpenDota API (open source, community-maintained database of all Dota 2 matches). Typically indexes completed matches 30–90 minutes after a series ends.
+- **Live scores and tournament structure**: PandaScore API (commercial esports data provider). Provides real-time game scores, tournament brackets, rosters, and stream links. Cached every 2 minutes.
+- **VOD links**: Twitch Helix API. Stream channel matched via PandaScore stream metadata; VOD timestamp derived from match start time cross-referenced with Twitch broadcast history.
+- **News**: Steam Community RSS (official Valve announcements), Liquipedia MediaWiki API (roster/transfer news parsed from Portal:Transfers), PCGamesN and Dot Esports (editorial RSS feeds), Currents API (aggregated esports coverage). Cached 30 minutes.
+- **AI summaries**: Anthropic Claude Haiku for per-match summaries; Claude Sonnet for tournament summaries and analytics queries.
+- **Calendar feeds**: .ics format (iCalendar) generated server-side from PandaScore match schedules. Served at persistent URLs for calendar app subscriptions.
+
+## Machine-Readable Endpoints
+
+- Sitemap: https://spectateesports.live/sitemap.xml
+- Live matches (JSON): https://spectateesports.live/api/live-matches
+- Upcoming matches (JSON): https://spectateesports.live/api/upcoming-matches
+- Tournament list (JSON): https://spectateesports.live/api/tournaments?mode=series
+- News articles (JSON): https://spectateesports.live/api/news
+- All-tournament calendar (.ics): https://spectateesports.live/api/tournaments?mode=calendar-all
+
+## Optional
+
+- [llms-full.txt](https://spectateesports.live/llms-full.txt): Extended version of this file with complete player rosters, full hero list, API response schemas, and historical tournament data.

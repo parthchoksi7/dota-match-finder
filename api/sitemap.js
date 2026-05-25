@@ -65,6 +65,32 @@ export default async function handler(req, res) {
   </url>`
     })
 
+    // Fetch tournament series for /tournament/:id URLs
+    let tournamentUrls = []
+    try {
+      const seriesRes = await fetch(`${BASE_URL}/api/tournaments?mode=series`).catch(() => null)
+      if (seriesRes?.ok) {
+        const seriesData = await seriesRes.json().catch(() => null)
+        const allSeries = [
+          ...(seriesData?.running || []),
+          ...(seriesData?.upcoming || []),
+          ...(Array.isArray(seriesData?.completed) ? seriesData.completed.slice(0, 10) : []),
+        ]
+        tournamentUrls = allSeries.map(s => {
+          const date = s.beginAt ? new Date(s.beginAt).toISOString().slice(0, 10) : ''
+          const changefreq = s.status === 'running' ? 'hourly' : s.status === 'upcoming' ? 'daily' : 'never'
+          const priority = s.status === 'running' ? '0.9' : s.status === 'upcoming' ? '0.8' : '0.6'
+          return `  <url>
+    <loc>${BASE_URL}/tournament/${s.id}</loc>${date ? `\n    <lastmod>${date}</lastmod>` : ''}
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+  </url>`
+        })
+      }
+    } catch (_) {
+      // silently skip — match URLs still included
+    }
+
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -97,6 +123,12 @@ export default async function handler(req, res) {
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>${BASE_URL}/llms.txt</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+${tournamentUrls.join('\n')}
 ${urls.join('\n')}
 </urlset>`
 

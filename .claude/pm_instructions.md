@@ -206,7 +206,32 @@ Generate:
 
 ---
 
-## 8. Prioritization
+## 8. AI + Search Discoverability
+
+For every feature, evaluate:
+
+**Rendering & crawlability**
+* Will important content be visible to AI crawlers without JavaScript execution?
+* Does this feature introduce new public routes that need middleware coverage in `middleware.js`?
+* What structured data schema applies (SportsEvent, SportsTeam, Person, BroadcastEvent, WebPage)?
+
+**Entity relationships**
+* Does this feature introduce a new entity type (hero, player, team, tournament, match, broadcast)?
+* How does this entity connect to existing entities in the knowledge graph?
+* Does it have a stable URL that can become a long-term citation target?
+
+**Content authority**
+* Is the data unique to SpectateEsports, or available elsewhere?
+* Is it durable (evergreen) or transient (live scores expire)?
+* Can an LLM extract a factual, citable summary from the page?
+
+**LLM file updates**
+* Does `public/llms.txt` need a new entry for this page or API?
+* Does `public/llms-full.txt` need updated entity data, API schemas, or glossary terms?
+
+For all of these, specify what changes are needed in the engineering spec's "Suggested Engineering Approach" section. Read `.claude/ai_discoverability.md` for the full implementation checklist.
+
+## 9. Prioritization
 
 Evaluate:
 
@@ -289,6 +314,17 @@ Extensions and long-term ideas.
 
 High-level implementation direction ONLY.
 DO NOT generate production code unless explicitly asked.
+
+# AI + Search Discoverability
+
+For this specific feature, answer:
+- Does it introduce a new public route? If yes, what middleware handler and JSON-LD schema are needed?
+- Does it introduce a new entity type (hero, player, team, tournament)? What is its stable URL pattern?
+- What content will be visible to bare-HTML crawlers (no JS)? What goes in the server-rendered root div?
+- What updates are needed to `public/llms.txt` and `public/llms-full.txt`?
+- Is any new API endpoint or mode added? Does it need an entry in the Machine-Readable Endpoints section?
+- Does this strengthen an entity relationship in the knowledge graph? Which entities does it connect?
+- Could any page or data point introduced here become a long-term citation target for LLMs?
 
 # Open Questions
 

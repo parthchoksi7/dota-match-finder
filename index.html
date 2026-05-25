@@ -39,6 +39,36 @@
   <meta name="twitter:description" content="Find any pro Dota 2 match and jump straight to the Twitch VOD at the exact timestamp." />
   <meta name="twitter:site" content="@spectateesports" />
   <meta name="twitter:image" content="https://spectateesports.live/og-image.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://spectateesports.live/#website",
+        "name": "Spectate Esports",
+        "url": "https://spectateesports.live",
+        "description": "Pro Dota 2 esports platform for live match tracking, timestamped Twitch VODs, hero drafts, gold advantage graphs, and AI match summaries.",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://spectateesports.live/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "SportsOrganization",
+        "@id": "https://spectateesports.live/#organization",
+        "name": "Spectate Esports",
+        "url": "https://spectateesports.live",
+        "sport": "Dota 2",
+        "description": "Pro Dota 2 esports data platform covering Tier 1 international tournaments including DreamLeague, ESL One, PGL, BLAST, WePlay, and The International. Provides live scores, VOD links, hero drafts, match statistics, and AI analysis."
+      }
+    ]
+  }
+  </script>
 </head>
   <body>
     <div id="root"></div>

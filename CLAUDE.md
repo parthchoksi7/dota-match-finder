@@ -8,6 +8,7 @@ Before pushing anything to production, read `.claude/claude_instructions_templat
 - **Any UI or visual change** — read `DESIGN_GUIDELINES.md` before touching any className, component, or copy
 - **Any feature work, bug fix, or API change** — read the relevant section of `CONTEXT.md` first; understand existing patterns before writing new code
 - **Any refactor** — check `.claude/pending-refactors.md` before starting; if you spot a refactor opportunity while working, add it there rather than doing it unplanned inline
+- **Every new page, route, API endpoint, or entity type** — read `.claude/ai_discoverability.md` and apply the implementation checklist; AI + search discoverability is mandatory for all features, not optional
 
 ## Keep current after changes
 

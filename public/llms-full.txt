@@ -1,0 +1,527 @@
+# Spectate Esports — Full LLM Reference
+
+> Comprehensive machine-readable reference for AI systems. Includes complete entity data, hero lists, API response schemas, team rosters, historical context, and technical architecture details.
+
+This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuning datasets, and deep AI retrieval systems. See https://spectateesports.live/llms.txt for the concise version.
+
+---
+
+## Site Identity
+
+- **Name**: Spectate Esports
+- **URL**: https://spectateesports.live
+- **X (Twitter)**: @spectateesports
+- **Category**: Esports data platform / Dota 2 match viewer
+- **Coverage**: Tier 1 professional Dota 2 only (DreamLeague, ESL One, PGL, BLAST, WePlay, The International, Riyadh Masters, BTS)
+- **Data freshness**: Live scores update every 2 minutes; completed match stats index 30–90 min after series ends
+- **Founded**: 2024
+
+---
+
+## Complete Page Index
+
+### Core Pages
+- **Home** (https://spectateesports.live/) — Live matches, upcoming schedule, completed results. Polls every 2 minutes. Shows series score (e.g. 1-0 in a BO3), current game number, active Twitch/YouTube streams, tournament name, and bracket round label (e.g. "Grand Final", "Upper Bracket Semifinal").
+- **Tournaments** (https://spectateesports.live/tournaments) — Index of all Tier 1 series. Filterable by status: running/upcoming/completed. Shows prize pools in USD, team counts, date ranges, region breakdown.
+- **Tournament Detail** (https://spectateesports.live/tournament/{id}) — Full tournament hub for a single event series. Tabs: Info (overview + live matches), Standings (W-L table with advancing/eliminated zones), Schedule (bracket view), Stats (hero pick/ban table + player performance leaderboard), Videos (YouTube highlights).
+- **News** (https://spectateesports.live/news) — Aggregated news feed. Sources: Steam Community (official patches), Liquipedia (roster moves), PCGamesN, Dot Esports, Currents API. Filters by category (roster, patch, match-result). Unread indicator tracks articles since last visit.
+- **Calendar** (https://spectateesports.live/calendar) — Subscribe to .ics feeds. Three modes: (1) All Tournaments feed (every Tier 1 match auto-updating), (2) Team-specific feed (select teams by name), (3) Per-tournament feed. Generates webcal:// URLs for one-click add to Google/Apple/Outlook calendar.
+- **Match Detail** (https://spectateesports.live/match/{slug}-{matchId}) — Individual game page. Slug format: `{team-a}-vs-{team-b}-{tournament-name}-{matchId}`. Contains VOD link, draft, gold graph, player stats, AI summary.
+- **About** (https://spectateesports.live/about) — Site description and data attribution.
+- **Release Notes** (https://spectateesports.live/release-notes) — Chronological feature changelog.
+
+---
+
+## Tier 1 Tournament Organizers (Entity Map)
+
+### ESL Gaming / DreamHack
+- **DreamLeague**: Premier European-based Dota 2 LAN circuit. Multiple seasons per year. Held in Stockholm, Sweden. Prize pool: $500K–$1M per season. Top-8 format with group stage + double-elimination playoffs.
+- **ESL One**: International LAN events. Locations vary: Birmingham (UK), Kuala Lumpur (Malaysia), Melbourne (Australia). Prize pools $300K–$500K.
+
+### PGL (Professional Gamers League)
+- **PGL Wallachia**: Held in Bucharest, Romania.
+- **PGL Lausanne**: Held in Lausanne, Switzerland.
+- PGL is known for high production quality and strong community engagement. Prize pools $500K+.
+
+### BLAST
+- **BLAST Slam**: Premier BLAST Dota 2 event. International format.
+- **BLAST Bounty**: Secondary BLAST circuit event.
+
+### WePlay Esport
+- Ukrainian esports organization. Notable for creative broadcast production.
+- **WePlay AniMajor**, **WePlay Academy League**, various international events.
+
+### Valve Corporation
+- **The International (TI)**: Annual world championship. The flagship Dota 2 event. Prize pool historically $10M–$40M (crowdfunded via in-game Battle Pass). Teams qualify via regional leagues + direct Valve invites + regional qualifiers. TI10 (2021) had $40.02M prize pool, the largest in esports history.
+- TI history: TI1 (2011, Cologne), TI2 (2012, Seattle), TI3 (2013, Seattle), TI4 (2014, Seattle), TI5 (2015, Seattle), TI6 (2016, Seattle), TI7 (2017, Seattle), TI8 (2018, Vancouver), TI9 (2019, Shanghai), TI10 (2021, Bucharest), TI11 (2022, Singapore), TI12 (2023, Seattle), TI13 (2024, Copenhagen).
+
+### Riyadh Masters
+- Saudi Arabia-based super tournament. Organized by Gamers8. Prize pools $15M+. Held in Riyadh, Saudi Arabia.
+
+### Beyond The Summit (BTS)
+- Boutique production studio based in Los Angeles. Known for relaxed, personality-driven broadcasts. Lower prize pools but high production quality.
+
+---
+
+## Tier 1 Teams — Detailed Roster Reference
+
+### Team Spirit (EEU — Eastern Europe)
+- **Region**: Eastern Europe / Russia
+- **TI wins**: TI10 (2021), TI12 (2023)
+- **Key players**: Yatoro (carry), Miposhka (captain/support), Collapse (offlaner), TORONTOTOKYO (midlaner), Mira (support)
+- **Organization based in**: Russia
+
+### Gaimin Gladiators (WEU — Western Europe)
+- **Region**: Western Europe
+- **Key players**: Boom (carry), tOfu (support), dyrachyo (midlaner), Quinn (offlaner), Seleri (support)
+- **Known for**: Strong team fight, aggressive playstyle
+
+### Tundra Esports (WEU)
+- **Region**: Western Europe
+- **TI wins**: TI11 (2022)
+- **Key players**: skiter (carry), 33 (offlaner), Sneyking (support), Nine (midlaner), March (support)
+- **Organization based in**: United Kingdom
+
+### Team Liquid (WEU)
+- **Region**: Western Europe
+- **Key players**: miCKe (carry), iNSaNiA (captain/support), Nisha (midlaner), Boxi (offlaner), zai (support)
+- **Organization based in**: Netherlands
+
+### OG (WEU)
+- **Region**: Western Europe
+- **TI wins**: TI8 (2018), TI9 (2019) — only team to win The International twice
+- **Historic roster**: ana (carry), N0tail (captain/support), JerAx (support), s4 (offlaner), Topson (midlaner)
+- **Current roster**: Varies (multiple roster changes since TI9)
+
+### Team Falcons (WEU/International)
+- **Region**: Western Europe / Middle East
+- **Organization based in**: Saudi Arabia
+- **Notable**: Backed by Gamers8 organization
+
+### BetBoom Team (EEU)
+- **Region**: Eastern Europe / Russia
+- **Key players**: RAMZES666 (carry), Pure (carry/mid), Nightfall (offlaner)
+
+### Nigma Galaxy (WEU/Middle East)
+- **Region**: Western Europe / Middle East
+- **History**: Formed from Liquid's TI8 runner-up roster
+- **Key players**: KuroKy (captain), w33 (midlaner), miracle- (carry)
+
+### Virtus.pro (EEU)
+- **Region**: Eastern Europe / Russia
+- **Organization**: Russian esports organization, one of the oldest in the scene
+
+### Evil Geniuses (NA)
+- **Region**: North America
+- **Notable**: First Western team to win a major Dota 2 event (TI5, 2015)
+- **Historic key player**: Sumail Hassan (youngest player to earn $1M in esports)
+
+### Talon Esports (SEA)
+- **Region**: Southeast Asia
+- **Organization based in**: Bangkok, Thailand
+
+### Xtreme Gaming (CN)
+- **Region**: China
+- **Key players**: Ame (carry), Yang (midlaner)
+
+### Azure Ray (CN)
+- **Region**: China
+- **Organization**: Chinese Dota 2 organization
+
+---
+
+## Complete Dota 2 Hero Reference (by Primary Attribute)
+
+### Strength Heroes (selected major pro picks)
+- Axe — Offlane initiator. Berserker's Call + Culling Blade combo.
+- Centaur Warrunner — Tanky offlaner with Return passive and Stampede global team ability.
+- Dragon Knight — Durable midlaner/offlaner. Dragon Blood tankiness + Elder Dragon Form transformation.
+- Earthshaker — Support/offlaner. Fissure terrain-blocking + Echo Slam team fight ultimate.
+- Lycan — Carry/offlaner. Summons wolves, Shapeshift ultimate for burst damage.
+- Mars — Offlane initiator. Arena Of Blood crowd control ultimate.
+- Night Stalker — Roaming support/offlaner. Darkness night vision advantage.
+- Omniknight — Support. Repel magic immunity, Guardian Angel invulnerability ultimate.
+- Primal Beast — Offlane. Trample area damage, Uproar scaling strength gain.
+- Slardar — Offlane initiator. Corrosive Haze armor reduction, Amplify Damage.
+- Tidehunter — Offlane. Gush slow, Ravage global-range team fight ultimate.
+- Timbersaw — Offlane. Pure damage Whirling Death, Chakram area control.
+- Underlord — Offlane. Firestorm area pressure, Pit of Malice root, Dark Rift global teleport.
+- Wraith King — Carry. Mortal Strike critical strike, Reincarnation passive resurrection.
+
+### Agility Heroes (selected major pro picks)
+- Anti-Mage — Hard carry. Mana Burn (counters intelligence heroes), Mana Void nuke.
+- Drow Ranger — Carry. Precision Aura global range damage, Gust silence.
+- Gyrocopter — Carry. Multi-target damage with Rocket Barrage and Call Down ultimate.
+- Juggernaut — Carry. Bladefury magic immunity, Omnislash ultimate.
+- Lifestealer — Carry. Feast lifesteal, Rage magic immunity, Infest ability.
+- Lone Druid — Carry. Spirit Bear summon, True Form transformation.
+- Luna — Carry. Moon Glaives cleave, Eclipse ultimate burst damage.
+- Medusa — Late-game carry. Mana Shield, Split Shot multi-target, Stone Gaze area ultimate.
+- Meepo — Carry. Clone copies with Poof ability. Requires high mechanical skill.
+- Morphling — Carry. Attribute Shift (agility/strength), Replicate hero-copy ability.
+- Naga Siren — Carry/support. Mirror Image illusions, Song of the Siren area sleep ultimate.
+- Phantom Assassin — Carry. Coup de Grace critical strike, Blur evasion.
+- Phantom Lancer — Carry. Spirit Lance, Doppelwalk, Juxtapose illusion army.
+- Razor — Mid/Carry. Plasma Field, Static Link (drains enemy damage), Unstable Current.
+- Shadow Fiend — Mid. Necromastery soul mechanic, Requiem of Souls ultimate.
+- Slark — Carry. Pounce (leash), Dark Pact (dispel), Shadow Dance evasion ultimate.
+- Spectre — Carry. Haunt global ultimate (illusions to all enemies), Spectral Dagger.
+- Terrorblade — Carry. Metamorphosis, Reflection (reversal illusion), Sunder HP swap ultimate.
+- Ursa — Carry. Fury Swipes stacking damage, Enrage damage reduction ultimate.
+- Weaver — Carry. Time Lapse rewind ultimate. Shukuchi invisibility + phased movement.
+
+### Intelligence Heroes (selected major pro picks)
+- Ancient Apparition — Support. Ice Blast ultimate that prevents healing when it kills.
+- Crystal Maiden — Support. Global mana regen aura, Freezing Field ultimate.
+- Dark Seer — Offlane/support. Ion Shell, Vacuum + Wall of Replica combo.
+- Death Prophet — Mid. Exorcism spirits ultimate. Strong push/teamfight hero.
+- Enigma — Jungle/offlane. Black Hole global teamfight ultimate. Malefice stun.
+- Invoker — Mid. Most complex hero; 10 spells invoked from 3 orbs. Sun Strike, Cold Snap, Tornado, EMP, Chaos Meteor, Deafening Blast, Forge Spirit, Alacrity, Ghost Walk, Ice Wall.
+- Leshrac — Mid/support. Pulse Nova area damage, Lightning Storm chain stun.
+- Lina — Mid/support. Light Strike Array stun, Laguna Blade nuke.
+- Lion — Support. Earth Spike stun, Mana Drain, Finger of Death nuke.
+- Nyx Assassin — Support/ganker. Spiked Carapace reflect, Impale stun, Mana Burn.
+- Outworld Destroyer — Mid. Arcane Orb unique damage. Sanity's Eclipse ultimate.
+- Puck — Mid. Phase Shift magic immunity, Dream Coil ultimate.
+- Pugna — Mid/support. Decrepify, Nether Ward mana punisher, Life Drain.
+- Rubick — Support. Spell Steal ultimate copies any enemy ability. Grand Magus of magic play.
+- Silencer — Support/mid. Global Silence ultimate, Curse of the Silent mana burn, Last Word.
+- Tinker — Mid. March of the Machines, Rearm ultimate (refreshes all items + abilities).
+- Visage — Support/mid. Grave Chill, Gravekeeper's Cloak, Familiars summons.
+- Zeus — Mid/support. Thundergod's Wrath global damage ultimate, Lightning Bolt.
+
+### Universal Heroes (selected major pro picks)
+- Arc Warden — Carry. Tempest Double ultimate creates a clone with full item copies.
+- Brewmaster — Offlane/support. Primal Split ultimate splits into 3 elemental avatars.
+- Chen — Support. Holy Persuasion converts neutral creeps. Requiresmap awareness.
+- Clockwerk — Support/offlane. Hookshot grappling hook initiation, Cog trapping.
+- Elder Titan — Support. Echo Stomp sleep, Earth Splitter area ultimate.
+- Faceless Void — Carry. Chronosphere time-stop ultimate. Backtrack evasion.
+- Io — Support. Tether (link to ally for heal/ms), Relocate global teleport ultimate. One of the most complex support heroes.
+- Keeper of the Light — Support. Illuminate AoE nuke, Blinding Light, Spirit Form phase.
+- Marci — Offlane/support. Unleash combo ultimate. Dispose repositioning.
+- Mirana — Support/mid. Sacred Arrow long-range stun, Moonlight Shadow team invisibility.
+- Nature's Prophet — Offlaner/jungler. Teleportation (global), Sprout, Treant summons, Wrath of Nature ultimate.
+- Pangolier — Mid/offlane. Rolling Thunder ultimate. Lucky Shot passive.
+- Sand King — Support/offlane. Epicenter channel ultimate with massive AoE damage.
+- Storm Spirit — Mid. Ball Lightning mobility (charges-based movement). Electric Vortex.
+
+---
+
+## API Response Schemas
+
+### GET /api/live-matches
+Returns array of live Dota 2 series currently being played.
+```json
+[
+  {
+    "id": "string (PandaScore match ID)",
+    "teamA": "string (team name)",
+    "teamB": "string (team name)",
+    "tournament": "string (tournament display name)",
+    "seriesLabel": "string (e.g. 'BO3')",
+    "bracketRound": "string | null (e.g. 'Grand Final', 'Upper Bracket Semifinal')",
+    "seriesScore": "string (e.g. '1-0')",
+    "currentGame": "number | null (game currently being played, 1-indexed)",
+    "streams": [{ "url": "string", "language": "string" }],
+    "youtubeStream": "string | null",
+    "games": [
+      {
+        "position": "number",
+        "status": "string ('running'|'finished'|'not_started')",
+        "winnerName": "string | null",
+        "matchId": "string | null (OpenDota match ID)",
+        "beginAt": "string (ISO 8601)",
+        "length": "number | null (seconds)"
+      }
+    ]
+  }
+]
+```
+
+### GET /api/upcoming-matches
+Returns array of Dota 2 series scheduled in the next 72 hours.
+```json
+[
+  {
+    "id": "string",
+    "scheduledAt": "string (ISO 8601)",
+    "teamA": "string",
+    "teamB": "string",
+    "tournament": "string",
+    "seriesLabel": "string",
+    "bracketRound": "string | null",
+    "streams": [{ "url": "string", "language": "string" }]
+  }
+]
+```
+
+### GET /api/tournaments?mode=series
+Returns categorized list of Dota 2 tournament series.
+```json
+{
+  "running": [
+    {
+      "id": "number (PandaScore series ID)",
+      "name": "string (full series name, e.g. 'DreamLeague Season 29 2025')",
+      "leagueName": "string (e.g. 'DreamLeague')",
+      "status": "'running'",
+      "beginAt": "string (ISO 8601)",
+      "endAt": "string | null",
+      "prizePool": "number | null (USD)",
+      "prizePoolCurrency": "string | null",
+      "winner": { "name": "string", "imageUrl": "string | null" } | null,
+      "teamsCount": "number",
+      "tier": "string ('s'|'a')"
+    }
+  ],
+  "upcoming": [...],
+  "completed": [...]
+}
+```
+
+### GET /api/news
+Returns aggregated Dota 2 news articles.
+```json
+{
+  "articles": [
+    {
+      "id": "string (URL hash)",
+      "title": "string",
+      "url": "string",
+      "source": "string (e.g. 'steam-dota2', 'liquipedia', 'pcgamesn', 'dotesports', 'currents')",
+      "publishedAt": "string (ISO 8601)",
+      "description": "string | null",
+      "imageUrl": "string | null",
+      "categories": ["string"],
+      "tags": ["string (matched tier-1 entities, e.g. 'Team Spirit', 'DreamLeague')"]
+    }
+  ],
+  "meta": {
+    "sources": { "steam-dota2": "number", "liquipedia": "number", ... },
+    "fetchedAt": "string (ISO 8601)",
+    "cached": "boolean",
+    "total": "number"
+  }
+}
+```
+
+### GET /api/tournament-detail?series=1&id={seriesId}
+Returns full tournament detail for a specific series.
+```json
+{
+  "name": "string",
+  "leagueName": "string",
+  "status": "'running'|'upcoming'|'finished'",
+  "beginAt": "string (ISO 8601)",
+  "endAt": "string | null",
+  "prizePool": "number | null",
+  "teams": [
+    {
+      "id": "number",
+      "name": "string",
+      "imageUrl": "string | null",
+      "region": "string (WEU|EEU|CN|SEA|NA|SA|ANZ|ME)",
+      "qualificationStatus": "string | null",
+      "players": [
+        {
+          "id": "number",
+          "name": "string (in-game name)",
+          "realName": "string | null",
+          "nationality": "string (country code)",
+          "role": "string | null"
+        }
+      ]
+    }
+  ],
+  "standings": [
+    { "rank": "number", "teamName": "string", "wins": "number", "losses": "number" }
+  ],
+  "stages": [
+    {
+      "id": "number",
+      "name": "string",
+      "status": "'running'|'upcoming'|'finished'",
+      "format": "'group'|'bracket'|'swiss'",
+      "beginAt": "string | null",
+      "endAt": "string | null"
+    }
+  ],
+  "bracket": [
+    {
+      "round": "string (e.g. 'Grand Final', 'Semifinal', 'Upper Bracket Final')",
+      "position": "number",
+      "teamA": "string | null",
+      "teamB": "string | null",
+      "winner": "string | null",
+      "status": "string"
+    }
+  ],
+  "summary": "string | null (AI-generated tournament summary, cached 24h)"
+}
+```
+
+### GET /api/tournaments?mode=match-stats&id={matchId}
+Returns end-game statistics for a single OpenDota match.
+```json
+{
+  "radiantGoldAdv": [number],
+  "players": [
+    {
+      "slot": "number (0-4 Radiant, 128-132 Dire)",
+      "heroId": "number",
+      "name": "string (pro player name)",
+      "netWorth": "number",
+      "items": [number],
+      "backpackItems": [number],
+      "kills": "number",
+      "deaths": "number",
+      "assists": "number",
+      "isRadiant": "boolean"
+    }
+  ],
+  "events": [
+    {
+      "type": "'rapier'|'rampage'|'roshan'",
+      "team": "'radiant'|'dire'",
+      "player": "string | null",
+      "time": "number (seconds from game start)",
+      "index": "number | null (Roshan kill number)"
+    }
+  ],
+  "itemNames": { "[itemId]": "string (item name)" },
+  "firstBloodTime": "number | null (seconds)",
+  "roshanKills": "number"
+}
+```
+
+---
+
+## Match URL Structure
+
+Match pages follow a keyword-rich slug format designed for readability and SEO:
+
+```
+/match/{team-a}-vs-{team-b}-{tournament-slug}-{matchId}
+```
+
+Examples:
+- `/match/team-spirit-vs-gaimin-gladiators-dreamleague-s29-8234521`
+- `/match/tundra-esports-vs-team-liquid-esl-one-birmingham-7891234`
+- `/match/og-vs-betboom-team-pgl-wallachia-s4-8345678`
+
+The numeric matchId at the end is the OpenDota match ID. Match IDs are globally unique across all Dota 2 matches.
+
+---
+
+## Regional Structure of Pro Dota 2
+
+Professional Dota 2 is organized into competitive regions:
+
+- **WEU (Western Europe)**: Teams from UK, Germany, Netherlands, France, Sweden, Denmark, etc. Historically the strongest region. Most TI winners.
+- **EEU (Eastern Europe)**: Teams from Russia, Ukraine, Belarus, Poland, etc. Strong mechanical players. Team Spirit (TI10, TI12 champions).
+- **CN (China)**: Teams from China. Historically dominant (Newbee, LGD, OG's rivals). Xtreme Gaming, Azure Ray, PSG.LGD.
+- **SEA (Southeast Asia)**: Teams from Thailand, Philippines, Malaysia, Indonesia. Talon Esports, Execration.
+- **NA (North America)**: Teams from USA and Canada. Evil Geniuses (TI5 champions), 9Pandas.
+- **SA (South America)**: Teams from Brazil, Peru, Argentina. beastcoast, Thunder Awaken.
+- **ANZ (Australia/New Zealand)**: Smaller region, occasionally produces strong teams.
+- **ME (Middle East)**: Growing region. Team Falcons backed by Saudi Arabia's Gamers8.
+
+---
+
+## How VOD Timestamping Works
+
+Spectate Esports uniquely provides Twitch VOD links that jump directly to game start:
+
+1. During a live match, PandaScore's API provides the Twitch stream channel handle (e.g., `eslcs`, `pglesports`)
+2. The match game's `begin_at` timestamp (from PandaScore) is used as the target time
+3. Twitch's Helix API is queried for VODs on that channel within ±1 hour of the start time
+4. The VOD URL is constructed with `?t={seconds_offset}` to jump to the exact game start
+5. The resolved channel handle is cached in Redis (14-day TTL) so future lookups are instant
+
+This eliminates the need to manually scrub through 3-6 hour tournament broadcasts to find specific matches.
+
+---
+
+## AI Match Summaries
+
+Spectate Esports generates AI summaries using Anthropic Claude:
+
+**Match summary format** (Claude Haiku):
+- DRAFT ANALYSIS: Which team won the draft and why (hero synergies, counter-picks)
+- STRATEGY: How each team approached the game (farm-focused vs fight-focused)
+- MVP: Standout player and what they did (hero, notable moments)
+- HIGHLIGHT: Single most memorable moment in the match
+
+**Input to the model**:
+- Hero picks and bans in order (both teams)
+- Player pro names mapped to their heroes
+- Match result (winner)
+- Draft separated from results to prevent attribution errors
+
+**Caching**: Summaries cached in localStorage by match ID; tournament summaries cached 24h in Redis.
+
+---
+
+## Competitive Dota 2 Format Reference
+
+### Group Stage Formats
+- **Swiss System**: Teams paired by win-loss record. No team plays the same opponent twice. Used in DreamLeague, TI group stages.
+- **Round Robin**: Every team plays every other team. Used in smaller group stages.
+- **GSL Format**: Two groups of 4, top 2 from each advance. 3-0 and 0-3 records play a best-of-3 to determine final positions.
+
+### Playoff Formats
+- **Double Elimination**: Upper Bracket (UB) and Lower Bracket (LB). UB winner goes directly to Grand Final with one "life". LB winner must beat UB winner twice in Grand Final. Used in most major Dota 2 events.
+- **Single Elimination**: Direct knockout. Losers eliminated immediately. Used in some smaller events.
+
+### Series Formats
+- **BO1** (Best of 1): Single game. Used in group stages for efficiency.
+- **BO2** (Best of 2): Two games played regardless; 1-1 draw possible. Used in some group stages.
+- **BO3** (Best of 3): First to win 2 games. Typical for lower bracket and upper bracket matches.
+- **BO5** (Best of 5): First to win 3 games. Used for Grand Finals and sometimes semifinals.
+
+---
+
+## Notable Historical Matches (AI Citation Reference)
+
+### The International Historic Grand Finals
+- **TI1 (2011)**: Na'Vi vs EHOME — First TI, Na'Vi won 3-1. $1M prize pool.
+- **TI5 (2015)**: Evil Geniuses vs CDEC Gaming — EG won 3-1. First American TI champions.
+- **TI6 (2016)**: Wings Gaming vs Digital Chaos — Wings won 3-1. Unknown Chinese team's surprise victory.
+- **TI8 (2018)**: OG vs PSG.LGD — OG won 3-2 in epic 5-game series. OG's "miracle" run as wildcard.
+- **TI9 (2019)**: OG vs Team Liquid — OG won 3-1. Only team to win TI twice.
+- **TI10 (2021)**: Team Spirit vs PSG.LGD — Spirit won 3-2. Spirit were massive underdogs; Yatoro's Spectre game 5 performance is legendary.
+- **TI11 (2022)**: Tundra Esports vs Team Secret — Tundra won 3-0. Dominant run through the event.
+- **TI12 (2023)**: Team Spirit vs Gaimin Gladiators — Spirit won 3-0. Second TI win for Spirit.
+
+---
+
+## Unique Data Points (What Makes Spectate Different)
+
+1. **Timestamped VOD links**: No other site provides a direct Twitch link with `?t=` offset to game start. Users find the exact match moment in seconds, not minutes.
+2. **AI match summaries**: Claude-generated draft analysis and strategy breakdown unavailable elsewhere.
+3. **Gold advantage graph**: Interactive per-minute chart with event markers (Roshan kills, Rampages, Divine Rapier purchases) overlaid on the gold line — visible context for who was winning at any point.
+4. **Watchability score**: Algorithmic rating predicting match entertainment value based on gold swings, comeback moments, Rampages, Rapier purchases, series decider status.
+5. **Real-time "Just Ended" feed**: Completed series appear in the feed within minutes of ending, bridging the 30-90 minute OpenDota indexing lag using PandaScore data.
+6. **Calendar subscriptions**: Auto-updating .ics feeds for entire tournaments or specific teams — unique in the Dota 2 ecosystem.
+7. **Multi-game series grouping**: Automatically groups individual game IDs into BO3/BO5 series — the API data sources (OpenDota, PandaScore) don't provide this cleanly.
+
+---
+
+## Technical Stack Reference
+
+- **Frontend**: React 18 + Vite + Tailwind CSS v3. Single-page application (CSR).
+- **Backend**: Vercel serverless functions (Node.js 20). 12 functions total (Hobby plan limit).
+- **Caching**: Upstash Redis (KV store). TTLs: live matches 2min, upcoming 5min, tournament detail 3min, match stats 7 days, news 30min.
+- **Edge Middleware**: Vercel Edge Middleware (V8 isolates) handles OG tag and JSON-LD injection for direct URL shares.
+- **PWA**: Service worker via Workbox. NetworkFirst for API routes, CacheFirst for images. Offline support for previously-loaded matches.
+- **Push Notifications**: Web Push API with VAPID keys. Subscriptions stored in Redis. Notifications triggered by live match cron (every 2 min).
+
+---
+
+## See Also
+
+- [llms.txt](https://spectateesports.live/llms.txt) — Concise version of this document
+- [Sitemap](https://spectateesports.live/sitemap.xml) — Full URL index
+- [OpenDota](https://docs.opendota.com/) — Primary match data source (open API)
+- [Liquipedia Dota 2](https://liquipedia.net/dota2/) — Complementary wiki and match history

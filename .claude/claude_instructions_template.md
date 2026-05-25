@@ -40,7 +40,15 @@ This applies to: className edits, new components, loading/empty/error states, an
 - Include: date, tag ("new"/"improvement"/"fix"), title, desc, and optional items array
 - Keep most recent releases at the top of the array
 
-### 4. robots.txt and Sitemap
+### 4. AI + Search Discoverability
+- Read `.claude/ai_discoverability.md` and apply its implementation checklist before finalizing any new feature
+- **New public route** → add a handler in `middleware.js` (matcher + route function + JSON-LD + semantic HTML in root div)
+- **New public route** → add entry to `public/llms.txt` (page link + one-line description of what it contains)
+- **New entity type** (hero, player, team) → add to `public/llms-full.txt` with schema and known values; add `SportsTeam`/`Person`/`Thing` JSON-LD to middleware
+- **New API endpoint or mode** → add URL to "Machine-Readable Endpoints" section in `public/llms.txt`; add response schema to `public/llms-full.txt`
+- **Every page** must pass the bare-HTML test: `curl -A "GPTBot/1.0" https://spectateesports.live/{route}` should return a meaningful `<h1>`, `<meta name="description">`, `<link rel="canonical">`, and `<script type="application/ld+json">`
+
+### 6. robots.txt and Sitemap
 - File: `public/robots.txt`
   - Add an explicit `Allow:` line for every new **public** route (e.g. `/tournaments`, `/tournament/`)
   - Never disallow routes that users or search engines should be able to reach
@@ -52,13 +60,13 @@ This applies to: className edits, new components, loading/empty/error states, an
   - Dynamic per-item pages (e.g. `/tournament/:id`) do not need sitemap entries unless there is a finite, known list to enumerate
   - **NEVER add `/analytics` to the sitemap** — it is private and must not be indexed by search engines
 
-### 5. Analytics Tracking
+### 7. Analytics Tracking
 - Add Google Analytics event tracking for ALL new user interactions
 - Event naming convention: `feature_action` (e.g., `vod_click`, `summary_generate`)
 - Required for: buttons, links, form submissions, drawer opens/closes
 - Always use `trackEvent` imported from `../utils` (or `../../utils`). **NEVER define a local `trackEvent` or `logEvent` function in a component** — this creates duplication and drift.
 
-### 6. Automated Testing
+### 8. Automated Testing
 
 **New pure functions, API modes, and data-pipeline logic require dedicated tests. No exceptions.**
 
@@ -75,7 +83,7 @@ UI-only additions (new copy, new static card, new route with no shared logic mod
 - New API handler modes (`?mode=...`) must have integration-style tests covering the core logic path
 - Run `npm test` after writing tests and confirm they pass before proceeding
 
-### 7. Code Review (as a completely different developer)
+### 9. Code Review (as a completely different developer)
 
 After making any code change, do a fresh independent read of **every modified file** as if you are seeing the code for the first time. Assume the author made mistakes. Actively look for:
 
@@ -90,7 +98,7 @@ Use the `Explore` subagent to read and report on each modified file, then fix ev
 
 If you notice a refactor opportunity (duplicate logic, untested pure function, dead code) while reviewing, add it to `.claude/pending-refactors.md` with file path + line range. Do not do it inline unless it is trivially small and isolated.
 
-### 8. Regression Testing
+### 10. Regression Testing
 - Make a calculated decision on whether to run the full test suite based on the scope of changes. You are the expert - use your judgement.
 - Run regression (`npm test`) when:
   - Changes touch shared utilities, API handlers, or components used across multiple pages
@@ -190,19 +198,20 @@ Before deploying to production:
 2. ✅ Run full regression tests (`npm test`) and confirm no pre-existing tests are broken
 3. ✅ **Code review**: re-read every modified file as an independent reviewer (see §7 above); fix all issues found
 4. ✅ **QA step** (beyond unit tests): run through `QA_PROCESS.md` scenarios relevant to the change; for any new API field being read, verify the field name against actual API docs or a live response; for any filter/tier change, manually confirm at least one known tier-S event appears and at least one non-tier-S event is excluded. **CRITICAL: if you add a new query parameter to any external API URL, manually verify that the parameter is accepted by that exact endpoint before shipping** - mocked unit tests do not catch 400/404 responses from the real API. PandaScore note: `filter[tier]` only works on the generic `/tournaments` endpoint, not on game-specific `/dota2/*` endpoints.
-5. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
-6. ✅ Verify API rate limits won't be exceeded
-7. ✅ Test on mobile viewport
-8. ✅ Update `CONTEXT.md` with changes
-9. ✅ Update About page
-10. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
-11. ✅ **Bust KV caches affected by the change** — after any deploy that modifies tier filtering, stream caching, or tournament data logic, bust the relevant caches:
+5. ✅ **AI + search discoverability** — for any new route, API, or entity: middleware handler added, JSON-LD present, `public/llms.txt` updated, `public/llms-full.txt` updated if needed; run the bare-HTML test: `curl -A "GPTBot/1.0" https://spectateesports.live/{route}` must return real content (not an empty div)
+6. ✅ Check all new features have GA tracking (use `trackEvent` from `src/utils.js`; never define locally)
+7. ✅ Verify API rate limits won't be exceeded
+8. ✅ Test on mobile viewport
+9. ✅ Update `CONTEXT.md` with changes
+10. ✅ Update About page
+11. ✅ Update `src/pages/ReleaseNotesPage.jsx` with new release entry
+12. ✅ **Bust KV caches affected by the change** — after any deploy that modifies tier filtering, stream caching, or tournament data logic, bust the relevant caches:
     - Tier-1 league names (homepage match filter): `curl "https://spectateesports.live/api/tournaments?mode=tier1-leagues&bust=1"`
     - Live matches: `curl "https://spectateesports.live/api/live-matches?bust=1"`
     - Tournament list: `curl "https://spectateesports.live/api/tournaments?bust=1"`
     - Only bust what the change actually affects — not all caches every time.
-12. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
-13. ✅ **Post-deploy production verification** — after every deploy that touches any API handler or data pipeline, run:
+13. ✅ Ask user: "Ready to deploy? All tests passed and docs updated."
+14. ✅ **Post-deploy production verification** — after every deploy that touches any API handler or data pipeline, run:
     ```
     npm run verify-prod
     ```
