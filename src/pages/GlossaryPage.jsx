@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
 import { GLOSSARY_TERMS, GLOSSARY_TERM_MAP } from '../data/glossary'
+import { trackEvent } from '../utils'
 
 function GlossaryPage() {
   const path = window.location.pathname
@@ -27,6 +29,8 @@ function GlossaryPage() {
 }
 
 function GlossaryIndex() {
+  useEffect(() => { trackEvent('glossary_index_view', {}) }, [])
+
   return (
     <>
       <p className="text-xs uppercase tracking-[5px] text-red-500 mb-3">Dota 2</p>
@@ -54,6 +58,8 @@ function GlossaryIndex() {
 }
 
 function TermDetail({ term }) {
+  useEffect(() => { trackEvent('glossary_term_view', { term: term.id }) }, [term.id])
+
   return (
     <>
       <p className="text-xs uppercase tracking-[5px] text-red-500 mb-3">
@@ -79,6 +85,7 @@ function TermDetail({ term }) {
                 <a
                   key={id}
                   href={`/glossary/${id}`}
+                  onClick={() => trackEvent('glossary_related_term_click', { from: term.id, to: id })}
                   className="text-xs uppercase tracking-widest px-3 py-1.5 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-600 rounded-sm hover:border-red-500 hover:text-red-500 transition-colors"
                 >
                   {related.term}
