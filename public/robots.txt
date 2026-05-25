@@ -69,6 +69,7 @@ Allow: /glossary/
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/og
+Allow: /api/news
 Disallow: /api/
 Disallow: /analytics
 Disallow: /analytics.html
