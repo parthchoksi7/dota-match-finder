@@ -1,3 +1,6 @@
+import { createPortal } from 'react-dom'
+import { useState, useRef } from 'react'
+
 /**
  * GameIndicators — icon chips for notable game events.
  *
@@ -6,27 +9,42 @@
  */
 
 function Tooltip({ label, children, align = 'center' }) {
-  const posClass = align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
-  const arrowClass = align === 'right' ? 'right-2' : 'left-1/2 -translate-x-1/2'
+  const [triggerRect, setTriggerRect] = useState(null)
+  const ref = useRef(null)
+
   return (
-    <span className="relative group/indicator inline-flex">
+    <span
+      ref={ref}
+      className="inline-flex"
+      onMouseEnter={() => setTriggerRect(ref.current?.getBoundingClientRect() ?? null)}
+      onMouseLeave={() => setTriggerRect(null)}
+    >
       {children}
-      <span
-        role="tooltip"
-        className={`
-          pointer-events-none absolute z-50
-          top-full ${posClass} mt-2
-          px-2.5 py-1.5 rounded-md
-          bg-gray-950 text-white text-[11px] font-medium leading-snug text-center
-          shadow-2xl whitespace-nowrap
-          opacity-0 translate-y-0.5
-          group-hover/indicator:opacity-100 group-hover/indicator:translate-y-0
-          transition-all duration-150 ease-out
-        `}
-      >
-        {label}
-        <span className={`absolute bottom-full ${arrowClass} border-[5px] border-transparent border-b-gray-950`} />
-      </span>
+      {triggerRect && createPortal(
+        <span
+          role="tooltip"
+          style={{
+            position: 'fixed',
+            top: triggerRect.bottom + 6,
+            zIndex: 9999,
+            ...(align === 'right'
+              ? { left: triggerRect.right, transform: 'translateX(-100%)' }
+              : { left: triggerRect.left + triggerRect.width / 2, transform: 'translateX(-50%)' }),
+          }}
+          className="pointer-events-none px-2.5 py-1.5 rounded-md bg-gray-950 text-white text-[11px] font-medium leading-snug whitespace-nowrap shadow-2xl"
+        >
+          {label}
+          <span
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              ...(align === 'right' ? { right: '0.5rem' } : { left: '50%', transform: 'translateX(-50%)' }),
+            }}
+            className="border-[5px] border-transparent border-b-gray-950"
+          />
+        </span>,
+        document.body
+      )}
     </span>
   )
 }

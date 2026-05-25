@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 25, 2026",
     tag: "fix",
+    title: "Game indicator tooltips no longer clip",
+    desc: "The small icon tooltips next to team names (Divine Rapier, Gold Swing, Mega Comeback, Rampage) were being cut off by the card container. They now render in a portal above all other content and display correctly regardless of where the card sits on the page.",
+  },
+  {
+    date: "May 25, 2026",
+    tag: "fix",
     title: "Homepage always opens on today",
     desc: "The homepage now opens on the most useful date rather than always today. If today has matches, it opens on today. If today is empty, it jumps to the next upcoming date. If there are no future matches either, it falls back to the most recent past date — so something is always on screen.",
   },
