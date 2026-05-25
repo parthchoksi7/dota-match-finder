@@ -29,13 +29,14 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 - **Match Detail** (https://spectateesports.live/match/{slug}-{matchId}) — Individual game page. Slug format: `{team-a}-vs-{team-b}-{tournament-name}-{matchId}`. Contains VOD link, draft, gold graph, player stats, AI summary.
 - **About** (https://spectateesports.live/about) — Site description and data attribution.
 - **Release Notes** (https://spectateesports.live/release-notes) — Chronological feature changelog.
+- **Glossary** (https://spectateesports.live/glossary) — Definitions for 25 Dota 2 professional terms (draft, GPM, Roshan, Rampage, BKB, Aegis, etc.). Each term has a dedicated page at /glossary/{term-id} with full definition and related terms. All pages include DefinedTerm schema.org structured data.
 
 ---
 
 ## Tier 1 Tournament Organizers (Entity Map)
 
 ### ESL Gaming / DreamHack
-- **DreamLeague**: Premier European-based Dota 2 LAN circuit. Multiple seasons per year. Held in Stockholm, Sweden. Prize pool: $500K–$1M per season. Top-8 format with group stage + double-elimination playoffs.
+- **DreamLeague**: Premier European-based Dota 2 LAN circuit. Multiple seasons per year. Held at various European venues (historically Stockholm, Leipzig, and others). Prize pool: $500K–$1M+ per season. Top-8 format with group stage + double-elimination playoffs.
 - **ESL One**: International LAN events. Locations vary: Birmingham (UK), Kuala Lumpur (Malaysia), Melbourne (Australia). Prize pools $300K–$500K.
 
 ### PGL (Professional Gamers League)
@@ -52,7 +53,7 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 - **WePlay AniMajor**, **WePlay Academy League**, various international events.
 
 ### Valve Corporation
-- **The International (TI)**: Annual world championship. The flagship Dota 2 event. Prize pool historically $10M–$40M (crowdfunded via in-game Battle Pass). Teams qualify via regional leagues + direct Valve invites + regional qualifiers. TI10 (2021) had $40.02M prize pool, the largest in esports history.
+- **The International (TI)**: Annual world championship. The flagship Dota 2 event. Prize pool from TI1–TI12 was crowdfunded via in-game Battle Pass, reaching $40.02M at TI10 (2021) — the largest prize pool in esports history at the time. Valve discontinued the Battle Pass model after TI12 (2023); subsequent editions have smaller base prize pools. Teams qualify via regional tournament circuits and direct Valve invites.
 - TI history: TI1 (2011, Cologne), TI2 (2012, Seattle), TI3 (2013, Seattle), TI4 (2014, Seattle), TI5 (2015, Seattle), TI6 (2016, Seattle), TI7 (2017, Seattle), TI8 (2018, Vancouver), TI9 (2019, Shanghai), TI10 (2021, Bucharest), TI11 (2022, Singapore), TI12 (2023, Seattle), TI13 (2024, Copenhagen).
 
 ### Riyadh Masters
@@ -283,24 +284,32 @@ Returns categorized list of Dota 2 tournament series.
 ```
 
 ### GET /api/news
-Returns aggregated Dota 2 news articles.
+Returns aggregated Dota 2 news articles. Add `?format=rss` for RSS 2.0 XML output.
 ```json
 {
   "articles": [
     {
-      "id": "string (URL hash)",
+      "id": "string (djb2-xor URL hash for deduplication)",
       "title": "string",
-      "url": "string",
-      "source": "string (e.g. 'steam-dota2', 'liquipedia', 'pcgamesn', 'dotesports', 'currents')",
+      "excerpt": "string (truncated description, max 200 chars)",
+      "url": "string (canonical article URL)",
+      "source": {
+        "id": "string (e.g. 'steam-news-api', 'liquipedia', 'currents')",
+        "name": "string (e.g. 'Dota 2 Official', 'Liquipedia', 'Currents')",
+        "baseUrl": "string",
+        "reliability": "number (1–5)"
+      },
       "publishedAt": "string (ISO 8601)",
-      "description": "string | null",
-      "imageUrl": "string | null",
-      "categories": ["string"],
-      "tags": ["string (matched tier-1 entities, e.g. 'Team Spirit', 'DreamLeague')"]
+      "fetchedAt": "string (ISO 8601)",
+      "tags": {
+        "games": ["string (e.g. 'dota2')"],
+        "categories": ["string (e.g. 'roster', 'tournament', 'patch', 'match-result', 'general')"],
+        "entities": ["string (matched tier-1 team/tournament names found in article text)"]
+      }
     }
   ],
   "meta": {
-    "sources": { "steam-dota2": "number", "liquipedia": "number", ... },
+    "sources": { "steam-news-api": "number", "liquipedia": "number", "currents": "number" },
     "fetchedAt": "string (ISO 8601)",
     "cached": "boolean",
     "total": "number"

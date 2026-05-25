@@ -76,7 +76,7 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 - **Tier 1 Tournaments**: Elite professional Dota 2 events with prize pools typically $500K–$40M. Organized by Valve partners (ESL, PGL, BLAST, WePlay) or Valve directly (The International).
 - **Series Score**: The count of individual games won within a series. In a BO3, a 2-0 score means the winner won both games consecutively.
 - **TI (The International)**: Dota 2's annual world championship organized by Valve. The largest prize pool in esports history. Teams qualify through regional leagues, direct invites, and regional qualifiers.
-- **DPC (Dota Pro Circuit)**: Valve's official competitive circuit, the primary qualification pathway for The International.
+- **DPC (Dota Pro Circuit)**: Valve's official competitive circuit, used as the primary qualification pathway for The International from 2017 to 2023. Discontinued after TI12; current qualification uses tournament circuit points directly.
 - **Carry (Position 1)**: A late-game scaling hero role that farms gold early to become powerful late. Highest GPM player on each team.
 - **Midlaner (Position 2)**: Solo mid-lane hero, typically a playmaking or tempo-setting role.
 - **Offlaner (Position 3)**: The "hard lane" solo hero, often a tanky or initiating role.
@@ -139,4 +139,4 @@ Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes 
 
 ## Optional
 
-- [llms-full.txt](https://spectateesports.live/llms-full.txt): Extended version of this file with complete player rosters, full hero list, API response schemas, and historical tournament data.
+- [llms-full.txt](https://spectateesports.live/llms-full.txt): Extended version of this file with team history, full hero list, API response schemas, and historical tournament data.
