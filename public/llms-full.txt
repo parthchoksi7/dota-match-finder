@@ -10,11 +10,11 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 
 - **Name**: Spectate Esports
 - **URL**: https://spectateesports.live
-- **X (Twitter)**: @spectateesports
+- **X (Twitter)**: https://x.com/SpectateDota2
 - **Category**: Esports data platform / Dota 2 match viewer
 - **Coverage**: Tier 1 professional Dota 2 only (DreamLeague, ESL One, PGL, BLAST, WePlay, The International, Riyadh Masters, BTS)
 - **Data freshness**: Live scores update every 2 minutes; completed match stats index 30–90 min after series ends
-- **Founded**: 2024
+- **Founded**: 2026
 
 ---
 
@@ -63,70 +63,72 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 
 ---
 
-## Tier 1 Teams — Detailed Roster Reference
+## Tier 1 Teams — Background & History
+
+> **Note on rosters**: Professional Dota 2 rosters change frequently between and during seasons. This section covers organizational history, region, TI record, and known playstyle. For current player rosters, see Liquipedia: https://liquipedia.net/dota2/Portal:Teams
 
 ### Team Spirit (EEU — Eastern Europe)
 - **Region**: Eastern Europe / Russia
-- **TI wins**: TI10 (2021), TI12 (2023)
-- **Key players**: Yatoro (carry), Miposhka (captain/support), Collapse (offlaner), TORONTOTOKYO (midlaner), Mira (support)
 - **Organization based in**: Russia
+- **TI wins**: TI10 (2021), TI12 (2023) — two-time world champions
+- **Known for**: Surprise TI10 win as underdogs, decisive teamfight execution, strong individual skill depth
 
 ### Gaimin Gladiators (WEU — Western Europe)
 - **Region**: Western Europe
-- **Key players**: Boom (carry), tOfu (support), dyrachyo (midlaner), Quinn (offlaner), Seleri (support)
-- **Known for**: Strong team fight, aggressive playstyle
+- **Known for**: Aggressive teamfight style, one of the most consistent WEU rosters in recent seasons
 
 ### Tundra Esports (WEU)
 - **Region**: Western Europe
-- **TI wins**: TI11 (2022)
-- **Key players**: skiter (carry), 33 (offlaner), Sneyking (support), Nine (midlaner), March (support)
 - **Organization based in**: United Kingdom
+- **TI wins**: TI11 (2022)
+- **Known for**: Strategic depth, methodical playstyle under experienced captain leadership
 
 ### Team Liquid (WEU)
 - **Region**: Western Europe
-- **Key players**: miCKe (carry), iNSaNiA (captain/support), Nisha (midlaner), Boxi (offlaner), zai (support)
 - **Organization based in**: Netherlands
+- **Known for**: iNSaNiA's long-time captaincy, consistent Tier 1 presence, cerebral drafting style
 
 ### OG (WEU)
 - **Region**: Western Europe
-- **TI wins**: TI8 (2018), TI9 (2019) — only team to win The International twice
-- **Historic roster**: ana (carry), N0tail (captain/support), JerAx (support), s4 (offlaner), Topson (midlaner)
-- **Current roster**: Varies (multiple roster changes since TI9)
+- **TI wins**: TI8 (2018), TI9 (2019) — only team to win The International twice consecutively
+- **Historic TI roster (TI8/TI9)**: ana (carry), N0tail (captain/support), JerAx (support), s4 (offlaner), Topson (midlaner)
+- **Known for**: Wildly unorthodox drafts, the "ana return" narrative, legendary two-peat achievement
 
 ### Team Falcons (WEU/International)
 - **Region**: Western Europe / Middle East
 - **Organization based in**: Saudi Arabia
-- **Notable**: Backed by Gamers8 organization
+- **Notable**: Backed by Gamers8; strong international roster acquisitions
 
 ### BetBoom Team (EEU)
 - **Region**: Eastern Europe / Russia
-- **Key players**: RAMZES666 (carry), Pure (carry/mid), Nightfall (offlaner)
+- **Known for**: Former VP and EG veterans on roster; EEU scene mainstay
 
 ### Nigma Galaxy (WEU/Middle East)
 - **Region**: Western Europe / Middle East
-- **History**: Formed from Liquid's TI8 runner-up roster
-- **Key players**: KuroKy (captain), w33 (midlaner), miracle- (carry)
+- **History**: Formed from Team Liquid's TI8 runner-up roster; later merged branding with Galaxy Racer
+- **Known for**: KuroKy's long-running captaincy and Liquid/Nigma continuity
 
 ### Virtus.pro (EEU)
 - **Region**: Eastern Europe / Russia
-- **Organization**: Russian esports organization, one of the oldest in the scene
+- **Organization**: One of the oldest and most recognized Russian esports organizations; formerly Na`Vi rivals in EEU
 
 ### Evil Geniuses (NA)
 - **Region**: North America
-- **Notable**: First Western team to win a major Dota 2 event (TI5, 2015)
-- **Historic key player**: Sumail Hassan (youngest player to earn $1M in esports)
+- **TI wins**: TI5 (2015) — first Western organization to win The International
+- **Historic note**: Sumail Hassan (mid) became the youngest player to earn $1M in esports prize money at TI5
 
 ### Talon Esports (SEA)
 - **Region**: Southeast Asia
 - **Organization based in**: Bangkok, Thailand
+- **Known for**: Representing SEA region at international events; roster often draws from SEA and Filipino talent
 
 ### Xtreme Gaming (CN)
 - **Region**: China
-- **Key players**: Ame (carry), Yang (midlaner)
+- **Known for**: Strong Chinese meta execution; Ame (one of the most decorated carry players in Chinese Dota history) has been associated with the org
 
 ### Azure Ray (CN)
 - **Region**: China
-- **Organization**: Chinese Dota 2 organization
+- **Known for**: Chinese Dota 2 organization with focus on emerging CN talent; established during the post-TI11 CN roster shuffle period
 
 ---
 

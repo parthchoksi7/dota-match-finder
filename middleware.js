@@ -326,7 +326,7 @@ async function handleAbout(url) {
         'name': SITE_NAME,
         'url': BASE_URL,
         'description': description,
-        'sameAs': ['https://x.com/spectateesports'],
+        'sameAs': ['https://x.com/SpectateDota2'],
       },
     ],
   }
