@@ -5,6 +5,17 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 25, 2026",
+    tag: "improvement",
+    title: "Faster page loads and first-click VOD response",
+    desc: "Three network optimizations shipped together.",
+    items: [
+      "Match format and bracket round data now loads in a single request instead of two parallel ones, cutting one network round-trip per page of results.",
+      "The Twitch token is now fetched in the background as soon as the page loads, so opening the first match drawer no longer waits for an extra network call.",
+      "Hero icons and names are now cached in localStorage for 24 hours. Navigating away and back no longer re-downloads the hero list from OpenDota.",
+    ],
+  },
+  {
+    date: "May 25, 2026",
     tag: "fix",
     title: "Removed redundant team matchup line on match cards",
     desc: "PandaScore sometimes sends a match name like \"Liquid vs Xtreme\" with no bracket label. This was being parsed and shown as a second line below the team names, duplicating the same information. Match cards now only show that second line when it contains a real bracket label (e.g. Upper Bracket Final, Grand Final).",
