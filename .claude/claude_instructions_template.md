@@ -260,7 +260,7 @@ These features are intentionally hidden from public documentation. They are gate
 
 ## /preview vs Homepage Boundary
 
-`/preview` (`src/pages/PreviewPage.jsx`) and the homepage (`src/App.jsx`, `MatchCard.jsx`, `LatestMatches.jsx`, etc.) are separate design surfaces. Changes requested for `/preview` must NEVER touch homepage components, and vice versa. Shared components (`MatchDrawer.jsx`, `TournamentHub.jsx`, etc.) may only be changed in ways that are backward-compatible and do not alter homepage behaviour.
+`/preview` (`src/pages/PreviewPage.jsx`) and the homepage (`src/App.jsx`, `MatchCard.jsx`, `HomeFeed.jsx`, etc.) are separate design surfaces. Changes requested for `/preview` must NEVER touch homepage components, and vice versa. Shared components (`MatchDrawer.jsx`, `TournamentHub.jsx`, etc.) may only be changed in ways that are backward-compatible and do not alter homepage behaviour.
 
 ## VOD Channel Resolution
 
