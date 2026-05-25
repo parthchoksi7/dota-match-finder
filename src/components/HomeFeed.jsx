@@ -96,13 +96,7 @@ function HomeFeed({
 
     const dates = pastKeys.map(k => ({ key: k, label: getDateLabel(dayTimestamps[k]) }))
 
-    const hasToday = liveMatches.length > 0
-      || upcomingMatches.some(m => new Date(m.scheduledAt).toDateString() === todayKey)
-      || Object.prototype.hasOwnProperty.call(dayTimestamps, todayKey)
-
-    if (hasToday) {
-      dates.push({ key: todayKey, label: 'Today' })
-    }
+    dates.push({ key: todayKey, label: 'Today' })
 
     const hasTomorrow = upcomingMatches.some(m => new Date(m.scheduledAt).toDateString() === tomorrowKey)
     if (hasTomorrow) {
@@ -130,10 +124,7 @@ function HomeFeed({
   }, [completeSeries, liveMatches, upcomingMatches, todayKey, tomorrowKey])
 
   // Default to most recent date with data; prefer today if today has data.
-  const defaultDateKey = availableDates.some(d => d.key === todayKey)
-    ? todayKey
-    : (availableDates[availableDates.length - 1]?.key ?? todayKey)
-  const resolvedDate = activeDate ?? defaultDateKey
+  const resolvedDate = activeDate ?? todayKey
 
   // Windowed date strip: show only 1 previous date + selected + all future dates.
   // New data from background fetches only surfaces one pill at a time as the user navigates back.
