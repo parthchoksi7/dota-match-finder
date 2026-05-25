@@ -64,6 +64,8 @@ Allow: /tournaments
 Allow: /tournament/
 Allow: /calendar
 Allow: /news
+Allow: /glossary
+Allow: /glossary/
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/og

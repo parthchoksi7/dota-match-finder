@@ -554,6 +554,39 @@ export default async function handler(req, res) {
 
   articles = articles.slice(0, limit)
 
+  if (req.query?.format === 'rss') {
+    const rssItems = articles.map(a => {
+      const safeTitle = escapeXml(a.title || '')
+      const safeDesc = escapeXml(a.excerpt || '')
+      const safeLink = escapeXml(a.url || '')
+      const safeGuid = escapeXml(a.url || '')
+      const pubDate = a.publishedAt ? new Date(a.publishedAt).toUTCString() : ''
+      return `    <item>
+      <title>${safeTitle}</title>
+      <link>${safeLink}</link>
+      <description>${safeDesc}</description>
+      <guid isPermaLink="true">${safeGuid}</guid>
+      ${pubDate ? `<pubDate>${pubDate}</pubDate>` : ''}
+    </item>`
+    }).join('\n')
+
+    const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Spectate Esports — Dota 2 News</title>
+    <link>https://spectateesports.live/news</link>
+    <description>Latest Dota 2 esports news: pro match results, roster transfers, patch notes, and tournament updates from Steam, Liquipedia, and editorial sources.</description>
+    <language>en-us</language>
+    <atom:link href="https://spectateesports.live/api/news?format=rss" rel="self" type="application/rss+xml" />
+    <ttl>30</ttl>
+${rssItems}
+  </channel>
+</rss>`
+
+    res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
+    return res.status(200).send(rss)
+  }
+
   return res.status(200).json({
     articles,
     meta: {
@@ -561,4 +594,13 @@ export default async function handler(req, res) {
       total: articles.length,
     },
   })
+}
+
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }

@@ -11,6 +11,7 @@ import TournamentDetail from './pages/TournamentDetail.jsx'
 import Calendar from './pages/Calendar.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
 import NewsPage from './pages/NewsPage.jsx'
+import GlossaryPage from './pages/GlossaryPage.jsx'
 
 const path = window.location.pathname
 
@@ -22,6 +23,7 @@ function Root() {
   if (path === '/calendar') return <Calendar />
   if (path === '/analytics') return <AnalyticsPage />
   if (path === '/news') return <NewsPage />
+  if (path === '/glossary' || path.startsWith('/glossary/')) return <GlossaryPage />
   return <App />
 }
 

@@ -1,5 +1,12 @@
 import { getPremiumLeagueIds } from './_shared.js'
 
+const GLOSSARY_TERM_IDS = [
+  'draft', 'gpm', 'roshan', 'rampage', 'divine-rapier', 'aegis', 'mega-creeps',
+  'buyback', 'net-worth', 'first-blood', 'smoke-of-deceit', 'ancient', 'barracks',
+  'bkb', 'tp-scroll', 'courier', 'carry', 'support', 'offlane', 'mid-lane',
+  'last-hit', 'deny', 'teamfight', 'bounty-rune', 'true-sight',
+]
+
 function slugify(str) {
   return (str || '')
     .toLowerCase()
@@ -128,6 +135,16 @@ export default async function handler(req, res) {
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
+  <url>
+    <loc>${BASE_URL}/glossary</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+${GLOSSARY_TERM_IDS.map(id => `  <url>
+    <loc>${BASE_URL}/glossary/${id}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`).join('\n')}
 ${tournamentUrls.join('\n')}
 ${urls.join('\n')}
 </urlset>`

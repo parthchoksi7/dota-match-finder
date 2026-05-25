@@ -87,6 +87,37 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 - **Buyback**: Spending gold to immediately respawn after death. A critical decision point in late-game team fights.
 - **Net Worth**: Total gold value of a player's items plus their bank gold. A key metric for assessing player economy and team advantages.
 
+## Glossary Pages
+
+Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes the term name, short definition, full definition, and related terms. All pages include DefinedTerm schema.org structured data.
+
+- [Glossary Index](https://spectateesports.live/glossary): All 25 terms listed
+- [Draft](https://spectateesports.live/glossary/draft): Hero pick-and-ban phase
+- [GPM](https://spectateesports.live/glossary/gpm): Gold Per Minute metric
+- [Roshan](https://spectateesports.live/glossary/roshan): Neutral boss objective
+- [Rampage](https://spectateesports.live/glossary/rampage): 5-kill streak achievement
+- [Divine Rapier](https://spectateesports.live/glossary/divine-rapier): High-risk high-damage item
+- [Aegis of the Immortal](https://spectateesports.live/glossary/aegis): Roshan drop that prevents death
+- [Mega Creeps](https://spectateesports.live/glossary/mega-creeps): Empowered creeps after all barracks fall
+- [Buyback](https://spectateesports.live/glossary/buyback): Gold-cost immediate respawn mechanic
+- [Net Worth](https://spectateesports.live/glossary/net-worth): Team economy metric tracked in gold graphs
+- [First Blood](https://spectateesports.live/glossary/first-blood): First hero kill of the game
+- [Smoke of Deceit](https://spectateesports.live/glossary/smoke-of-deceit): Team invisibility consumable for ganks
+- [Ancient](https://spectateesports.live/glossary/ancient): Main win-condition structure
+- [Barracks](https://spectateesports.live/glossary/barracks): Lane structures that unlock Mega Creeps when destroyed
+- [BKB](https://spectateesports.live/glossary/bkb): Black King Bar — magic immunity item
+- [TP Scroll](https://spectateesports.live/glossary/tp-scroll): Town Portal Scroll — teleportation consumable
+- [Courier](https://spectateesports.live/glossary/courier): Item delivery unit
+- [Carry](https://spectateesports.live/glossary/carry): Position 1 late-game scaling role
+- [Support](https://spectateesports.live/glossary/support): Position 4/5 utility and vision roles
+- [Offlane](https://spectateesports.live/glossary/offlane): Position 3 hard-lane solo role
+- [Mid Lane](https://spectateesports.live/glossary/mid-lane): Position 2 center-lane solo role
+- [Last Hit](https://spectateesports.live/glossary/last-hit): Creep kill mechanic for gold
+- [Deny](https://spectateesports.live/glossary/deny): Allied creep kill mechanic to block enemy gold
+- [Teamfight](https://spectateesports.live/glossary/teamfight): Multi-hero engagement over objectives
+- [Bounty Rune](https://spectateesports.live/glossary/bounty-rune): Gold-granting map rune spawning every 3 minutes
+- [True Sight](https://spectateesports.live/glossary/true-sight): Invisibility detection mechanic
+
 ## Data Sources & Methodology
 
 - **Match results and statistics**: OpenDota API (open source, community-maintained database of all Dota 2 matches). Typically indexes completed matches 30–90 minutes after a series ends.
@@ -103,6 +134,7 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 - Upcoming matches (JSON): https://spectateesports.live/api/upcoming-matches
 - Tournament list (JSON): https://spectateesports.live/api/tournaments?mode=series
 - News articles (JSON): https://spectateesports.live/api/news
+- News feed (RSS 2.0): https://spectateesports.live/api/news?format=rss
 - All-tournament calendar (.ics): https://spectateesports.live/api/tournaments?mode=calendar-all
 
 ## Optional

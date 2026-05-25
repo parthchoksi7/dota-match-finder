@@ -7,8 +7,41 @@ export const config = {
     '/about',
     '/release-notes',
     '/calendar',
+    '/glossary',
+    '/glossary/:termId*',
   ],
 }
+
+// Glossary term definitions (kept inline — edge middleware cannot import from src/)
+const GLOSSARY_TERMS_SSR = [
+  { id: 'draft', term: 'Draft', shortDef: 'The hero pick-and-ban phase before each Dota 2 game.', definition: 'The draft is the strategic pre-game phase where teams alternate banning and picking heroes. In Captains Mode — used in all professional play — banned heroes cannot be picked by either side, and no hero appears on both teams. The draft is the most strategically complex phase of professional Dota 2. Teams prepare custom strategies targeting opponents, exploiting weaknesses, or counter-picking predicted lineups.' },
+  { id: 'gpm', term: 'GPM (Gold Per Minute)', shortDef: 'A stat measuring a player\'s average gold income rate throughout the game.', definition: 'GPM (Gold Per Minute) equals total gold earned divided by game duration in minutes. Carry players typically achieve 700–900 GPM; supports average 200–400 GPM. High GPM indicates effective farming, kill participation, and bounty rune collection. GPM is the primary metric for evaluating carry performance and net-worth leads.' },
+  { id: 'roshan', term: 'Roshan', shortDef: 'The most powerful neutral monster in Dota 2. Killing it grants the Aegis of the Immortal.', definition: 'Roshan is a unique neutral monster in the river pit. Killing him grants the Aegis of the Immortal (revives carrier once) and, after the first kill, Cheese. He respawns 8–11 minutes after death. Roshan is the most contested objective in professional Dota 2 — teams plan entire match strategies around his timing windows.' },
+  { id: 'rampage', term: 'Rampage', shortDef: 'Killing all 5 enemy heroes within approximately 40 seconds — the highest kill streak in Dota 2.', definition: 'A Rampage is achieved when a single hero kills all 5 enemy heroes within ~40 seconds. It is extremely rare in professional play. A distinct global audio cue plays on achievement. On Spectate Esports, a Rampage badge appears on the match card and draft for any player who scored one.' },
+  { id: 'divine-rapier', term: 'Divine Rapier', shortDef: 'A 6,200-gold item granting massive damage that drops on death — a desperation or decisive-push purchase.', definition: 'Divine Rapier costs 6,200 gold and grants +330 attack damage — the highest raw damage item. Its drawback: it drops when the carrier dies and the enemy can pick it up permanently. A Rapier purchase signals an imminent high-stakes teamfight. On Spectate Esports, a sword badge appears when a team held a Rapier.' },
+  { id: 'aegis', term: 'Aegis of the Immortal', shortDef: 'An item dropped by Roshan that revives the carrier in place after death.', definition: 'The Aegis is dropped by Roshan when killed — not purchasable. The carrier is resurrected with full health and mana if they die. The Aegis expires after 5 minutes unused. Professional teams almost always give it to their carry, enabling high-risk plays and base dives that would otherwise be fatal.' },
+  { id: 'mega-creeps', term: 'Mega Creeps', shortDef: 'Empowered creep waves that spawn when all of a team\'s barracks are destroyed.', definition: 'Mega Creeps spawn when all six barracks of a team are destroyed. They are significantly stronger than regular creeps — more damage, more health. The defending team must win a decisive teamfight or use buybacks, as heroes cannot hold lanes solo against Mega Creep pressure.' },
+  { id: 'buyback', term: 'Buyback', shortDef: 'Spending gold to immediately respawn after death — a critical comeback and defense mechanic.', definition: 'Buyback lets any hero pay ~(100 + net_worth/13) gold to instantly respawn, bypassing the respawn timer. Late-game buybacks cost 2,000–4,000+ gold. After buyback, there is a 25-second grace period before another can be used. Buyback decisions are among the most strategically significant moments in any professional match.' },
+  { id: 'net-worth', term: 'Net Worth', shortDef: 'The total gold value of a player\'s items plus unspent gold — the primary team economy metric.', definition: 'Net worth is the gold value of all items in a player\'s inventory plus unspent gold. Spectate Esports tracks combined team net worth over time in the gold advantage graph. A 10,000 gold lead is significant; 20,000+ indicates dominance. Large net-worth swings correspond to teamfight outcomes and map control shifts.' },
+  { id: 'first-blood', term: 'First Blood', shortDef: 'The first hero kill of the game — earns the killer bonus gold.', definition: 'First Blood is the first hero kill of a Dota 2 game. The scorer receives bonus gold and a distinct global audio cue plays. It reveals strategic information: which lane lost a hero, how aggressive each team is playing, and which hero the enemy is targeting.' },
+  { id: 'smoke-of-deceit', term: 'Smoke of Deceit', shortDef: 'A consumable that makes a group of heroes invisible and grants movement speed — used for coordinated ganks.', definition: 'Smoke of Deceit (50 gold) makes the user and nearby allies invisible with +15% movement speed. Invisibility breaks within ~1,025 units of an enemy hero or tower. Used to coordinate unseen rotations to ambush isolated enemies or set up Roshan. Professional teams buy 5–10 smokes per game.' },
+  { id: 'ancient', term: 'Ancient', shortDef: 'The main structure each team must destroy to win the game.', definition: 'The Ancient is the primary win-condition structure at each team\'s base. Destroying the enemy Ancient ends the game instantly regardless of any other game state. Teams must fight through towers and barracks to reach it. Sometimes teams delay the final push to secure an Aegis or avoid a buyback window.' },
+  { id: 'barracks', term: 'Barracks', shortDef: 'Structures behind Tier 3 towers that, when destroyed, grant the enemy empowered creeps.', definition: 'Each lane has two barracks (ranged and melee). Destroying an enemy barracks upgrades your own creeps in that lane. Destroying all six spawns Mega Creeps. In professional play, taking barracks allows a carry to farm elsewhere while empowered creep waves push autonomously.' },
+  { id: 'bkb', term: 'BKB (Black King Bar)', shortDef: 'A 4,050-gold item granting 9–5 seconds of magic immunity — standard in professional matches.', definition: 'Black King Bar (4,050 gold) grants Avatar status when activated — immunity to magic damage and most disabling spells for 9 seconds, decreasing by 1 second per use (minimum 5 seconds). Carries build BKB to survive crowd control in teamfights. "BKB out" signals a window to chain-disable an enemy carry.' },
+  { id: 'tp-scroll', term: 'TP Scroll (Town Portal Scroll)', shortDef: 'A 100-gold consumable that teleports a hero to any friendly structure after a 3-second channel.', definition: 'The TP Scroll (100 gold) teleports a hero to any friendly tower or barracks after a 3-second channel. 65-second cooldown. Essential for map coverage — defending towers, responding to ganks, and converging on objectives. Being "caught without TP" is a frequent strategic mistake in professional play.' },
+  { id: 'courier', term: 'Courier', shortDef: 'A personal unit that delivers items from the base stash to heroes anywhere on the map.', definition: 'Each player starts with a personal courier in modern Dota 2. It automatically carries purchased items from the base to the hero on the map. Killing an enemy courier early denies critical item delivery. Courier efficiency is a key support responsibility in professional play.' },
+  { id: 'carry', term: 'Carry (Position 1)', shortDef: 'The primary late-game damage dealer who farms to scale into the most powerful hero.', definition: 'Carries (Position 1) are weak early but dominant late game once core items are assembled. They spend the first 15–25 minutes farming to maximize GPM and net worth. Carry farm efficiency, item timing, and teamfight impact are primary professional performance metrics. Common carries: Juggernaut, Anti-Mage, Morphling, Terrorblade.' },
+  { id: 'support', term: 'Support (Position 4 / Position 5)', shortDef: 'Utility roles who buy vision wards and sacrifice farm to enable teammates.', definition: 'Supports (Position 4 soft support, Position 5 hard support) sacrifice personal farm to buy vision (observer wards, sentry wards), smoke of deceit, and utility items. Hard supports have the lowest gold income of any role. Support quality — vision control, stun timing, save spells — is frequently the differentiating factor between professional teams.' },
+  { id: 'offlane', term: 'Offlane (Position 3)', shortDef: 'The solo lane role — plays opposite the enemy carry to disrupt their farm.', definition: 'The offlaner (Position 3) plays in the "hard" lane opposite the enemy carry, typically facing a 1v2 or 1v3 situation. They require high durability and strong utility. Their goal is denying carry farm while creating lane pressure, then transitioning to a teamfight role. Iconic offlaners: Axe, Tidehunter, Centaur Warrunner.' },
+  { id: 'mid-lane', term: 'Mid Lane (Position 2)', shortDef: 'The solo center lane role — high-mobility heroes who rotate to create early advantages.', definition: 'Mid laners (Position 2) play the center lane in a 1v1 matchup. The mid lane is the shortest on the map and has nearby rune spawns. Mid laners aim to win their lane and rotate to create kills elsewhere. Common mids: Lina, Storm Spirit, Puck, Invoker, Shadow Fiend.' },
+  { id: 'last-hit', term: 'Last Hit', shortDef: 'Dealing the killing blow to a creep or building to collect the gold bounty.', definition: 'Only the hero landing the killing blow on a creep receives gold. This makes farming a skill-intensive mechanical discipline. Professional carries achieve 600+ last-hits by minute 30. Last-hit count versus deny count (e.g. 150/15) is the standard laning-phase performance metric.' },
+  { id: 'deny', term: 'Deny', shortDef: 'Killing your own low-health creep to prevent the enemy from collecting its gold or experience.', definition: 'A deny is killing an allied creep below 50% health before an enemy can last-hit it. This prevents the enemy from collecting the gold bounty and reduces their experience gain. Denial is a core Dota 2 mechanic that distinguishes it from other MOBAs, where denying your own creeps is impossible.' },
+  { id: 'teamfight', term: 'Teamfight', shortDef: 'A multi-hero engagement where three or more heroes from each team clash over objectives.', definition: 'Teamfights are the climactic moments of Dota 2 — they determine map control, Roshan, and barracks. Professional teams build entire strategies around forcing or avoiding fights under specific conditions: BKBs active vs. on cooldown, after key ultimates are ready, or from smoke-ambush positions. Gold swings of 15,000–25,000 are common after decisive teamfights.' },
+  { id: 'bounty-rune', term: 'Bounty Rune', shortDef: 'A gold-granting rune spawning every 3 minutes at fixed map locations.', definition: 'Bounty Runes spawn every 3 minutes at fixed map locations, granting gold worth ~40 + (game_minutes × 3). Four spawn simultaneously each cycle. In professional play, supports contest Bounty Runes and dedicated rotations happen to secure or deny them. Efficient rune control represents 1,500–3,000+ gold per player over a full game.' },
+  { id: 'true-sight', term: 'True Sight', shortDef: 'The ability to see invisible units — essential for countering Smoke of Deceit and invisible heroes.', definition: 'True sight reveals invisible units and wards. Sentry Wards provide true sight in a radius. Many heroes and Smoke of Deceit use invisibility — true sight counters them. An invisible hero channeling a TP Scroll is revealed to both teams. Constant dewarding (destroying enemy wards) and counter-warding is called the "vision war."' },
+]
+
+const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.id, t]))
 
 const BASE_URL = 'https://spectateesports.live'
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`
@@ -25,6 +58,8 @@ export default async function middleware(req) {
   if (pathname === '/release-notes') return handleReleaseNotes(url)
   if (pathname === '/calendar') return handleCalendar(url)
   if (pathname.startsWith('/match/')) return handleMatch(url)
+  if (pathname === '/glossary') return handleGlossary(url)
+  if (pathname.startsWith('/glossary/')) return handleGlossaryTerm(url)
 
   return new Response(null, { status: 302, headers: { Location: '/' } })
 }
@@ -57,15 +92,38 @@ async function handleNews(url) {
       },
     ],
   }
+  // Fetch live article headlines to inject into server-rendered HTML
+  let articleListHtml = ''
+  try {
+    const newsController = new AbortController()
+    const newsTimeout = setTimeout(() => newsController.abort(), 2000)
+    const newsRes = await fetch(`${BASE_URL}/api/news?limit=10`, { signal: newsController.signal }).catch(() => null)
+    clearTimeout(newsTimeout)
+    if (newsRes?.ok) {
+      const newsData = await newsRes.json().catch(() => null)
+      const articles = newsData?.articles || []
+      if (articles.length > 0) {
+        const items = articles.map(a =>
+          `<li style="margin-bottom:8px"><a href="${escapeHtml(a.url)}">${escapeHtml(a.title)}</a> <span style="color:#888;font-size:0.85em">(${escapeHtml(a.source?.name || '')})</span></li>`
+        ).join('')
+        articleListHtml = `<h2>Recent Headlines</h2><ul>${items}</ul>`
+      }
+    }
+  } catch (_) {
+    // graceful fallback — no headlines injected
+  }
+
   const rootContent = `
     <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
       <nav><a href="${BASE_URL}">Spectate Esports</a> › News</nav>
       <h1>Dota 2 Esports News</h1>
       <p>Latest Dota 2 pro match results, roster moves, patch notes, and tournament updates. Sources: Steam Community (official Valve announcements), Liquipedia (player transfers and roster changes), PCGamesN, Dot Esports, and Currents API. Updated every 30 minutes.</p>
       <p>Coverage includes Tier 1 teams: Team Spirit, Gaimin Gladiators, Tundra Esports, Team Liquid, OG, BetBoom Team, Virtus.pro, and all DreamLeague, ESL One, PGL, BLAST, and WePlay participants.</p>
+      ${articleListHtml}
     </main>`
 
-  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+  const rssLink = `<link rel="alternate" type="application/rss+xml" title="Spectate Esports — Dota 2 News" href="${BASE_URL}/api/news?format=rss" />`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent, rssLink)
 }
 
 // ─── /tournaments ─────────────────────────────────────────────────────────────
@@ -476,6 +534,96 @@ async function handleMatch(url) {
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
 
+// ─── /glossary ────────────────────────────────────────────────────────────────
+
+async function handleGlossary(url) {
+  const title = 'Dota 2 Glossary — Key Terms for Pro Dota 2 | Spectate Esports'
+  const description = 'Definitions for professional Dota 2 terms: draft, GPM, Roshan, Rampage, Divine Rapier, Aegis, Mega Creeps, BKB, and more. Essential reference for esports viewers and analysts.'
+  const canonical = `${BASE_URL}/glossary`
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'DefinedTermSet',
+        '@id': `${canonical}#termset`,
+        'name': 'Dota 2 Glossary',
+        'description': description,
+        'url': canonical,
+        'inLanguage': 'en',
+      },
+      {
+        '@type': 'CollectionPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'breadcrumb': breadcrumb([{ name: 'Glossary', url: canonical }]),
+      },
+    ],
+  }
+  const termListItems = GLOSSARY_TERMS_SSR.map(t =>
+    `<li><a href="${BASE_URL}/glossary/${t.id}"><strong>${escapeHtml(t.term)}</strong></a> — ${escapeHtml(t.shortDef)}</li>`
+  ).join('')
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › Glossary</nav>
+      <h1>Dota 2 Glossary</h1>
+      <p>Definitions for essential professional Dota 2 terminology covering game mechanics, hero roles, items, and objectives used in Tier 1 esports competition.</p>
+      <ul>${termListItems}</ul>
+    </main>`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+// ─── /glossary/:term ──────────────────────────────────────────────────────────
+
+async function handleGlossaryTerm(url) {
+  const termId = url.pathname.replace('/glossary/', '').split('/')[0]
+  const term = GLOSSARY_TERM_MAP_SSR[termId]
+
+  if (!term) {
+    return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/glossary` } })
+  }
+
+  const canonical = `${BASE_URL}/glossary/${termId}`
+  const title = `${term.term} — Dota 2 Glossary | Spectate Esports`
+  const description = term.shortDef
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'DefinedTerm',
+        '@id': `${canonical}#term`,
+        'name': term.term,
+        'description': term.definition,
+        'url': canonical,
+        'inLanguage': 'en',
+        'inDefinedTermSet': { '@id': `${BASE_URL}/glossary#termset` },
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'breadcrumb': breadcrumb([
+          { name: 'Glossary', url: `${BASE_URL}/glossary` },
+          { name: term.term, url: canonical },
+        ]),
+      },
+    ],
+  }
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/glossary">Glossary</a> › ${escapeHtml(term.term)}</nav>
+      <h1>${escapeHtml(term.term)}</h1>
+      <p><em>${escapeHtml(term.shortDef)}</em></p>
+      <p>${escapeHtml(term.definition)}</p>
+    </main>`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function breadcrumb(items) {
@@ -493,7 +641,7 @@ function breadcrumb(items) {
   }
 }
 
-async function buildResponse(url, title, description, canonical, imageUrl, jsonLd, rootContent) {
+async function buildResponse(url, title, description, canonical, imageUrl, jsonLd, rootContent, extraHeadTags = '') {
   const indexRes = await fetch(`${url.origin}/index.html`)
   let html = await indexRes.text()
 
@@ -514,6 +662,7 @@ async function buildResponse(url, title, description, canonical, imageUrl, jsonL
     <meta name="description" content="${escapeHtml(description)}" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
     <script type="application/ld+json">${JSON.stringify(jsonLd)}<\/script>
+    ${extraHeadTags}
   `
 
   html = html.replace(/<title>[^<]*<\/title>/gi, '')
