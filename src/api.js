@@ -1,4 +1,4 @@
-import { matchesTier1Names, winsRequiredForSeries, trackEvent } from './utils'
+import { matchesTier1Names, winsRequiredForSeries, trackEvent, STORAGE_KEYS } from './utils'
 
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
 
@@ -179,25 +179,18 @@ export async function fetchProMatches(lastMatchId = null) {
   }
 
   // Enrich seriesType and bracketRound from PandaScore KV data (written by live-matches cron).
-  // Both calls are parallel since they share the same match ID list.
+  // Single round-trip via match-enrichment (replaces separate match-formats + match-brackets calls).
   try {
     const ids = matches.map(m => m.id).join(',')
-    const [fmtRes, bktRes] = await Promise.all([
-      fetch(`/api/tournaments?mode=match-formats&ids=${ids}`),
-      fetch(`/api/tournaments?mode=match-brackets&ids=${ids}`),
-    ])
+    const enrichRes = await fetch(`/api/tournaments?mode=match-enrichment&ids=${ids}`)
     const FORMAT_TO_SERIES_TYPE = { 'best_of_1': 0, 'best_of_2': 3, 'best_of_3': 1, 'best_of_5': 2 }
-    if (fmtRes.ok) {
-      const { formats } = await fmtRes.json()
+    if (enrichRes.ok) {
+      const { formats, brackets } = await enrichRes.json()
       for (const match of matches) {
         const fmt = formats?.[match.id]
         if (fmt && FORMAT_TO_SERIES_TYPE[fmt] !== undefined) match.seriesType = FORMAT_TO_SERIES_TYPE[fmt]
-      }
-    }
-    if (bktRes.ok) {
-      const { brackets } = await bktRes.json()
-      for (const match of matches) {
-        if (brackets?.[match.id]) match.bracketRound = brackets[match.id]
+        const br = brackets?.[match.id]
+        if (br && !/\bvs\.?\b/i.test(br)) match.bracketRound = br
       }
     }
   } catch {}
@@ -217,6 +210,9 @@ async function getTwitchToken() {
     return null
   }
 }
+
+// Pre-warm the Twitch token so the first drawer open has no waterfall.
+getTwitchToken().catch(() => {})
 
 // Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.).
 // Keep in sync with CHANNEL_LABELS in api/_shared.js (same entries, different runtime).
@@ -417,6 +413,16 @@ let heroCache = null
 
 export async function fetchHeroes() {
   if (heroCache) return heroCache
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS.HEROES)
+    if (cached) {
+      const { ts, data } = JSON.parse(cached)
+      if (Date.now() - ts < 24 * 3600 * 1000) {
+        heroCache = data
+        return heroCache
+      }
+    }
+  } catch {}
   const res = await fetch('https://api.opendota.com/api/heroes')
   const data = await res.json()
   heroCache = {}
@@ -426,5 +432,8 @@ export async function fetchHeroes() {
       key: h.name.replace('npc_dota_hero_', '')
     }
   }
+  try {
+    localStorage.setItem(STORAGE_KEYS.HEROES, JSON.stringify({ ts: Date.now(), data: heroCache }))
+  } catch {}
   return heroCache
 }

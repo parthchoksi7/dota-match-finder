@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   THEME:                    "theme",
   MY_TEAMS:                 "my-teams",
   RECENT_SEARCHES:          "dota-recent-searches",
+  HEROES:                   "spectate-heroes-v1",
 }
 
 export function toTitleCase(str) {
