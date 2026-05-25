@@ -68,149 +68,17 @@ async function postTweet(text, mediaId = null, replyToId = null) {
   return res.json()
 }
 
-// ── Cron / auto-tweet: Claude generation ────────────────────────────────────
+// ── Cron / auto-tweet: tweet template ───────────────────────────────────────
 
-async function callClaude(prompt) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
-  const data = await res.json()
-  return data.content?.[0]?.text?.trim() || null
-}
-
-async function makeGameTweet(gameNumber, seriesLabel, team1, team2, winner, duration, tournament, link, seriesScoreAfter) {
-  const gameCtx = seriesLabel !== 'BO1' ? ` - Game ${gameNumber} of ${seriesLabel}` : ''
-  const tweetFormats = [
-    "Write a single punchy sentence. Everything in one line — no second line.",
-    "Lead with a question fans will want to answer in the replies. Follow with the result in one line.",
-    "Lead with the loser — what this game means for them, not the winner.",
-    "Two lines: first line is a bold take or observation, second line is the result context.",
-    "Start with a specific Dota 2 in-game moment if one fits naturally (comeback, throne race, aegis play). Only use this if you can make it feel grounded, not generic.",
-    "Write it like you're texting a friend who follows the Dota 2 scene — casual, direct, no fluff.",
-  ]
-  const format = tweetFormats[(gameNumber - 1) % tweetFormats.length]
-
-  const seriesContext = seriesLabel === 'BO1'
-    ? 'This is a single game (BO1) — there is no series narrative.'
-    : seriesLabel === 'BO2'
-    ? 'This is a BO2 — exactly 2 games, no more. The series ends either 2-0 (sweep) or 1-1 (draw — both teams split). NEVER say: "decider", "Game 3", "series trophy", "clinch the series", "forces a decider", "decide it all", or anything implying one team must win overall. A 1-1 draw is a valid final result. For Game 1: frame it as one team going ahead, with a sweep or a draw both still possible in Game 2.'
-    : seriesLabel === 'BO3'
-    ? 'This is a BO3 — first to 2 wins. A decider Game 3 is only possible if it\'s 1-1.'
-    : 'This is a BO5 — first to 3 wins.'
-
-  return callClaude(`You're a passionate Dota 2 fan who runs @SpectateDota2. You post about pro match results the way someone genuinely invested in the scene would — knowledgeable, occasionally emotional, never corporate.
-
-Game data:
-${team1} vs ${team2}${gameCtx} — ${tournament}
-${winner} won${duration ? ` in ${duration}` : ''}
-Series format: ${seriesLabel} — ${seriesContext}
-Series score after this game: ${winner} ${seriesScoreAfter?.split('-')[0]} – ${winner === team1 ? team2 : team1} ${seriesScoreAfter?.split('-')[1]}
-
-Format for this tweet: ${format}
-
-Examples of the right tone and format variety (do not copy these — reference only):
-- "Nobody's going 3-0 here. Spirit claw back and force a Game 3."
-- "How does Entity keep doing this? Down all game, buyback into a throne race, series tied."
-- "Tundra drop Game 2. Their draft had no answer for the lategame and it showed."
-
-Rules:
-- Under 200 characters (excluding the link)
-- Don't start with the winner's name
-- Don't open with the game duration
-- No hashtags
-- End with this exact link on its own line: ${link}
-
-Return ONLY the tweet text. Nothing else.`)
-}
-
-async function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link, isDraw = false) {
+export function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link, isDraw = false) {
   const loser = winner === team1 ? team2 : team1
-  const resultLine = isDraw
-    ? `${team1} vs ${team2} ended in a 1-1 draw`
-    : `${winner} won ${score} against ${loser}`
-  const firstLineRule = isDraw
-    ? `- First line MUST be exactly: "${team1} 1-1 ${team2}" — no changes, no additions to this line`
-    : `- First line MUST be exactly: "${winner} ${score} ${loser}" — no changes, no additions to this line`
-  const narrativeHint = isDraw
-    ? '- This is a BO2 draw (1-1) — both teams split the series. Frame it as a contested match where neither team could close it out. Both move on. No winner, no loser.'
-    : '- Give the series a narrative — was it an upset? A dominant run? A close fight? What does this result mean?'
+  const tournamentStr = tournament || 'Unknown Tournament'
 
-  return callClaude(`You're a passionate Dota 2 fan running @SpectateDota2. A series just finished. Write the series wrap-up tweet.
+  if (isDraw) {
+    return `${team1} and ${team2} split the series 1-1\n${seriesLabel} | ${tournamentStr}\n${link}`
+  }
 
-${team1} vs ${team2} — ${tournament} (${seriesLabel})
-${resultLine}
-
-Rules:
-${firstLineRule}
-- After that: 1-2 lines of punchy commentary, under 180 total characters before the link
-${narrativeHint}
-- Use Dota 2 scene context where relevant (tournament stakes, team history, expectations)
-- Sound like a passionate fan, not a match report
-- No hashtags
-- Optionally use 1 emoji
-- End with this exact link on its own line: ${link}
-
-Return ONLY the tweet text. Nothing else.`)
-}
-
-// ── Cron / auto-tweet: X handle lookups ─────────────────────────────────────
-// Add/update handles here as needed. Keys are lowercase for case-insensitive matching.
-
-const TEAM_HANDLES = {
-  'tundra esports': '@TundraEsports',
-  'team liquid': '@TeamLiquidDota',
-  'og': '@OGesports',
-  'team secret': '@TeamSecret',
-  'gaimin gladiators': '@GaiminGladiators',
-  'team spirit': '@TeamSpiritGG',
-  'virtus.pro': '@virtuspro',
-  'natus vincere': '@natusvincere',
-  'navi': '@natusvincere',
-  'psg.lgd': '@LGDgaming',
-  'entity': '@EntityGG',
-  'tsm': '@TSM',
-  'mouz': '@mousesports',
-  'mousesports': '@mousesports',
-  'gamerlegion': '@GamerLegion',
-  'betboom team': '@BetBoomDota',
-  '9pandas': '@9Pandas',
-  'shopify rebellion': '@ShopifyRebellion',
-}
-
-const TOURNAMENT_HANDLES = {
-  'esl one': '@ESLDota2',
-  'esl challenger': '@ESLDota2',
-  'dreamleague': '@DreamLeagueDota',
-  'pgl': '@PGLDota2',
-  'weplay': '@WePlayEsports',
-  'the international': '@DOTA2',
-  'blast': '@BLASTEsports',
-  'beyond the summit': '@BeyondTheSummit',
-}
-
-function getHandle(name, map) {
-  if (!name) return null
-  const key = name.toLowerCase()
-  return Object.entries(map).find(([k]) => key.includes(k))?.[1] || null
-}
-
-function buildMentions(team1, team2, tournament) {
-  const handles = [
-    getHandle(team1, TEAM_HANDLES),
-    getHandle(team2, TEAM_HANDLES),
-    getHandle(tournament, TOURNAMENT_HANDLES),
-  ].filter(Boolean)
-  return handles.length ? '\n' + handles.join(' ') : ''
+  return `${winner} win ${score} over ${loser}\n${seriesLabel} | ${tournamentStr}\n${link}`
 }
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
@@ -260,10 +128,6 @@ function matchSlug(m) {
   return [slugify(m.radiant_name), 'vs', slugify(m.dire_name), slugify(m.league_name), m.match_id].join('-')
 }
 
-function gameUrl(m, n) {
-  return `https://spectateesports.live/match/${matchSlug(m)}?utm_source=twitter&utm_medium=social&utm_campaign=game-recap&utm_content=game-${n}`
-}
-
 function seriesUrl(m) {
   return `https://spectateesports.live/match/${matchSlug(m)}?utm_source=twitter&utm_medium=social&utm_campaign=series-recap`
 }
@@ -276,7 +140,7 @@ async function runAutoTweet(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const missing = ['TWITTER_API_KEY', 'TWITTER_API_SECRET', 'TWITTER_ACCESS_TOKEN', 'TWITTER_ACCESS_TOKEN_SECRET', 'ANTHROPIC_API_KEY']
+  const missing = ['TWITTER_API_KEY', 'TWITTER_API_SECRET', 'TWITTER_ACCESS_TOKEN', 'TWITTER_ACCESS_TOKEN_SECRET']
     .filter(k => !process.env[k])
   if (missing.length) {
     return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
@@ -318,24 +182,13 @@ async function runAutoTweet(req, res) {
     s.games.sort((a, b) => a.start_time - b.start_time)
   }
 
-  // Batch-fetch tweet IDs from KV in one mget call.
-  // Values are the tweet IDs themselves (used for thread reply chaining).
+  // Batch-fetch series dedup keys from KV in one mget call.
   const seriesList = Object.values(seriesMap)
-  const gameKvKeys = seriesList.flatMap(s => s.games.map(g => `auto-tweet:game:${g.match_id}`))
   const seriesKvKeys = seriesList.map(s => `auto-tweet:series:${s.key}`)
-  const allKvKeys = [...gameKvKeys, ...seriesKvKeys]
-  const kvValues = allKvKeys.length > 0 ? await kv.mget(...allKvKeys) : []
+  const kvValues = seriesKvKeys.length > 0 ? await kv.mget(...seriesKvKeys) : []
 
   const kvMap = {}
-  allKvKeys.forEach((key, i) => { if (kvValues[i] != null) kvMap[key] = String(kvValues[i]) })
-
-  // Track tweet IDs posted in this run so game N can immediately reply to game N-1
-  // even when both are new in the same cron execution.
-  const localTweetIds = {}
-  function getGameTweetId(matchId) {
-    const key = `auto-tweet:game:${matchId}`
-    return localTweetIds[key] || kvMap[key] || null
-  }
+  seriesKvKeys.forEach((key, i) => { if (kvValues[i] != null) kvMap[key] = String(kvValues[i]) })
 
   const results = []
   let count = 0
@@ -354,49 +207,6 @@ async function runAutoTweet(req, res) {
     const isBO2Draw = (seriesType === 3 || seriesType === 1) && games.length >= 2 && finalMax === 1 && Object.keys(finalWins).length === 2
     const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : seriesType === 3 ? 'BO2' : isBO2Draw ? 'BO2' : 'BO3'
 
-    // Per-game tweets, chained as a thread
-    for (let i = 0; i < games.length; i++) {
-      if (count >= MAX_PER_RUN) break
-      const g = games[i]
-      const gk = `auto-tweet:game:${g.match_id}`
-      if (kvMap[gk] != null) continue
-
-      const winner = g.radiant_win ? (g.radiant_name || 'Radiant') : (g.dire_name || 'Dire')
-      const loser = g.radiant_win ? (g.dire_name || 'Dire') : (g.radiant_name || 'Radiant')
-      const durMins = g.duration ? Math.round(g.duration / 60) : null
-      const dur = durMins ? `${durMins} minutes` : null
-      const link = gameUrl(g, i + 1)
-
-      // Calculate running series score after this game
-      const runningWins = {}
-      for (const gg of games.slice(0, i + 1)) {
-        const w = gg.radiant_win ? (gg.radiant_name || 'Radiant') : (gg.dire_name || 'Dire')
-        const l = gg.radiant_win ? (gg.dire_name || 'Dire') : (gg.radiant_name || 'Radiant')
-        if (!runningWins[w]) runningWins[w] = 0
-        if (!runningWins[l]) runningWins[l] = 0
-        runningWins[w] += 1
-      }
-      const seriesScoreAfter = `${runningWins[winner]}-${runningWins[loser]}`
-
-      const text = await makeGameTweet(i + 1, seriesLabel, g.radiant_name || 'Radiant', g.dire_name || 'Dire', winner, dur, g.league_name, link, seriesScoreAfter)
-      if (!text) continue
-
-      // Game 1 is the thread root; subsequent games reply to the previous
-      const prevTweetId = i > 0 ? getGameTweetId(games[i - 1].match_id) : null
-      const twRes = await postTweet(text, null, prevTweetId)
-      if (twRes.data?.id) {
-        const tweetId = twRes.data.id
-        await kv.set(gk, tweetId, { ex: 2592000 })
-        localTweetIds[gk] = tweetId
-        count++
-        results.push({ type: 'game', matchId: g.match_id, gameNumber: i + 1, tweetId, replyTo: prevTweetId })
-      } else {
-        console.error('Game tweet failed:', g.match_id, JSON.stringify(twRes))
-      }
-    }
-
-    // Series summary tweet: replies to last game, closing the thread; includes score image
-    if (count >= MAX_PER_RUN) break
     const sk = `auto-tweet:series:${seriesKey}`
     if (kvMap[sk] != null) continue
     if (!seriesComplete(games, seriesType)) continue
@@ -405,9 +215,7 @@ async function runAutoTweet(req, res) {
     const team1 = games[0].radiant_name || 'Radiant'
     const team2 = games[0].dire_name || 'Dire'
     const link = seriesUrl(games[0]) // always links to the first match
-    const baseText = await makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link, isBO2Draw)
-    if (!baseText) continue
-    const text = baseText + buildMentions(team1, team2, games[0].league_name)
+    const text = makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link, isBO2Draw)
 
     let mediaId = null
     try {
@@ -424,12 +232,11 @@ async function runAutoTweet(req, res) {
       console.error('OG image upload failed:', e.message)
     }
 
-    const lastGameTweetId = getGameTweetId(games[games.length - 1].match_id)
-    const twRes = await postTweet(text, mediaId, lastGameTweetId)
+    const twRes = await postTweet(text, mediaId, null)
     if (twRes.data?.id) {
       await kv.set(sk, twRes.data.id, { ex: 2592000 })
       count++
-      results.push({ type: 'series', key: seriesKey, tweetId: twRes.data.id, replyTo: lastGameTweetId, hasImage: !!mediaId })
+      results.push({ type: 'series', key: seriesKey, tweetId: twRes.data.id, hasImage: !!mediaId })
     } else {
       console.error('Series tweet failed:', seriesKey, JSON.stringify(twRes))
     }

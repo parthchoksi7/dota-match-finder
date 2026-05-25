@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { winsNeeded, seriesComplete, seriesResult } from '../api/draft-posts.js'
+import { winsNeeded, seriesComplete, seriesResult, makeSeriesTweet } from '../api/draft-posts.js'
 
 // Helper to build a minimal OpenDota match record
 function makeGame({ radiant_win = true, radiant_name = 'Team A', dire_name = 'Team B' } = {}) {
@@ -108,6 +108,47 @@ describe('seriesComplete', () => {
 
   it('is not complete for a BO2 after only 1 game', () => {
     expect(seriesComplete([makeGame()], 3)).toBe(false)
+  })
+})
+
+// ── makeSeriesTweet ───────────────────────────────────────────────────────────
+
+describe('makeSeriesTweet', () => {
+  const link = 'https://spectateesports.live/match/team-a-vs-team-b-123'
+
+  it('formats a series win where team1 wins', () => {
+    const tweet = makeSeriesTweet('Team A', 'Team B', 'Team A', '2-0', 'BO3', 'DreamLeague S29', link)
+    expect(tweet).toBe('Team A win 2-0 over Team B\nBO3 | DreamLeague S29\n' + link)
+  })
+
+  it('formats a series win where team2 (dire) wins', () => {
+    const tweet = makeSeriesTweet('Team A', 'Team B', 'Team B', '2-1', 'BO3', 'DreamLeague S29', link)
+    expect(tweet).toBe('Team B win 2-1 over Team A\nBO3 | DreamLeague S29\n' + link)
+  })
+
+  it('formats a BO5 3-2 win', () => {
+    const tweet = makeSeriesTweet('PARIVISION', 'Aurora Gaming', 'PARIVISION', '3-2', 'BO5', 'DreamLeague Season 29', link)
+    expect(tweet).toBe('PARIVISION win 3-2 over Aurora Gaming\nBO5 | DreamLeague Season 29\n' + link)
+  })
+
+  it('formats a BO1 result', () => {
+    const tweet = makeSeriesTweet('Team A', 'Team B', 'Team A', '1-0', 'BO1', 'PGL Wallachia', link)
+    expect(tweet).toBe('Team A win 1-0 over Team B\nBO1 | PGL Wallachia\n' + link)
+  })
+
+  it('formats a BO2 draw', () => {
+    const tweet = makeSeriesTweet('Team A', 'Team B', 'Team A', '1-1', 'BO2', 'ESL One', link, true)
+    expect(tweet).toBe('Team A and Team B split the series 1-1\nBO2 | ESL One\n' + link)
+  })
+
+  it('substitutes Unknown Tournament when tournament is null', () => {
+    const tweet = makeSeriesTweet('Team A', 'Team B', 'Team A', '2-0', 'BO3', null, link)
+    expect(tweet).toContain('Unknown Tournament')
+  })
+
+  it('substitutes Unknown Tournament when tournament is empty string', () => {
+    const tweet = makeSeriesTweet('Team A', 'Team B', 'Team A', '2-0', 'BO3', '', link)
+    expect(tweet).toContain('Unknown Tournament')
   })
 })
 
