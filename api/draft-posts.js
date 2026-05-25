@@ -215,7 +215,7 @@ function buildMentions(team1, team2, tournament) {
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
-import { getPremiumLeagueIds, trackError } from './_shared.js'
+import { getPremiumLeagueIds, trackError, PERMANENT_TIER1_NAMES, KV_TIER1_NAMES_KEY, isTier1ByName } from './_shared.js'
 
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1
@@ -282,15 +282,27 @@ async function runAutoTweet(req, res) {
     return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
   }
 
-  const [odRes, premiumIds] = await Promise.all([
+  const [odRes, premiumIds, kvNames] = await Promise.all([
     fetch('https://api.opendota.com/api/promatches'),
     getPremiumLeagueIds(),
+    kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
   ])
   if (!odRes.ok) return res.status(502).json({ error: 'OpenDota unavailable' })
   const raw = await odRes.json()
   if (!Array.isArray(raw)) return res.status(502).json({ error: 'Bad OpenDota response' })
 
-  const tier1 = raw.filter(m => premiumIds.has(m.leagueid))
+  // Same filter the website uses for "Latest Results": premiumIds OR tier1 league name.
+  // tier1Names is the same KV value (PandaScore tier S/A names) the website reads,
+  // merged with the permanent hardcoded list as a cold-KV fallback.
+  const tier1Names = [...new Set([
+    ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+    ...(Array.isArray(kvNames) ? kvNames.map(n => n.toLowerCase()) : []),
+  ])]
+  // isTier1ByName expects match.league.name; adapt OpenDota's flat league_name field.
+  const tier1 = raw.filter(m =>
+    premiumIds.has(m.leagueid) ||
+    isTier1ByName({ league: { name: m.league_name } }, tier1Names)
+  )
   if (!tier1.length) return res.status(200).json({ tweeted: 0, message: 'No premium-tier matches' })
 
   // Group matches into series

@@ -3,6 +3,7 @@ import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './Brack
 import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
 import HighlightsTab from './HighlightsTab'
+import { fetchTournamentPlayers, fetchHeroes } from '../api'
 
 const ALL_TOURNAMENTS_URL = 'https://spectateesports.live/api/tournaments?mode=calendar-all'
 
@@ -211,7 +212,7 @@ function OverviewMatchRow({ match }) {
 }
 
 
-const TABS = ['Info', 'Standings', 'Schedule', 'Heroes']
+const TABS = ['Info', 'Standings', 'Schedule', 'Stats']
 const PLAYOFF_FORMATS = new Set(['Double Elimination', 'Single Elimination', 'Bracket'])
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
@@ -234,7 +235,7 @@ function deriveChampionFromBracket(bracket) {
   return scoreA > scoreB ? teamA : teamB
 }
 
-function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) {
+function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, onSelectMatchId }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Info')
@@ -306,13 +307,18 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
   }, [activeStageId])
 
 
-  // Hero pick/ban stats (via OpenDota)
+  // Stats tab — sub-toggle ('heroes' | 'players') + hero pick/ban stats + player leaderboard
+  const [statsView, setStatsView] = useState('heroes')
   const [heroStats, setHeroStats] = useState(null)
   const [heroStatsLoading, setHeroStatsLoading] = useState(false)
   const [showAllHeroes, setShowAllHeroes] = useState(false)
+  const [playerStats, setPlayerStats] = useState(null)
+  const [playerStatsLoading, setPlayerStatsLoading] = useState(false)
+  const [activeStat, setActiveStat] = useState('kills')
+  const [heroMap, setHeroMap] = useState(null)
 
   useEffect(() => {
-    if (activeTab !== 'Heroes' || !tournament) return
+    if (activeTab !== 'Stats' || !tournament) return
     if (heroStats?.fetchedForId === tournament.id) return
     setHeroStatsLoading(true)
     const serieName = encodeURIComponent(buildTournamentName(tournament.league || '', tournament.serie || ''))
@@ -322,6 +328,22 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
       .catch(() => setHeroStats({ heroes: [], gameCount: 0, fetchedForId: tournament.id }))
       .finally(() => setHeroStatsLoading(false))
   }, [activeTab, tournament?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'Stats' || statsView !== 'players' || !tournament) return
+    if (playerStats?.fetchedForId === tournament.id) return
+    setPlayerStatsLoading(true)
+    const serieName = buildTournamentName(tournament.league || '', tournament.serie || '')
+    fetchTournamentPlayers(tournament.id, serieName)
+      .then(d => setPlayerStats({ ...(d || { stats: null, gameCount: 0 }), fetchedForId: tournament.id }))
+      .catch(() => setPlayerStats({ stats: null, gameCount: 0, fetchedForId: tournament.id }))
+      .finally(() => setPlayerStatsLoading(false))
+  }, [activeTab, statsView, tournament?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'Stats' || statsView !== 'players' || heroMap) return
+    fetchHeroes().then(setHeroMap).catch(() => {})
+  }, [activeTab, statsView])
 
 
   // The detail used for Standings + Schedule (active stage, falling back to main)
@@ -529,7 +551,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
-      {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Heroes' && (
+      {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Stats' && (
         <div className="flex items-center gap-1 px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-900">
           <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
           {detail.eventStages.map(stage => {
@@ -654,106 +676,260 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel }) 
         </div>
       )}
 
-      {activeTab === 'Heroes' && (
+      {activeTab === 'Stats' && (
         <div className="px-4 sm:px-5 py-4">
-          {heroStatsLoading ? (
-            <div>
-              <div className="h-2 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mb-3" />
-              <table className="w-full text-xs table-fixed">
-                <colgroup>
-                  <col className="w-6" />
-                  <col />
-                  <col className="w-10" />
-                  <col className="w-10" />
-                  <col className="w-10" />
-                  <col className="w-10" />
-                </colgroup>
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-800">
-                    {[null, 28, 20, 20, 20, 20].map((w, i) => (
-                      <th key={i} className="py-2 text-left">
-                        {w && <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: w }} />}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
-                  {[70, 55, 80, 60, 45, 75, 50, 65].map((w, i) => (
-                    <tr key={i}>
-                      <td className="py-2"><div className="h-4 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" /></td>
-                      <td className="py-2"><div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${w}%` }} /></td>
-                      <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
-                      <td className="py-2"><div className="h-2 w-7 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
-                      <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
-                      <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+          {/* Sub-toggle: Heroes | Players */}
+          <div className="flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5 mb-4 w-fit">
+            {['heroes', 'players'].map(view => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => { setStatsView(view); trackEvent('stats_view_toggle', { view }) }}
+                className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded transition-colors ${
+                  statsView === view
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {view === 'heroes' ? 'Heroes' : 'Players'}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Heroes view ── */}
+          {statsView === 'heroes' && (
+            heroStatsLoading ? (
+              <div>
+                <div className="h-2 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mb-3" />
+                <table className="w-full text-xs table-fixed">
+                  <colgroup>
+                    <col className="w-6" />
+                    <col />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-800">
+                      {[null, 28, 20, 20, 20, 20].map((w, i) => (
+                        <th key={i} className="py-2 text-left">
+                          {w && <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: w }} />}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : !heroStats?.heroes?.length ? (
-            <p className="py-6 text-center text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
-              No picks yet
-            </p>
-          ) : (
-            <div>
-              <p className="text-xs text-gray-400 dark:text-gray-600 mb-3 uppercase tracking-widest">
-                {heroStats.gameCount} game{heroStats.gameCount !== 1 ? 's' : ''} · sorted by picks + bans
-              </p>
-              <table className="w-full text-xs table-fixed">
-                <colgroup>
-                  <col className="w-6" />
-                  <col />{/* hero name — takes remaining space */}
-                  <col className="w-10" />
-                  <col className="w-10" />
-                  <col className="w-10" />
-                  <col className="w-10" />
-                </colgroup>
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-800">
-                    <th className="text-left py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">#</th>
-                    <th className="text-left py-2 pr-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Hero</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Picks</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Win%</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Bans</th>
-                    <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">P+B</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(showAllHeroes ? heroStats.heroes : heroStats.heroes.slice(0, 25)).map((hero, i) => {
-                    const winPct = hero.picks > 0 ? Math.round((hero.wins / hero.picks) * 100) : null
-                    const isHighWin = winPct !== null && winPct >= 60
-                    const isLowWin = winPct !== null && winPct <= 40
-                    return (
-                      <tr key={hero.name} className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                        <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
-                        <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate max-w-0">{hero.name}</td>
-                        <td className="py-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
-                        <td className={`py-2 text-center tabular-nums font-semibold ${
-                          isHighWin ? 'text-green-600 dark:text-green-500'
-                          : isLowWin ? 'text-red-500 dark:text-red-400'
-                          : 'text-gray-500 dark:text-gray-500'
-                        }`}>
-                          {winPct !== null ? `${winPct}%` : '-'}
-                        </td>
-                        <td className="py-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
-                        <td className="py-2 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
+                    {[70, 55, 80, 60, 45, 75, 50, 65].map((w, i) => (
+                      <tr key={i}>
+                        <td className="py-2"><div className="h-4 w-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" /></td>
+                        <td className="py-2"><div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${w}%` }} /></td>
+                        <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                        <td className="py-2"><div className="h-2 w-7 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                        <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
+                        <td className="py-2"><div className="h-2 w-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mx-auto" /></td>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              {heroStats.heroes.length > 25 && (
-                <button
-                  type="button"
-                  onClick={() => { const next = !showAllHeroes; setShowAllHeroes(next); trackEvent('heroes_show_more', { expanded: next }) }}
-                  className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                >
-                  {showAllHeroes ? 'Show less' : `Show all ${heroStats.heroes.length} heroes`}
-                </button>
-              )}
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : !heroStats?.heroes?.length ? (
+              <p className="py-6 text-center text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                No picks yet
+              </p>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-400 dark:text-gray-600 mb-3 uppercase tracking-widest">
+                  {heroStats.gameCount} game{heroStats.gameCount !== 1 ? 's' : ''} · sorted by picks + bans
+                </p>
+                <table className="w-full text-xs table-fixed">
+                  <colgroup>
+                    <col className="w-6" />
+                    <col />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-10" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-800">
+                      <th className="text-left py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">#</th>
+                      <th className="text-left py-2 pr-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Hero</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Picks</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Win%</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">Bans</th>
+                      <th className="text-center py-2 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">P+B</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(showAllHeroes ? heroStats.heroes : heroStats.heroes.slice(0, 25)).map((hero, i) => {
+                      const winPct = hero.picks > 0 ? Math.round((hero.wins / hero.picks) * 100) : null
+                      const isHighWin = winPct !== null && winPct >= 60
+                      const isLowWin = winPct !== null && winPct <= 40
+                      return (
+                        <tr key={hero.name} className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                          <td className="py-2 text-gray-400 dark:text-gray-600 tabular-nums">{i + 1}</td>
+                          <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white truncate max-w-0">{hero.name}</td>
+                          <td className="py-2 text-center tabular-nums text-gray-700 dark:text-gray-300">{hero.picks}</td>
+                          <td className={`py-2 text-center tabular-nums font-semibold ${
+                            isHighWin ? 'text-green-600 dark:text-green-500'
+                            : isLowWin ? 'text-red-500 dark:text-red-400'
+                            : 'text-gray-500 dark:text-gray-500'
+                          }`}>
+                            {winPct !== null ? `${winPct}%` : '-'}
+                          </td>
+                          <td className="py-2 text-center tabular-nums text-gray-500 dark:text-gray-500">{hero.bans}</td>
+                          <td className="py-2 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{hero.contested}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {heroStats.heroes.length > 25 && (
+                  <button
+                    type="button"
+                    onClick={() => { const next = !showAllHeroes; setShowAllHeroes(next); trackEvent('heroes_show_more', { expanded: next }) }}
+                    className="mt-3 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    {showAllHeroes ? 'Show less' : `Show all ${heroStats.heroes.length} heroes`}
+                  </button>
+                )}
+              </div>
+            )
           )}
+
+          {/* ── Players view ── */}
+          {statsView === 'players' && (() => {
+            const STAT_CHIPS = [
+              { key: 'kills',    label: 'Kills' },
+              { key: 'deaths',   label: 'Deaths' },
+              { key: 'assists',  label: 'Assists' },
+              { key: 'netWorth', label: 'Net Worth' },
+              { key: 'gpm',      label: 'GPM' },
+            ]
+
+            const formatValue = (key, val) => {
+              if (key === 'netWorth') return `${(val / 1000).toFixed(1)}k`
+              return val
+            }
+
+            const entries = playerStats?.stats?.[activeStat] || []
+            const hasData = entries.length > 0
+
+            return (
+              <div>
+                {/* Stat chip picker */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: 'none' }}>
+                  {STAT_CHIPS.map(chip => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={() => { setActiveStat(chip.key); trackEvent('tournament_players_stat_select', { stat: chip.key, tournamentId: tournament?.id }) }}
+                      className={`flex-shrink-0 px-3 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${
+                        activeStat === chip.key
+                          ? 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-sm text-gray-900 dark:text-white'
+                          : 'border border-transparent text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Loading skeleton */}
+                {playerStatsLoading && (
+                  <div className="flex flex-col gap-2">
+                    {[85, 70, 90, 60, 75].map((w, i) => (
+                      <div key={i} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-900">
+                        <div className="w-5 h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse flex-shrink-0" />
+                        <div className="w-5 h-5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse flex-shrink-0" />
+                        <div className="flex-1 flex flex-col gap-1">
+                          <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${w}%` }} />
+                          <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" style={{ width: `${w - 20}%` }} />
+                        </div>
+                        <div className="w-8 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse flex-shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {!playerStatsLoading && !hasData && (
+                  <p className="py-8 text-center text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                    Stats appear once games are indexed
+                  </p>
+                )}
+
+                {/* Leaderboard rows */}
+                {!playerStatsLoading && hasData && (
+                  <div>
+                    {entries.map(entry => {
+                      const heroKey = heroMap?.[entry.heroId]?.key
+                      const heroIconUrl = heroKey
+                        ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`
+                        : null
+                      const matchContext = entry.radiantName && entry.direName
+                        ? `${entry.radiantName} vs ${entry.direName}`
+                        : null
+
+                      return (
+                        <button
+                          key={`${entry.matchId}-${entry.accountId}`}
+                          type="button"
+                          onClick={() => {
+                            if (entry.matchId) {
+                              trackEvent('tournament_players_row_click', { stat: activeStat, rank: entry.rank, playerName: entry.playerName, matchId: entry.matchId })
+                              onSelectMatchId?.(entry.matchId)
+                            }
+                          }}
+                          className="w-full flex items-center gap-2 py-2.5 border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors text-left"
+                        >
+                          {/* Rank */}
+                          <span className="w-5 flex-shrink-0 text-xs font-bold tabular-nums text-gray-400 dark:text-gray-600 text-center">
+                            {entry.rank}
+                          </span>
+
+                          {/* Hero icon */}
+                          {heroIconUrl ? (
+                            <img
+                              src={heroIconUrl}
+                              alt=""
+                              className="w-5 h-5 rounded-sm flex-shrink-0 object-cover"
+                              onError={e => { e.currentTarget.style.display = 'none' }}
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded-sm flex-shrink-0 bg-gray-200 dark:bg-gray-800" />
+                          )}
+
+                          {/* Player + team + match context */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-1 min-w-0">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                {entry.playerName || '—'}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-500 flex-shrink-0 whitespace-nowrap">
+                                · {entry.teamName} · {entry.gamesPlayed}g
+                              </span>
+                            </div>
+                            {matchContext && (
+                              <div className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-600 truncate mt-0.5">
+                                {matchContext}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Stat value */}
+                          <span className="flex-shrink-0 font-display font-black text-base tabular-nums text-gray-900 dark:text-white">
+                            {formatValue(activeStat, entry.value)}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 

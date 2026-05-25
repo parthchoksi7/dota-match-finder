@@ -45,6 +45,7 @@ function MatchDrawer({
   gameSwitcher,
   followedTeams,
   onToggleFollow,
+  openSource = 'unknown',
 }) {
   const drawerRef = useRef(null)
   const [scoreRevealed, setScoreRevealed] = useState(false)
@@ -61,6 +62,16 @@ function MatchDrawer({
   const [draftExpanded, setDraftExpanded] = useState(true)
   const [matchStats, setMatchStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!match?.id || match.unplayed) return
+    trackEvent('drawer_opened', {
+      match_id: match.id,
+      tournament: match.tournament,
+      source: openSource,
+      is_from_panda_score: !!match._fromPandaScore,
+    })
+  }, [match?.id])
 
   useEffect(() => {
     setScoreRevealed(false)

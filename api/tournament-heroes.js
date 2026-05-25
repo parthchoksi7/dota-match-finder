@@ -1,7 +1,7 @@
 import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-import { trackError } from './_shared.js'
+import { trackError, findLeague } from './_shared.js'
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -13,28 +13,6 @@ const PANDASCORE_BASE = 'https://api.pandascore.co'
 const TTL = 60 * 60 * 3
 const LEAGUES_TTL = 60 * 60 * 24
 const HEROES_TTL = 60 * 60 * 24
-
-// Find the OpenDota league whose name best matches the given search string.
-// Uses token overlap so "PGL Wallachia Season 7" matches "PGL Wallachia 2026 Season 7".
-function findLeague(leagues, search) {
-  if (!search || !leagues?.length) return null
-  const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
-  const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
-  const searchTokens = new Set(tokens(search))
-
-  let best = null, bestScore = 0
-  for (const league of leagues) {
-    const lt = tokens(league.name || '')
-    const overlap = lt.filter(t => searchTokens.has(t)).length
-    if (overlap < 2) continue
-    // On tie, prefer non-qualifier over qualifier (e.g. "DreamLeague S29" over "DreamLeague S29 Qualifiers")
-    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
-    const bestIsQualifier = best && (best.name || '').toLowerCase().includes('qualifier')
-    const isBetter = overlap > bestScore || (overlap === bestScore && bestIsQualifier && !isQualifier)
-    if (isBetter) { best = league; bestScore = overlap }
-  }
-  return best
-}
 
 export default async function handler(req, res) {
   const { id } = req.query

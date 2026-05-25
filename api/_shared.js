@@ -342,6 +342,32 @@ export const PERMANENT_TIER1_NAMES = [
   '1win Essence',
 ]
 
+// ── OpenDota league fuzzy-matching ───────────────────────────────────────────
+
+/**
+ * Find the OpenDota league whose name best matches a PandaScore tournament name.
+ * Uses token-overlap so "PGL Wallachia Season 7" matches "PGL Wallachia 2026 Season 7".
+ * On tie, prefers non-qualifier over qualifier (e.g. main event over qualifier stage).
+ */
+export function findLeague(leagues, search) {
+  if (!search || !leagues?.length) return null
+  const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
+  const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
+  const searchTokens = new Set(tokens(search))
+
+  let best = null, bestScore = 0
+  for (const league of leagues) {
+    const lt = tokens(league.name || '')
+    const overlap = lt.filter(t => searchTokens.has(t)).length
+    if (overlap < 2) continue
+    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
+    const bestIsQualifier = best && (best.name || '').toLowerCase().includes('qualifier')
+    const isBetter = overlap > bestScore || (overlap === bestScore && bestIsQualifier && !isQualifier)
+    if (isBetter) { best = league; bestScore = overlap }
+  }
+  return best
+}
+
 // ── Error telemetry ──────────────────────────────────────────────────────────
 
 let _monitorKv = null

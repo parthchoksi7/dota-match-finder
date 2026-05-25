@@ -5,6 +5,20 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 24, 2026",
+    tag: "new",
+    title: "Tournament player leaderboards",
+    desc: "The Heroes tab in the Tournament Hub is now a Stats tab with a HEROES | PLAYERS sub-toggle. Switch to Players to see who performed best across the tournament.",
+    items: [
+      "Five leaderboards: kills, deaths, assists, net worth, and GPM — each showing the top 5 players",
+      "Each row shows rank, hero icon, player name, team, games played, and the stat value",
+      "Games played is shown next to each name so high-kill totals from grand final runs are easier to read in context",
+      "Click any player row to open that specific match in the drawer",
+      "Stat chip switcher is client-side — switching between kills/deaths/assists/networth/GPM costs no extra network request",
+      "Data covers up to 60 games per tournament and updates every 3 hours while the event is live",
+    ],
+  },
+  {
+    date: "May 24, 2026",
     tag: "improvement",
     title: "Playoff stage labels on completed matches",
     desc: "Bracket stage labels such as Grand Final, Upper Bracket Final, and Semifinal now appear on completed match rows in the feed, the same way they appear on live and upcoming match rows. Grand Final cards still get the gold highlight treatment. The Grand Final indicator was also broken (it never fired) — both issues are fixed in the same change.",
