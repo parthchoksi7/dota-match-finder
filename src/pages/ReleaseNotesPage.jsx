@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 24, 2026",
+    tag: "improvement",
+    title: "Playoff stage labels on completed matches",
+    desc: "Bracket stage labels such as Grand Final, Upper Bracket Final, and Semifinal now appear on completed match rows in the feed, the same way they appear on live and upcoming match rows. Grand Final cards still get the gold highlight treatment. The Grand Final indicator was also broken (it never fired) — both issues are fixed in the same change.",
+  },
+  {
+    date: "May 24, 2026",
     tag: "new",
     title: "Unread news indicator",
     desc: "A small dot now appears on the News tab (mobile) and News link (desktop) when new articles have been published since your last visit. The dot disappears as soon as you open the news page. No dot on your first visit — the indicator only appears once you have a read history to compare against.",

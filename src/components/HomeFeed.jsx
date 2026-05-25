@@ -58,7 +58,6 @@ function HomeFeed({
   spoilerFree = false,
   followedTeams = [],
   onToggleFollow,
-  grandFinalMatchIds = new Set(),
   error = null,
   onRetry,
   onSelectMatchId,
@@ -299,7 +298,8 @@ function HomeFeed({
                   spoilerFree={spoilerFree}
                   followedTeams={followedTeams}
                   onToggleFollow={onToggleFollow}
-                  isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                  isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                  bracketRound={s.games[0]?.bracketRound}
                   isFollowedMatch
                 />
               ))}
@@ -419,7 +419,8 @@ function HomeFeed({
                           spoilerFree={spoilerFree}
                           followedTeams={followedTeams}
                           onToggleFollow={onToggleFollow}
-                          isGrandFinal={false}
+                          isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                          bracketRound={s.games[0]?.bracketRound}
                           isFollowedMatch={!!(followedTeams?.includes(s.games[0]?.radiantTeam) || followedTeams?.includes(s.games[0]?.direTeam))}
                         />
                       )
@@ -458,7 +459,8 @@ function HomeFeed({
                       spoilerFree={spoilerFree}
                       followedTeams={followedTeams}
                       onToggleFollow={onToggleFollow}
-                      isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                      isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                      bracketRound={s.games[0]?.bracketRound}
                       isFollowedMatch={isFollowedMatch}
                     />
                   )

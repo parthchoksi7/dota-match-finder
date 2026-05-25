@@ -56,7 +56,6 @@ function LatestMatches({
   spoilerFree = false,
   followedTeams,
   onToggleFollow,
-  grandFinalMatchIds = new Set(),
   error = null,
   onRetry,
 }) {
@@ -216,7 +215,8 @@ function LatestMatches({
                         spoilerFree={spoilerFree}
                         followedTeams={followedTeams}
                         onToggleFollow={onToggleFollow}
-                        isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+                        isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                        bracketRound={s.games[0]?.bracketRound}
                       />
                     ))}
                   </div>

@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
-import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime, buildPremiumLeagueIds, trackError, checkServices } from './_shared.js'
+import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, parseBracketRound, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime, buildPremiumLeagueIds, trackError, checkServices, findLeague } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -643,7 +643,7 @@ async function fetchTier1LeagueNames(token) {
 // to bridge the 30min–several-hour OpenDota /promatches indexing lag.
 // Kill scores are unavailable from PandaScore; radiantScore/direScore are null.
 
-const KV_RC_KEY = 'dota2:recent_completed_v3'
+const KV_RC_KEY = 'dota2:recent_completed_v4'
 const RC_TTL = 60 * 5  // 5 minutes
 
 const FORMAT_TO_SERIES_TYPE_RC = { best_of_1: 0, best_of_2: 3, best_of_3: 1, best_of_5: 2 }
@@ -787,6 +787,7 @@ async function fetchRecentCompleted(token, bust = false) {
       games.push({
         id: extId,
         tournament: tournamentName,
+        bracketRound: parseBracketRound(m.name),
         date: new Date(startTime * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         radiantTeam,
         direTeam,
@@ -814,82 +815,6 @@ async function fetchRecentCompleted(token, bust = false) {
     await kv.set(KV_RC_KEY, payload, { ex: RC_TTL })
   } catch (err) {
     console.warn('recent-completed KV write failed:', err?.message)
-  }
-  return payload
-}
-
-// ── Grand Finals mode (?mode=grand-finals) ──────────────────────────────────
-// Returns OpenDota match IDs (via PandaScore game.external_identifier) for
-// recently completed Grand Final series. Used by LatestMatches/MyTeamsSection
-// to detect and visually highlight Grand Final cards in the home feed.
-
-const KV_GF_KEY = 'dota2:grand_final_match_ids_v2'
-const GF_TTL = 60 * 60 // 1 hour
-
-async function fetchGrandFinalMatchIds(token) {
-  try {
-    const cached = await kv.get(KV_GF_KEY)
-    if (cached) {
-      console.log('Grand finals: serving from KV cache')
-      return cached
-    }
-  } catch (err) {
-    console.warn('Grand finals KV read failed:', err?.message)
-  }
-
-  console.log('Grand finals: fetching from PandaScore')
-  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-
-  // Step 1: Find recent championship tournament stages.
-  // Run two searches in parallel — different leagues name the stage differently
-  // ("Grand Final" for DreamLeague/ESL, "Finals" for Premier Series, etc.).
-  // search[name] is a substring match so we filter by regex afterwards to avoid
-  // including "Upper Bracket Final", "Semifinal", etc.
-  const toArr = async r => { if (!r.ok) return []; const d = await r.json(); return Array.isArray(d) ? d : [] }
-  const [res1, res2] = await Promise.all([
-    fetch(`${PANDASCORE_BASE}/tournaments/past?search[name]=Grand+Final&sort=-end_at&page[size]=15`, { headers }),
-    fetch(`${PANDASCORE_BASE}/tournaments/past?search[name]=Finals&sort=-end_at&page[size]=15`, { headers }),
-  ])
-  if (!res1.ok && !res2.ok) throw new Error(`PandaScore tournaments error: ${res1.status} / ${res2.status}`)
-  const [t1, t2] = await Promise.all([toArr(res1), toArr(res2)])
-
-  // Deduplicate by ID, then keep only championship-round stages.
-  // Accepts: "Final", "Finals", "Grand Final", "Grand Finals" (case-insensitive).
-  // Rejects: "Upper Bracket Final", "Lower Bracket Final", "Semifinal", etc.
-  const seen = new Set()
-  const tournaments = [...t1, ...t2].filter(t => {
-    if (seen.has(t.id)) return false
-    seen.add(t.id)
-    return /^(grand )?finals?$/i.test((t.name || '').trim())
-  })
-
-  console.log(`Grand finals: found ${tournaments.length} championship stages`)
-
-  // Step 2: Fetch the matches for each Grand Final stage in parallel.
-  // Each match has games[].external_identifier which is the OpenDota match_id.
-  const matchArrays = await Promise.all(
-    tournaments.map(t =>
-      fetch(`${PANDASCORE_BASE}/tournaments/${t.id}/matches?page[size]=10`, { headers })
-        .then(r => r.ok ? r.json() : [])
-        .catch(() => [])
-    )
-  )
-
-  const matchIds = []
-  for (const matches of matchArrays) {
-    for (const m of (matches || [])) {
-      for (const g of (m.games || [])) {
-        if (g.external_identifier) matchIds.push(String(g.external_identifier))
-      }
-    }
-  }
-  console.log(`Grand finals: ${tournaments.length} stages, ${matchIds.length} game IDs collected`)
-
-  const payload = { matchIds, fetchedAt: new Date().toISOString() }
-  try {
-    await kv.set(KV_GF_KEY, payload, { ex: GF_TTL })
-  } catch (err) {
-    console.warn('Grand finals KV write failed:', err?.message)
   }
   return payload
 }
@@ -1200,6 +1125,151 @@ export default async function handler(req, res) {
       console.warn('match-stats fetch error:', err?.message)
       res.setHeader('Cache-Control', 'public, s-maxage=60')
       return res.status(200).json(EMPTY)
+    }
+  }
+
+  // ── tournament-players mode (?mode=tournament-players) ──────────────────────
+  // Per-tournament player performance leaderboard (top-5 per stat).
+  // Placed before PANDASCORE_TOKEN check — only calls OpenDota, not PandaScore.
+  if (req.query?.mode === 'tournament-players') {
+    const { id: tournamentId } = req.query
+    if (!tournamentId) return res.status(400).json({ error: 'id required' })
+
+    const PLAYERS_TTL = 60 * 60 * 3           // 3h — same as tournament heroes
+    const PLAYERS_TTL_COMPLETED = 60 * 60 * 24 * 30  // 30d for completed events
+    const LEAGUES_CACHE_TTL = 60 * 60 * 24
+    const OPENDOTA_API = 'https://api.opendota.com/api'
+    const KV_PLAYERS_KEY = `dota2:tournament_players_v1:${tournamentId}`
+
+    const emptyStats = { kills: [], deaths: [], assists: [], netWorth: [], gpm: [] }
+
+    if (req.query?.bust === '1') {
+      await kv.del(KV_PLAYERS_KEY).catch(() => {})
+    } else {
+      try {
+        const cached = await kv.get(KV_PLAYERS_KEY)
+        if (cached) {
+          res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+          return res.status(200).json(cached)
+        }
+      } catch {}
+    }
+
+    try {
+      let name = req.query.name || null
+
+      // Resolve tournament name from PandaScore if not supplied by frontend
+      if (!name) {
+        const token = process.env.PANDASCORE_TOKEN
+        if (token) {
+          const tRes = await fetch(`https://api.pandascore.co/tournaments/${tournamentId}`, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+          })
+          if (tRes.ok) {
+            const t = await tRes.json()
+            name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+          }
+        }
+      }
+
+      // Fetch OD leagues list (long-cached in KV)
+      const leagues = await (async () => {
+        try { const c = await kv.get('opendota:leagues_v1'); if (c) return c } catch {}
+        const r = await fetch(`${OPENDOTA_API}/leagues`)
+        if (!r.ok) return []
+        const data = await r.json()
+        kv.set('opendota:leagues_v1', data, { ex: LEAGUES_CACHE_TTL }).catch(() => {})
+        return data
+      })()
+
+      const league = findLeague(leagues, name)
+      if (!league) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60')
+        return res.status(200).json({ stats: emptyStats, gameCount: 0 })
+      }
+
+      // Fetch match list for the league
+      const matchListRes = await fetch(`${OPENDOTA_API}/leagues/${league.leagueid}/matches`)
+      if (!matchListRes.ok) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60')
+        return res.status(200).json({ stats: emptyStats, gameCount: 0 })
+      }
+      const matchList = await matchListRes.json()
+      if (!Array.isArray(matchList) || !matchList.length) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60')
+        return res.status(200).json({ stats: emptyStats, gameCount: 0 })
+      }
+
+      // Batch-fetch full match data: 10 concurrent, max 60 games, 7s time budget
+      const CONCURRENCY = 10
+      const MAX_GAMES = 60
+      const TIME_BUDGET_MS = 7000
+      const fetchStart = Date.now()
+      const allMatches = []
+      for (let i = 0; i < Math.min(matchList.length, MAX_GAMES); i += CONCURRENCY) {
+        if (Date.now() - fetchStart > TIME_BUDGET_MS) break
+        const batch = matchList.slice(i, i + CONCURRENCY)
+        const results = await Promise.all(batch.map(async m => {
+          const r = await fetch(`${OPENDOTA_API}/matches/${m.match_id}`)
+          if (!r.ok) return null
+          return r.json()
+        }))
+        allMatches.push(...results.filter(Boolean))
+      }
+
+      // Build leaderboard entries — one per player per game
+      const gamesMap = {}   // accountId → total games played in tournament
+      const allEntries = []
+
+      for (const match of allMatches) {
+        if (!Array.isArray(match.players) || !match.players.length) continue
+        const isRadiantPlayer = p => (p.player_slot ?? 0) < 128
+        for (const p of match.players) {
+          const accountId = p.account_id
+          if (!accountId) continue
+          gamesMap[accountId] = (gamesMap[accountId] || 0) + 1
+          allEntries.push({
+            accountId,
+            playerName: p.name || p.personaname || '',
+            heroId:     p.hero_id ?? 0,
+            teamName:   isRadiantPlayer(p) ? (match.radiant_name || '') : (match.dire_name || ''),
+            matchId:    match.match_id,
+            radiantName: match.radiant_name || '',
+            direName:   match.dire_name || '',
+            kills:      p.kills ?? 0,
+            deaths:     p.deaths ?? 0,
+            assists:    p.assists ?? 0,
+            netWorth:   p.net_worth ?? 0,
+            gpm:        p.gold_per_min ?? 0,
+          })
+        }
+      }
+
+      const top5 = (statKey) =>
+        [...allEntries]
+          .sort((a, b) => b[statKey] - a[statKey])
+          .slice(0, 5)
+          .map((e, i) => ({ ...e, value: e[statKey], rank: i + 1, gamesPlayed: gamesMap[e.accountId] || 1 }))
+
+      const stats = {
+        kills:    top5('kills'),
+        deaths:   top5('deaths'),
+        assists:  top5('assists'),
+        netWorth: top5('netWorth'),
+        gpm:      top5('gpm'),
+      }
+
+      const payload = { stats, gameCount: allMatches.length, league: league.name }
+      const ttl = req.query?.completed === '1' ? PLAYERS_TTL_COMPLETED : PLAYERS_TTL
+      kv.set(KV_PLAYERS_KEY, payload, { ex: ttl }).catch(() => {})
+
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+      return res.status(200).json(payload)
+    } catch (err) {
+      console.error('tournament-players error:', err?.message)
+      await trackError('/api/tournaments?mode=tournament-players', 500, err?.message)
+      res.setHeader('Cache-Control', 'public, s-maxage=60')
+      return res.status(200).json({ stats: emptyStats, gameCount: 0 })
     }
   }
 
@@ -1566,22 +1636,6 @@ export default async function handler(req, res) {
     } catch (err) {
       console.warn('live-series-games failed:', err?.message)
       return res.status(200).json({ gameIds: [] })
-    }
-  }
-
-  // Grand Finals mode - returns OpenDota match IDs for Grand Final games
-  if (req.query?.mode === 'grand-finals') {
-    if (req.query?.bust === '1') {
-      await kv.del(KV_GF_KEY).catch(() => {})
-      console.log('Grand finals cache cleared')
-    }
-    try {
-      const data = await fetchGrandFinalMatchIds(token)
-      return res.status(200).json(data)
-    } catch (err) {
-      console.error('Grand finals error:', err?.message || err)
-      // Fail open so the UI degrades gracefully
-      return res.status(200).json({ matchIds: [], fetchedAt: new Date().toISOString(), error: err?.message })
     }
   }
 

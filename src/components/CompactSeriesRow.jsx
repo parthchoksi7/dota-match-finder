@@ -9,7 +9,7 @@ const PlayIcon = () => (
   </svg>
 )
 
-function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = false, followedTeams, onToggleFollow, isGrandFinal = false, isFollowedMatch = false }) {
+function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = false, followedTeams, onToggleFollow, isGrandFinal = false, isFollowedMatch = false, bracketRound = null }) {
   const radiantTeam = series.games[0].radiantTeam
   const direTeam = series.games[0].direTeam
   const { radiantWins, direWins } = getSeriesWins(series)
@@ -221,6 +221,11 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         </button>
       </div>
 
+      {bracketRound && (
+        <p className="px-4 pb-1 -mt-0.5 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-600">
+          {bracketRound}
+        </p>
+      )}
     </div>
   )
 }

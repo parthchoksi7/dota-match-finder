@@ -1,4 +1,4 @@
-import { matchesTier1Names, winsRequiredForSeries } from './utils'
+import { matchesTier1Names, winsRequiredForSeries, trackEvent } from './utils'
 
 const OPENDOTA_BASE = 'https://api.opendota.com/api'
 
@@ -198,22 +198,6 @@ export async function fetchProMatches(lastMatchId = null) {
   return { matches, nextMatchId: cursor }
 }
 
-/**
- * Fetches recently completed Grand Final match IDs from the backend.
- * Returns an array of OpenDota match ID strings (via PandaScore external_identifier).
- * Falls back to [] on any error so callers degrade gracefully.
- */
-export async function fetchGrandFinalMatchIds() {
-  try {
-    const res = await fetch('/api/tournaments?mode=grand-finals')
-    if (!res.ok) return []
-    const data = await res.json()
-    return Array.isArray(data.matchIds) ? data.matchIds : []
-  } catch {
-    return []
-  }
-}
-
 let _twitchAuth = null
 async function getTwitchToken() {
   if (_twitchAuth) return _twitchAuth
@@ -306,8 +290,11 @@ export async function findTwitchVod(matchStartTime, _tournamentName, preferredCh
   if (preferredChannel) {
     const vod = await findVodOnChannel(preferredChannel, matchStartTime, headers)
     if (vod) return { url: vod.url, channel: vod.channel, allVods: [vod] }
+    trackEvent('vod_not_found', { had_channel: true, channel: preferredChannel })
+    return { url: null, channel: null, allVods: [] }
   }
 
+  trackEvent('vod_not_found', { had_channel: false, channel: null })
   return { url: null, channel: null, allVods: [] }
 }
 
@@ -395,6 +382,24 @@ export async function fetchMatchStats(matchId) {
     if (!res.ok) return null
     const data = await res.json()
     _statsCache.set(key, data)
+    return data
+  } catch {
+    return null
+  }
+}
+
+const _tournamentPlayersCache = new Map()
+
+export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false) {
+  const key = String(tournamentId)
+  if (_tournamentPlayersCache.has(key)) return _tournamentPlayersCache.get(key)
+  try {
+    const name = encodeURIComponent(serieName || '')
+    const completed = isCompleted ? '&completed=1' : ''
+    const res = await fetch(`/api/tournaments?mode=tournament-players&id=${key}&name=${name}${completed}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    _tournamentPlayersCache.set(key, data)
     return data
   } catch {
     return null

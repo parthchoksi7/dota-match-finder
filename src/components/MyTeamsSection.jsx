@@ -54,7 +54,6 @@ function MyTeamsSection({
   onToggleFollow,
   spoilerFree = false,
   expandedSeriesId,
-  grandFinalMatchIds = new Set(),
 }) {
   const [calendarModalOpen, setCalendarModalOpen] = useState(false)
   const [calendarDismissed, setCalendarDismissed] = useState(
@@ -237,7 +236,8 @@ function MyTeamsSection({
               followedTeams={followedTeams}
               onToggleFollow={onToggleFollow}
               expandedSeriesId={expandedSeriesId}
-              isGrandFinal={s.games.some(g => grandFinalMatchIds.has(g.id))}
+              isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+              bracketRound={s.games[0]?.bracketRound}
             />
           ))}
         </div>

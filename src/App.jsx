@@ -8,7 +8,7 @@ import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import ManageTeamsModal from "./components/ManageTeamsModal"
-import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchGrandFinalMatchIds } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
@@ -113,13 +113,13 @@ function usePullToRefresh(onRefresh) {
 function App() {
   const [allMatches, setAllMatches] = useState([])
   const [nextMatchId, setNextMatchId] = useState(null)
-  const [grandFinalMatchIds, setGrandFinalMatchIds] = useState(new Set())
   const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [initialLoading, setInitialLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState(null)
+  const [drawerSource, setDrawerSource] = useState('unknown')
   const [error, setError] = useState(null)
   const [summary, setSummary] = useState(null)
   const [summaryMatchId, setSummaryMatchId] = useState(null)
@@ -301,7 +301,6 @@ function App() {
 
   useEffect(() => {
     loadMatches()
-    fetchGrandFinalMatchIds().then(ids => setGrandFinalMatchIds(new Set(ids)))
     fetchLiveData()
     fetchJustEnded()
     const liveInterval = setInterval(fetchLiveData, 2 * 60 * 1000)
@@ -353,7 +352,7 @@ function App() {
 
     const found = allMatches.find(m => m.id === matchId)
     if (found) {
-      handleSelectMatch(found)
+      handleSelectMatch(found, 'shared_url')
       return
     }
 
@@ -375,7 +374,7 @@ function App() {
           seriesId: data.series_id,
           seriesType: data.series_type,
         }
-        handleSelectMatch(match)
+        handleSelectMatch(match, 'shared_url')
       })
       .catch(() => {})
   }, [initialLoading])
@@ -426,7 +425,8 @@ function App() {
     setTimeout(() => { if (window.matchMedia('(hover: hover)').matches) searchInputRef.current?.focus() }, 0)
   }
 
-  async function handleSelectMatch(match) {
+  async function handleSelectMatch(match, source = 'homepage_feed') {
+    setDrawerSource(source)
     setSummary(null)
     setSummaryMatchId(null)
     setSummaryError(null)
@@ -445,6 +445,7 @@ function App() {
       radiantTeam: match.radiantTeam,
       direTeam: match.direTeam,
       tournament: match.tournament,
+      source,
     })
 
     if (match.seriesId && !match._skipExpand) setExpandedSeriesId(String(match.seriesId))
@@ -500,7 +501,7 @@ function App() {
     }
   }
 
-  async function handleSelectMatchId(matchId) {
+  async function handleSelectMatchId(matchId, source = 'replay') {
     try {
       const data = await fetch(`https://api.opendota.com/api/matches/${matchId}`).then(r => r.json())
       if (!data || !data.match_id) return
@@ -518,7 +519,7 @@ function App() {
         seriesId: data.series_id,
         seriesType: data.series_type,
       }
-      handleSelectMatch(match)
+      handleSelectMatch(match, source)
     } catch {
       // silently fail
     }
@@ -536,7 +537,7 @@ function App() {
   async function handleLiveSeriesReplay(odMatchId) {
     trackEvent('live_series_replay', { odMatchId })
     setSelectedLiveSeries(null)
-    await handleSelectMatchId(odMatchId)
+    await handleSelectMatchId(odMatchId, 'live_series_replay')
   }
 
   async function handleDraftPosts(series) {
@@ -749,7 +750,7 @@ function App() {
           <button
             key={game.id}
             type="button"
-            onClick={() => handleSelectMatch(game)}
+            onClick={() => handleSelectMatch(game, 'game_switcher')}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors ${
               game.id === selectedMatch?.id
                 ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
@@ -883,7 +884,6 @@ function App() {
               spoilerFree={spoilerFree}
               followedTeams={followedTeams}
               onToggleFollow={handleToggleFollow}
-              grandFinalMatchIds={grandFinalMatchIds}
               error={error}
               onRetry={loadMatches}
               onSelectMatchId={handleSelectMatchId}
@@ -972,7 +972,7 @@ function App() {
                 )}
                 <MatchList
                   matches={filteredMatches}
-                  onSelect={match => { handleSelectMatch(match); setSearchOpen(false) }}
+                  onSelect={match => { handleSelectMatch(match, 'search'); setSearchOpen(false) }}
                   onDraftPosts={isOwner ? handleDraftPosts : undefined}
                   onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
                   loading={loading}
@@ -1031,6 +1031,7 @@ function App() {
       {selectedMatch && (
         <MatchDrawer
           match={selectedMatch}
+          openSource={drawerSource}
           onDismiss={dismissPanel}
           followedTeams={followedTeams}
           onToggleFollow={handleToggleFollow}
