@@ -132,9 +132,8 @@ If you notice a refactor opportunity (duplicate logic, untested pure function, d
 ### API Rate Limits and Caching
 - **Always check if data can be cached** before making API calls
 - Use `localStorage` or `sessionStorage` for:
-  - Hero data (rarely changes)
+  - Hero data (already implemented — see Caching Strategy below)
   - Match summaries (never change once generated)
-  - Twitch tokens (valid for ~60 days)
 - Implement rate limiting on the frontend:
   - Debounce search inputs
   - Prevent duplicate concurrent requests
@@ -145,9 +144,9 @@ If you notice a refactor opportunity (duplicate logic, untested pure function, d
   - Anthropic Claude: Pay-per-use (minimize unnecessary calls)
   
 ### Caching Strategy
-- Cache hero list on first load (store in `localStorage` with expiry)
+- **Hero list** — already cached in `localStorage` under `STORAGE_KEYS.HEROES` (`"spectate-heroes-v1"`) with a 24h TTL + module-level `heroCache` variable as L1. Do NOT add duplicate hero caching. Invalidate by clearing that key.
 - Cache match summaries by match ID (never regenerate)
-- Cache Twitch tokens until expiry
+- **Twitch token** — cached server-side in KV (`twitch:token:v1`, ~50-day TTL) and pre-fetched at module load in `src/api.js` (`getTwitchToken().catch(() => {})`). Client never stores the token; it goes through `api/match-streams.js?mode=twitch-token`.
 - For search results: cache the filtered view, not raw API data
 - Add cache invalidation logic if data becomes stale
 

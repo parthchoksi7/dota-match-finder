@@ -406,6 +406,61 @@ Returns end-game statistics for a single OpenDota match.
 }
 ```
 
+### GET /api/tournaments?mode=llms-data
+Returns structured entity data about the full site, designed for RAG pipelines, citation engines, and AI knowledge graph builders. Cached 1 hour. Add `?bust=1` to bypass KV cache.
+```json
+{
+  "site": {
+    "name": "string",
+    "url": "string",
+    "description": "string",
+    "sport": "string",
+    "coverage": "string",
+    "founded": "number",
+    "social": { "x": "string" }
+  },
+  "tournaments": {
+    "live": [
+      {
+        "id": "number",
+        "name": "string",
+        "leagueName": "string",
+        "beginAt": "string (ISO 8601) | null",
+        "endAt": "string (ISO 8601) | null",
+        "prizePool": "number | null",
+        "winner": "string | null"
+      }
+    ],
+    "upcoming": [...],
+    "completed": [...]
+  },
+  "tier1Organizers": ["string"],
+  "dataSources": [
+    {
+      "name": "string",
+      "purpose": "string",
+      "updateFrequency": "string"
+    }
+  ],
+  "apiEndpoints": [
+    {
+      "url": "string",
+      "description": "string",
+      "format": "string",
+      "cacheSeconds": "number"
+    }
+  ],
+  "glossaryIndex": [
+    {
+      "id": "string (URL slug, e.g. 'draft')",
+      "term": "string (display name, e.g. 'Draft / Pick-Ban')",
+      "shortDef": "string (one-sentence definition)"
+    }
+  ],
+  "generatedAt": "string (ISO 8601)"
+}
+```
+
 ---
 
 ## Match URL Structure

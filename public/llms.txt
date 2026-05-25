@@ -136,6 +136,7 @@ Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes 
 - News articles (JSON): https://spectateesports.live/api/news
 - News feed (RSS 2.0): https://spectateesports.live/api/news?format=rss
 - All-tournament calendar (.ics): https://spectateesports.live/api/tournaments?mode=calendar-all
+- AI entity data (JSON): https://spectateesports.live/api/tournaments?mode=llms-data — Structured entity graph for AI systems: live/upcoming/completed tournaments, Tier 1 organizers, data sources, all 25 glossary terms with definitions, and all machine-readable endpoint URLs. Cached 1 hour.
 
 ## Optional
 
