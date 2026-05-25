@@ -354,7 +354,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
 
   if (loading) return (
     <section className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden animate-pulse">
-      <div className="px-4 sm:px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
+      <div className="px-3 sm:px-4 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60">
         <div className="h-3 w-28 bg-gray-200 dark:bg-gray-800 rounded mb-3" />
         <div className="h-5 w-56 bg-gray-200 dark:bg-gray-800 rounded" />
       </div>
@@ -478,7 +478,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       >
 
       {/* Tournament name */}
-      <div className="px-4 sm:px-5 pt-4 pb-3 relative">
+      <div className="px-3 sm:px-4 pt-4 pb-3 relative">
         {onClose && (
           <button
             type="button"
@@ -531,7 +531,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       </div>
 
       {/* Tab bar — segmented control */}
-      <div className="px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+      <div className="px-2 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex w-full rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
           {TABS.map(tab => (
             <button
@@ -552,7 +552,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
       {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Stats' && (
-        <div className="flex items-center gap-1 px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-900">
+        <div className="flex items-center gap-1 px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-gray-900">
           <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
           {detail.eventStages.map(stage => {
             const isActive = stage.id === activeStageId
@@ -580,7 +580,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
 
       {/* Tab content */}
       {activeTab === 'Info' && (
-        <div className="px-4 sm:px-5 py-4 flex flex-col gap-4">
+        <div className="px-3 sm:px-4 py-4 flex flex-col gap-4">
           {detail?.eventStages?.length > 0 && (
             <div className="flex flex-col gap-2">
               {detail.eventStages.map(stage => {
@@ -636,7 +636,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
               </table>
             </div>
           ) : isPlayoffStage ? (
-            <div className="px-4 sm:px-5 py-8 text-center">
+            <div className="px-3 sm:px-4 py-8 text-center">
               <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No standings for bracket stages</p>
               {detail?.eventStages?.some(s => !PLAYOFF_FORMATS.has(s.format) && s.id !== activeStageId) && (
                 <button
@@ -677,7 +677,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       )}
 
       {activeTab === 'Stats' && (
-        <div className="px-4 sm:px-5 py-4">
+        <div className="px-3 sm:px-4 py-4">
           {/* Sub-toggle: Heroes | Players */}
           <div className="flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5 mb-4 w-fit">
             {['heroes', 'players'].map(view => (
@@ -933,7 +933,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
         </div>
       )}
 
-      <div className="px-4 sm:px-5 py-3 border-t border-gray-100 dark:border-gray-900 flex justify-end">
+      <div className="px-3 sm:px-4 py-3 border-t border-gray-100 dark:border-gray-900 flex justify-end">
         <a
           href="/tournaments"
           className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
