@@ -5,6 +5,17 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 25, 2026",
+    tag: "new",
+    title: "Dota 2 Glossary, News RSS feed, and live headlines in server HTML",
+    desc: "Three discoverability improvements shipped together.",
+    items: [
+      "Dota 2 Glossary at /glossary — 25 term pages covering Draft, GPM, Roshan, Rampage, Divine Rapier, Buyback, Mega Creeps, and more. Each page has a short definition and a full explanation with schema.org structured data for AI and search indexing.",
+      "RSS feed for news — subscribe to the Dota 2 news feed at /api/news?format=rss in any RSS reader, podcast app, or AI aggregator. Includes title, excerpt, source, and publication date for each article.",
+      "The /news page now injects live article headlines into its server-rendered HTML so AI crawlers and search engines see real content without executing JavaScript.",
+    ],
+  },
+  {
+    date: "May 25, 2026",
     tag: "fix",
     title: "Game indicator tooltips no longer clip",
     desc: "The small icon tooltips next to team names (Divine Rapier, Gold Swing, Mega Comeback, Rampage) were being cut off by the card container. They now render in a portal above all other content and display correctly regardless of where the card sits on the page.",
