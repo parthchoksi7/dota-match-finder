@@ -7,7 +7,7 @@ const RELEASES = [
     date: "May 25, 2026",
     tag: "fix",
     title: "Homepage always opens on today",
-    desc: "The date strip was defaulting to the most recent date with data instead of today. Now the homepage always opens on today's date, even when there are no completed matches yet for the day.",
+    desc: "The homepage now opens on the most useful date rather than always today. If today has matches, it opens on today. If today is empty, it jumps to the next upcoming date. If there are no future matches either, it falls back to the most recent past date — so something is always on screen.",
   },
   {
     date: "May 25, 2026",

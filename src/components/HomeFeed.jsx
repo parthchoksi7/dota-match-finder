@@ -123,8 +123,22 @@ function HomeFeed({
     return dates
   }, [completeSeries, liveMatches, upcomingMatches, todayKey, tomorrowKey])
 
-  // Default to most recent date with data; prefer today if today has data.
-  const resolvedDate = activeDate ?? todayKey
+  // Smart default: today (if it has data) → first future date → most recent past date
+  const defaultDateKey = useMemo(() => {
+    const todayHasData = liveMatches.length > 0
+      || upcomingMatches.some(m => new Date(m.scheduledAt).toDateString() === todayKey)
+      || completeSeries.some(s => getDayKey(s.startTime) === todayKey)
+    if (todayHasData) return todayKey
+
+    const todayIdx = availableDates.findIndex(d => d.key === todayKey)
+    const futureDate = availableDates[todayIdx + 1]
+    if (futureDate) return futureDate.key
+
+    if (todayIdx > 0) return availableDates[todayIdx - 1].key
+    return todayKey
+  }, [availableDates, liveMatches, upcomingMatches, completeSeries, todayKey])
+
+  const resolvedDate = activeDate ?? defaultDateKey
 
   // Windowed date strip: show only 1 previous date + selected + all future dates.
   // New data from background fetches only surfaces one pill at a time as the user navigates back.
