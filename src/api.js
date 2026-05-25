@@ -178,19 +178,26 @@ export async function fetchProMatches(lastMatchId = null) {
     }
   }
 
-  // Enrich seriesType using PandaScore format cached in Redis by the live-matches cron.
-  // Fixes cases where OpenDota reports the wrong series_type (e.g. BO2 group stage as BO3).
+  // Enrich seriesType and bracketRound from PandaScore KV data (written by live-matches cron).
+  // Both calls are parallel since they share the same match ID list.
   try {
     const ids = matches.map(m => m.id).join(',')
-    const fmtRes = await fetch(`/api/tournaments?mode=match-formats&ids=${ids}`)
+    const [fmtRes, bktRes] = await Promise.all([
+      fetch(`/api/tournaments?mode=match-formats&ids=${ids}`),
+      fetch(`/api/tournaments?mode=match-brackets&ids=${ids}`),
+    ])
+    const FORMAT_TO_SERIES_TYPE = { 'best_of_1': 0, 'best_of_2': 3, 'best_of_3': 1, 'best_of_5': 2 }
     if (fmtRes.ok) {
       const { formats } = await fmtRes.json()
-      const FORMAT_TO_SERIES_TYPE = { 'best_of_1': 0, 'best_of_2': 3, 'best_of_3': 1, 'best_of_5': 2 }
       for (const match of matches) {
         const fmt = formats?.[match.id]
-        if (fmt && FORMAT_TO_SERIES_TYPE[fmt] !== undefined) {
-          match.seriesType = FORMAT_TO_SERIES_TYPE[fmt]
-        }
+        if (fmt && FORMAT_TO_SERIES_TYPE[fmt] !== undefined) match.seriesType = FORMAT_TO_SERIES_TYPE[fmt]
+      }
+    }
+    if (bktRes.ok) {
+      const { brackets } = await bktRes.json()
+      for (const match of matches) {
+        if (brackets?.[match.id]) match.bracketRound = brackets[match.id]
       }
     }
   } catch {}

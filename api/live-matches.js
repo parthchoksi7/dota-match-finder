@@ -148,11 +148,14 @@ async function cacheRunningStreams(rawMatches) {
       const matchId = game.external_identifier || null
       if (!matchId) continue
 
-      // Cache PandaScore format keyed by OpenDota match ID so completed-match
-      // feed can correct series_type when OpenDota reports the wrong format (e.g.
-      // DreamLeague S29 group stage BO2 reported as series_type 1 = BO3).
+      // Cache PandaScore format and bracket round keyed by OpenDota match ID so the
+      // completed-match feed can correct series_type and show grand final styling.
       if (format) {
         streamWrites.push(kv.set(`format:match:${matchId}`, format, { ex: FORMAT_MATCH_TTL }))
+      }
+      const bracketRound = parseBracketRound(m.name)
+      if (bracketRound) {
+        streamWrites.push(kv.set(`bracket:match:${matchId}`, bracketRound, { ex: FORMAT_MATCH_TTL }))
       }
 
       // Record which OpenDota game ID belongs to which position in this PandaScore match.

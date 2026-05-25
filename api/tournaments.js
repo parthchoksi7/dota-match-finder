@@ -776,6 +776,11 @@ async function fetchRecentCompleted(token, bust = false) {
 
       const extId = resolvedId || `_ps-${m.id}-${g.position}`
 
+      const bRound = parseBracketRound(m.name)
+      if (bRound && resolvedId) {
+        kv.set(`bracket:match:${resolvedId}`, bRound, { ex: 14 * 24 * 3600 }).catch(() => {})
+      }
+
       const radiantTeam = g.radiant_team?.name || opponents[0]?.opponent?.name || 'Radiant'
       const direTeam    = g.dire_team?.name    || opponents[1]?.opponent?.name || 'Dire'
       const radiantId   = g.radiant_team?.id ?? opponents[0]?.opponent?.id
@@ -1539,6 +1544,48 @@ export default async function handler(req, res) {
       console.warn('match-formats KV read failed:', err?.message)
       return res.status(200).json({ formats: {} })
     }
+  }
+
+  // Match brackets mode - returns bracket round (e.g. "Grand Final") keyed by OpenDota match ID.
+  // First checks KV (written by live-matches cron + recent-completed handler). For any cache miss,
+  // falls back to a 7-day PS past-matches lookup using external_identifier (reliable once OD has indexed).
+  if (req.query?.mode === 'match-brackets') {
+    const ids = (req.query?.ids || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
+    if (ids.length === 0) return res.status(200).json({ brackets: {} })
+    const brackets = {}
+    try {
+      const values = await kv.mget(...ids.map(id => `bracket:match:${id}`))
+      ids.forEach((id, i) => { if (values[i]) brackets[id] = values[i] })
+    } catch {}
+    const missing = ids.filter(id => !brackets[id])
+    const psToken = process.env.PANDASCORE_TOKEN
+    if (missing.length > 0 && psToken) {
+      try {
+        const ago7d = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+        const now = new Date().toISOString()
+        const psUrl = `${PANDASCORE_BASE}/matches/past?sort=-end_at&page[size]=100&range[end_at]=${ago7d},${now}`
+        const psRes = await fetch(psUrl, { headers: { 'Authorization': `Bearer ${psToken}`, 'Accept': 'application/json' } })
+        if (psRes.ok) {
+          const psMatches = await psRes.json()
+          const missingSet = new Set(missing.map(String))
+          const writes = []
+          for (const m of (Array.isArray(psMatches) ? psMatches : [])) {
+            const br = parseBracketRound(m.name)
+            if (!br) continue
+            for (const g of (m.games || [])) {
+              const extId = String(g.external_identifier || '')
+              if (!extId || !missingSet.has(extId)) continue
+              brackets[extId] = br
+              writes.push(kv.set(`bracket:match:${extId}`, br, { ex: 14 * 24 * 3600 }).catch(() => {}))
+            }
+          }
+          if (writes.length) await Promise.allSettled(writes)
+        }
+      } catch (err) {
+        console.warn('match-brackets PS fallback failed:', err?.message)
+      }
+    }
+    return res.status(200).json({ brackets })
   }
 
   // Proxy for OpenDota /api/leagues — returns premium league IDs to avoid client-side CORS errors.
