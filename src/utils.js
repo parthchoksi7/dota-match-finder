@@ -217,6 +217,32 @@ export function setFollowedTeams(teams) {
   } catch {}
 }
 
+// ── News unread indicator helpers ─────────────────────────────────────────
+
+const NEWS_LAST_VISITED_KEY = 'spectate-news-last-visited'
+const NEWS_LATEST_ARTICLE_KEY = 'spectate-news-latest-article'
+
+export function setNewsLastVisited() {
+  try { localStorage.setItem(NEWS_LAST_VISITED_KEY, new Date().toISOString()) } catch {}
+}
+
+export function setNewsLatestArticle(publishedAt) {
+  if (!publishedAt) return
+  try { localStorage.setItem(NEWS_LATEST_ARTICLE_KEY, publishedAt) } catch {}
+}
+
+export function hasUnreadNews() {
+  try {
+    const lastVisited = localStorage.getItem(NEWS_LAST_VISITED_KEY)
+    if (!lastVisited) return false
+    const latestArticle = localStorage.getItem(NEWS_LATEST_ARTICLE_KEY)
+    if (!latestArticle) return false
+    return new Date(latestArticle) > new Date(lastVisited)
+  } catch {
+    return false
+  }
+}
+
 /** True if the series has a winner or ended in a BO2 draw. */
 /**
  * Returns true if leagueName contains any of the tier1Names substrings.

@@ -3,7 +3,7 @@ import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
 import NewsCard, { NewsCardSkeleton } from '../components/NewsCard'
-import { trackEvent } from '../utils'
+import { trackEvent, setNewsLastVisited, setNewsLatestArticle } from '../utils'
 
 const PAGE_SIZE = 20
 
@@ -34,6 +34,7 @@ export default function NewsPage() {
   const [shown, setShown] = useState(PAGE_SIZE)
 
   useEffect(() => {
+    setNewsLastVisited()
     trackEvent('news_page_view', { filter_category: category })
   }, [])
 
@@ -46,6 +47,8 @@ export default function NewsPage() {
       })
       .then(data => {
         _cachedArticles = data.articles || []
+        const latest = _cachedArticles.reduce((max, a) => a.publishedAt > max ? a.publishedAt : max, '')
+        setNewsLatestArticle(latest)
         setArticles(_cachedArticles)
         setLoading(false)
       })
@@ -67,6 +70,8 @@ export default function NewsPage() {
       })
       .then(data => {
         _cachedArticles = data.articles || []
+        const latest = _cachedArticles.reduce((max, a) => a.publishedAt > max ? a.publishedAt : max, '')
+        setNewsLatestArticle(latest)
         setArticles(_cachedArticles)
         setLoading(false)
       })

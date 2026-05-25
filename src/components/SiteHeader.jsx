@@ -1,4 +1,5 @@
-import { trackEvent } from "../utils"
+import { useEffect } from "react"
+import { trackEvent, hasUnreadNews } from "../utils"
 import SettingsSheet, { SETTINGS_OPEN_EVENT } from "./SettingsSheet"
 import InstallPrompt from "./InstallPrompt"
 
@@ -11,6 +12,12 @@ import InstallPrompt from "./InstallPrompt"
  */
 export default function SiteHeader({ spoilerFree, onSpoilerToggle, onSearchOpen }) {
   const showSpoiler = typeof onSpoilerToggle === "function"
+  const isNewsPage = typeof window !== "undefined" && window.location.pathname === "/news"
+  const newsUnread = !isNewsPage && hasUnreadNews()
+
+  useEffect(() => {
+    if (newsUnread) trackEvent('news_unread_indicator_shown', { path: window.location.pathname })
+  }, [newsUnread])
 
   function openSettings() {
     window.dispatchEvent(new Event(SETTINGS_OPEN_EVENT))
@@ -41,9 +48,10 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle, onSearchOpen 
           <a
             href="/news"
             onClick={() => trackEvent('nav_news_click', {})}
-            className="hidden md:inline text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             News
+            {newsUnread && <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />}
           </a>
           {onSearchOpen && (
             <button

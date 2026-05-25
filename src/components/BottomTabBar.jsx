@@ -1,4 +1,4 @@
-import { trackEvent } from "../utils"
+import { trackEvent, hasUnreadNews } from "../utils"
 import { SETTINGS_OPEN_EVENT } from "./SettingsSheet"
 
 /**
@@ -12,6 +12,7 @@ export default function BottomTabBar() {
   const homeActive = path === "/" || path.startsWith("/match/")
   const tournamentsActive = path === "/tournaments" || path.startsWith("/tournament/")
   const newsActive = path === "/news"
+  const newsUnread = !newsActive && hasUnreadNews()
 
   function openSettings() {
     window.dispatchEvent(new Event(SETTINGS_OPEN_EVENT))
@@ -26,14 +27,14 @@ export default function BottomTabBar() {
       <div className="flex items-stretch">
         <Tab href="/" label="Home" active={homeActive} icon={<HomeIcon />} />
         <Tab href="/tournaments" label="Tournaments" active={tournamentsActive} icon={<TrophyIcon />} />
-        <Tab href="/news" label="News" active={newsActive} icon={<NewspaperIcon />} />
+        <Tab href="/news" label="News" active={newsActive} icon={<NewspaperIcon />} unread={newsUnread} />
         <Tab onClick={openSettings} label="More" icon={<MoreIcon />} />
       </div>
     </nav>
   )
 }
 
-function Tab({ href, onClick, label, active, icon }) {
+function Tab({ href, onClick, label, active, icon, unread }) {
   const base = "flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 min-h-[56px] transition-colors"
   const color = active
     ? "text-red-500"
@@ -46,7 +47,10 @@ function Tab({ href, onClick, label, active, icon }) {
   if (href) {
     return (
       <a href={href} onClick={track} className={`${base} ${color}`} aria-current={active ? "page" : undefined}>
-        <span className="w-5 h-5" aria-hidden="true">{icon}</span>
+        <span className="relative w-5 h-5" aria-hidden="true">
+          {icon}
+          {unread && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-sky-500" />}
+        </span>
         <span className="text-[10px] font-bold uppercase tracking-wide">{label}</span>
       </a>
     )

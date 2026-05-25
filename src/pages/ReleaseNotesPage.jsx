@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 24, 2026",
+    tag: "new",
+    title: "Unread news indicator",
+    desc: "A small dot now appears on the News tab (mobile) and News link (desktop) when new articles have been published since your last visit. The dot disappears as soon as you open the news page. No dot on your first visit — the indicator only appears once you have a read history to compare against.",
+  },
+  {
     date: "May 23, 2026",
     tag: "improvement",
     title: "Gold advantage chart redesigned with more breathing space",
