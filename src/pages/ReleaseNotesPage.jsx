@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 25, 2026",
+    tag: "fix",
+    title: "Removed redundant team matchup line on match cards",
+    desc: "PandaScore sometimes sends a match name like \"Liquid vs Xtreme\" with no bracket label. This was being parsed and shown as a second line below the team names, duplicating the same information. Match cards now only show that second line when it contains a real bracket label (e.g. Upper Bracket Final, Grand Final).",
+  },
+  {
+    date: "May 25, 2026",
     tag: "new",
     title: "Dota 2 Glossary, News RSS feed, and live headlines in server HTML",
     desc: "Three discoverability improvements shipped together.",

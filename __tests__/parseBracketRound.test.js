@@ -37,4 +37,16 @@ describe('parseBracketRound', () => {
   it('handles name with no colon', () => {
     expect(parseBracketRound('Grand Final')).toBe('Grand Final')
   })
+
+  it('returns null when name is just a team matchup (no bracket label)', () => {
+    expect(parseBracketRound('Liquid vs Xtreme')).toBeNull()
+  })
+
+  it('returns null when name is team matchup with colon suffix', () => {
+    expect(parseBracketRound('Liquid vs Xtreme: Game 1')).toBeNull()
+  })
+
+  it('returns null for vs. variant', () => {
+    expect(parseBracketRound('Team Spirit vs. Team Yandex')).toBeNull()
+  })
 })

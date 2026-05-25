@@ -72,6 +72,8 @@ export function parseBracketRound(name) {
   if (!name) return null
   const label = name.split(':')[0].trim()
   if (!label) return null
+  // If the label is just a team matchup (contains "vs"), it's not a bracket round
+  if (/\bvs\.?\b/i.test(label)) return null
   return label.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '').join(' ')
 }
 
