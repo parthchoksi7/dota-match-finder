@@ -1,5 +1,19 @@
 import { track } from '@vercel/analytics'
 
+export const STORAGE_KEYS = {
+  SUMMARY_CACHE:            "dota-match-finder-summaries",
+  FOLLOWED_TEAMS:           "followedTeams",
+  NEWS_LAST_VISITED:        "spectate-news-last-visited",
+  NEWS_LATEST_ARTICLE:      "spectate-news-latest-article",
+  CALENDAR_NUDGE_DISMISSED: "calendar-nudge-dismissed",
+  OWNER:                    "spectate-owner",
+  SPOILER_FREE:             "spoilerFree",
+  PUSH_DISABLED:            "spectate-push-disabled",
+  THEME:                    "theme",
+  MY_TEAMS:                 "my-teams",
+  RECENT_SEARCHES:          "dota-recent-searches",
+}
+
 export function toTitleCase(str) {
   if (!str) return ''
   return str.replace(/\b\w/g, c => c.toUpperCase())
@@ -164,12 +178,10 @@ export function winsRequiredForSeries(seriesType) {
 
 // ── Summary localStorage cache helpers ────────────────────────────────────
 
-const SUMMARY_CACHE_KEY = "dota-match-finder-summaries"
-
 export function getSummaryFromCache(matchId) {
   if (typeof window === "undefined" || !matchId) return null
   try {
-    const raw = localStorage.getItem(SUMMARY_CACHE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.SUMMARY_CACHE)
     if (!raw) return null
     const map = JSON.parse(raw)
     return map[matchId] ?? null
@@ -181,61 +193,48 @@ export function getSummaryFromCache(matchId) {
 export function setSummaryInCache(matchId, text) {
   if (typeof window === "undefined" || !matchId || typeof text !== "string") return
   try {
-    const raw = localStorage.getItem(SUMMARY_CACHE_KEY) || "{}"
+    const raw = localStorage.getItem(STORAGE_KEYS.SUMMARY_CACHE) || "{}"
     const map = JSON.parse(raw)
     map[matchId] = text
-    localStorage.setItem(SUMMARY_CACHE_KEY, JSON.stringify(map))
+    localStorage.setItem(STORAGE_KEYS.SUMMARY_CACHE, JSON.stringify(map))
   } catch {}
 }
 
 // ── My Teams localStorage helpers ─────────────────────────────────────────
 
-const FOLLOWED_TEAMS_KEY = "followedTeams"
-
-/**
- * Read followed team names from localStorage.
- * Returns an empty array if localStorage is unavailable or data is malformed.
- */
 export function getFollowedTeams() {
   if (typeof window === "undefined") return []
   try {
-    const raw = localStorage.getItem(FOLLOWED_TEAMS_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.FOLLOWED_TEAMS)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
   }
 }
 
-/**
- * Persist an array of followed team names to localStorage.
- * Fails silently if localStorage is unavailable (e.g. incognito).
- */
 export function setFollowedTeams(teams) {
   if (typeof window === "undefined") return
   try {
-    localStorage.setItem(FOLLOWED_TEAMS_KEY, JSON.stringify(teams))
+    localStorage.setItem(STORAGE_KEYS.FOLLOWED_TEAMS, JSON.stringify(teams))
   } catch {}
 }
 
 // ── News unread indicator helpers ─────────────────────────────────────────
 
-const NEWS_LAST_VISITED_KEY = 'spectate-news-last-visited'
-const NEWS_LATEST_ARTICLE_KEY = 'spectate-news-latest-article'
-
 export function setNewsLastVisited() {
-  try { localStorage.setItem(NEWS_LAST_VISITED_KEY, new Date().toISOString()) } catch {}
+  try { localStorage.setItem(STORAGE_KEYS.NEWS_LAST_VISITED, new Date().toISOString()) } catch {}
 }
 
 export function setNewsLatestArticle(publishedAt) {
   if (!publishedAt) return
-  try { localStorage.setItem(NEWS_LATEST_ARTICLE_KEY, publishedAt) } catch {}
+  try { localStorage.setItem(STORAGE_KEYS.NEWS_LATEST_ARTICLE, publishedAt) } catch {}
 }
 
 export function hasUnreadNews() {
   try {
-    const lastVisited = localStorage.getItem(NEWS_LAST_VISITED_KEY)
+    const lastVisited = localStorage.getItem(STORAGE_KEYS.NEWS_LAST_VISITED)
     if (!lastVisited) return false
-    const latestArticle = localStorage.getItem(NEWS_LATEST_ARTICLE_KEY)
+    const latestArticle = localStorage.getItem(STORAGE_KEYS.NEWS_LATEST_ARTICLE)
     if (!latestArticle) return false
     return new Date(latestArticle) > new Date(lastVisited)
   } catch {

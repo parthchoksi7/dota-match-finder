@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { trackEvent } from "../utils"
+import { trackEvent, STORAGE_KEYS } from "../utils"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
 import { isPushSupported, getPushPermission, subscribeToPush } from "../utils/push"
 
@@ -20,11 +20,11 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   const onClose = () => setIsOpen(false)
 
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("theme") || "system" } catch { return "system" }
+    try { return localStorage.getItem(STORAGE_KEYS.THEME) || "system" } catch { return "system" }
   })
 
   useEffect(() => {
-    try { localStorage.setItem("theme", theme) } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.THEME, theme) } catch {}
     if (theme === "system") {
       const mq = window.matchMedia("(prefers-color-scheme: dark)")
       const apply = () => document.documentElement.classList.toggle("dark", mq.matches)
@@ -68,7 +68,7 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   async function handleEnablePush() {
     setSubscribing(true)
     trackEvent("push_notifications_enable_click", { source: "settings_sheet" })
-    const teams = JSON.parse(localStorage.getItem('my-teams') || '[]')
+    const teams = JSON.parse(localStorage.getItem(STORAGE_KEYS.MY_TEAMS) || '[]')
     await subscribeToPush(teams)
     setPushPermission(getPushPermission())
     setSubscribing(false)

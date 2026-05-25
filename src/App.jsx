@@ -12,10 +12,9 @@ import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary } 
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS } from "./utils"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
-const CALENDAR_NUDGE_DISMISSED_KEY = "calendar-nudge-dismissed"
 const JUST_ENDED_ENABLED = true
 
 function slugify(str) {
@@ -46,6 +45,25 @@ function getMatchIdFromUrl() {
   const hashMatch = hash?.match(/^#match-(\d+)/)
   if (hashMatch) return hashMatch[1]
   return null
+}
+
+async function resolveMatchStreams(match, allMatches) {
+  const siblingIds = match.seriesId
+    ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
+    : [match.id]
+  const idsToFetch = siblingIds.length > 0 ? siblingIds : [match.id]
+  const streamMap = await fetchMatchStreams(idsToFetch, match.startTime, match.radiantTeam, match.direTeam)
+
+  const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
+  const uniqueChannels = [...new Set(resolvedChannels)]
+  const preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null
+
+  const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
+  return {
+    url: vod?.url || null,
+    channel: vod?.channel || null,
+    allVods: vod?.allVods || [],
+  }
 }
 
 function usePullToRefresh(onRefresh) {
@@ -130,7 +148,7 @@ function App() {
   const [seriesFilter, setSeriesFilter] = useState("all")
   const [copyFeedback, setCopyFeedback] = useState(null)
   const [expandedSeriesId, setExpandedSeriesId] = useState(null)
-  const isOwner = typeof window !== "undefined" && localStorage.getItem("spectate-owner") === "true"
+  const isOwner = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEYS.OWNER) === "true"
 
   // Live + upcoming data
   const [liveMatches, setLiveMatches] = useState([])
@@ -168,10 +186,10 @@ function App() {
     if (typeof window === "undefined") return false
     const params = new URLSearchParams(window.location.search)
     if (params.get('spoilers') === 'off') {
-      try { localStorage.setItem('spoilerFree', 'true') } catch {}
+      try { localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, 'true') } catch {}
       return true
     }
-    return localStorage.getItem("spoilerFree") === "true"
+    return localStorage.getItem(STORAGE_KEYS.SPOILER_FREE) === "true"
   })
 
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
@@ -185,14 +203,14 @@ function App() {
       setFollowedTeams(next)
       if (!isFollowed && (next.length === 1 || next.length === 2)) {
         try {
-          if (!localStorage.getItem(CALENDAR_NUDGE_DISMISSED_KEY)) {
+          if (!localStorage.getItem(STORAGE_KEYS.CALENDAR_NUDGE_DISMISSED)) {
             setShowCalendarNudge(true)
           }
         } catch {}
       }
       if (getPushPermission() === 'granted') {
         try {
-          if (localStorage.getItem('spectate-push-disabled') !== '1') {
+          if (localStorage.getItem(STORAGE_KEYS.PUSH_DISABLED) !== '1') {
             subscribeToPush(next).catch(() => {})
           }
         } catch {
@@ -205,7 +223,7 @@ function App() {
 
   function dismissCalendarNudge() {
     setShowCalendarNudge(false)
-    try { localStorage.setItem(CALENDAR_NUDGE_DISMISSED_KEY, '1') } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.CALENDAR_NUDGE_DISMISSED, '1') } catch {}
   }
   const searchInputRef = useRef(null)
 
@@ -451,24 +469,8 @@ function App() {
     if (match.seriesId && !match._skipExpand) setExpandedSeriesId(String(match.seriesId))
     setSelectedMatch({ ...match, loadingVod: true })
 
-    const siblingIds = match.seriesId
-      ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
-      : [match.id]
-    const idsToFetch = siblingIds.length > 0 ? siblingIds : [match.id]
-    const streamMap = await fetchMatchStreams(idsToFetch, match.startTime, match.radiantTeam, match.direTeam)
-
-    const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
-    const uniqueChannels = [...new Set(resolvedChannels)]
-    const preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null
-
-    const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
-    setSelectedMatch({
-      ...match,
-      loadingVod: false,
-      url: vod?.url || null,
-      channel: vod?.channel || null,
-      allVods: vod?.allVods || [],
-    })
+    const { url, channel, allVods } = await resolveMatchStreams(match, allMatches)
+    setSelectedMatch({ ...match, loadingVod: false, url, channel, allVods })
   }
 
   function handleOpenSeries(series) {
@@ -803,7 +805,7 @@ function App() {
           const next = !spoilerFree
           setSpoilerFree(next)
           if (typeof window !== "undefined" && window.localStorage) {
-            localStorage.setItem("spoilerFree", String(next))
+            localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, String(next))
           }
           trackEvent("spoiler_free_toggle", { enabled: next })
         }}

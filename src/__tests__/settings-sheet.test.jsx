@@ -18,7 +18,10 @@ import SettingsSheet, { SETTINGS_OPEN_EVENT } from '../components/SettingsSheet'
 import { SHOW_EVENT as PWA_SHOW_EVENT } from '../components/InstallPrompt'
 import { isPushSupported, getPushPermission } from '../utils/push'
 
-vi.mock('../utils', () => ({ trackEvent: vi.fn() }))
+vi.mock('../utils', async () => {
+  const actual = await vi.importActual('../utils')
+  return { ...actual, trackEvent: vi.fn() }
+})
 vi.mock('../utils/push', () => ({
   isPushSupported: vi.fn(() => false),
   getPushPermission: vi.fn(() => 'unsupported'),

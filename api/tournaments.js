@@ -729,10 +729,14 @@ async function fetchRecentCompleted(token, bust = false) {
     const seriesType = FORMAT_TO_SERIES_TYPE_RC[m.match_type] ?? 1
     const tournamentName = buildMatchTournamentName(m)
 
-    // Batch KV read for all games in this match (written by live-matches cron while running)
-    let kvVals = []
+    // Batch KV read: ID keys + fingerprint keys (written by Tier 2 backfill below)
+    let kvVals = [], kvFps = []
     try {
-      kvVals = await kv.mget(...matchGames.map(g => `live:game:${m.id}:${g.position}`))
+      const idKeys = matchGames.map(g => `live:game:${m.id}:${g.position}`)
+      const fpKeys = matchGames.map(g => `live:game:${m.id}:${g.position}:fp`)
+      const allVals = await kv.mget(...idKeys, ...fpKeys)
+      kvVals = allVals.slice(0, matchGames.length)
+      kvFps  = allVals.slice(matchGames.length)
     } catch {}
 
     for (let i = 0; i < matchGames.length; i++) {
@@ -741,24 +745,35 @@ async function fetchRecentCompleted(token, bust = false) {
       // Tier 1: KV fast path (populated by live-matches cron during live phase)
       let resolvedId = kvVals[i] ? String(kvVals[i]) : null
 
-      // Validate KV-cached ID: if the match ID is in the current OD window, verify
-      // team names match. Catches stale entries written by a prior buggy resolution
-      // (findOdMatchByTime previously used radiant_team?.name which was always undefined
-      // on promatches objects, making every candidate match → wrong game cached).
+      // Validate KV-cached ID against team names.
+      // - In OD window (< 8h): validate against live OD data.
+      // - Stale (>= 8h) with fingerprint: validate against stored team names so wrong
+      //   IDs written by a prior buggy resolution don't survive indefinitely.
+      // - Stale without fingerprint (written by live-matches cron): trust as before.
       if (resolvedId) {
         const sub = (x, y) => x.includes(y) || y.includes(x)
+        const psTeams = opponents.map(o => (o.opponent?.name || '').toLowerCase()).filter(Boolean)
         const cachedOd = odMatches.find(m => String(m.match_id) === resolvedId)
         if (cachedOd) {
           const r = (cachedOd.radiant_name || '').toLowerCase()
           const d = (cachedOd.dire_name || '').toLowerCase()
-          const psTeams = opponents.map(o => (o.opponent?.name || '').toLowerCase()).filter(Boolean)
           const valid = psTeams.length >= 2 && psTeams.every(t => sub(t, r) || sub(t, d))
           if (!valid) {
             console.warn(`recent-completed: KV cached ID ${resolvedId} teams (${r}/${d}) don't match PS opponents — re-resolving`)
             resolvedId = null
           }
+        } else {
+          const fp = kvFps[i] ? String(kvFps[i]) : null
+          if (fp) {
+            const [r, d] = fp.split('|')
+            const valid = psTeams.length >= 2 && psTeams.every(t => sub(t, r) || sub(t, d))
+            if (!valid) {
+              console.warn(`recent-completed: stale KV ID ${resolvedId} fingerprint (${fp}) doesn't match PS opponents — re-resolving`)
+              resolvedId = null
+            }
+          }
+          // No fingerprint (live-matches cron entry): trust the cached ID
         }
-        // If cachedOd not found (match older than 8h window): trust the cached ID
       }
 
       // Tier 2: OD promatches timestamp lookup — same approach as match-streams.js
@@ -769,8 +784,13 @@ async function fetchRecentCompleted(token, bust = false) {
         const odMatch = findOdMatchByTime(odMatches, beginAtUnix, opponents)
         if (odMatch) {
           resolvedId = String(odMatch.match_id)
-          // Backfill KV so future cache refreshes skip the OD fetch for this game
-          kv.set(`live:game:${m.id}:${g.position}`, resolvedId, { ex: STREAM_TTL }).catch(() => {})
+          // Backfill KV: ID key + team fingerprint for stale validation of future requests
+          const r = (opponents[0]?.opponent?.name || '').toLowerCase()
+          const d = (opponents[1]?.opponent?.name || '').toLowerCase()
+          Promise.all([
+            kv.set(`live:game:${m.id}:${g.position}`,      resolvedId, { ex: STREAM_TTL }),
+            kv.set(`live:game:${m.id}:${g.position}:fp`, `${r}|${d}`, { ex: STREAM_TTL }),
+          ]).catch(() => {})
         }
       }
 
