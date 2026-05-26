@@ -487,6 +487,7 @@ function MatchDrawer({
                 autoLoad={true}
                 spoilerFree={spoilerFree}
                 rampagePlayers={rampagePlayers}
+                matchStats={matchStats}
               />
             )}
           </div>

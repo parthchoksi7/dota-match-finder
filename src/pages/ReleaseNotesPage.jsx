@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 26, 2026",
+    tag: "fix",
+    title: "PandaScore and OpenDota tournament names now match across Roman/Arabic season numbering",
+    desc: "Tournaments like 'Blast Slam S7' (PandaScore) and 'Blast Slam VII' (OpenDota) now correctly group as a single tournament on the homepage instead of appearing as two separate events.",
+  },
+  {
     date: "May 25, 2026",
     tag: "fix",
     title: "Tournament stats no longer show data from the wrong season",

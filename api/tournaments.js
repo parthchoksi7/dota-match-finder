@@ -1023,7 +1023,7 @@ export default async function handler(req, res) {
     const STATS_KV_KEY = `stats:match:v5:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
-    const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0 }
+    const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [] }
 
     // KV cache hit
     try {
@@ -1130,6 +1130,12 @@ export default async function handler(req, res) {
         itemNames,
         firstBloodTime: data.first_blood_time ?? null,
         roshanKills: (data.objectives || []).filter(o => o.type === 'CHAT_MESSAGE_ROSHAN_KILL').length,
+        picksBans: (data.picks_bans || []).map(p => ({
+          isPick: !!p.is_pick,
+          heroId: p.hero_id ?? 0,
+          team: p.team ?? 0,
+          order: p.order ?? 0,
+        })),
       }
 
       // Use short TTL when OD hasn't parsed the replay yet — radiant_gold_adv will be

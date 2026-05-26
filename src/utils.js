@@ -288,10 +288,15 @@ export function buildTournamentName(league, serie) {
  * Deliberately expands "SN" -> "season N", the inverse of buildTournamentName's contraction,
  * so both sources produce the same base string for comparison.
  */
+const _ROMAN = { xx:20, xix:19, xviii:18, xvii:17, xvi:16, xv:15, xiv:14, xiii:13, xii:12, xi:11, x:10, ix:9, viii:8, vii:7, vi:6, v:5, iv:4, iii:3, ii:2, i:1 }
+const _ROMAN_RE = new RegExp('\\b(' + Object.keys(_ROMAN).join('|') + ')\\b', 'gi')
+
 export function normalizeTournamentKey(name) {
   return (name || 'Other')
     .toLowerCase()
-    .replace(/\bs(\d+)\b/gi, 'season $1')
+    .replace(/\bs(\d+)\b/gi, 'season $1')                           // S7 → season 7
+    .replace(_ROMAN_RE, m => 'season ' + _ROMAN[m.toLowerCase()])   // VII → season 7
+    .replace(/\bseason\s+season\b/g, 'season')                      // dedup if "Season VII" → "season season 7"
     .replace(/[^a-z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

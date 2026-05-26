@@ -13,6 +13,8 @@
     { "source": "/glossary", "destination": "/" },
     { "source": "/glossary/:term", "destination": "/" },
     { "source": "/teams", "destination": "/" },
-    { "source": "/teams/:slug", "destination": "/" }
+    { "source": "/teams/:slug", "destination": "/" },
+    { "source": "/admin/coverage", "destination": "/" },
+    { "source": "/admin/review/:jobId", "destination": "/" }
   ]
 }

@@ -423,6 +423,13 @@ describe('normalizeTournamentKey', () => {
     expect(normalizeTournamentKey('PGL Wallachia S2!')).toBe('pgl wallachia season 2')
   })
 
+  it('converts Roman numeral season designators so S7 and VII match', () => {
+    expect(normalizeTournamentKey('Blast Slam S7')).toBe('blast slam season 7')
+    expect(normalizeTournamentKey('Blast Slam VII')).toBe('blast slam season 7')
+    expect(normalizeTournamentKey('ESL One VIII')).toBe('esl one season 8')
+    expect(normalizeTournamentKey('Tournament Season VII')).toBe('tournament season 7')
+  })
+
   it('falls back to "other" for empty/falsy input', () => {
     expect(normalizeTournamentKey(null)).toBe('other')
     expect(normalizeTournamentKey('')).toBe('other')

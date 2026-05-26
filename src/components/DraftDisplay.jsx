@@ -12,7 +12,7 @@ function logEvent(name, props) {
 
 const LANE_ORDER = { Carry: 1, Mid: 2, Off: 3, "Soft Sup": 4, "Hard Sup": 5, Unknown: 6 }
 
-function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoilerFree = false, rampagePlayers = new Set() }) {
+function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoilerFree = false, rampagePlayers = new Set(), matchStats = null }) {
   const [draft, setDraft] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -22,8 +22,17 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoile
     if (autoLoad) loadDraft()
   }, [matchId])
 
-  async function loadDraft() {
-    if (draft) {
+  // If matchStats arrives after the initial auto-load returned empty players (e.g. OD
+  // rate-limited the browser request), reload using the server-side data instead.
+  useEffect(() => {
+    if (!autoLoad || !matchStats?.players?.length) return
+    if (draft?.players?.length > 0) return
+    if (loading) return
+    loadDraft({ force: true })
+  }, [matchStats])
+
+  async function loadDraft({ force = false } = {}) {
+    if (draft && !force) {
       setExpanded((e) => !e)
       return
     }
@@ -31,6 +40,33 @@ function DraftDisplay({ matchId, radiantTeam, direTeam, autoLoad = false, spoile
     setLoading(true)
     setExpanded(true)
     try {
+      // If matchStats already has player data (fetched server-side with KV caching),
+      // use it directly to avoid a redundant browser→OD call that can hit rate limits.
+      if (matchStats?.players?.length > 0) {
+        const heroes = await fetchHeroes()
+        const players = matchStats.players.map((p) => ({
+          heroName: heroes[p.heroId]?.name || `Hero ${p.heroId}`,
+          heroKey: heroes[p.heroId]?.key || null,
+          personaname: p.name || '',
+          isRadiant: p.isRadiant,
+          kills: p.kills,
+          deaths: p.deaths,
+          assists: p.assists,
+        }))
+        const bans = (matchStats.picksBans || [])
+          .filter((p) => !p.isPick)
+          .sort((a, b) => a.order - b.order)
+          .map((p) => ({
+            heroName: heroes[p.heroId]?.name || `Hero ${p.heroId}`,
+            isRadiant: p.team === 0,
+            order: p.order,
+          }))
+        setDraft({ bans, players })
+        return
+      }
+
+      // Fallback: fetch directly from OpenDota (used when matchStats not available,
+      // e.g. standalone "Show Draft" button or PandaScore matches).
       const [matchRes, heroes] = await Promise.all([
         fetch(`https://api.opendota.com/api/matches/${matchId}`).then((r) => r.json()),
         fetchHeroes()

@@ -298,7 +298,7 @@ describe('?mode=match-stats handler', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0 })
+    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [] })
 
     vi.unstubAllGlobals()
   })
