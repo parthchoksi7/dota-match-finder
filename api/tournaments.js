@@ -1202,8 +1202,8 @@ export default async function handler(req, res) {
     try {
       let name = req.query.name || null
 
-      // Resolve tournament name from PandaScore if not supplied by frontend
-      if (!name) {
+      // Resolve tournament name and begin_at from PandaScore when either is missing
+      if (!name || !beginAtUnix) {
         const token = process.env.PANDASCORE_TOKEN
         if (token) {
           const tRes = await fetch(`https://api.pandascore.co/tournaments/${tournamentId}`, {
@@ -1211,7 +1211,11 @@ export default async function handler(req, res) {
           })
           if (tRes.ok) {
             const t = await tRes.json()
-            name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+            if (!name) name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+            if (!beginAtUnix && t.begin_at) {
+              const ts = Math.floor(new Date(t.begin_at).getTime() / 1000)
+              if (!isNaN(ts) && ts > 0) beginAtUnix = ts
+            }
           }
         }
       }

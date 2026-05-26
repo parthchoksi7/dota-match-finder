@@ -231,7 +231,7 @@ async function checkOdTournamentConsistency() {
   // which is correct once the function has completed at least once via normal traffic.
   const [detailData, heroesData] = await Promise.all([
     fetchJson(`${BASE}/api/tournament-detail?id=${tournamentId}&bust=1`, 'tournament-detail'),
-    fetchJson(`${BASE}/api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`, 'tournament-heroes'),
+    fetchJson(`${BASE}/api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}${tournament.startdate ? `&begin_at=${encodeURIComponent(tournament.startdate)}` : ''}`, 'tournament-heroes'),
   ])
   if (!detailData) return
 

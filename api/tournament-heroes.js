@@ -35,8 +35,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // If name wasn't passed by the frontend, look it up from PandaScore
-    if (!name) {
+    // Fetch from PandaScore when name or begin_at is missing — both are needed for correct filtering
+    if (!name || !beginAtUnix) {
       const token = process.env.PANDASCORE_TOKEN
       if (token) {
         const tRes = await fetch(`${PANDASCORE_BASE}/tournaments/${id}`, {
@@ -44,7 +44,11 @@ export default async function handler(req, res) {
         })
         if (tRes.ok) {
           const t = await tRes.json()
-          name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+          if (!name) name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+          if (!beginAtUnix && t.begin_at) {
+            const ts = Math.floor(new Date(t.begin_at).getTime() / 1000)
+            if (!isNaN(ts) && ts > 0) beginAtUnix = ts
+          }
         }
       }
     }
