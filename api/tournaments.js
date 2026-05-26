@@ -1797,12 +1797,14 @@ export default async function handler(req, res) {
     // Clean up the name to get the best YouTube search term:
     // - Strip stage suffixes like "- Group A", "- Group Stage", "- Playoffs", etc.
     // - Strip trailing year (ESL video titles don't include "2026")
-    // Keep "Season N" as-is rather than converting to "SN": some orgs (ESL) use "S29"
-    // but others (BLAST) use Roman numerals ("VII"). YouTube's relevance search handles
-    // all forms better than forcing a single abbreviated form.
+    // - Strip "Season N": orgs use different conventions (ESL: "S29", BLAST: "VII",
+    //   PGL: "Season 7"). The date filter (publishedAfter/publishedBefore) scopes to
+    //   the correct season when tournament dates are available, making the season number
+    //   in the search term redundant and harmful for Roman-numeral orgs like BLAST.
     const searchTerm = rawName
       .replace(/\s*[-–—]\s*(group [a-z]|group stage|playoffs|upper bracket|lower bracket|qualifier|open qualifier|closed qualifier|main event)\s*/gi, '')
       .replace(/\s+\d{4}\b/, '')
+      .replace(/\bseason\s+\d+\b/gi, '')
       .trim()
 
     const slugKey = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)
