@@ -164,11 +164,11 @@ async function checkTournamentsApi() {
 //  3. For group-stage tournaments (no bracket): game count > 0 if standings
 //     show any wins (i.e. at least one series has been played)
 
-// Inlined findLeague logic (mirrors api/tournament-heroes.js) for direct OD check.
-// Tie-breaking addition: when two leagues share the same overlap score, prefer the
-// one WITHOUT "qualifier" in the name — qualifiers often score equal to the main event
-// (e.g. both "DreamLeague Season 29 Qualifiers" and "DreamLeague Season 29" score 2
-// tokens against "DreamLeague Season 29 2026").
+// Inlined findLeague logic — mirrors api/_shared.js exactly.
+// Collects all candidates with ≥2 overlap, sorts by overlap (non-qualifier wins ties),
+// then iterates with an inverted numeric guard: skip a candidate only if it has a
+// numeric token NOT present in the search set. Leagues with no Arabic numerics
+// (e.g. "BLAST SLAM I") always pass, handling cross-source season numbering.
 const _STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
 function _tokens(s) {
   return s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !_STOP.has(t))
@@ -176,17 +176,31 @@ function _tokens(s) {
 function _findLeague(leagues, search) {
   if (!search || !leagues?.length) return null
   const searchTokens = new Set(_tokens(search))
-  let best = null, bestScore = 0
+  const candidates = []
   for (const league of leagues) {
     const lt = _tokens(league.name || '')
     const overlap = lt.filter(t => searchTokens.has(t)).length
     if (overlap < 2) continue
-    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
-    // prefer higher score; on tie prefer non-qualifier over qualifier
-    const isBetter = overlap > bestScore || (overlap === bestScore && !isQualifier && best && (best.name || '').toLowerCase().includes('qualifier'))
-    if (isBetter) { best = league; bestScore = overlap }
+    candidates.push({ league, overlap })
   }
-  return best
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => {
+    if (b.overlap !== a.overlap) return b.overlap - a.overlap
+    const aQ = (a.league.name || '').toLowerCase().includes('qualifier')
+    const bQ = (b.league.name || '').toLowerCase().includes('qualifier')
+    if (aQ && !bQ) return 1
+    if (!aQ && bQ) return -1
+    return 0
+  })
+  const numericSearchSet = new Set([...searchTokens].filter(t => /^\d+$/.test(t)))
+  for (const { league } of candidates) {
+    if (numericSearchSet.size > 0) {
+      const leagueNumerics = _tokens(league.name || '').filter(t => /^\d+$/.test(t))
+      if (leagueNumerics.some(t => !numericSearchSet.has(t))) continue
+    }
+    return league
+  }
+  return null
 }
 
 async function checkOdTournamentConsistency() {
@@ -283,15 +297,22 @@ async function checkOdTournamentConsistency() {
   // We don't enforce a lower bound: OD picks_bans requires server-side match parsing,
   // and recent games in an ongoing tournament often aren't parsed yet. Having any
   // parsed games (> 0, already checked above) means the pipeline is working.
-  if (finishedSeries > 0) {
-    const maxExpected = finishedSeries * 5
+  //
+  // For group-stage-heavy tournaments (e.g. BLAST Slam Group Stage), totalStandingWins
+  // far exceeds finishedSeries (bracket only captures a few matches). In that case use
+  // standings wins as the denominator so group-stage game counts don't false-alarm.
+  if (finishedSeries > 0 || totalStandingWins > 0) {
+    const effectiveSeries = totalStandingWins > finishedSeries * 3
+      ? totalStandingWins   // group-stage dominant: standings wins are the real count
+      : finishedSeries      // bracket dominant: use bracket count
+    const maxExpected = effectiveSeries * 5
     if (spectateGameCount > maxExpected) {
-      fail(`OD game count ${spectateGameCount} exceeds max of ${maxExpected} (${finishedSeries} series × 5 games) — possible overcounting bug`)
-    } else {
+      fail(`OD game count ${spectateGameCount} exceeds max of ${maxExpected} (${effectiveSeries} effective series × 5 games) — possible overcounting bug`)
+    } else if (finishedSeries > 0 && totalStandingWins <= finishedSeries * 3) {
       pass(`${spectateGameCount} OD parsed games / ${finishedSeries} PS series (some games may be unparsed by OD)`)
+    } else {
+      pass(`OD game count ${spectateGameCount} > 0 for group-stage tournament (${totalStandingWins} standings wins)`)
     }
-  } else {
-    pass(`OD game count ${spectateGameCount} > 0 for group-stage tournament (${totalStandingWins} standings wins)`)
   }
 
   // Cross-validate spectate count vs OD direct count.
