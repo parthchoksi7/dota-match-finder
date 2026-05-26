@@ -5,6 +5,16 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 25, 2026",
+    tag: "fix",
+    title: "Tournament stats no longer show data from the wrong season",
+    desc: "The Stats tab was matching upcoming tournaments against a prior season's data in OpenDota when the new season hadn't been indexed yet.",
+    items: [
+      "The league-matching algorithm now requires the season number and year from the tournament name to appear in the matched OpenDota league. A search for \"BLAST Slam Season 7 2026\" will no longer match a Season 6 2025 entry.",
+      "When no matching league is found, the Stats tab shows \"Stats appear once games are indexed\" rather than stale data.",
+    ],
+  },
+  {
+    date: "May 25, 2026",
     tag: "new",
     title: "Team organization pages",
     desc: "Dedicated pages for 13 Tier 1 Dota 2 organizations at /teams.",

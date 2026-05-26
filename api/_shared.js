@@ -367,6 +367,16 @@ export function findLeague(leagues, search) {
     const isBetter = overlap > bestScore || (overlap === bestScore && bestIsQualifier && !isQualifier)
     if (isBetter) { best = league; bestScore = overlap }
   }
+
+  if (!best) return null
+  // All numeric tokens (season number, year) in the search must appear in the
+  // matched league name — prevents Season 6 data from showing for Season 7.
+  const numericSearchTokens = [...searchTokens].filter(t => /^\d+$/.test(t))
+  if (numericSearchTokens.length > 0) {
+    const matchedTokenSet = new Set(tokens(best.name || ''))
+    if (!numericSearchTokens.every(t => matchedTokenSet.has(t))) return null
+  }
+
   return best
 }
 

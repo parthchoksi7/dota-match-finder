@@ -146,6 +146,34 @@ describe('findLeague', () => {
     const result = findLeague(mockLeagues, 'DreamLeague Season 29')
     expect(result?.leagueid).toBe(15438)
   })
+
+  it('returns null when season number in search does not match any league (cross-season guard)', () => {
+    // "BLAST Slam Season 7 2026" → numeric tokens {7, 2026}
+    // Only Season 6 exists in OD → neither 7 nor 2026 appear → null
+    const leagues = [
+      { leagueid: 15000, name: 'BLAST Slam Season 6 2025', tier: 'premium' },
+    ]
+    const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
+    expect(result).toBeNull()
+  })
+
+  it('matches correctly when season number and year both appear in the league name', () => {
+    const leagues = [
+      { leagueid: 15000, name: 'BLAST Slam Season 6 2025', tier: 'premium' },
+      { leagueid: 15500, name: 'BLAST Slam Season 7 2026', tier: 'premium' },
+    ]
+    const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
+    expect(result?.leagueid).toBe(15500)
+  })
+
+  it('returns null when year in search does not match (cross-year guard)', () => {
+    // League exists for 2025 but search is for 2026
+    const leagues = [
+      { leagueid: 15000, name: 'ESL One 2025', tier: 'premium' },
+    ]
+    const result = findLeague(leagues, 'ESL One 2026')
+    expect(result).toBeNull()
+  })
 })
 
 // ── top5 building logic (pure, duplicated from handler) ───────────────────────
