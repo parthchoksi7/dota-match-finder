@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 25, 2026",
+    tag: "new",
+    title: "Team organization pages",
+    desc: "Dedicated pages for 13 Tier 1 Dota 2 organizations at /teams.",
+    items: [
+      "Each org page covers the competitive region, home country, and historical TI championship record. Player rosters are intentionally excluded — they change frequently — and each page links directly to the org's Liquipedia page.",
+      "Org pages include schema.org SportsTeam structured data so AI search systems (ChatGPT, Perplexity, Claude) can understand the entity relationship between the org, its TI record, and the tournaments it participates in.",
+      "Teams are grouped by competitive region: Western Europe, Eastern Europe, China, Southeast Asia, and North America.",
+      "TI champion organizations (OG, Team Spirit, Tundra Esports, Evil Geniuses) show their championship year cards in amber — a visual distinction from non-champion organizations.",
+    ],
+  },
+  {
+    date: "May 25, 2026",
     tag: "improvement",
     title: "Faster page loads and first-click VOD response",
     desc: "Three network optimizations shipped together.",

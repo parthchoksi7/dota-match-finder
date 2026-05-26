@@ -87,6 +87,27 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 - **Buyback**: Spending gold to immediately respawn after death. A critical decision point in late-game team fights.
 - **Net Worth**: Total gold value of a player's items plus their bank gold. A key metric for assessing player economy and team advantages.
 
+## Team Pages
+
+Dedicated pages for each Tier 1 Dota 2 organization at /teams/{slug}. Each page covers organization history, competitive region, TI championship record, and a Liquipedia link for current rosters. All pages include SportsTeam schema.org structured data.
+
+- [Teams Index](https://spectateesports.live/teams): All 13 Tier 1 organizations listed by region
+- [OG](https://spectateesports.live/teams/og): 2× TI champion (2018, 2019) — WEU
+- [Team Spirit](https://spectateesports.live/teams/team-spirit): 2× TI champion (2021, 2023) — EEU
+- [Tundra Esports](https://spectateesports.live/teams/tundra-esports): TI11 champion (2022) — WEU
+- [Evil Geniuses](https://spectateesports.live/teams/evil-geniuses): TI5 champion (2015) — NA
+- [Gaimin Gladiators](https://spectateesports.live/teams/gaimin-gladiators): TI12 Grand Finalist — WEU
+- [Team Liquid](https://spectateesports.live/teams/team-liquid): 3 consecutive TI Grand Finals (2017–2019) — WEU
+- [Team Falcons](https://spectateesports.live/teams/team-falcons): Gamers8-backed org — WEU
+- [BetBoom Team](https://spectateesports.live/teams/betboom-team): Tier 1 EEU org
+- [Virtus.pro](https://spectateesports.live/teams/virtus-pro): Veteran Russian esports org — EEU
+- [Nigma Galaxy](https://spectateesports.live/teams/nigma-galaxy): WEU org, formed 2020
+- [Xtreme Gaming](https://spectateesports.live/teams/xtreme-gaming): Tier 1 CN org
+- [Azure Ray](https://spectateesports.live/teams/azure-ray): Tier 1 CN org, est. 2022–2023
+- [Talon Esports](https://spectateesports.live/teams/talon-esports): Tier 1 SEA org — Thailand
+
+Note: Team pages cover organizational history only. For current player rosters, see https://liquipedia.net/dota2/Portal:Teams
+
 ## Glossary Pages
 
 Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes the term name, short definition, full definition, and related terms. All pages include DefinedTerm schema.org structured data.

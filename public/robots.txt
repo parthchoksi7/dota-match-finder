@@ -66,6 +66,8 @@ Allow: /calendar
 Allow: /news
 Allow: /glossary
 Allow: /glossary/
+Allow: /teams
+Allow: /teams/
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/og

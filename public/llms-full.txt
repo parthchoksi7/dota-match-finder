@@ -30,6 +30,7 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 - **About** (https://spectateesports.live/about) — Site description and data attribution.
 - **Release Notes** (https://spectateesports.live/release-notes) — Chronological feature changelog.
 - **Glossary** (https://spectateesports.live/glossary) — Definitions for 25 Dota 2 professional terms (draft, GPM, Roshan, Rampage, BKB, Aegis, etc.). Each term has a dedicated page at /glossary/{term-id} with full definition and related terms. All pages include DefinedTerm schema.org structured data.
+- **Pro Teams** (https://spectateesports.live/teams) — Tier 1 organization index. 13 orgs listed by competitive region (WEU/EEU/CN/SEA/NA). Each org has a dedicated page at /teams/{slug} covering: competitive region, HQ country, TI championship record (immutable historical facts), org description, and a Liquipedia link for current rosters. Includes SportsTeam schema.org structured data. Player rosters are intentionally not included — they change frequently; Liquipedia is the authoritative source.
 
 ---
 
@@ -66,7 +67,9 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 
 ## Tier 1 Teams — Background & History
 
-> **Note on rosters**: Professional Dota 2 rosters change frequently between and during seasons. This section covers organizational history, region, TI record, and known playstyle. For current player rosters, see Liquipedia: https://liquipedia.net/dota2/Portal:Teams
+> **Note on rosters**: Professional Dota 2 rosters change frequently between and during seasons. This section covers organizational history, region, and TI record. For current player rosters, see Liquipedia: https://liquipedia.net/dota2/Portal:Teams
+>
+> **Dedicated team pages**: Each organization has a dedicated page at https://spectateesports.live/teams/{slug} with SportsTeam schema.org structured data.
 
 ### Team Spirit (EEU — Eastern Europe)
 - **Region**: Eastern Europe / Russia

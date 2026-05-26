@@ -11,6 +11,8 @@
     { "source": "/analytics", "destination": "/" },
     { "source": "/news", "destination": "/" },
     { "source": "/glossary", "destination": "/" },
-    { "source": "/glossary/:term", "destination": "/" }
+    { "source": "/glossary/:term", "destination": "/" },
+    { "source": "/teams", "destination": "/" },
+    { "source": "/teams/:slug", "destination": "/" }
   ]
 }

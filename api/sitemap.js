@@ -7,6 +7,12 @@ const GLOSSARY_TERM_IDS = [
   'last-hit', 'deny', 'teamfight', 'bounty-rune', 'true-sight',
 ]
 
+const TEAM_SLUGS = [
+  'og', 'gaimin-gladiators', 'team-liquid', 'tundra-esports', 'team-falcons',
+  'nigma-galaxy', 'team-spirit', 'betboom-team', 'virtus-pro', 'xtreme-gaming',
+  'azure-ray', 'talon-esports', 'evil-geniuses',
+]
+
 function slugify(str) {
   return (str || '')
     .toLowerCase()
@@ -142,6 +148,16 @@ export default async function handler(req, res) {
   </url>
 ${GLOSSARY_TERM_IDS.map(id => `  <url>
     <loc>${BASE_URL}/glossary/${id}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`).join('\n')}
+  <url>
+    <loc>${BASE_URL}/teams</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+${TEAM_SLUGS.map(slug => `  <url>
+    <loc>${BASE_URL}/teams/${slug}</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>`).join('\n')}

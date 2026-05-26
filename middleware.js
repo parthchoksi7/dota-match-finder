@@ -9,8 +9,31 @@ export const config = {
     '/calendar',
     '/glossary',
     '/glossary/:termId*',
+    '/teams',
+    '/teams/:slug*',
   ],
 }
+
+// Tier 1 team data (kept inline — edge middleware cannot import from src/)
+// Source of truth: src/data/teams.js — keep in sync manually.
+// DO NOT add player rosters. See .claude/staleness-checklist.md for review schedule.
+const TIER1_TEAMS_SSR = [
+  { id: 'og', name: 'OG', region: 'WEU', basedIn: 'Europe', tiWins: [2018, 2019], shortDesc: 'The only organization to win The International twice — back-to-back in 2018 and 2019.', liquipedia: 'https://liquipedia.net/dota2/OG' },
+  { id: 'gaimin-gladiators', name: 'Gaimin Gladiators', region: 'WEU', basedIn: 'Europe', tiWins: [], shortDesc: 'One of the most consistent Western European Dota 2 organizations of the modern pro circuit era.', liquipedia: 'https://liquipedia.net/dota2/Gaimin_Gladiators' },
+  { id: 'team-liquid', name: 'Team Liquid', region: 'WEU', basedIn: 'Netherlands', tiWins: [], shortDesc: 'Three consecutive TI Grand Final appearances (TI7, TI8, TI9) — a streak unmatched by any other org.', liquipedia: 'https://liquipedia.net/dota2/Team_Liquid' },
+  { id: 'tundra-esports', name: 'Tundra Esports', region: 'WEU', basedIn: 'United Kingdom', tiWins: [2022], shortDesc: 'The International 2022 (TI11) champions. UK-based Western European organization.', liquipedia: 'https://liquipedia.net/dota2/Tundra_Esports' },
+  { id: 'team-falcons', name: 'Team Falcons', region: 'WEU', basedIn: 'Saudi Arabia', tiWins: [], shortDesc: 'Saudi Arabia-backed organization competing in the Western European Dota 2 circuit via Gamers8.', liquipedia: 'https://liquipedia.net/dota2/Team_Falcons' },
+  { id: 'nigma-galaxy', name: 'Nigma Galaxy', region: 'WEU', basedIn: 'Europe', tiWins: [], shortDesc: 'Western European Dota 2 organization formed in 2020, competing in the Tier 1 circuit.', liquipedia: 'https://liquipedia.net/dota2/Nigma_Galaxy' },
+  { id: 'team-spirit', name: 'Team Spirit', region: 'EEU', basedIn: 'Russia', tiWins: [2021, 2023], shortDesc: 'Two-time Dota 2 world champions (TI10 2021, TI12 2023). The most decorated EEU org in Dota 2 history.', liquipedia: 'https://liquipedia.net/dota2/Team_Spirit' },
+  { id: 'betboom-team', name: 'BetBoom Team', region: 'EEU', basedIn: 'Russia', tiWins: [], shortDesc: 'Eastern European Dota 2 organization consistently competing at the Tier 1 level.', liquipedia: 'https://liquipedia.net/dota2/BetBoom_Team' },
+  { id: 'virtus-pro', name: 'Virtus.pro', region: 'EEU', basedIn: 'Russia', tiWins: [], shortDesc: 'One of the oldest and most storied Russian esports organizations, with a long history in Tier 1 Dota 2.', liquipedia: 'https://liquipedia.net/dota2/Virtus.pro' },
+  { id: 'xtreme-gaming', name: 'Xtreme Gaming', region: 'CN', basedIn: 'China', tiWins: [], shortDesc: 'Chinese Dota 2 organization competing at the international Tier 1 level.', liquipedia: 'https://liquipedia.net/dota2/Xtreme_Gaming' },
+  { id: 'azure-ray', name: 'Azure Ray', region: 'CN', basedIn: 'China', tiWins: [], shortDesc: 'Chinese Dota 2 organization established in the 2022–2023 competitive season.', liquipedia: 'https://liquipedia.net/dota2/Azure_Ray' },
+  { id: 'talon-esports', name: 'Talon Esports', region: 'SEA', basedIn: 'Thailand', tiWins: [], shortDesc: 'Southeast Asian esports organization based in Thailand, representing SEA at Tier 1 international events.', liquipedia: 'https://liquipedia.net/dota2/Talon_Esports' },
+  { id: 'evil-geniuses', name: 'Evil Geniuses', region: 'NA', basedIn: 'United States', tiWins: [2015], shortDesc: 'The International 2015 (TI5) champions — the first Western organization to win Dota 2\'s world championship.', liquipedia: 'https://liquipedia.net/dota2/Evil_Geniuses' },
+]
+const TIER1_TEAMS_MAP_SSR = Object.fromEntries(TIER1_TEAMS_SSR.map(t => [t.id, t]))
+const REGION_LABELS_SSR = { WEU: 'Western Europe', EEU: 'Eastern Europe', CN: 'China', SEA: 'Southeast Asia', NA: 'North America', SA: 'South America' }
 
 // Glossary term definitions (kept inline — edge middleware cannot import from src/)
 const GLOSSARY_TERMS_SSR = [
@@ -60,6 +83,8 @@ export default async function middleware(req) {
   if (pathname.startsWith('/match/')) return handleMatch(url)
   if (pathname === '/glossary') return handleGlossary(url)
   if (pathname.startsWith('/glossary/')) return handleGlossaryTerm(url)
+  if (pathname === '/teams') return handleTeams(url)
+  if (pathname.startsWith('/teams/')) return handleTeamDetail(url)
 
   return new Response(null, { status: 302, headers: { Location: '/' } })
 }
@@ -621,6 +646,122 @@ async function handleGlossaryTerm(url) {
       <p><em>${escapeHtml(term.shortDef)}</em></p>
       <p>${escapeHtml(term.definition)}</p>
     </main>`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+// ─── /teams ───────────────────────────────────────────────────────────────────
+
+async function handleTeams(url) {
+  const title = 'Dota 2 Pro Teams — Tier 1 Organizations & TI History | Spectate Esports'
+  const description = 'Tier 1 professional Dota 2 organizations. Team Spirit (2× TI champion), OG (2× TI champion), Tundra Esports, Gaimin Gladiators, Team Liquid, Evil Geniuses, and more. History, region, and TI record.'
+  const canonical = `${BASE_URL}/teams`
+
+  const champions = TIER1_TEAMS_SSR.filter(t => t.tiWins.length > 0)
+  const championItems = champions.map(t =>
+    `<li><a href="${BASE_URL}/teams/${t.id}"><strong>${escapeHtml(t.name)}</strong></a> — TI ${t.tiWins.join(', TI ')} Champion${t.tiWins.length > 1 ? 's' : ''}</li>`
+  ).join('')
+  const allTeamItems = TIER1_TEAMS_SSR.map(t =>
+    `<li><a href="${BASE_URL}/teams/${t.id}"><strong>${escapeHtml(t.name)}</strong></a> (${escapeHtml(REGION_LABELS_SSR[t.region] || t.region)}) — ${escapeHtml(t.shortDesc)}</li>`
+  ).join('')
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'about': { '@type': 'SportsOrganization', 'name': 'Dota 2 Esports', 'sport': 'Dota 2' },
+        'breadcrumb': breadcrumb([{ name: 'Pro Teams', url: canonical }]),
+      },
+      ...TIER1_TEAMS_SSR.filter(t => t.tiWins.length > 0).map(t => ({
+        '@type': 'SportsTeam',
+        '@id': `${BASE_URL}/teams/${t.id}#team`,
+        'name': t.name,
+        'url': `${BASE_URL}/teams/${t.id}`,
+        'sport': 'Dota 2',
+        'memberOf': { '@type': 'SportsOrganization', 'name': 'Dota 2 Esports', 'sport': 'Dota 2' },
+      })),
+    ],
+  }
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › Pro Teams</nav>
+      <h1>Dota 2 Pro Teams</h1>
+      <p>Tier 1 professional Dota 2 organizations competing at DreamLeague, ESL One, PGL, BLAST, WePlay, and The International. Organization history, competitive region, and TI championship record.</p>
+      <h2>TI Champions</h2>
+      <ul>${championItems}</ul>
+      <h2>All Tier 1 Organizations</h2>
+      <ul>${allTeamItems}</ul>
+      <p><em>For current player rosters, see <a href="https://liquipedia.net/dota2/Portal:Teams">Liquipedia</a>.</em></p>
+    </main>`
+
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+// ─── /teams/:slug ─────────────────────────────────────────────────────────────
+
+async function handleTeamDetail(url) {
+  const slug = url.pathname.replace('/teams/', '').split('/')[0]
+  const team = TIER1_TEAMS_MAP_SSR[slug]
+
+  if (!team) {
+    return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/teams` } })
+  }
+
+  const canonical = `${BASE_URL}/teams/${team.id}`
+  const tiStr = team.tiWins.length > 0
+    ? ` TI Champion${team.tiWins.length > 1 ? 's' : ''} (${team.tiWins.join(', ')}).`
+    : ''
+  const title = `${team.name} — Dota 2 Esports Organization | Spectate Esports`
+  const description = `${team.name} is a ${escapeHtml(REGION_LABELS_SSR[team.region] || team.region)} Dota 2 organization based in ${team.basedIn}.${tiStr} ${team.shortDesc}`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SportsTeam',
+        '@id': `${canonical}#team`,
+        'name': team.name,
+        'url': canonical,
+        'sport': 'Dota 2',
+        'memberOf': { '@type': 'SportsOrganization', 'name': 'Dota 2 Esports', 'sport': 'Dota 2' },
+        ...(team.tiWins.length > 0 ? { 'description': `${team.name} won The International in ${team.tiWins.join(' and ')}.` } : {}),
+        'sameAs': [team.liquipedia],
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'breadcrumb': breadcrumb([
+          { name: 'Pro Teams', url: `${BASE_URL}/teams` },
+          { name: team.name, url: canonical },
+        ]),
+      },
+    ],
+  }
+
+  const tiSection = team.tiWins.length > 0
+    ? `<h2>The International Record</h2><p>${team.name} won The International in ${team.tiWins.join(' and ')}.</p>`
+    : ''
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/teams">Pro Teams</a> › ${escapeHtml(team.name)}</nav>
+      <h1>${escapeHtml(team.name)}</h1>
+      <p><strong>Region:</strong> ${escapeHtml(REGION_LABELS_SSR[team.region] || team.region)} | <strong>Based in:</strong> ${escapeHtml(team.basedIn)}</p>
+      ${tiSection}
+      <p>${escapeHtml(team.shortDesc)}</p>
+      <p><em>For current player roster, see <a href="${team.liquipedia}">Liquipedia</a>.</em></p>
+    </main>`
+
   return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
 }
 
