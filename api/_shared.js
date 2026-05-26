@@ -346,15 +346,27 @@ export const PERMANENT_TIER1_NAMES = [
 
 // ── OpenDota league fuzzy-matching ───────────────────────────────────────────
 
+// Multi-char Roman numerals only — single-char (i, v, x) are already filtered
+// by the token length check and must stay as-is so "BLAST SLAM I" (no season number)
+// never contradicts an Arabic season search.
+const _ROMAN_MAP = { xx:20, xix:19, xviii:18, xvii:17, xvi:16, xv:15, xiv:14, xiii:13, xii:12, xi:11, ix:9, viii:8, vii:7, vi:6, iv:4, iii:3, ii:2 }
+const _ROMAN_RE = new RegExp('\\b(' + Object.keys(_ROMAN_MAP).join('|') + ')\\b', 'gi')
+const _romanToArabic = s => s.replace(_ROMAN_RE, m => String(_ROMAN_MAP[m.toLowerCase()]))
+
 /**
  * Find the OpenDota league whose name best matches a PandaScore tournament name.
  * Uses token-overlap so "PGL Wallachia Season 7" matches "PGL Wallachia 2026 Season 7".
  * On tie, prefers non-qualifier over qualifier (e.g. main event over qualifier stage).
+ *
+ * Multi-char Roman numerals in league names (e.g. "BLAST SLAM VII") are normalized to
+ * Arabic before tokenizing so "VI" (6) correctly contradicts a search for season 7.
+ * Single-char Roman numerals (I, V, X) are left as-is — the length filter removes them,
+ * keeping "BLAST SLAM I" as a number-free name that never contradicts any season search.
  */
 export function findLeague(leagues, search) {
   if (!search || !leagues?.length) return null
   const STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
-  const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
+  const tokens = s => _romanToArabic(s).toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
   const searchTokens = new Set(tokens(search))
 
   const candidates = []

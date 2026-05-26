@@ -1163,9 +1163,10 @@ export default async function handler(req, res) {
 
     const PLAYERS_TTL = 60 * 60 * 3           // 3h — same as tournament heroes
     const PLAYERS_TTL_COMPLETED = 60 * 60 * 24 * 30  // 30d for completed events
-    const LEAGUES_CACHE_TTL = 60 * 60 * 24
+    const LEAGUES_CACHE_TTL = 60 * 60 * 4     // 4h — short enough to pick up new tournaments
     const OPENDOTA_API = 'https://api.opendota.com/api'
-    const KV_PLAYERS_KEY = `dota2:tournament_players_v1:${tournamentId}`
+    const KV_PLAYERS_KEY = `dota2:tournament_players_v2:${tournamentId}`
+    const KV_LEAGUES_KEY = 'opendota:leagues_v2'
 
     const emptyStats = { kills: [], deaths: [], assists: [], netWorth: [], gpm: [] }
 
@@ -1179,6 +1180,16 @@ export default async function handler(req, res) {
           return res.status(200).json(cached)
         }
       } catch {}
+    }
+
+    const fetchFreshLeagues = async () => {
+      try {
+        const r = await fetch(`${OPENDOTA_API}/leagues`)
+        if (!r?.ok) return []
+        const data = await r.json()
+        kv.set(KV_LEAGUES_KEY, data, { ex: LEAGUES_CACHE_TTL }).catch(() => {})
+        return data
+      } catch { return [] }
     }
 
     try {
@@ -1198,17 +1209,20 @@ export default async function handler(req, res) {
         }
       }
 
-      // Fetch OD leagues list (long-cached in KV)
-      const leagues = await (async () => {
-        try { const c = await kv.get('opendota:leagues_v1'); if (c) return c } catch {}
-        const r = await fetch(`${OPENDOTA_API}/leagues`)
-        if (!r.ok) return []
-        const data = await r.json()
-        kv.set('opendota:leagues_v1', data, { ex: LEAGUES_CACHE_TTL }).catch(() => {})
-        return data
+      // Fetch OD leagues list (cached in KV; bust and retry if findLeague returns null
+      // to catch cases where a new tournament was added to OD after the cache was warmed)
+      let leagues = await (async () => {
+        try { const c = await kv.get(KV_LEAGUES_KEY); if (c) return c } catch {}
+        return fetchFreshLeagues()
       })()
 
-      const league = findLeague(leagues, name)
+      let league = findLeague(leagues, name)
+      if (!league && leagues.length > 0) {
+        // Cache may be stale — bust it and retry once with fresh OD data
+        await kv.del(KV_LEAGUES_KEY).catch(() => {})
+        leagues = await fetchFreshLeagues()
+        league = findLeague(leagues, name)
+      }
       if (!league) {
         res.setHeader('Cache-Control', 'public, s-maxage=60')
         return res.status(200).json({ stats: emptyStats, gameCount: 0 })

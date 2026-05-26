@@ -197,6 +197,26 @@ describe('findLeague', () => {
     const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
     expect(result?.leagueid).toBe(17414)
   })
+
+  it('disambiguates multi-char Roman numeral seasons — VII matches S7, VI is rejected', () => {
+    // OD uses multi-char Roman numerals: "BLAST SLAM VI" and "BLAST SLAM VII".
+    // After normalization VI→6, VII→7. Searching for Season 7: VI contradicts, VII matches.
+    const leagues = [
+      { leagueid: 16000, name: 'BLAST SLAM VI',  tier: 'premium' },
+      { leagueid: 17000, name: 'BLAST SLAM VII', tier: 'premium' },
+    ]
+    const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
+    expect(result?.leagueid).toBe(17000)
+  })
+
+  it('rejects all Roman numeral leagues when only the wrong season exists (VI only, searching S7)', () => {
+    // OD only has VI; VII hasn't been created yet. Should return null rather than wrong data.
+    const leagues = [
+      { leagueid: 16000, name: 'BLAST SLAM VI', tier: 'premium' },
+    ]
+    const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
+    expect(result).toBeNull()
+  })
 })
 
 // ── top5 building logic (pure, duplicated from handler) ───────────────────────
@@ -408,7 +428,7 @@ describe('?mode=tournament-players handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v1:55555')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:55555')
     expect(kvWrite).toBeDefined()
     expect(kvWrite[1]).toHaveProperty('stats')
     expect(kvWrite[1]).toHaveProperty('gameCount')
@@ -419,9 +439,10 @@ describe('?mode=tournament-players handler', () => {
   it('returns fail-open empty stats when no league match found (no KV write)', async () => {
     mockKv.get
       .mockResolvedValueOnce(null)           // players cache miss
-      .mockResolvedValueOnce(mockLeagues)    // leagues KV hit
+      .mockResolvedValueOnce(mockLeagues)    // leagues KV hit (triggers retry)
 
-    const fetchSpy = vi.fn()
+    // Leagues retry returns same mockLeagues — "BLAST Premier Spring" still matches nothing
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => mockLeagues })
     vi.stubGlobal('fetch', fetchSpy)
 
     // "BLAST Premier" has no 2-token overlap with mockLeagues
@@ -432,10 +453,11 @@ describe('?mode=tournament-players handler', () => {
     expect(res._status).toBe(200)
     expect(res._body.stats).toEqual({ kills: [], deaths: [], assists: [], netWorth: [], gpm: [] })
     expect(res._body.gameCount).toBe(0)
-    // OD match fetches should NOT have been called
-    expect(fetchSpy).not.toHaveBeenCalled()
+    // Only the leagues-refresh fetch was called; OD match endpoints were not called
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls[0][0]).toContain('/leagues')
     // KV should NOT have been poisoned with empty data
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v1:99999')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:99999')
     expect(kvWrite).toBeUndefined()
   })
 
@@ -455,7 +477,7 @@ describe('?mode=tournament-players handler', () => {
     expect(res._status).toBe(200)
     expect(res._body.stats).toEqual({ kills: [], deaths: [], assists: [], netWorth: [], gpm: [] })
     expect(res._body.gameCount).toBe(0)
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v1:77777')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:77777')
     expect(kvWrite).toBeUndefined()
   })
 
@@ -479,13 +501,13 @@ describe('?mode=tournament-players handler', () => {
     expect(res._body.gameCount).toBe(1)
 
     // Leagues should have been cached in KV
-    const leaguesKvWrite = kvSetCalls.find(([key]) => key === 'opendota:leagues_v1')
+    const leaguesKvWrite = kvSetCalls.find(([key]) => key === 'opendota:leagues_v2')
     expect(leaguesKvWrite).toBeDefined()
   })
 
   it('bust=1 deletes the KV key before re-fetching', async () => {
     // With bust=1, the players cache check is SKIPPED — the first kv.get goes straight to leagues.
-    mockKv.get.mockResolvedValueOnce(mockLeagues)  // only call: opendota:leagues_v1 KV hit
+    mockKv.get.mockResolvedValueOnce(mockLeagues)  // only call: opendota:leagues_v2 KV hit
 
     const match = makeMockMatch()
     vi.stubGlobal('fetch', vi.fn()
@@ -497,7 +519,7 @@ describe('?mode=tournament-players handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    expect(mockKv.del).toHaveBeenCalledWith('dota2:tournament_players_v1:33333')
+    expect(mockKv.del).toHaveBeenCalledWith('dota2:tournament_players_v2:33333')
     expect(res._status).toBe(200)
     expect(res._body.gameCount).toBe(1)
   })
@@ -517,7 +539,7 @@ describe('?mode=tournament-players handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v1:44444')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:44444')
     expect(kvWrite).toBeDefined()
     const ttl = kvWrite[2]?.ex
     expect(ttl).toBe(60 * 60 * 24 * 30)  // 30-day TTL for completed events

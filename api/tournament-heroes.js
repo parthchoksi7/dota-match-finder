@@ -6,7 +6,7 @@ import { trackError, findLeague } from './_shared.js'
 const OPENDOTA = 'https://api.opendota.com/api'
 const PANDASCORE_BASE = 'https://api.pandascore.co'
 const TTL = 60 * 60 * 3
-const LEAGUES_TTL = 60 * 60 * 24
+const LEAGUES_TTL = 60 * 60 * 4
 const HEROES_TTL = 60 * 60 * 24
 
 export default async function handler(req, res) {
@@ -46,11 +46,11 @@ export default async function handler(req, res) {
     // Fetch leagues list + hero map in parallel (both long-cached in KV)
     const [leagues, heroMap] = await Promise.all([
       (async () => {
-        try { const c = await kv.get('opendota:leagues_v1'); if (c) return c } catch {}
+        try { const c = await kv.get('opendota:leagues_v2'); if (c) return c } catch {}
         const r = await fetch(`${OPENDOTA}/leagues`)
         if (!r.ok) return []
         const data = await r.json()
-        kv.set('opendota:leagues_v1', data, { ex: LEAGUES_TTL }).catch(e => console.error('KV write failed (leagues):', e?.message || e))
+        kv.set('opendota:leagues_v2', data, { ex: LEAGUES_TTL }).catch(e => console.error('KV write failed (leagues):', e?.message || e))
         return data
       })(),
       (async () => {

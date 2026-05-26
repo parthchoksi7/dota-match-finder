@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 26, 2026",
     tag: "fix",
+    title: "Tournament stats now show the correct season's data",
+    desc: "The Stats tab was returning data from a previous season when OpenDota uses multi-character Roman numerals for league names (e.g. 'BLAST SLAM VI' vs 'BLAST SLAM VII'). The season-number guard couldn't distinguish them because Roman numerals aren't Arabic digits. Fixed by normalizing Roman numerals to Arabic before matching, so 'VI' correctly contradicts a Season 7 search. Also reduced the OD leagues cache from 24h to 4h so new tournaments are picked up faster.",
+  },
+  {
+    date: "May 26, 2026",
+    tag: "fix",
     title: "Tournament cards on the homepage now expand inline for all Tier 1 events",
     desc: "Clicking a tournament header (e.g. BLAST Slam) now opens the inline hub panel with standings, schedule, and highlights — the same way DreamLeague does. Previously, tournaments whose season was written with a Roman numeral (VII) in the match data would navigate to the tournaments page instead of expanding.",
   },
