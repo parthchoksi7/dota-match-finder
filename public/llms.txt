@@ -45,20 +45,19 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 - Riyadh Masters — Saudi Arabia-based super tournament
 - Beyond The Summit (BTS) — boutique production studio events
 
-### Top Teams (2025-2026 Pro Circuit)
-- Team Spirit (EEU) — TI12 champions, Russian-led roster
-- Gaimin Gladiators (WEU) — Western European powerhouse
-- Tundra Esports (WEU)
-- Team Liquid (WEU)
-- OG (WEU) — two-time TI champions (TI8, TI9)
-- Team Falcons (WEU/international)
-- BetBoom Team (EEU)
-- Nigma Galaxy (WEU/Middle East)
-- Virtus.pro (EEU)
-- Evil Geniuses (NA)
-- Talon Esports (SEA)
-- Xtreme Gaming (CN)
-- Azure Ray (CN)
+### TI Champions
+- OG — 2× TI champion (2018, 2019). First back-to-back TI winners.
+- Team Liquid — 2× TI champion (2017, 2024). First org to win TI with two different rosters.
+- Team Spirit — 2× TI champion (2021, 2023). Second team after OG to win multiple TIs.
+- Team Falcons — TI14 champion (2025). Entered Dota 2 in 2023; Saudi Arabia-based.
+- Tundra Esports — TI11 champion (2022). Won without dropping a series in the main event.
+- Evil Geniuses — TI5 champion (2015). First North American org to win TI. Dota 2 division disbanded November 2023.
+
+### Active Tier 1 Organizations (non-champions)
+- BetBoom Team — Russian EEU org, est. 2022. BLAST Slam I winners (2024).
+- Nigma Galaxy — Founded 2019 by four members of TL's TI7 winning roster.
+- Virtus.pro — Russian EEU org in Dota 2 since 2012. Won five majors in 2017–2018.
+- Xtreme Gaming — Chinese org, TI14 runners-up (2025).
 
 ## Dota 2 Glossary
 
@@ -89,22 +88,19 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 
 ## Team Pages
 
-Dedicated pages for each Tier 1 Dota 2 organization at /teams/{slug}. Each page covers organization history, competitive region, TI championship record, and a Liquipedia link for current rosters. All pages include SportsTeam schema.org structured data.
+Dedicated pages for each Tier 1 Dota 2 organization at /teams/{slug}. Each page covers organization history, TI championship record, iconic players, and a Liquipedia link for current rosters. All pages include SportsTeam schema.org structured data. Source: Liquipedia.
 
-- [Teams Index](https://spectateesports.live/teams): All 13 Tier 1 organizations listed by region
-- [OG](https://spectateesports.live/teams/og): 2× TI champion (2018, 2019) — WEU
-- [Team Spirit](https://spectateesports.live/teams/team-spirit): 2× TI champion (2021, 2023) — EEU
-- [Tundra Esports](https://spectateesports.live/teams/tundra-esports): TI11 champion (2022) — WEU
-- [Evil Geniuses](https://spectateesports.live/teams/evil-geniuses): TI5 champion (2015) — NA
-- [Gaimin Gladiators](https://spectateesports.live/teams/gaimin-gladiators): TI12 Grand Finalist — WEU
-- [Team Liquid](https://spectateesports.live/teams/team-liquid): 3 consecutive TI Grand Finals (2017–2019) — WEU
-- [Team Falcons](https://spectateesports.live/teams/team-falcons): Gamers8-backed org — WEU
-- [BetBoom Team](https://spectateesports.live/teams/betboom-team): Tier 1 EEU org
-- [Virtus.pro](https://spectateesports.live/teams/virtus-pro): Veteran Russian esports org — EEU
-- [Nigma Galaxy](https://spectateesports.live/teams/nigma-galaxy): WEU org, formed 2020
-- [Xtreme Gaming](https://spectateesports.live/teams/xtreme-gaming): Tier 1 CN org
-- [Azure Ray](https://spectateesports.live/teams/azure-ray): Tier 1 CN org, est. 2022–2023
-- [Talon Esports](https://spectateesports.live/teams/talon-esports): Tier 1 SEA org — Thailand
+- [Teams Index](https://spectateesports.live/teams): All 10 organizations
+- [OG](https://spectateesports.live/teams/og): 2× TI champion (2018, 2019). Iconic players: N0tail, Fly, ana, Topson, Ceb.
+- [Team Liquid](https://spectateesports.live/teams/team-liquid): 2× TI champion (2017, 2024). Iconic players: KuroKy, Miracle-, MATUMBAMAN, GH, MinD_ContRoL.
+- [Team Spirit](https://spectateesports.live/teams/team-spirit): 2× TI champion (2021, 2023). Iconic players: Yatoro, Collapse, TORONTOTOKYO, Miposhka, Mira.
+- [Team Falcons](https://spectateesports.live/teams/team-falcons): TI14 champion (2025). Iconic players: skiter, Malr1ne, ATF, Cr1t-, Sneyking.
+- [Tundra Esports](https://spectateesports.live/teams/tundra-esports): TI11 champion (2022). Iconic players: skiter, Nine, 33, Saksa, Sneyking.
+- [Evil Geniuses](https://spectateesports.live/teams/evil-geniuses): TI5 champion (2015), disbanded November 2023. Iconic players: Fear, SumaiL, UNiVeRsE, ppd, Arteezy.
+- [Nigma Galaxy](https://spectateesports.live/teams/nigma-galaxy): Founded 2019 by four TI7 champions. Iconic players: Miracle-, KuroKy, GH, MinD_ContRoL, w33.
+- [BetBoom Team](https://spectateesports.live/teams/betboom-team): Russian EEU org est. 2022. Iconic players: save-, gpk, TORONTOTOKYO, Nightfall, SoNNeikO.
+- [Virtus.pro](https://spectateesports.live/teams/virtus-pro): Russian org in Dota 2 since 2012. Iconic players: No[o]ne, RAMZES666, Solo, 9pasha, RodjER.
+- [Xtreme Gaming](https://spectateesports.live/teams/xtreme-gaming): Chinese org, TI14 runners-up. Iconic players: Ame, Xm, XinQ, Xxs.
 
 Note: Team pages cover organizational history only. For current player rosters, see https://liquipedia.net/dota2/Portal:Teams
 

@@ -17,12 +17,12 @@ const RELEASES = [
     date: "May 25, 2026",
     tag: "new",
     title: "Team organization pages",
-    desc: "Dedicated pages for 13 Tier 1 Dota 2 organizations at /teams.",
+    desc: "Dedicated pages for 10 Tier 1 Dota 2 organizations at /teams. All content sourced from Liquipedia.",
     items: [
-      "Each org page covers the competitive region, home country, and historical TI championship record. Player rosters are intentionally excluded — they change frequently — and each page links directly to the org's Liquipedia page.",
-      "Org pages include schema.org SportsTeam structured data so AI search systems (ChatGPT, Perplexity, Claude) can understand the entity relationship between the org, its TI record, and the tournaments it participates in.",
-      "Teams are grouped by competitive region: Western Europe, Eastern Europe, China, Southeast Asia, and North America.",
-      "TI champion organizations (OG, Team Spirit, Tundra Esports, Evil Geniuses) show their championship year cards in amber — a visual distinction from non-champion organizations.",
+      "Each org page covers TI championship record, iconic players, and org history. Player rosters are intentionally excluded — they change frequently — and each page links directly to the org's Liquipedia page for current lineups.",
+      "Iconic players section shows legendary handles historically associated with each org — no years or current/former labels, just the names that defined the team.",
+      "TI champion organizations (OG, Team Liquid, Team Spirit, Team Falcons, Tundra Esports, Evil Geniuses) show their championship year cards in amber. TI winners are listed first on the index page.",
+      "Org pages include schema.org SportsTeam structured data for AI discoverability.",
     ],
   },
   {

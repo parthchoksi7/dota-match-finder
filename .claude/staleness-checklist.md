@@ -8,29 +8,36 @@ Tracks data in static files that can go out of date. Review these on the schedul
 
 Both files must be kept in sync. `src/data/teams.js` is the source of truth; `TIER1_TEAMS_SSR` in `middleware.js` is a manually-maintained copy (edge middleware cannot import from src/).
 
+Content source: Liquipedia (https://liquipedia.net/dota2/). Verify all TI facts against https://liquipedia.net/dota2/The_International before updating.
+
 ### Review annually (after each TI concludes, typically September/October)
 
-- [ ] **`tiWins` arrays** — Add the new TI year to any winning organization. This is the most important update.
-  - `src/data/teams.js` — update `tiWins` array for the winning team
-  - `middleware.js` — update the same team's entry in `TIER1_TEAMS_SSR`
-  - `public/llms.txt` — update the team's entry in the Teams Pages section (add TI year to the blurb)
-  - `public/llms-full.txt` — update the team's entry in Tier 1 Teams section
+- [ ] **`tiWins` arrays** — Add the new TI year to the winning organization. This is the most important update.
+  - `src/data/teams.js` — add year to `tiWins` for the winning team
+  - `middleware.js` — update same team's entry in `TIER1_TEAMS_SSR`
+  - `public/llms.txt` — update Team Pages section (TI year in the team's line)
+  - `public/llms-full.txt` — update team entry in Tier 1 Teams section AND TI Grand Finals list
+  - `public/llms-full.txt` — add new Grand Final result to Historic Grand Finals section
 
-### Review annually (start of each new DPC/competitive season)
+### Review annually (start of each new competitive season)
 
-- [ ] **Team list completeness** — Are all current Tier 1 organizations represented? Remove orgs that have been consistently inactive for a full competitive year. Add new orgs if they've established themselves at Tier 1.
+- [ ] **Team list completeness** — Are all current Tier 1 organizations represented?
+  - Rule: disbanded orgs stay in the list ONLY if they have TI wins. Otherwise remove.
   - Files affected: `src/data/teams.js`, `middleware.js` (TIER1_TEAMS_SSR), `api/sitemap.js` (TEAM_SLUGS), `public/llms.txt`, `public/llms-full.txt`
 
-- [ ] **`region` field** — Has any organization changed competitive region? (Very rare — teams almost never switch regions.)
-  - Files affected: `src/data/teams.js`, `middleware.js` (TIER1_TEAMS_SSR)
-
-- [ ] **`about` and `shortDesc` text** — Is the editorial description still accurate? Edit if the org's historical identity has materially changed (e.g., after a major rebrand or ownership change).
+- [ ] **`about` and `shortDesc` text** — Is the editorial description still accurate?
   - Files affected: `src/data/teams.js`
-  - Note: `middleware.js` TIER1_TEAMS_SSR only stores `shortDesc`, not `about`. Update both if `shortDesc` changes.
+  - Note: `middleware.js` TIER1_TEAMS_SSR only stores `shortDesc`. Update both if `shortDesc` changes.
+
+- [ ] **`iconicPlayers` arrays** — Can be extended as new legendary players emerge. Never remove past icons.
+  - Files affected: `src/data/teams.js` (middleware does not store iconicPlayers)
 
 ### Review on org-level events (as needed)
 
-- [ ] **`basedIn` field** — Has the organization moved or changed ownership to a different country?
+- [ ] **`disbanded: true` flag** — If an org's Dota 2 division disbands, set this flag. Keep the org only if they have TI wins; otherwise remove from the list.
+  - Files affected: `src/data/teams.js`, `middleware.js` (TIER1_TEAMS_SSR)
+
+- [ ] **`basedIn` field** — Has the organization moved or changed country of operation?
   - Files affected: `src/data/teams.js`, `middleware.js` (TIER1_TEAMS_SSR)
 
 - [ ] **`liquipedia` URLs** — Has Liquipedia renamed the org's page? (Very rare.)

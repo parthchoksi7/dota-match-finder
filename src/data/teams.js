@@ -2,57 +2,53 @@
 // See .claude/staleness-checklist.md for what to review and when.
 //
 // Rules for this file:
-//   DO NOT add player rosters, coach names, or current standings.
-//   DO NOT make claims about current competitive status.
-//   Only add fields that are either immutable (tiWins) or very slow to change.
-
-// ⚠ STALE-RISK — region: competitive region. Rarely changes, but verify annually.
-// ⚠ STALE-RISK — about/shortDesc: org identity text. Review annually; edit if org
-//   fundamentally changes (e.g. disbands, rebrands, drops out of Tier 1 permanently).
+//   DO NOT add player rosters or current standings.
+//   iconicPlayers: legendary/defining players historically associated with the org.
+//     Handles only — no years, no active/former labels.
+//
+// Sources: Liquipedia (https://liquipedia.net/dota2/)
+//          TI history: https://liquipedia.net/dota2/The_International
+//
+// ⚠ STALE-RISK — about/shortDesc: org identity text. Review annually.
+// ⚠ STALE-RISK — iconicPlayers: extend as new legends emerge; never remove past icons.
 // ✓ SAFE — tiWins: immutable historical record. Add new entry after each TI concludes.
 // ✓ SAFE — basedIn: org HQ. Changes only on major ownership restructuring.
 // ✓ SAFE — liquipedia: URL slug. Liquipedia rarely renames org pages.
-
-export const REGION_LABELS = {
-  WEU: 'Western Europe',
-  EEU: 'Eastern Europe',
-  CN: 'China',
-  SEA: 'Southeast Asia',
-  NA: 'North America',
-  SA: 'South America',
-}
+// ✓ SAFE — disbanded: immutable once set (orgs do not un-disband).
 
 export const TIER1_TEAMS = [
-  // ── Western Europe ─────────────────────────────────────────────────────────
   {
     id: 'og',
     name: 'OG',
     region: 'WEU',
     basedIn: 'Europe',
     tiWins: [2018, 2019],
-    shortDesc: 'The only organization to win The International twice — back-to-back in 2018 and 2019.',
-    about: 'OG is a Western European esports organization and the most decorated team in The International history. They are the only organization to have won Dota 2\'s world championship back-to-back, claiming TI8 (2018) and TI9 (2019). Their TI8 victory is widely regarded as the greatest achievement in Dota 2 competitive history — the team qualified through an open qualifier after a last-minute roster rebuild and went on to defeat all opponents in their path. OG competes in the Western European Dota 2 region.',
+    iconicPlayers: ['N0tail', 'Fly', 'ana', 'Topson', 'Ceb'],
+    shortDesc: 'The first team to win back-to-back Internationals. Two-time TI champions.',
+    about: 'OG was founded on October 31, 2015, emerging from the roster of (monkey) Business. They won the Frankfurt Major in their debut tournament, defeating TI5 champions Evil Geniuses in the grand final. After winning the Kiev Major in 2017, OG became the first team in Dota 2 history to win four Dota Major Championships. At TI8 (2018), OG became the first team to win The International from the open qualifiers. They defended their title at TI9 (2019), becoming the first back-to-back TI champions in the game\'s history.',
     liquipedia: 'https://liquipedia.net/dota2/OG',
-  },
-  {
-    id: 'gaimin-gladiators',
-    name: 'Gaimin Gladiators',
-    region: 'WEU',
-    basedIn: 'Europe',
-    tiWins: [],
-    shortDesc: 'One of the most consistent Western European Dota 2 organizations of the modern pro circuit era.',
-    about: 'Gaimin Gladiators is a Western European esports organization that has established itself as one of the most consistent Tier 1 Dota 2 contenders of the modern era. They reached the Grand Final of The International 2023 (TI12), falling to Team Spirit. Gaimin Gladiators competes in the Western European Dota 2 region and is a regular presence at DreamLeague, ESL One, PGL, and BLAST events.',
-    liquipedia: 'https://liquipedia.net/dota2/Gaimin_Gladiators',
   },
   {
     id: 'team-liquid',
     name: 'Team Liquid',
     region: 'WEU',
     basedIn: 'Netherlands',
-    tiWins: [],
-    shortDesc: 'Three consecutive TI Grand Final appearances (TI7, TI8, TI9) — a streak unmatched by any other org.',
-    about: 'Team Liquid is a Netherlands-based esports organization with one of the most consistent TI records in Dota 2 history. They reached three consecutive International Grand Finals — TI7 (2017), TI8 (2018), and TI9 (2019) — a streak of Grand Final appearances unmatched by any other organization. Team Liquid has been a mainstay of the Western European Dota 2 region across multiple competitive eras.',
+    tiWins: [2017, 2024],
+    iconicPlayers: ['KuroKy', 'Miracle-', 'MATUMBAMAN', 'GH', 'MinD_ContRoL'],
+    shortDesc: 'Two-time TI champions. The first organization to win The International with two different rosters.',
+    about: 'Team Liquid was founded in 2000 in the Netherlands and established its Dota 2 division in December 2012. The organization won The International 2017 with a roster led by KuroKy, Miracle-, MATUMBAMAN, GH, and MinD_ContRoL. In 2024, a rebuilt roster led by miCKe and Nisha captured The International 2024. Team Liquid is the first organization to win The International with two entirely different rosters.',
     liquipedia: 'https://liquipedia.net/dota2/Team_Liquid',
+  },
+  {
+    id: 'team-spirit',
+    name: 'Team Spirit',
+    region: 'EEU',
+    basedIn: 'Russia',
+    tiWins: [2021, 2023],
+    iconicPlayers: ['Yatoro', 'Collapse', 'TORONTOTOKYO', 'Miposhka', 'Mira'],
+    shortDesc: 'Two-time TI champions from Eastern Europe. The second team after OG to win multiple Internationals.',
+    about: 'Team Spirit was founded in December 2015 in Russia. The organization transformed in late 2020 with a young roster featuring Yatoro, Collapse, TORONTOTOKYO, and Miposhka under coach Silent. This squad won The International 2021 as underdogs, becoming the second Eastern European organization to win TI after Natus Vincere. Team Spirit captured their second International title in 2023, becoming the second team after OG to win two TIs.',
+    liquipedia: 'https://liquipedia.net/dota2/Team_Spirit',
   },
   {
     id: 'tundra-esports',
@@ -60,8 +56,9 @@ export const TIER1_TEAMS = [
     region: 'WEU',
     basedIn: 'United Kingdom',
     tiWins: [2022],
-    shortDesc: 'The International 2022 (TI11) champions. UK-based Western European organization.',
-    about: 'Tundra Esports is a United Kingdom-based esports organization that won The International 2022 (TI11) with a dominant, methodical run through the event. Their disciplined, strategy-focused approach defined their championship year. Tundra competes in the Western European Dota 2 region.',
+    iconicPlayers: ['skiter', 'Nine', '33', 'Saksa', 'Sneyking'],
+    shortDesc: 'The International 2022 champions. Won TI11 without dropping a single series in the main event.',
+    about: 'Tundra Esports was founded on January 25, 2021, based in London, United Kingdom. The organization entered competitive Dota 2 by acquiring the mudgolems roster. Their defining moment came at The International 2022, where they dropped only one game across the entire playoff stage before defeating Team Secret 3-0 in the Grand Final to claim the TI11 championship.',
     liquipedia: 'https://liquipedia.net/dota2/Tundra_Esports',
   },
   {
@@ -69,32 +66,34 @@ export const TIER1_TEAMS = [
     name: 'Team Falcons',
     region: 'WEU',
     basedIn: 'Saudi Arabia',
-    tiWins: [],
-    shortDesc: 'Saudi Arabia-backed organization competing in the Western European Dota 2 circuit via Gamers8.',
-    about: 'Team Falcons is backed by Gamers8, Saudi Arabia\'s major esports investment organization. They compete in the Western European region of the Dota 2 pro circuit and are part of a broader initiative to establish the Middle East as an international esports hub. Gamers8 also organizes the Riyadh Masters, one of the largest prize-pool Dota 2 events.',
+    tiWins: [2025],
+    iconicPlayers: ['skiter', 'Malr1ne', 'ATF', 'Cr1t-', 'Sneyking'],
+    shortDesc: 'The International 2025 champions. Entered Dota 2 in 2023 and won TI within two years.',
+    about: 'Team Falcons is a Saudi Arabian esports organization founded in 2017 that entered Dota 2 in November 2023. The team won DreamLeague Season 22, 23, and 24 consecutively before claiming The International 2025, defeating Xtreme Gaming 3-2 in the Grand Final. They became TI champions less than two years after entering the Dota 2 competitive scene.',
     liquipedia: 'https://liquipedia.net/dota2/Team_Falcons',
+  },
+  {
+    id: 'evil-geniuses',
+    name: 'Evil Geniuses',
+    region: 'NA',
+    disbanded: true,
+    basedIn: 'United States',
+    tiWins: [2015],
+    iconicPlayers: ['Fear', 'SumaiL', 'UNiVeRsE', 'ppd', 'Arteezy'],
+    shortDesc: 'The International 2015 champions. The first North American organization to win The International. Dota 2 division disbanded in November 2023.',
+    about: 'Evil Geniuses established their Dota 2 division in October 2011. They became the first North American organization to win The International, claiming TI5 in 2015 with a roster of Fear, ppd, Arteezy, UNiVeRsE, and SumaiL. The organization was a consistent Tier 1 presence for over a decade. Evil Geniuses disbanded their Dota 2 division in November 2023.',
+    liquipedia: 'https://liquipedia.net/dota2/Evil_Geniuses',
   },
   {
     id: 'nigma-galaxy',
     name: 'Nigma Galaxy',
     region: 'WEU',
-    basedIn: 'Europe',
+    basedIn: 'United Arab Emirates',
     tiWins: [],
-    shortDesc: 'Western European Dota 2 organization formed in 2020, competing in the Tier 1 circuit.',
-    about: 'Nigma Galaxy is a Western European Dota 2 organization formed in 2020, with origins in Team Liquid\'s 2019 competitive roster. The organization competed at the Tier 1 level under the Nigma name before merging branding with Galaxy Racer. They have been a presence in the Western European Dota 2 region across the DPC era.',
+    iconicPlayers: ['Miracle-', 'KuroKy', 'GH', 'MinD_ContRoL', 'w33'],
+    shortDesc: 'Founded in 2019 by four members of Team Liquid\'s The International 2017 championship roster.',
+    about: 'Nigma Galaxy was founded on November 25, 2019, by four members of Team Liquid\'s The International 2017 championship squad: KuroKy, Miracle-, GH, and MinD_ContRoL. The organization merged with Galaxy Racer\'s competitive division in September 2021, adopting the Nigma Galaxy name. The team competed at The International 2025, finishing 5th–6th place.',
     liquipedia: 'https://liquipedia.net/dota2/Nigma_Galaxy',
-  },
-
-  // ── Eastern Europe ─────────────────────────────────────────────────────────
-  {
-    id: 'team-spirit',
-    name: 'Team Spirit',
-    region: 'EEU',
-    basedIn: 'Russia',
-    tiWins: [2021, 2023],
-    shortDesc: 'Two-time Dota 2 world champions (TI10 2021, TI12 2023). The most decorated EEU org in Dota 2 history.',
-    about: 'Team Spirit is a Russian esports organization that became Dota 2\'s most successful modern dynasty. They won The International 2021 (TI10) as massive underdogs and repeated the achievement at The International 2023 (TI12). Their back-to-back victories make them one of only two organizations ever to win multiple TI titles (alongside OG). Team Spirit competes in the Eastern Europe region of the Dota 2 pro circuit and is the defending two-time world champion.',
-    liquipedia: 'https://liquipedia.net/dota2/Team_Spirit',
   },
   {
     id: 'betboom-team',
@@ -102,8 +101,9 @@ export const TIER1_TEAMS = [
     region: 'EEU',
     basedIn: 'Russia',
     tiWins: [],
-    shortDesc: 'Eastern European Dota 2 organization consistently competing at the Tier 1 level.',
-    about: 'BetBoom Team is a Russian esports organization that has established itself as a consistent presence in Tier 1 Eastern European Dota 2 competition, regularly qualifying for and competing at international events including DreamLeague and PGL tournaments.',
+    iconicPlayers: ['save-', 'gpk', 'TORONTOTOKYO', 'Nightfall', 'SoNNeikO'],
+    shortDesc: 'Russian Dota 2 organization established in 2022, competing consistently in Tier 1 international events.',
+    about: 'BetBoom Team was established in April 2022 by acquiring the former Winstrike roster. The squad was rebuilt around captain save-, gpk, and TORONTOTOKYO, establishing itself as a CIS region contender. The team claimed the BLAST Slam I title in 2024 and has competed consistently across DreamLeague, ESL, and PGL circuits.',
     liquipedia: 'https://liquipedia.net/dota2/BetBoom_Team',
   },
   {
@@ -112,55 +112,21 @@ export const TIER1_TEAMS = [
     region: 'EEU',
     basedIn: 'Russia',
     tiWins: [],
-    shortDesc: 'One of the oldest and most storied Russian esports organizations, with a long history in Tier 1 Dota 2.',
-    about: 'Virtus.pro is one of the oldest esports organizations in Russia and Eastern Europe, with roots going back to the early 2000s. In Dota 2, they have been a consistent Tier 1 Eastern European organization across multiple competitive eras, with appearances at numerous international events and The International qualifiers.',
+    iconicPlayers: ['No[o]ne', 'RAMZES666', 'Solo', '9pasha', 'RodjER'],
+    shortDesc: 'Russian esports institution in Dota 2 since 2012. Won five major championships in 2017–2018.',
+    about: 'Virtus.pro entered Dota 2 in 2012 and has competed at the top level across multiple eras. The team\'s most dominant period was 2017–2018, during which they won five major championships including ESL One Hamburg 2017, The Bucharest Major, ESL One Birmingham 2018, and The Kuala Lumpur Major. The organization is now headquartered in Armenia and continues to compete internationally.',
     liquipedia: 'https://liquipedia.net/dota2/Virtus.pro',
   },
-
-  // ── China ──────────────────────────────────────────────────────────────────
   {
     id: 'xtreme-gaming',
     name: 'Xtreme Gaming',
     region: 'CN',
     basedIn: 'China',
     tiWins: [],
-    shortDesc: 'Chinese Dota 2 organization competing at the international Tier 1 level.',
-    about: 'Xtreme Gaming is a Chinese esports organization competing in Tier 1 Dota 2. China has historically been one of the strongest Dota 2 regions, and Xtreme Gaming has represented CN at multiple major international events, including DreamLeague and The International.',
+    iconicPlayers: ['Ame', 'Xm', 'XinQ', 'Xxs'],
+    shortDesc: 'Chinese Dota 2 organization and The International 2025 runners-up.',
+    about: 'Xtreme Gaming was founded in January 2021 and is based in China. The team went 4-0 in the group stage at The International 2025, claiming the top playoff seed, before falling to Team Falcons 2-3 in the Grand Final. They represent China\'s competitive Dota 2 scene alongside victories at the Elite League Season 1 (2024) and other international events.',
     liquipedia: 'https://liquipedia.net/dota2/Xtreme_Gaming',
-  },
-  {
-    id: 'azure-ray',
-    name: 'Azure Ray',
-    region: 'CN',
-    basedIn: 'China',
-    tiWins: [],
-    shortDesc: 'Chinese Dota 2 organization established in the 2022–2023 competitive season.',
-    about: 'Azure Ray is a Chinese Dota 2 organization that emerged during the 2022–2023 competitive season and has since established itself as a Tier 1 CN representative at international events. They compete under the Chinese regional circuit of the Dota 2 pro scene.',
-    liquipedia: 'https://liquipedia.net/dota2/Azure_Ray',
-  },
-
-  // ── Southeast Asia ─────────────────────────────────────────────────────────
-  {
-    id: 'talon-esports',
-    name: 'Talon Esports',
-    region: 'SEA',
-    basedIn: 'Thailand',
-    tiWins: [],
-    shortDesc: 'Southeast Asian esports organization based in Thailand, representing SEA at Tier 1 international events.',
-    about: 'Talon Esports is a Bangkok-based esports organization that represents Southeast Asia at the highest level of professional Dota 2. They have been one of the most prominent SEA organizations competing in international Tier 1 events, regularly participating in The International and major Dota 2 tournaments.',
-    liquipedia: 'https://liquipedia.net/dota2/Talon_Esports',
-  },
-
-  // ── North America ──────────────────────────────────────────────────────────
-  {
-    id: 'evil-geniuses',
-    name: 'Evil Geniuses',
-    region: 'NA',
-    basedIn: 'United States',
-    tiWins: [2015],
-    shortDesc: 'The International 2015 (TI5) champions — the first Western organization to win Dota 2\'s world championship.',
-    about: 'Evil Geniuses is an iconic North American esports organization with one of the longest histories in professional Dota 2. They won The International 2015 (TI5), becoming the first Western organization to claim Dota 2\'s world championship. Their TI5 victory is a landmark moment in esports history — at the time, the event awarded the largest prize pool ever in esports. Evil Geniuses competes in the North American Dota 2 region.',
-    liquipedia: 'https://liquipedia.net/dota2/Evil_Geniuses',
   },
 ]
 

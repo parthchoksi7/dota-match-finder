@@ -55,7 +55,7 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 
 ### Valve Corporation
 - **The International (TI)**: Annual world championship. The flagship Dota 2 event. Prize pool from TI1–TI12 was crowdfunded via in-game Battle Pass, reaching $40.02M at TI10 (2021) — the largest prize pool in esports history at the time. Valve discontinued the Battle Pass model after TI12 (2023); subsequent editions have smaller base prize pools. Teams qualify via regional tournament circuits and direct Valve invites.
-- TI history: TI1 (2011, Cologne), TI2 (2012, Seattle), TI3 (2013, Seattle), TI4 (2014, Seattle), TI5 (2015, Seattle), TI6 (2016, Seattle), TI7 (2017, Seattle), TI8 (2018, Vancouver), TI9 (2019, Shanghai), TI10 (2021, Bucharest), TI11 (2022, Singapore), TI12 (2023, Seattle), TI13 (2024, Copenhagen).
+- TI history: TI1 (2011, Cologne — Natus Vincere), TI2 (2012, Seattle — Invictus Gaming), TI3 (2013, Seattle — Alliance), TI4 (2014, Seattle — Newbee), TI5 (2015, Seattle — Evil Geniuses), TI6 (2016, Seattle — Wings Gaming), TI7 (2017, Seattle — Team Liquid), TI8 (2018, Vancouver — OG), TI9 (2019, Shanghai — OG), TI10 (2021, Bucharest — Team Spirit), TI11 (2022, Singapore — Tundra Esports), TI12 (2023, Seattle — Team Spirit), TI13 (2024, Copenhagen — Team Liquid), TI14 (2025 — Team Falcons). No event in 2020 (COVID-19).
 
 ### Riyadh Masters
 - Saudi Arabia-based super tournament. Organized by Gamers8. Prize pools $15M+. Held in Riyadh, Saudi Arabia.
@@ -71,68 +71,68 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 >
 > **Dedicated team pages**: Each organization has a dedicated page at https://spectateesports.live/teams/{slug} with SportsTeam schema.org structured data.
 
-### Team Spirit (EEU — Eastern Europe)
-- **Region**: Eastern Europe / Russia
-- **Organization based in**: Russia
-- **TI wins**: TI10 (2021), TI12 (2023) — two-time world champions
-- **Known for**: Surprise TI10 win as underdogs, decisive teamfight execution, strong individual skill depth
-
-### Gaimin Gladiators (WEU — Western Europe)
-- **Region**: Western Europe
-- **Known for**: Aggressive teamfight style, one of the most consistent WEU rosters in recent seasons
-
-### Tundra Esports (WEU)
-- **Region**: Western Europe
-- **Organization based in**: United Kingdom
-- **TI wins**: TI11 (2022)
-- **Known for**: Strategic depth, methodical playstyle under experienced captain leadership
-
-### Team Liquid (WEU)
-- **Region**: Western Europe
-- **Organization based in**: Netherlands
-- **Known for**: iNSaNiA's long-time captaincy, consistent Tier 1 presence, cerebral drafting style
+Source: Liquipedia (https://liquipedia.net/dota2/). TI records verified against https://liquipedia.net/dota2/The_International.
 
 ### OG (WEU)
-- **Region**: Western Europe
-- **TI wins**: TI8 (2018), TI9 (2019) — only team to win The International twice consecutively
-- **Historic TI roster (TI8/TI9)**: ana (carry), N0tail (captain/support), JerAx (support), s4 (offlaner), Topson (midlaner)
-- **Known for**: Wildly unorthodox drafts, the "ana return" narrative, legendary two-peat achievement
+- **Organization based in**: Europe
+- **TI wins**: TI8 (2018), TI9 (2019) — first and only back-to-back TI champions
+- **Founded**: October 31, 2015
+- **Iconic players**: N0tail, Fly, ana, Topson, Ceb
+- **Historic note**: First team to win TI from the open qualifiers (TI8). First team to win four Dota Major Championships.
 
-### Team Falcons (WEU/International)
-- **Region**: Western Europe / Middle East
-- **Organization based in**: Saudi Arabia
-- **Notable**: Backed by Gamers8; strong international roster acquisitions
+### Team Liquid (WEU)
+- **Organization based in**: Netherlands (founded 2000; Dota 2 division est. December 2012)
+- **TI wins**: TI7 (2017), TI13 (2024) — first organization to win TI with two entirely different rosters
+- **Iconic players**: KuroKy, Miracle-, MATUMBAMAN, GH, MinD_ContRoL
+- **Historic note**: TI7 won with KuroKy-led roster. TI13 won with miCKe/Nisha-led roster.
+
+### Team Spirit (EEU)
+- **Organization based in**: Russia (founded December 2015)
+- **TI wins**: TI10 (2021), TI12 (2023) — second team after OG to win multiple TIs
+- **Iconic players**: Yatoro, Collapse, TORONTOTOKYO, Miposhka, Mira
+- **Historic note**: Won TI10 as underdogs. Second Eastern European org to win TI after Natus Vincere.
+
+### Team Falcons (WEU)
+- **Organization based in**: Saudi Arabia (founded 2017; Dota 2 division est. November 2023)
+- **TI wins**: TI14 (2025) — became champions less than two years after entering Dota 2
+- **Iconic players**: skiter, Malr1ne, ATF, Cr1t-, Sneyking
+- **Historic note**: Won DreamLeague Season 22, 23, and 24 before winning TI14. Defeated Xtreme Gaming 3-2 in the grand final.
+
+### Tundra Esports (WEU)
+- **Organization based in**: United Kingdom (London; founded January 25, 2021)
+- **TI wins**: TI11 (2022) — dropped only one game across the entire playoff stage
+- **Iconic players**: skiter, Nine, 33, Saksa, Sneyking
+- **Historic note**: Defeated Team Secret 3-0 in the TI11 Grand Final without losing a single series in the main event.
+
+### Evil Geniuses (NA) — disbanded
+- **Organization based in**: United States (Dota 2 division est. October 2011; disbanded November 2023)
+- **TI wins**: TI5 (2015) — first North American organization to win The International
+- **Iconic players**: Fear, SumaiL, UNiVeRsE, ppd, Arteezy
+- **Status**: Dota 2 division disbanded November 2023.
+
+### Nigma Galaxy (WEU)
+- **Organization based in**: United Arab Emirates (founded November 25, 2019)
+- **TI wins**: None. Founding members were part of Team Liquid's TI7 (2017) championship roster.
+- **Iconic players**: Miracle-, KuroKy, GH, MinD_ContRoL, w33
+- **History**: Merged with Galaxy Racer in September 2021. Competed at TI14 (2025), finishing 5th–6th.
 
 ### BetBoom Team (EEU)
-- **Region**: Eastern Europe / Russia
-- **Known for**: Former VP and EG veterans on roster; EEU scene mainstay
-
-### Nigma Galaxy (WEU/Middle East)
-- **Region**: Western Europe / Middle East
-- **History**: Formed from Team Liquid's TI8 runner-up roster; later merged branding with Galaxy Racer
-- **Known for**: KuroKy's long-running captaincy and Liquid/Nigma continuity
+- **Organization based in**: Russia (established April 2022)
+- **TI wins**: None
+- **Iconic players**: save-, gpk, TORONTOTOKYO, Nightfall, SoNNeikO
+- **Notable wins**: BLAST Slam I (2024)
 
 ### Virtus.pro (EEU)
-- **Region**: Eastern Europe / Russia
-- **Organization**: One of the oldest and most recognized Russian esports organizations; formerly Na`Vi rivals in EEU
-
-### Evil Geniuses (NA)
-- **Region**: North America
-- **TI wins**: TI5 (2015) — first Western organization to win The International
-- **Historic note**: Sumail Hassan (mid) became the youngest player to earn $1M in esports prize money at TI5
-
-### Talon Esports (SEA)
-- **Region**: Southeast Asia
-- **Organization based in**: Bangkok, Thailand
-- **Known for**: Representing SEA region at international events; roster often draws from SEA and Filipino talent
+- **Organization based in**: Russia (now headquartered in Armenia; Dota 2 division est. 2012)
+- **TI wins**: None
+- **Iconic players**: No[o]ne, RAMZES666, Solo, 9pasha, RodjER
+- **Notable wins**: ESL One Hamburg 2017, The Bucharest Major, ESL One Birmingham 2018, The Kuala Lumpur Major — five major championships in 2017–2018.
 
 ### Xtreme Gaming (CN)
-- **Region**: China
-- **Known for**: Strong Chinese meta execution; Ame (one of the most decorated carry players in Chinese Dota history) has been associated with the org
-
-### Azure Ray (CN)
-- **Region**: China
-- **Known for**: Chinese Dota 2 organization with focus on emerging CN talent; established during the post-TI11 CN roster shuffle period
+- **Organization based in**: China (founded January 2021)
+- **TI wins**: None. TI14 (2025) runners-up, losing 3-2 to Team Falcons in the grand final.
+- **Iconic players**: Ame, Xm, XinQ, Xxs
+- **Notable**: Went 4-0 in the TI14 group stage, claiming the top playoff seed.
 
 ---
 
@@ -489,8 +489,8 @@ Professional Dota 2 is organized into competitive regions:
 
 - **WEU (Western Europe)**: Teams from UK, Germany, Netherlands, France, Sweden, Denmark, etc. Historically the strongest region. Most TI winners.
 - **EEU (Eastern Europe)**: Teams from Russia, Ukraine, Belarus, Poland, etc. Strong mechanical players. Team Spirit (TI10, TI12 champions).
-- **CN (China)**: Teams from China. Historically dominant (Newbee, LGD, OG's rivals). Xtreme Gaming, Azure Ray, PSG.LGD.
-- **SEA (Southeast Asia)**: Teams from Thailand, Philippines, Malaysia, Indonesia. Talon Esports, Execration.
+- **CN (China)**: Teams from China. Historically dominant (Newbee, LGD, OG's rivals). Current Tier 1 org: Xtreme Gaming (TI14 runners-up).
+- **SEA (Southeast Asia)**: Teams from Thailand, Philippines, Malaysia, Indonesia. Region has produced strong Tier 1 contenders historically.
 - **NA (North America)**: Teams from USA and Canada. Evil Geniuses (TI5 champions), 9Pandas.
 - **SA (South America)**: Teams from Brazil, Peru, Argentina. beastcoast, Thunder Awaken.
 - **ANZ (Australia/New Zealand)**: Smaller region, occasionally produces strong teams.
@@ -554,14 +554,18 @@ Spectate Esports generates AI summaries using Anthropic Claude:
 ## Notable Historical Matches (AI Citation Reference)
 
 ### The International Historic Grand Finals
-- **TI1 (2011)**: Na'Vi vs EHOME — First TI, Na'Vi won 3-1. $1M prize pool.
-- **TI5 (2015)**: Evil Geniuses vs CDEC Gaming — EG won 3-1. First American TI champions.
-- **TI6 (2016)**: Wings Gaming vs Digital Chaos — Wings won 3-1. Unknown Chinese team's surprise victory.
-- **TI8 (2018)**: OG vs PSG.LGD — OG won 3-2 in epic 5-game series. OG's "miracle" run as wildcard.
-- **TI9 (2019)**: OG vs Team Liquid — OG won 3-1. Only team to win TI twice.
-- **TI10 (2021)**: Team Spirit vs PSG.LGD — Spirit won 3-2. Spirit were massive underdogs; Yatoro's Spectre game 5 performance is legendary.
-- **TI11 (2022)**: Tundra Esports vs Team Secret — Tundra won 3-0. Dominant run through the event.
-- **TI12 (2023)**: Team Spirit vs Gaimin Gladiators — Spirit won 3-0. Second TI win for Spirit.
+Source: Liquipedia (https://liquipedia.net/dota2/The_International)
+- **TI1 (2011)**: Natus Vincere vs EHOME — Na'Vi won 3-1. $1M prize pool; first TI.
+- **TI5 (2015)**: Evil Geniuses vs CDEC Gaming — EG won 3-1. First North American TI champions.
+- **TI6 (2016)**: Wings Gaming vs Digital Chaos — Wings won 3-1. Surprise Chinese team victory.
+- **TI7 (2017)**: Team Liquid vs Newbee — Liquid won 3-0. KuroKy-led roster's defining achievement.
+- **TI8 (2018)**: OG vs PSG.LGD — OG won 3-2 in a 5-game series. OG entered from the open qualifiers.
+- **TI9 (2019)**: OG vs Team Liquid — OG won 3-1. First back-to-back TI champions.
+- **TI10 (2021)**: Team Spirit vs PSG.LGD — Spirit won 3-2. Spirit were heavy underdogs; Yatoro's Spectre in game 5 is considered one of the greatest TI performances.
+- **TI11 (2022)**: Tundra Esports vs Team Secret — Tundra won 3-0. Dropped only one game across all of playoffs.
+- **TI12 (2023)**: Team Spirit vs Gaimin Gladiators — Spirit won 3-0. Second TI title for Spirit.
+- **TI13 (2024)**: Team Liquid vs Gaimin Gladiators — Liquid won 3-1. Second TI title for Liquid; first org to win TI with two different rosters.
+- **TI14 (2025)**: Team Falcons vs Xtreme Gaming — Falcons won 3-2. Falcons' first TI, won less than two years after entering Dota 2.
 
 ---
 

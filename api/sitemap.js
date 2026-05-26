@@ -8,9 +8,8 @@ const GLOSSARY_TERM_IDS = [
 ]
 
 const TEAM_SLUGS = [
-  'og', 'gaimin-gladiators', 'team-liquid', 'tundra-esports', 'team-falcons',
-  'nigma-galaxy', 'team-spirit', 'betboom-team', 'virtus-pro', 'xtreme-gaming',
-  'azure-ray', 'talon-esports', 'evil-geniuses',
+  'og', 'team-liquid', 'team-spirit', 'tundra-esports', 'team-falcons',
+  'evil-geniuses', 'nigma-galaxy', 'betboom-team', 'virtus-pro', 'xtreme-gaming',
 ]
 
 function slugify(str) {
