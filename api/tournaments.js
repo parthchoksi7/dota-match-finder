@@ -1797,11 +1797,12 @@ export default async function handler(req, res) {
     // Clean up the name to get the best YouTube search term:
     // - Strip stage suffixes like "- Group A", "- Group Stage", "- Playoffs", etc.
     // - Strip trailing year (ESL video titles don't include "2026")
-    // - Abbreviate "Season N" → "SN" to match ESL's video title convention
+    // Keep "Season N" as-is rather than converting to "SN": some orgs (ESL) use "S29"
+    // but others (BLAST) use Roman numerals ("VII"). YouTube's relevance search handles
+    // all forms better than forcing a single abbreviated form.
     const searchTerm = rawName
       .replace(/\s*[-–—]\s*(group [a-z]|group stage|playoffs|upper bracket|lower bracket|qualifier|open qualifier|closed qualifier|main event)\s*/gi, '')
       .replace(/\s+\d{4}\b/, '')
-      .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
       .trim()
 
     const slugKey = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)
@@ -1817,11 +1818,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // Date window: use tournament dates ±1 day when available; else fall back to 90-day window
+    // Date window: use tournament dates when available; else fall back to 90-day window.
+    // Start 5 days before the event begin date to capture pre-event content (trailers,
+    // team previews, day-0 uploads) that orgs post before the first match day.
     let publishedAfter, publishedBefore
     if (rawBeginAt) {
       const d = new Date(rawBeginAt)
-      d.setUTCDate(d.getUTCDate() - 1)
+      d.setUTCDate(d.getUTCDate() - 5)
       publishedAfter = d.toISOString()
     } else {
       publishedAfter = new Date(Date.now() - YT_HIGHLIGHTS_MAX_AGE_DAYS * 86400_000).toISOString()
