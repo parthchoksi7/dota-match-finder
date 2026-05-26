@@ -174,6 +174,29 @@ describe('findLeague', () => {
     const result = findLeague(leagues, 'ESL One 2026')
     expect(result).toBeNull()
   })
+
+  it('matches when OD uses Roman numeral and PS uses Arabic season number', () => {
+    // OD registers the league as "BLAST SLAM I" (Roman numeral I = single char, filtered).
+    // PS calls the same tournament "BLAST Slam Season 7 2026".
+    // The league has no Arabic numeric tokens to contradict the search, so it should match.
+    const leagues = [
+      { leagueid: 17414, name: 'BLAST SLAM I', tier: 'premium' },
+    ]
+    const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
+    expect(result?.leagueid).toBe(17414)
+  })
+
+  it('still rejects a genuinely wrong season even when Roman numerals are involved', () => {
+    // "BLAST Slam Season 6 2025" has Arabic "6" which contradicts search "7 2026"
+    const leagues = [
+      { leagueid: 15000, name: 'BLAST Slam Season 6 2025', tier: 'premium' },
+      { leagueid: 17414, name: 'BLAST SLAM I', tier: 'premium' },
+    ]
+    // Numeric guard: "6" is not in {7, 2026} → Season 6 rejected; "BLAST SLAM I" has no
+    // Arabic numerics → no contradiction → best overlap candidate returned
+    const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
+    expect(result?.leagueid).toBe(17414)
+  })
 })
 
 // ── top5 building logic (pure, duplicated from handler) ───────────────────────

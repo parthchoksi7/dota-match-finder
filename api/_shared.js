@@ -357,27 +357,42 @@ export function findLeague(leagues, search) {
   const tokens = s => s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP.has(t))
   const searchTokens = new Set(tokens(search))
 
-  let best = null, bestScore = 0
+  const candidates = []
   for (const league of leagues) {
     const lt = tokens(league.name || '')
     const overlap = lt.filter(t => searchTokens.has(t)).length
     if (overlap < 2) continue
-    const isQualifier = (league.name || '').toLowerCase().includes('qualifier')
-    const bestIsQualifier = best && (best.name || '').toLowerCase().includes('qualifier')
-    const isBetter = overlap > bestScore || (overlap === bestScore && bestIsQualifier && !isQualifier)
-    if (isBetter) { best = league; bestScore = overlap }
+    candidates.push({ league, overlap })
   }
 
-  if (!best) return null
-  // All numeric tokens (season number, year) in the search must appear in the
-  // matched league name — prevents Season 6 data from showing for Season 7.
-  const numericSearchTokens = [...searchTokens].filter(t => /^\d+$/.test(t))
-  if (numericSearchTokens.length > 0) {
-    const matchedTokenSet = new Set(tokens(best.name || ''))
-    if (!numericSearchTokens.every(t => matchedTokenSet.has(t))) return null
+  if (candidates.length === 0) return null
+
+  // Sort by overlap descending; on ties, prefer non-qualifier over qualifier
+  candidates.sort((a, b) => {
+    if (b.overlap !== a.overlap) return b.overlap - a.overlap
+    const aQ = (a.league.name || '').toLowerCase().includes('qualifier')
+    const bQ = (b.league.name || '').toLowerCase().includes('qualifier')
+    if (aQ && !bQ) return 1
+    if (!aQ && bQ) return -1
+    return 0
+  })
+
+  // Return the first candidate whose own numeric tokens don't contradict the search.
+  // "Contradict" = league has a number not in the search's numeric set (e.g. says
+  // "Season 6" when search wants "Season 7"). Leagues with no Arabic numeric tokens
+  // (e.g. "BLAST SLAM I" where single-char "I" is filtered) never contradict and
+  // always pass — handles cross-source season numbering differences (OD: "BLAST SLAM I",
+  // PS: "BLAST Slam Season 7 2026").
+  const numericSearchSet = new Set([...searchTokens].filter(t => /^\d+$/.test(t)))
+  for (const { league } of candidates) {
+    if (numericSearchSet.size > 0) {
+      const leagueNumerics = tokens(league.name || '').filter(t => /^\d+$/.test(t))
+      if (leagueNumerics.some(t => !numericSearchSet.has(t))) continue
+    }
+    return league
   }
 
-  return best
+  return null
 }
 
 // ── Error telemetry ──────────────────────────────────────────────────────────

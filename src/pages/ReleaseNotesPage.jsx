@@ -12,6 +12,12 @@ const RELEASES = [
   {
     date: "May 26, 2026",
     tag: "fix",
+    title: "Stats and player leaderboards now load for BLAST Slam Season 7",
+    desc: "OpenDota registers the league as 'BLAST SLAM I' (Roman numeral) while PandaScore calls it 'Season 7'. The league-matching algorithm now handles this cross-source naming difference: leagues with no Arabic numeric tokens are never rejected by the season-number guard, so the correct stats are surfaced.",
+  },
+  {
+    date: "May 26, 2026",
+    tag: "fix",
     title: "PandaScore and OpenDota tournament names now match across Roman/Arabic season numbering",
     desc: "Tournaments like 'Blast Slam S7' (PandaScore) and 'Blast Slam VII' (OpenDota) now correctly group as a single tournament on the homepage instead of appearing as two separate events.",
   },
