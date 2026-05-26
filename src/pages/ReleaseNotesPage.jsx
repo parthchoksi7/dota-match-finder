@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 26, 2026",
     tag: "fix",
+    title: "Tournament cards on the homepage now expand inline for all Tier 1 events",
+    desc: "Clicking a tournament header (e.g. BLAST Slam) now opens the inline hub panel with standings, schedule, and highlights — the same way DreamLeague does. Previously, tournaments whose season was written with a Roman numeral (VII) in the match data would navigate to the tournaments page instead of expanding.",
+  },
+  {
+    date: "May 26, 2026",
+    tag: "fix",
     title: "PandaScore and OpenDota tournament names now match across Roman/Arabic season numbering",
     desc: "Tournaments like 'Blast Slam S7' (PandaScore) and 'Blast Slam VII' (OpenDota) now correctly group as a single tournament on the homepage instead of appearing as two separate events.",
   },

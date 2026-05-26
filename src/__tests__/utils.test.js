@@ -434,6 +434,26 @@ describe('normalizeTournamentKey', () => {
     expect(normalizeTournamentKey(null)).toBe('other')
     expect(normalizeTournamentKey('')).toBe('other')
   })
+
+  it('enables prefix-based tournament ID lookup across Roman/Arabic naming conventions', () => {
+    // OpenDota uses "BLAST Slam VII"; PandaScore uses "BLAST Slam Season 7 2026 - Group Stage".
+    // The HomeFeed findTournamentId function does:
+    //   nk.startsWith(normalizedFeed + ' ')
+    // Both should normalize to the same base so the startsWith check succeeds.
+    const feedName = normalizeTournamentKey('BLAST Slam VII')          // from OpenDota
+    const psKey    = normalizeTournamentKey('BLAST Slam Season 7 2026 - Group Stage') // PS map key
+    expect(feedName).toBe('blast slam season 7')
+    expect(psKey.startsWith(feedName + ' ')).toBe(true)
+
+    // Same check for shorthand S7 variant
+    const feedS7 = normalizeTournamentKey('BLAST Slam S7')
+    expect(feedS7).toBe('blast slam season 7')
+    expect(psKey.startsWith(feedS7 + ' ')).toBe(true)
+
+    // No false positive: "season 7" should NOT prefix-match "season 72"
+    const psKey72 = normalizeTournamentKey('BLAST Slam Season 72 2026 - Group Stage')
+    expect(psKey72.startsWith(feedName + ' ')).toBe(false)
+  })
 })
 
 // ── buildTournamentName ──────────────────────────────────────────────────────

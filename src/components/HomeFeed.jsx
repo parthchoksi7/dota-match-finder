@@ -20,11 +20,18 @@ function getDateLabel(unixSeconds) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// Fuzzy match: all significant words in the feed name must appear in the PandaScore key.
-// Handles cases like "1Win Essence I" matching "1win Essence Season 1 2026 - Decider Stage".
+// Match feed tournament name to a PandaScore tournament ID.
+// Uses normalizeTournamentKey so Roman numerals (VII) and shorthand (S7) resolve to
+// the same canonical form ("season 7"), then checks if any map key starts with the
+// normalized feed name. Falls back to the original word-subset approach for edge cases.
 function findTournamentId(name, idMap) {
   if (!idMap || !name) return null
   if (idMap.has(name)) return idMap.get(name)
+  const normalizedFeed = normalizeTournamentKey(name)
+  for (const [k, v] of idMap) {
+    const nk = normalizeTournamentKey(k)
+    if (nk === normalizedFeed || nk.startsWith(normalizedFeed + ' ')) return v
+  }
   const normalize = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '')
   const feedWords = normalize(name).split(' ').filter(w => w.length > 2)
   if (!feedWords.length) return null
@@ -337,7 +344,6 @@ function HomeFeed({
               setExpandedTournamentName(isHubExpanded ? null : card.tournament)
             } else {
               trackEvent('tournament_header_click', { tournament: card.tournament })
-              window.location.href = '/tournaments'
             }
           }
 
