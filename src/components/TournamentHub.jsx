@@ -322,7 +322,8 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
     if (heroStats?.fetchedForId === tournament.id) return
     setHeroStatsLoading(true)
     const serieName = encodeURIComponent(buildTournamentName(tournament.league || '', tournament.serie || ''))
-    fetch(`/api/tournament-heroes?id=${tournament.id}&name=${serieName}`)
+    const beginAt = tournament.startdate ? `&begin_at=${encodeURIComponent(tournament.startdate)}` : ''
+    fetch(`/api/tournament-heroes?id=${tournament.id}&name=${serieName}${beginAt}`)
       .then(r => r.json())
       .then(d => setHeroStats({ ...d, fetchedForId: tournament.id }))
       .catch(() => setHeroStats({ heroes: [], gameCount: 0, fetchedForId: tournament.id }))
@@ -334,7 +335,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
     if (playerStats?.fetchedForId === tournament.id) return
     setPlayerStatsLoading(true)
     const serieName = buildTournamentName(tournament.league || '', tournament.serie || '')
-    fetchTournamentPlayers(tournament.id, serieName)
+    fetchTournamentPlayers(tournament.id, serieName, false, tournament.startdate || null)
       .then(d => setPlayerStats({ ...(d || { stats: null, gameCount: 0 }), fetchedForId: tournament.id }))
       .catch(() => setPlayerStats({ stats: null, gameCount: 0, fetchedForId: tournament.id }))
       .finally(() => setPlayerStatsLoading(false))

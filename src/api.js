@@ -393,13 +393,14 @@ export async function fetchMatchStats(matchId) {
 
 const _tournamentPlayersCache = new Map()
 
-export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false) {
+export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false, beginAt = null) {
   const key = String(tournamentId)
   if (_tournamentPlayersCache.has(key)) return _tournamentPlayersCache.get(key)
   try {
     const name = encodeURIComponent(serieName || '')
     const completed = isCompleted ? '&completed=1' : ''
-    const res = await fetch(`/api/tournaments?mode=tournament-players&id=${key}&name=${name}${completed}`)
+    const begin = beginAt ? `&begin_at=${encodeURIComponent(beginAt)}` : ''
+    const res = await fetch(`/api/tournaments?mode=tournament-players&id=${key}&name=${name}${completed}${begin}`)
     if (!res.ok) return null
     const data = await res.json()
     _tournamentPlayersCache.set(key, data)

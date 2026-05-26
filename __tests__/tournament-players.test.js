@@ -428,7 +428,7 @@ describe('?mode=tournament-players handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:55555')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v3:55555')
     expect(kvWrite).toBeDefined()
     expect(kvWrite[1]).toHaveProperty('stats')
     expect(kvWrite[1]).toHaveProperty('gameCount')
@@ -457,7 +457,7 @@ describe('?mode=tournament-players handler', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(fetchSpy.mock.calls[0][0]).toContain('/leagues')
     // KV should NOT have been poisoned with empty data
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:99999')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v3:99999')
     expect(kvWrite).toBeUndefined()
   })
 
@@ -477,7 +477,7 @@ describe('?mode=tournament-players handler', () => {
     expect(res._status).toBe(200)
     expect(res._body.stats).toEqual({ kills: [], deaths: [], assists: [], netWorth: [], gpm: [] })
     expect(res._body.gameCount).toBe(0)
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:77777')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v3:77777')
     expect(kvWrite).toBeUndefined()
   })
 
@@ -519,9 +519,66 @@ describe('?mode=tournament-players handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    expect(mockKv.del).toHaveBeenCalledWith('dota2:tournament_players_v2:33333')
+    expect(mockKv.del).toHaveBeenCalledWith('dota2:tournament_players_v3:33333')
     expect(res._status).toBe(200)
     expect(res._body.gameCount).toBe(1)
+  })
+
+  it('filters match list to only games on/after begin_at when provided', async () => {
+    // Match list has 3 entries: one old (before tournament start), two recent
+    const oldTs   = Math.floor(new Date('2025-01-01').getTime() / 1000)  // previous season
+    const newTs   = Math.floor(new Date('2026-05-14').getTime() / 1000)  // current season
+    const beginAt = '2026-05-01T00:00:00Z'  // tournament start
+
+    const recentMatch = makeMockMatch({ match_id: 9000001 })
+
+    mockKv.get
+      .mockResolvedValueOnce(null)        // players cache miss
+      .mockResolvedValueOnce(mockLeagues) // leagues KV hit
+
+    const fetchSpy = vi.fn()
+      // match list: two matches — one old, one new
+      .mockResolvedValueOnce({ ok: true, json: async () => [
+        { match_id: 8000001, start_time: oldTs },  // old — should be filtered out
+        { match_id: 9000001, start_time: newTs },  // new — should be included
+      ]})
+      // only the new match is fetched
+      .mockResolvedValueOnce({ ok: true, json: async () => recentMatch })
+
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const req = makeReq({ id: '66666', name: 'DreamLeague 29', begin_at: beginAt })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    // Only 1 game counted (old match excluded)
+    expect(res._body.gameCount).toBe(1)
+    // fetch called twice: once for match list, once for the single new match
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(fetchSpy.mock.calls[1][0]).toContain('9000001')
+  })
+
+  it('includes all matches when begin_at is not provided', async () => {
+    mockKv.get
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(mockLeagues)
+
+    const match = makeMockMatch()
+    const oldTs = Math.floor(new Date('2020-01-01').getTime() / 1000)
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => [
+        { match_id: match.match_id, start_time: oldTs },
+      ]})
+      .mockResolvedValueOnce({ ok: true, json: async () => match })
+    )
+
+    const req = makeReq({ id: '88888', name: 'DreamLeague 29' })  // no begin_at
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body.gameCount).toBe(1)  // old match still included
   })
 
   it('uses 30-day TTL when completed=1 query param is set', async () => {
@@ -539,7 +596,7 @@ describe('?mode=tournament-players handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v2:44444')
+    const kvWrite = kvSetCalls.find(([key]) => key === 'dota2:tournament_players_v3:44444')
     expect(kvWrite).toBeDefined()
     const ttl = kvWrite[2]?.ex
     expect(ttl).toBe(60 * 60 * 24 * 30)  // 30-day TTL for completed events

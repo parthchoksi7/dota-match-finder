@@ -7,7 +7,7 @@ const RELEASES = [
     date: "May 26, 2026",
     tag: "fix",
     title: "Tournament stats now show the correct season's data",
-    desc: "The Stats tab was returning data from a previous season when OpenDota uses multi-character Roman numerals for league names (e.g. 'BLAST SLAM VI' vs 'BLAST SLAM VII'). The season-number guard couldn't distinguish them because Roman numerals aren't Arabic digits. Fixed by normalizing Roman numerals to Arabic before matching, so 'VI' correctly contradicts a Season 7 search. Also reduced the OD leagues cache from 24h to 4h so new tournaments are picked up faster.",
+    desc: "OpenDota can store multiple seasons of a tournament under a single league ID. The Stats and Heroes tabs now filter match data to only games played on or after the tournament's official start date, so Season 7 stats no longer include matches from Season 6 or earlier.",
   },
   {
     date: "May 26, 2026",

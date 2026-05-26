@@ -14,10 +14,16 @@ export default async function handler(req, res) {
   if (!id) return res.status(400).json({ error: 'Missing id' })
 
   let name = req.query.name || null
+  // Unix timestamp lower bound — only include OD matches on/after this date
+  let beginAtUnix = null
+  if (req.query.begin_at) {
+    const t = Math.floor(new Date(req.query.begin_at).getTime() / 1000)
+    if (!isNaN(t) && t > 0) beginAtUnix = t
+  }
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v7:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v8:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})
@@ -71,8 +77,17 @@ export default async function handler(req, res) {
     // Fetch match list for the league
     const matchListRes = await fetch(`${OPENDOTA}/leagues/${league.leagueid}/matches`)
     if (!matchListRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
-    const matchList = await matchListRes.json()
-    if (!Array.isArray(matchList) || !matchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
+    const rawMatchList = await matchListRes.json()
+    if (!Array.isArray(rawMatchList) || !rawMatchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
+
+    // Pre-filter by tournament start date — the OD league may span multiple seasons
+    // (e.g. "BLAST SLAM I" covers S1 through S7+). Exclude matches before begin_at.
+    // Matches with no start_time are included defensively.
+    const matchList = beginAtUnix
+      ? rawMatchList.filter(m => !m.start_time || m.start_time >= beginAtUnix)
+      : rawMatchList
+
+    if (!matchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
 
     // Fetch full match details in batches of 10 for picks_bans.
     // Cap at 60 games (6 batches) and abort if elapsed > 7s to stay within

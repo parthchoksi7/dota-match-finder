@@ -1165,7 +1165,7 @@ export default async function handler(req, res) {
     const PLAYERS_TTL_COMPLETED = 60 * 60 * 24 * 30  // 30d for completed events
     const LEAGUES_CACHE_TTL = 60 * 60 * 4     // 4h — short enough to pick up new tournaments
     const OPENDOTA_API = 'https://api.opendota.com/api'
-    const KV_PLAYERS_KEY = `dota2:tournament_players_v2:${tournamentId}`
+    const KV_PLAYERS_KEY = `dota2:tournament_players_v3:${tournamentId}`
     const KV_LEAGUES_KEY = 'opendota:leagues_v2'
 
     const emptyStats = { kills: [], deaths: [], assists: [], netWorth: [], gpm: [] }
@@ -1190,6 +1190,13 @@ export default async function handler(req, res) {
         kv.set(KV_LEAGUES_KEY, data, { ex: LEAGUES_CACHE_TTL }).catch(() => {})
         return data
       } catch { return [] }
+    }
+
+    // Unix timestamp lower bound — only include OD matches on/after this date
+    let beginAtUnix = null
+    if (req.query.begin_at) {
+      const t = Math.floor(new Date(req.query.begin_at).getTime() / 1000)
+      if (!isNaN(t) && t > 0) beginAtUnix = t
     }
 
     try {
@@ -1234,8 +1241,20 @@ export default async function handler(req, res) {
         res.setHeader('Cache-Control', 'public, s-maxage=60')
         return res.status(200).json({ stats: emptyStats, gameCount: 0 })
       }
-      const matchList = await matchListRes.json()
-      if (!Array.isArray(matchList) || !matchList.length) {
+      const rawMatchList = await matchListRes.json()
+      if (!Array.isArray(rawMatchList) || !rawMatchList.length) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60')
+        return res.status(200).json({ stats: emptyStats, gameCount: 0 })
+      }
+
+      // Pre-filter by tournament start date — the OD league may span multiple seasons
+      // (e.g. "BLAST SLAM I" covers S1+). Exclude matches before begin_at.
+      // Matches with no start_time are included defensively.
+      const matchList = beginAtUnix
+        ? rawMatchList.filter(m => !m.start_time || m.start_time >= beginAtUnix)
+        : rawMatchList
+
+      if (!matchList.length) {
         res.setHeader('Cache-Control', 'public, s-maxage=60')
         return res.status(200).json({ stats: emptyStats, gameCount: 0 })
       }
