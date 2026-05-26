@@ -1,12 +1,7 @@
-import { Redis } from '@upstash/redis'
 import webpush from 'web-push'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
+import { kv } from './_kv.js'
 
 const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes

@@ -1,6 +1,6 @@
-import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
+import { kv } from './_kv.js'
 
 import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, parseBracketRound, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime, buildPremiumLeagueIds, trackError, checkServices, findLeague } from './_shared.js'
 
@@ -232,11 +232,6 @@ async function calFetchMatchesForTeam(teamId, token) {
     ...(results[2].status === 'fulfilled' ? results[2].value || [] : []),
   ]
 }
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
 
 const KV_LIST_KEY = 'dota2:tournament_list_v7'
 const KV_STATUS_KEY = 'dota2:tournament_statuses_v5'

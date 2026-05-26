@@ -61,13 +61,8 @@ async function getHeroNames() {
 // Called with POST { type: 'tournament', seriesId, name, leagueName, ... }
 // Caches 24h for live/upcoming, 30 days for completed.
 
-import { Redis } from '@upstash/redis'
+import { kv as _kv } from './_kv.js'
 import { trackError } from './_shared.js'
-
-const _kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
 
 async function handleTournamentSummary(req, res) {
   const { seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages } = req.body || {}

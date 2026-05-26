@@ -10,11 +10,7 @@ Tracked from the May 2026 deep code review. Completed items removed.
 ~~### Remove dead `rawUrl` fallback in LiveMatchRow~~ ✅ Done
 ~~### Extract `getSeriesLabel()` to `_shared.js`~~ ✅ Done
 
-### Extract KV singleton to `_shared.js`
-- **Files:** All `api/*.js` files
-- **What:** `new Redis({ url, token })` repeated in every serverless function. Export a shared `kv` instance from `_shared.js`.
-- **Why deferred:** Wide blast radius (8+ files) even though the change is mechanical.
-- **Effort:** Low | **Payoff:** Medium
+~~### Extract KV singleton to `api/_kv.js`~~ ✅ Done
 
 ---
 

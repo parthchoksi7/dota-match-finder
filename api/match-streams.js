@@ -1,12 +1,6 @@
-import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
-
+import { kv } from './_kv.js'
 import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError } from './_shared.js'
 
 /**

@@ -1,17 +1,12 @@
-import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
+import { kv } from './_kv.js'
 
 import { get as httpsGet } from 'node:https'
 import { createGunzip } from 'node:zlib'
 import { XMLParser } from 'fast-xml-parser'
 import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER, trackError } from './_shared.js'
 import { parseLiquipediaTransfers, getCurrentTransferPage } from './_liquipedia.js'
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
 
 const NEWS_CACHE_TTL = 30 * 60 // 30 min
 const MAX_AGE_DAYS = 60

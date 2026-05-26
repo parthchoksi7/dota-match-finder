@@ -1,14 +1,7 @@
-import { Redis } from '@upstash/redis'
 import { createHmac, randomBytes } from 'crypto'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-
-// ── Cron / auto-tweet: Redis client ─────────────────────────────────────────
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
+import { kv } from './_kv.js'
 
 // ── Cron / auto-tweet: Twitter OAuth 1.0a ───────────────────────────────────
 

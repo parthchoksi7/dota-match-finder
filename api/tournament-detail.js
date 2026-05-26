@@ -1,12 +1,7 @@
-import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
+import { kv } from './_kv.js'
 import { trackError } from './_shared.js'
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
 
 const BASE = 'https://api.pandascore.co'
 const TTL = 60 * 3 // 3 minutes — bracket/standings change during live matches

@@ -1,12 +1,7 @@
-import { Redis } from '@upstash/redis'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
+import { kv } from './_kv.js'
 import { trackError, findLeague } from './_shared.js'
-
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-})
 
 const OPENDOTA = 'https://api.opendota.com/api'
 const PANDASCORE_BASE = 'https://api.pandascore.co'
