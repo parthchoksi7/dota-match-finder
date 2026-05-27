@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 26, 2026",
+    tag: "new",
+    title: "Series highlights in the match panel",
+    desc: "When official YouTube highlights exist for a series, a link appears below the Twitch VOD in the match details panel. One click for the full replay, one click for the 10-minute recap. Hidden in spoiler-free mode.",
+  },
+  {
+    date: "May 26, 2026",
     tag: "improvement",
     title: "Tournament Hub redesigned: Stage, Highlights, and Stats tabs",
     desc: "The Tournament Hub on the homepage has been restructured around three focused tabs that each answer a single question.",

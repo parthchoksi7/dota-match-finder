@@ -2,7 +2,7 @@ import DraftDisplay from "./DraftDisplay"
 import GoldGraph from "./GoldGraph"
 import PlayerStatsSection from "./PlayerStatsSection"
 import { TeamIndicators } from "./GameIndicators"
-import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats } from "../api"
+import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { formatDuration, trackEvent } from "../utils"
 
@@ -62,6 +62,7 @@ function MatchDrawer({
   const [draftExpanded, setDraftExpanded] = useState(true)
   const [matchStats, setMatchStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [seriesHighlight, setSeriesHighlight] = useState(null)
 
   useEffect(() => {
     if (!match?.id || match.unplayed) return
@@ -96,6 +97,14 @@ function MatchDrawer({
       setStatsLoading(false)
     })
   }, [match?.id, match?._fromPandaScore, spoilerFree])
+
+  useEffect(() => {
+    setSeriesHighlight(null)
+    if (!match?.id || match._fromPandaScore || spoilerFree) return
+    fetchHighlights(match.tournament).then(videos => {
+      setSeriesHighlight(matchHighlightsToSeries(videos, match.radiantTeam, match.direTeam, match.startTime))
+    }).catch(() => {})
+  }, [match?.id, match?._fromPandaScore, match?.tournament, spoilerFree])
 
   useEffect(() => {
     function onKey(e) {
@@ -452,6 +461,36 @@ function MatchDrawer({
                     {copyFeedback === "link" ? "Copied!" : "Share match"}
                   </button>
                 </div>
+              </div>
+            )}
+            {seriesHighlight && (
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-900 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                  Series Highlights
+                </p>
+                <a
+                  href={`https://www.youtube.com/watch?v=${seriesHighlight.videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackEvent("highlight_click", { matchId: match.id, videoId: seriesHighlight.videoId, tournament: match.tournament })}
+                  className="flex items-start gap-2 group min-h-[44px] py-1"
+                >
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-500" aria-hidden="true">
+                    <rect x="1" y="3" width="14" height="10" rx="2.5" opacity="0.25" />
+                    <path d="M6.5 5.5l4 2.5-4 2.5V5.5z" />
+                  </svg>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold leading-snug line-clamp-2 text-gray-900 dark:text-white group-hover:text-purple-400 transition-colors">
+                      {seriesHighlight.title}
+                    </p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-500 uppercase tracking-wide mt-0.5 tabular-nums">
+                      {(() => { const d = Math.floor((Date.now() - new Date(seriesHighlight.publishedAt)) / 86400000); return d === 1 ? '1 day ago' : `${d} days ago` })()}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-purple-500 group-hover:text-purple-400 flex-shrink-0 pl-2 transition-colors">
+                    Watch
+                  </span>
+                </a>
               </div>
             )}
           </div>

@@ -410,6 +410,38 @@ export async function fetchTournamentPlayers(tournamentId, serieName, isComplete
   }
 }
 
+const _highlightsCache = new Map()
+
+export async function fetchHighlights(tournamentName) {
+  if (!tournamentName) return []
+  if (_highlightsCache.has(tournamentName)) return _highlightsCache.get(tournamentName)
+  try {
+    const res = await fetch(`/api/tournaments?mode=highlights&name=${encodeURIComponent(tournamentName)}`)
+    if (!res.ok) { _highlightsCache.set(tournamentName, []); return [] }
+    const data = await res.json()
+    const videos = data.videos || []
+    _highlightsCache.set(tournamentName, videos)
+    return videos
+  } catch {
+    _highlightsCache.set(tournamentName, [])
+    return []
+  }
+}
+
+export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesStartTime) {
+  const norm = s => s?.toLowerCase() ?? ''
+  const ra = norm(radiantTeam)
+  const di = norm(direTeam)
+  const startMs = seriesStartTime ? seriesStartTime * 1000 : 0
+  return videos
+    .filter(v => {
+      const t = norm(v.title)
+      return (ra && t.includes(ra)) || (di && t.includes(di))
+    })
+    .filter(v => startMs === 0 || new Date(v.publishedAt).getTime() >= startMs)
+    .sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt))[0] ?? null
+}
+
 let heroCache = null
 
 export async function fetchHeroes() {
