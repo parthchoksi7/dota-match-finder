@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 27, 2026",
     tag: "fix",
+    title: "Removed currency symbol from net worth in player stats",
+    desc: "Net worth values in the player stats section no longer show a dollar sign prefix.",
+  },
+  {
+    date: "May 27, 2026",
+    tag: "fix",
     title: "Push notifications now respect your current team selection",
     desc: "Notifications were still firing for teams you had unfollowed, because the server never cleaned up old team-to-subscriber mappings when you changed your followed teams. The subscription handler now diffs your previous and new team lists and removes you from stale indexes immediately — so you only ever hear about the teams you actually follow.",
   },

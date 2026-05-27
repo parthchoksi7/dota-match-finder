@@ -3,8 +3,8 @@ import { fetchHeroes } from '../api'
 import ItemSlot from './ItemSlot'
 
 function formatNetWorth(val) {
-  if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`
-  return `$${val}`
+  if (val >= 1000) return `${(val / 1000).toFixed(1)}k`
+  return `${val}`
 }
 
 const AGHANIM_UPGRADES = [
