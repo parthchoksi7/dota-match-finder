@@ -7,10 +7,38 @@ function formatNetWorth(val) {
   return `$${val}`
 }
 
+const AGHANIM_UPGRADES = [
+  { buffId: 2,  key: 'ultimate_scepter', label: "Aghanim's Scepter" },
+  { buffId: 12, key: 'aghanims_shard',   label: "Aghanim's Shard"   },
+]
+
+function ConsumedUpgrade({ itemKey, label }) {
+  const [imgError, setImgError] = useState(false)
+  if (imgError) return null
+  return (
+    <div className="w-6 h-6 relative flex-shrink-0 group">
+      <img
+        src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${itemKey}_lg.png`}
+        alt={label}
+        loading="lazy"
+        className="w-full h-full object-cover rounded-sm opacity-90"
+        onError={() => setImgError(true)}
+      />
+      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+        <span className="block bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap">
+          {label} (consumed)
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadiant }) {
   const barColor = isRadiant ? 'bg-green-500' : 'bg-red-500'
   const barWidth = maxNetWorth > 0 ? Math.round((player.netWorth / maxNetWorth) * 100) : 0
   const backpack = player.backpackItems || []
+  const buffs = player.permanentBuffs || []
+  const consumedUpgrades = AGHANIM_UPGRADES.filter(u => buffs.includes(u.buffId))
 
   return (
     <div className="space-y-1.5">
@@ -53,6 +81,12 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
         )}
         {backpack.map((itemId, i) => (
           <ItemSlot key={`bp-${i}`} itemId={itemId} itemNames={itemNames} size="md" />
+        ))}
+        {consumedUpgrades.length > 0 && (
+          <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-0.5 flex-shrink-0" aria-hidden="true" />
+        )}
+        {consumedUpgrades.map(u => (
+          <ConsumedUpgrade key={u.buffId} itemKey={u.key} label={u.label} />
         ))}
       </div>
 

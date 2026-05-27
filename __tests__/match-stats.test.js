@@ -24,6 +24,7 @@ function extractPlayers(rawPlayers) {
     netWorth: p.net_worth ?? 0,
     items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].map(v => v ?? 0),
     backpackItems: [p.backpack_0, p.backpack_1, p.backpack_2].map(v => v ?? 0),
+    permanentBuffs: (p.permanent_buffs || []).map(b => b.permanent_buff),
     kills: p.kills ?? 0,
     deaths: p.deaths ?? 0,
     assists: p.assists ?? 0,
@@ -95,6 +96,31 @@ describe('extractPlayers', () => {
     const [p] = extractPlayers(raw)
     expect(p.backpackItems).toHaveLength(3)
     expect(p.backpackItems).toEqual([0, 0, 0])
+  })
+
+  it('extracts permanentBuffs IDs from permanent_buffs array', () => {
+    const raw = [{ player_slot: 0, permanent_buffs: [{ permanent_buff: 2, stack_count: 1 }] }]
+    const [p] = extractPlayers(raw)
+    expect(p.permanentBuffs).toEqual([2])
+  })
+
+  it('extracts both scepter (2) and shard (12) when both are consumed', () => {
+    const raw = [{
+      player_slot: 0,
+      permanent_buffs: [{ permanent_buff: 2, stack_count: 1 }, { permanent_buff: 12, stack_count: 1 }],
+    }]
+    const [p] = extractPlayers(raw)
+    expect(p.permanentBuffs).toEqual([2, 12])
+  })
+
+  it('permanentBuffs defaults to [] when permanent_buffs is absent', () => {
+    const [p] = extractPlayers([{ player_slot: 0 }])
+    expect(p.permanentBuffs).toEqual([])
+  })
+
+  it('permanentBuffs defaults to [] when permanent_buffs is null', () => {
+    const [p] = extractPlayers([{ player_slot: 0, permanent_buffs: null }])
+    expect(p.permanentBuffs).toEqual([])
   })
 
   it('always returns exactly 6 item slots, defaulting missing to 0', () => {
