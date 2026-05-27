@@ -7,7 +7,7 @@ import TeamRoster from '../components/TeamRoster'
 import RegionBreakdown from '../components/RegionBreakdown'
 import { HorizontalBracket } from '../components/BracketView'
 import StatusBadge from '../components/StatusBadge'
-import { trackEvent, formatDateRange } from '../utils'
+import { trackEvent, formatDateRange, buildTournamentName } from '../utils'
 
 function getSeriesIdFromPath() {
   if (typeof window === 'undefined') return null
@@ -642,7 +642,7 @@ export default function TournamentDetail() {
             {data.stages?.length > 0 && (
               <HeroStatsSection
                 stageId={data.stages[0]?.id}
-                seriesName={data.name}
+                seriesName={buildTournamentName(data.leagueName, data.name)}
                 isCompleted={data.status === 'completed'}
               />
             )}

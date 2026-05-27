@@ -416,6 +416,38 @@ function App() {
     }
   }
 
+  async function handleSearchLoadMore() {
+    if (loadingMore || !nextMatchId) return
+    setLoadingMore(true)
+    trackEvent("search_load_more", { searchQuery })
+    const q = searchQuery
+    let currentNextId = nextMatchId
+    let iterations = 0
+    try {
+      while (currentNextId && iterations < 20) {
+        iterations++
+        const { matches: newMatches, nextMatchId: newNextId } = await fetchProMatches(currentNextId)
+        setAllMatches(prev => {
+          const existingIds = new Set(prev.map(m => m.id))
+          const dedupedNew = newMatches.filter(m => !existingIds.has(m.id))
+          return [...prev, ...dedupedNew]
+        })
+        setNextMatchId(newNextId)
+        currentNextId = newNextId
+        const hasNewMatch = newMatches.some(m =>
+          m.radiantTeam?.toLowerCase().includes(q) ||
+          m.direTeam?.toLowerCase().includes(q) ||
+          m.tournament?.toLowerCase().includes(q)
+        )
+        if (hasNewMatch || !newNextId) break
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   function handleSearch(query) {
     setLoading(true)
     setSelectedMatch(null)
@@ -984,6 +1016,21 @@ function App() {
                   onToggleFollow={handleToggleFollow}
                   expandedSeriesId={expandedSeriesId}
                 />
+                {!loading && nextMatchId && (
+                  <button
+                    type="button"
+                    onClick={handleSearchLoadMore}
+                    disabled={loadingMore}
+                    className="w-full py-3 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 border border-gray-200 dark:border-gray-800 rounded hover:border-gray-400 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingMore ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="inline-block w-3 h-3 border border-gray-400 dark:border-gray-600 border-t-gray-700 dark:border-t-gray-300 rounded-full animate-spin" />
+                        Loading…
+                      </span>
+                    ) : "Load more matches"}
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 26, 2026",
+    tag: "improvement",
+    title: "Load more matches in search results",
+    desc: "A Load more matches button now appears at the bottom of search results. When tapped, it fetches older batches of match history and keeps going until at least one new result for your query shows up — so you can find a match from weeks ago without leaving the search overlay.",
+  },
+  {
+    date: "May 26, 2026",
+    tag: "fix",
+    title: "Hero stats now load correctly for DreamLeague, BLAST SLAM, and other tournaments",
+    desc: "Hero pick/ban stats on tournament pages were returning empty for tournaments where PandaScore stores the league name separately from the series name (e.g. DreamLeague Season 29 stored as 'Season 29 2026' + league 'DreamLeague'). The name combination logic now joins them before searching OpenDota. Additionally, the OpenDota league matching algorithm was improved: repeated tokens in league names no longer inflate match scores, and a precision tiebreaker now prefers exact-match leagues over generic partial matches.",
+  },
+  {
+    date: "May 26, 2026",
     tag: "new",
     title: "Series highlights in the match panel",
     desc: "When official YouTube highlights exist for a series, a link appears below the Twitch VOD in the match details panel. One click for the full replay, one click for the 10-minute recap. Hidden in spoiler-free mode.",

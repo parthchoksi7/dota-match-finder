@@ -217,6 +217,40 @@ describe('findLeague', () => {
     const result = findLeague(leagues, 'BLAST Slam Season 7 2026')
     expect(result).toBeNull()
   })
+
+  it('does not inflate overlap by counting repeated tokens in the league name', () => {
+    // "DRAGON LEAGUE 1 VS 1 SEASON 1" has three "1"s; without deduplication it would
+    // score overlap=3 and beat "1win Essence I" which only scores overlap=2.
+    // After deduplication both score their real unique overlap.
+    const leagues = [
+      { leagueid: 19656, name: '1win Essence I', tier: 'professional' },
+      { leagueid: 99999, name: 'DRAGON LEAGUE 1 VS 1 SEASON 1', tier: 'professional' },
+    ]
+    const result = findLeague(leagues, '1win Essence Season 1 2026')
+    expect(result?.leagueid).toBe(19656)
+  })
+
+  it('uses precision tiebreaker to prefer tighter matches on equal overlap', () => {
+    // Both leagues score overlap=2 but "1win Essence I" has 2/2 tokens matched (100%)
+    // while "CARL DOTA TOURNAMENT SEASON 1 2026" has 2/5 (40%). Precision wins.
+    const leagues = [
+      { leagueid: 19656, name: '1win Essence I', tier: 'professional' },
+      { leagueid: 88888, name: 'CARL DOTA TOURNAMENT SEASON 1 2026', tier: 'professional' },
+    ]
+    const result = findLeague(leagues, '1win Essence Season 1 2026')
+    expect(result?.leagueid).toBe(19656)
+  })
+
+  it('selects the correct season within a league family when multiple seasons exist', () => {
+    // Without deduplication "DreamLeague Division 2 Season 2" gets overlap=4 from two "2"s,
+    // tying with Season 4's genuine overlap=4. Deduplication means Season 2 scores 3, Season 4 scores 4.
+    const leagues = [
+      { leagueid: 18897, name: 'DreamLeague Division 2 Season 2', tier: 'professional' },
+      { leagueid: 19532, name: 'DreamLeague Division 2 Season 4', tier: 'professional' },
+    ]
+    const result = findLeague(leagues, 'DreamLeague Division 2 season 4 2026')
+    expect(result?.leagueid).toBe(19532)
+  })
 })
 
 // ── top5 building logic (pure, duplicated from handler) ───────────────────────

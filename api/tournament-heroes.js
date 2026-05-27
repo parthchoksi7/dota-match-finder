@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
 
-  const KV_KEY = `dota2:tournament_heroes_v8:${id}`
+  const KV_KEY = `dota2:tournament_heroes_v9:${id}`
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY).catch(() => {})

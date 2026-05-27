@@ -371,17 +371,24 @@ export function findLeague(leagues, search) {
 
   const candidates = []
   for (const league of leagues) {
-    const lt = tokens(league.name || '')
+    // Deduplicate league tokens before scoring so repeated tokens (e.g. "1 VS 1" has
+    // three "1"s) don't inflate the overlap count over the correct match.
+    const lt = [...new Set(tokens(league.name || ''))]
     const overlap = lt.filter(t => searchTokens.has(t)).length
     if (overlap < 2) continue
-    candidates.push({ league, overlap })
+    candidates.push({ league, overlap, tokenCount: lt.length })
   }
 
   if (candidates.length === 0) return null
 
-  // Sort by overlap descending; on ties, prefer non-qualifier over qualifier
+  // Sort by overlap descending; on ties use precision (overlap/tokenCount) to prefer
+  // tight matches (e.g. "1win Essence I" 2/2=100% beats "CARL DOTA TOURNAMENT S1 2026" 2/5=40%);
+  // on further ties prefer non-qualifier over qualifier.
   candidates.sort((a, b) => {
     if (b.overlap !== a.overlap) return b.overlap - a.overlap
+    const precA = a.overlap / a.tokenCount
+    const precB = b.overlap / b.tokenCount
+    if (Math.abs(precB - precA) > 0.001) return precB - precA
     const aQ = (a.league.name || '').toLowerCase().includes('qualifier')
     const bQ = (b.league.name || '').toLowerCase().includes('qualifier')
     if (aQ && !bQ) return 1
@@ -398,7 +405,7 @@ export function findLeague(leagues, search) {
   const numericSearchSet = new Set([...searchTokens].filter(t => /^\d+$/.test(t)))
   for (const { league } of candidates) {
     if (numericSearchSet.size > 0) {
-      const leagueNumerics = tokens(league.name || '').filter(t => /^\d+$/.test(t))
+      const leagueNumerics = [...new Set(tokens(league.name || '').filter(t => /^\d+$/.test(t)))]
       if (leagueNumerics.some(t => !numericSearchSet.has(t))) continue
     }
     return league
