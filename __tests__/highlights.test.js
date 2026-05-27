@@ -27,6 +27,22 @@ describe('matchHighlightsToSeries', () => {
     expect(matchHighlightsToSeries(videos, 'OG', 'Team Liquid', t('2026-05-01T12:00:00Z'))).toBeNull()
   })
 
+  it('rejects celebration/Short posts that contain a team name but no " vs "', () => {
+    const short = makeVideo('short1', 'A big congratulations to PARIVISION, our #DreamLeague S29 Champions! 👏 #dota #dota2', '2026-05-01T15:00:00Z')
+    expect(matchHighlightsToSeries([short], 'PARIVISION', 'Aurora Gaming', t('2026-05-01T12:00:00Z'))).toBeNull()
+  })
+
+  it('rejects general recap videos without " vs " even when tournament name matches', () => {
+    const recap = makeVideo('recap1', 'Best Moments | DreamLeague Season 29 Playoffs', '2026-05-01T15:00:00Z')
+    expect(matchHighlightsToSeries([recap], 'OG', 'Team Liquid', t('2026-05-01T12:00:00Z'))).toBeNull()
+  })
+
+  it('accepts a video that has " vs " and a matching team name', () => {
+    const v = makeVideo('good', 'PARIVISION vs Aurora Gaming | Grand Final | DreamLeague S29 Highlights', '2026-05-01T15:00:00Z')
+    const result = matchHighlightsToSeries([v], 'PARIVISION', 'Aurora Gaming', t('2026-05-01T12:00:00Z'))
+    expect(result?.videoId).toBe('good')
+  })
+
   it('matches when both team names appear in title (case-insensitive)', () => {
     const v = makeVideo('abc', 'OG vs Team Liquid | Grand Final | DreamLeague S29', '2026-05-01T15:00:00Z')
     const result = matchHighlightsToSeries([v], 'OG', 'Team Liquid', t('2026-05-01T12:00:00Z'))
@@ -39,8 +55,8 @@ describe('matchHighlightsToSeries', () => {
     expect(result?.videoId).toBe('xyz')
   })
 
-  it('matches when only one team name appears in title', () => {
-    const v = makeVideo('partial', 'Team Liquid Dominates the Grand Final', '2026-05-01T15:00:00Z')
+  it('matches when only one team name appears in title (other team name absent but " vs " present)', () => {
+    const v = makeVideo('partial', 'Team Liquid vs TBD | Grand Final | DreamLeague S29', '2026-05-01T15:00:00Z')
     const result = matchHighlightsToSeries([v], 'OG', 'Team Liquid', t('2026-05-01T12:00:00Z'))
     expect(result?.videoId).toBe('partial')
   })
