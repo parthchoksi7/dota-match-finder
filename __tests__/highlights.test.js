@@ -107,6 +107,26 @@ describe('matchHighlightsToSeries', () => {
     expect(result?.videoId).toBe('a')
   })
 
+  // ── Abbreviated team names (BLAST/ESL style) ──────────────────────────────
+
+  it('matches "SPIRIT" in title when team is "Team Spirit"', () => {
+    const v = makeVideo('spirit', 'TUNDRA vs SPIRIT - Official Highlights - BLAST Slam VII Dota 2', '2026-05-26T18:00:00Z')
+    const result = matchHighlightsToSeries([v], 'Team Spirit', 'Tundra Esports', t('2026-05-26T12:00:00Z'))
+    expect(result?.videoId).toBe('spirit')
+  })
+
+  it('matches "TUNDRA" in title when team is "Tundra Esports"', () => {
+    const v = makeVideo('tundra', 'LIQUID vs TUNDRA - Official Highlights - BLAST Slam VII Dota 2', '2026-05-26T18:00:00Z')
+    const result = matchHighlightsToSeries([v], 'Team Liquid', 'Tundra Esports', t('2026-05-26T12:00:00Z'))
+    expect(result?.videoId).toBe('tundra')
+  })
+
+  it('still matches full team name when present (no regression)', () => {
+    const v = makeVideo('full', 'Team Liquid vs Tundra Esports | Grand Final | Highlights', '2026-05-26T18:00:00Z')
+    const result = matchHighlightsToSeries([v], 'Team Liquid', 'Tundra Esports', t('2026-05-26T12:00:00Z'))
+    expect(result?.videoId).toBe('full')
+  })
+
   // ── Null/missing team names ───────────────────────────────────────────────
 
   it('returns null when both team names are null/undefined', () => {

@@ -428,10 +428,25 @@ export async function fetchHighlights(tournamentName) {
   }
 }
 
+// Generate match tokens for a team name: full name + a stripped version without
+// common prefixes ("Team ") and suffixes (" Esports", " Gaming", " Team").
+// BLAST, ESL, and PGL often abbreviate names in titles (e.g. "SPIRIT" for "Team Spirit").
+function teamTokens(name) {
+  if (!name) return []
+  const n = name.toLowerCase().trim()
+  const stripped = n
+    .replace(/^team\s+/, '')
+    .replace(/\s+esports?$/, '')
+    .replace(/\s+gaming$/, '')
+    .replace(/\s+team$/, '')
+    .trim()
+  return stripped && stripped !== n ? [n, stripped] : [n]
+}
+
 export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesStartTime) {
   const norm = s => s?.toLowerCase() ?? ''
-  const ra = norm(radiantTeam)
-  const di = norm(direTeam)
+  const raTokens = teamTokens(radiantTeam)
+  const diTokens = teamTokens(direTeam)
   const startMs = seriesStartTime ? seriesStartTime * 1000 : 0
   return videos
     .filter(v => {
@@ -439,7 +454,9 @@ export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesSta
       // Require " vs " — all match highlights use "Team A vs Team B" format.
       // Filters out celebration posts, Shorts, and general tournament content.
       if (!t.includes(' vs ')) return false
-      return (ra && t.includes(ra)) || (di && t.includes(di))
+      const matchesRa = raTokens.length > 0 && raTokens.some(tok => t.includes(tok))
+      const matchesDi = diTokens.length > 0 && diTokens.some(tok => t.includes(tok))
+      return matchesRa || matchesDi
     })
     .filter(v => startMs === 0 || new Date(v.publishedAt).getTime() >= startMs)
     .sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt))[0] ?? null

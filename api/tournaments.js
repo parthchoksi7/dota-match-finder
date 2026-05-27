@@ -1879,24 +1879,41 @@ export default async function handler(req, res) {
     // - No indexing lag: videos appear immediately after upload
     // - 1 quota unit vs 100 for search.list
     // Uploads playlist ID = channel ID with "UC" → "UU" prefix.
+    // Fetch up to 2 pages of 50 (100 total) to cover multi-day tournaments where
+    // channels post many clips/livestreams between match highlights.
     const uploadsPlaylistId = channel.channelId.replace(/^UC/, 'UU')
-    const ytUrl = new URL('https://www.googleapis.com/youtube/v3/playlistItems')
-    ytUrl.searchParams.set('part', 'snippet')
-    ytUrl.searchParams.set('playlistId', uploadsPlaylistId)
-    ytUrl.searchParams.set('maxResults', '25')
-    ytUrl.searchParams.set('key', apiKey)
+    const afterMs = new Date(publishedAfter).getTime()
+    const beforeMs = publishedBefore ? new Date(publishedBefore).getTime() : Infinity
 
+    let allItems = []
+    let pageToken = null
     try {
-      const ytRes = await fetch(ytUrl.toString())
-      if (!ytRes.ok) {
-        const body = await ytRes.text()
-        console.error('[highlights] YouTube API error:', ytRes.status, body.slice(0, 200))
-        return res.status(200).json({ videos: [], channelHandle: channel.handle, error: `YouTube ${ytRes.status}` })
+      for (let page = 0; page < 2; page++) {
+        const ytUrl = new URL('https://www.googleapis.com/youtube/v3/playlistItems')
+        ytUrl.searchParams.set('part', 'snippet')
+        ytUrl.searchParams.set('playlistId', uploadsPlaylistId)
+        ytUrl.searchParams.set('maxResults', '50')
+        ytUrl.searchParams.set('key', apiKey)
+        if (pageToken) ytUrl.searchParams.set('pageToken', pageToken)
+
+        const ytRes = await fetch(ytUrl.toString())
+        if (!ytRes.ok) {
+          const body = await ytRes.text()
+          console.error('[highlights] YouTube API error:', ytRes.status, body.slice(0, 200))
+          if (page === 0) return res.status(200).json({ videos: [], channelHandle: channel.handle, error: `YouTube ${ytRes.status}` })
+          break
+        }
+        const ytData = await ytRes.json()
+        const items = ytData.items || []
+        allItems.push(...items)
+        if (!ytData.nextPageToken) break
+        // Early exit: if the oldest item on this page predates our window, stop paging.
+        const oldestPub = items.length ? new Date(items[items.length - 1].snippet?.publishedAt || 0).getTime() : 0
+        if (oldestPub < afterMs) break
+        pageToken = ytData.nextPageToken
       }
-      const ytData = await ytRes.json()
-      const afterMs = new Date(publishedAfter).getTime()
-      const beforeMs = publishedBefore ? new Date(publishedBefore).getTime() : Infinity
-      const videos = (ytData.items || [])
+
+      const videos = allItems
         .map(item => ({
           videoId: item.snippet?.resourceId?.videoId,
           title: item.snippet?.title,
@@ -1908,7 +1925,7 @@ export default async function handler(req, res) {
           const pub = new Date(v.publishedAt).getTime()
           return pub >= afterMs && pub <= beforeMs
         })
-        .slice(0, 12)
+        .slice(0, 30)
 
       const result = { videos, channelHandle: channel.handle }
       // Cache hits and misses. Empty results cached briefly (30 min) to avoid burning
