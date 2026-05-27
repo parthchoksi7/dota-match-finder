@@ -1874,15 +1874,15 @@ export default async function handler(req, res) {
       publishedBefore = d.toISOString()
     }
 
-    const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search')
+    // Use uploads playlist (playlistItems.list) instead of search.list:
+    // - No indexing lag: videos appear immediately after upload
+    // - 1 quota unit vs 100 for search.list
+    // Uploads playlist ID = channel ID with "UC" → "UU" prefix.
+    const uploadsPlaylistId = channel.channelId.replace(/^UC/, 'UU')
+    const ytUrl = new URL('https://www.googleapis.com/youtube/v3/playlistItems')
     ytUrl.searchParams.set('part', 'snippet')
-    ytUrl.searchParams.set('channelId', channel.channelId)
-    ytUrl.searchParams.set('q', searchTerm)
-    ytUrl.searchParams.set('type', 'video')
-    ytUrl.searchParams.set('order', 'date')
-    ytUrl.searchParams.set('maxResults', '12')
-    ytUrl.searchParams.set('publishedAfter', publishedAfter)
-    if (publishedBefore) ytUrl.searchParams.set('publishedBefore', publishedBefore)
+    ytUrl.searchParams.set('playlistId', uploadsPlaylistId)
+    ytUrl.searchParams.set('maxResults', '25')
     ytUrl.searchParams.set('key', apiKey)
 
     try {
@@ -1893,14 +1893,21 @@ export default async function handler(req, res) {
         return res.status(200).json({ videos: [], channelHandle: channel.handle, error: `YouTube ${ytRes.status}` })
       }
       const ytData = await ytRes.json()
+      const afterMs = new Date(publishedAfter).getTime()
+      const beforeMs = publishedBefore ? new Date(publishedBefore).getTime() : Infinity
       const videos = (ytData.items || [])
         .map(item => ({
-          videoId: item.id?.videoId,
+          videoId: item.snippet?.resourceId?.videoId,
           title: item.snippet?.title,
           thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
           publishedAt: item.snippet?.publishedAt,
         }))
-        .filter(v => v.videoId && v.title)
+        .filter(v => {
+          if (!v.videoId || !v.title) return false
+          const pub = new Date(v.publishedAt).getTime()
+          return pub >= afterMs && pub <= beforeMs
+        })
+        .slice(0, 12)
 
       const result = { videos, channelHandle: channel.handle }
       // Cache hits and misses. Empty results cached briefly (30 min) to avoid burning
