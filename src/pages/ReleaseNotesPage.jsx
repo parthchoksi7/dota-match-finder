@@ -4,6 +4,17 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 27, 2026",
+    tag: "fix",
+    title: "Auto-tweet reliability improvements",
+    desc: "Three fixes to the system that posts X updates after tier-1 series complete.",
+    items: [
+      "OpenDota league API outages no longer crash the entire cron run. The name-based tier filter (BLAST, PGL, DreamLeague, etc.) now kicks in as a fallback so matches are still caught.",
+      "Twitter API errors are now surfaced as real failures with monitoring alerts, instead of returning a silent success with zero tweets posted.",
+      "A redundant Vercel Cron trigger runs every 2 hours as a backstop alongside the GitHub Actions schedule, which now fires at offset times to reduce runner queue congestion.",
+    ],
+  },
+  {
     date: "May 26, 2026",
     tag: "improvement",
     title: "Load more matches in search results",

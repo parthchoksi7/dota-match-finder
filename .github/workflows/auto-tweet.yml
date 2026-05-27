@@ -2,7 +2,7 @@ name: Auto Tweet
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # every 30 minutes
+    - cron: '13,43 * * * *'  # every 30 min, offset from top-of-hour to avoid GitHub runner queue congestion
   workflow_dispatch:          # allow manual trigger from Actions UI
 
 jobs:

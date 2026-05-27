@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/draft-posts",
+      "schedule": "0 */2 * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/preview", "destination": "/" },

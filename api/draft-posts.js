@@ -141,7 +141,9 @@ async function runAutoTweet(req, res) {
 
   const [odRes, premiumIds, kvNames] = await Promise.all([
     fetch('https://api.opendota.com/api/promatches'),
-    getPremiumLeagueIds(),
+    // Fix: if OD leagues endpoint is down, fall back to empty Set so the
+    // isTier1ByName() name-based filter still runs (covers BLAST, PGL, etc.)
+    getPremiumLeagueIds().catch(() => new Set()),
     kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
   ])
   if (!odRes.ok) return res.status(502).json({ error: 'OpenDota unavailable' })
@@ -184,6 +186,7 @@ async function runAutoTweet(req, res) {
   seriesKvKeys.forEach((key, i) => { if (kvValues[i] != null) kvMap[key] = String(kvValues[i]) })
 
   const results = []
+  const failures = []
   let count = 0
   const MAX_PER_RUN = 5
 
@@ -231,8 +234,16 @@ async function runAutoTweet(req, res) {
       count++
       results.push({ type: 'series', key: seriesKey, tweetId: twRes.data.id, hasImage: !!mediaId })
     } else {
-      console.error('Series tweet failed:', seriesKey, JSON.stringify(twRes))
+      const errDetail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
+      console.error('Series tweet failed:', seriesKey, errDetail)
+      failures.push({ key: seriesKey, error: errDetail })
     }
+  }
+
+  // If eligible series were found but every tweet attempt failed, return 500
+  // so GitHub Actions --fail-with-body triggers the monitoring alert issue.
+  if (failures.length > 0 && count === 0) {
+    return res.status(500).json({ tweeted: 0, error: 'Twitter API errors on all attempts', failures })
   }
 
   return res.status(200).json({ tweeted: count, items: results })
@@ -241,6 +252,11 @@ async function runAutoTweet(req, res) {
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  // GET = Vercel Cron trigger. Authorization header checked inside runAutoTweet.
+  if (req.method === 'GET') {
+    return runAutoTweet(req, res)
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
