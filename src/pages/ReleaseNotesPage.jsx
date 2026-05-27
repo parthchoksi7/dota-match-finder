@@ -6,6 +6,20 @@ const RELEASES = [
   {
     date: "May 26, 2026",
     tag: "improvement",
+    title: "Tournament Hub redesigned: Stage, Highlights, and Stats tabs",
+    desc: "The Tournament Hub on the homepage has been restructured around three focused tabs that each answer a single question.",
+    items: [
+      "Stage tab replaces the separate Standings and Schedule tabs. For group and Swiss formats it shows the W/L standings table above round-by-round match results in one view. For playoff formats it shows the full elimination bracket. No more dead-end 'No standings for bracket stages' message.",
+      "Highlights tab promotes official YouTube clips to a dedicated first-class tab (up from a Videos section buried inside the old Info tab). Shows up to 6 thumbnails.",
+      "Stats tab is unchanged — hero pick/ban rates and player leaderboards remain accessible here.",
+      "The Info tab has been removed. The overall tournament date range now appears directly below the tournament name in the hub header, always visible without any tab click.",
+      "The duplicate 'Add to calendar' link below the tournament name has been removed — the button in the top-right of the hub header is the only calendar entry point.",
+      "The hub now opens on the Stage tab by default for all tournament states.",
+    ],
+  },
+  {
+    date: "May 26, 2026",
+    tag: "improvement",
     title: "Player stats now show consumed Aghanim's Scepter and Shard",
     desc: "When a player uses Aghanim's Scepter or Shard, it disappears from their inventory but the upgrade is still active. Player rows now show these consumed upgrades as icons after the backpack, with a tooltip indicating they've been consumed.",
   },

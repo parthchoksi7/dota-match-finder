@@ -20,8 +20,7 @@ function showStageSwitcher(eventStages, activeTab) {
   return (
     Array.isArray(eventStages) &&
     eventStages.length > 1 &&
-    activeTab !== 'Overview' &&
-    activeTab !== 'Heroes'
+    activeTab === 'Stage'
   )
 }
 
@@ -71,31 +70,27 @@ describe('visibleHeroes', () => {
 describe('showStageSwitcher', () => {
   const stages = [{ id: 1, name: 'Group Stage' }, { id: 2, name: 'Playoffs' }]
 
-  it('shows switcher on Standings tab when multiple stages exist', () => {
-    expect(showStageSwitcher(stages, 'Standings')).toBe(true)
+  it('shows switcher on Stage tab when multiple stages exist', () => {
+    expect(showStageSwitcher(stages, 'Stage')).toBe(true)
   })
 
-  it('shows switcher on Schedule tab when multiple stages exist', () => {
-    expect(showStageSwitcher(stages, 'Schedule')).toBe(true)
+  it('hides switcher on Highlights tab even when multiple stages exist', () => {
+    expect(showStageSwitcher(stages, 'Highlights')).toBe(false)
   })
 
-  it('hides switcher on Overview tab even when multiple stages exist', () => {
-    expect(showStageSwitcher(stages, 'Overview')).toBe(false)
-  })
-
-  it('hides switcher on Heroes tab even when multiple stages exist', () => {
-    expect(showStageSwitcher(stages, 'Heroes')).toBe(false)
+  it('hides switcher on Stats tab even when multiple stages exist', () => {
+    expect(showStageSwitcher(stages, 'Stats')).toBe(false)
   })
 
   it('hides switcher when only one stage exists', () => {
-    expect(showStageSwitcher([{ id: 1, name: 'Main Event' }], 'Standings')).toBe(false)
+    expect(showStageSwitcher([{ id: 1, name: 'Main Event' }], 'Stage')).toBe(false)
   })
 
   it('hides switcher when eventStages is null', () => {
-    expect(showStageSwitcher(null, 'Standings')).toBe(false)
+    expect(showStageSwitcher(null, 'Stage')).toBe(false)
   })
 
   it('hides switcher when eventStages is empty', () => {
-    expect(showStageSwitcher([], 'Standings')).toBe(false)
+    expect(showStageSwitcher([], 'Stage')).toBe(false)
   })
 })

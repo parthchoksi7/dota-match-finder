@@ -212,7 +212,7 @@ function OverviewMatchRow({ match }) {
 }
 
 
-const TABS = ['Info', 'Standings', 'Schedule', 'Stats']
+const TABS = ['Stage', 'Highlights', 'Stats']
 const PLAYOFF_FORMATS = new Set(['Double Elimination', 'Single Elimination', 'Bracket'])
 
 // Extract the short stage label, e.g. "DreamLeague S25 — Playoffs" → "Playoffs"
@@ -238,7 +238,7 @@ function deriveChampionFromBracket(bracket) {
 function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, onSelectMatchId }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Info')
+  const [activeTab, setActiveTab] = useState('Stage')
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   // Stage switching: each stage in the same event has its own detail
@@ -500,24 +500,9 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
         <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
           {cleanTournamentName(tournament.name)}
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            trackEvent('calendar_subscribe_modal_open', { source: 'tournament_hub_card', tournament_id: tournament.id })
-            setCalendarModalUrl(`https://spectateesports.live/api/tournaments?mode=calendar-tournament&series=${tournament.id}`)
-            setCalendarModalLabel(cleanTournamentName(tournament.name))
-            setCalendarModalOpen(true)
-          }}
-          className="flex items-center gap-1 mt-1.5 text-xs text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          Add to calendar
-        </button>
+        {dateRange && (
+          <p className="text-xs text-gray-400 dark:text-gray-600 tabular-nums mt-0.5">{dateRange}</p>
+        )}
         {isCompleted && !spoilerFree && (() => {
           const champion = tournament.winner?.name || deriveChampionFromBracket(detail?.bracket)
           return champion ? (
@@ -552,7 +537,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       </div>
 
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
-      {detail?.eventStages?.length > 1 && activeTab !== 'Info' && activeTab !== 'Stats' && (
+      {detail?.eventStages?.length > 1 && activeTab === 'Stage' && (
         <div className="flex items-center gap-1 px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-gray-900">
           <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
           {detail.eventStages.map(stage => {
@@ -580,38 +565,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       )}
 
       {/* Tab content */}
-      {activeTab === 'Info' && (
-        <div className="px-3 sm:px-4 py-4 flex flex-col gap-4">
-          {detail?.eventStages?.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {detail.eventStages.map(stage => {
-                const start = stage.beginAt ? new Date(stage.beginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
-                const end = stage.endAt ? new Date(stage.endAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
-                const dateStr = start && end ? `${start} – ${end}` : start || end || null
-                return (
-                  <div key={stage.id} className="flex items-center gap-2 text-xs">
-                    <span className="text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{stageShortName(stage.name)}</span>
-                    <span className="flex-1 border-b border-dashed border-gray-200 dark:border-gray-700" />
-                    {dateStr && <span className="text-gray-400 dark:text-gray-600 tabular-nums whitespace-nowrap">{dateStr}</span>}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-2">Recent Highlights</p>
-            <HighlightsTab
-              tournamentName={tournament.name}
-              spoilerFree={spoilerFree}
-              beginAt={tournament.startdate || null}
-              endAt={tournament.enddate || null}
-              limit={4}
-            />
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'Standings' && (
+      {activeTab === 'Stage' && (
         <div>
           {isStageLoading ? (
             <div className="overflow-x-auto">
@@ -637,43 +591,32 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
               </table>
             </div>
           ) : isPlayoffStage ? (
-            <div className="px-3 sm:px-4 py-8 text-center">
-              <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">No standings for bracket stages</p>
-              {detail?.eventStages?.some(s => !PLAYOFF_FORMATS.has(s.format) && s.id !== activeStageId) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const groupStage = detail.eventStages.find(s => !PLAYOFF_FORMATS.has(s.format))
-                    if (groupStage) setActiveStageId(groupStage.id)
-                  }}
-                  className="mt-4 px-3 py-1.5 text-xs font-semibold rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 uppercase tracking-wide"
-                >
-                  View group stage
-                </button>
-              )}
-            </div>
+            <HorizontalBracket bracket={effectiveDetail?.bracket} />
           ) : (
-            <StandingsTable standings={effectiveDetail?.standings} />
+            <>
+              <StandingsTable standings={effectiveDetail?.standings} />
+              {effectiveDetail?.bracket?.length > 0 && (
+                <>
+                  <div className="px-3 sm:px-4 pt-3 pb-1 border-t border-gray-100 dark:border-gray-900">
+                    <p className="text-[10px] font-semibold uppercase tracking-[4px] text-gray-400 dark:text-gray-600">Matches</p>
+                  </div>
+                  <BracketFlatView bracket={effectiveDetail?.bracket} />
+                </>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {activeTab === 'Schedule' && (
-        <div>
-          {isStageLoading ? (
-            <div className="divide-y divide-gray-100 dark:divide-gray-900">
-              {[48, 64, 40, 56, 52].map((w, i) => (
-                <div key={i} className="px-4 py-3 flex items-center justify-between gap-4">
-                  <div className="h-2 w-14 bg-gray-200 dark:bg-gray-800 rounded animate-pulse shrink-0" />
-                  <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded animate-pulse flex-1 max-w-xs" style={{ width: `${w}%` }} />
-                  <div className="h-5 w-14 bg-gray-200 dark:bg-gray-800 rounded animate-pulse shrink-0" />
-                </div>
-              ))}
-            </div>
-          ) : (['Double Elimination', 'Single Elimination', 'Bracket'].includes(effectiveDetail?.format))
-            ? <HorizontalBracket bracket={effectiveDetail?.bracket} />
-            : <BracketFlatView bracket={effectiveDetail?.bracket} />
-          }
+      {activeTab === 'Highlights' && (
+        <div className="px-3 sm:px-4 py-4">
+          <HighlightsTab
+            tournamentName={tournament.name}
+            spoilerFree={spoilerFree}
+            beginAt={tournament.startdate || null}
+            endAt={tournament.enddate || null}
+            limit={6}
+          />
         </div>
       )}
 
