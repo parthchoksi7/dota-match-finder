@@ -235,17 +235,48 @@ export default async function handler(req, res) {
       const { subscription, teamNames, userId } = req.body || {}
       if (!subscription || !userId) return res.status(400).json({ error: 'Missing subscription or userId' })
       const teams = Array.isArray(teamNames) ? teamNames : []
+
+      // Fetch previous team list to diff — required to clean up removed team indexes.
+      // Without this, users receive notifications for teams they unfollowed (stale reverse index).
+      // Handle both formats: old entries were JSON.stringify'd strings; new entries are direct arrays.
+      const prevTeamsRaw = await kv.get(`push:teams:${userId}`).catch(() => null)
+      let prevTeams = []
+      if (Array.isArray(prevTeamsRaw)) {
+        prevTeams = prevTeamsRaw
+      } else if (typeof prevTeamsRaw === 'string') {
+        try { prevTeams = JSON.parse(prevTeamsRaw) } catch { prevTeams = [] }
+      }
+
+      const removedTeams = prevTeams.filter(t => !teams.includes(t))
+      const addedTeams = teams.filter(t => !prevTeams.includes(t))
+
+      // Remove userId from indexes of unfollowed teams
+      const removeOps = removedTeams.map(async name => {
+        const key = `push:team:${name.toLowerCase()}`
+        const existing = await kv.get(key).catch(() => null)
+        const ids = Array.isArray(existing) ? existing.filter(id => id !== userId) : []
+        if (ids.length > 0) {
+          await kv.set(key, ids, { ex: PUSH_SUB_TTL })
+        } else {
+          await kv.del(key).catch(() => {})
+        }
+      })
+
+      // Add userId to indexes of newly followed teams
+      const addOps = addedTeams.map(async name => {
+        const key = `push:team:${name.toLowerCase()}`
+        const existing = await kv.get(key).catch(() => null)
+        const ids = Array.isArray(existing) ? existing : []
+        if (!ids.includes(userId)) {
+          await kv.set(key, [...ids, userId], { ex: PUSH_SUB_TTL })
+        }
+      })
+
       await Promise.all([
         kv.set(`push:sub:${userId}`, JSON.stringify(subscription), { ex: PUSH_SUB_TTL }),
-        kv.set(`push:teams:${userId}`, JSON.stringify(teams), { ex: PUSH_SUB_TTL }),
-        ...teams.map(async name => {
-          const key = `push:team:${name.toLowerCase()}`
-          const existing = await kv.get(key).catch(() => null)
-          const ids = Array.isArray(existing) ? existing : []
-          if (!ids.includes(userId)) {
-            await kv.set(key, [...ids, userId], { ex: PUSH_SUB_TTL })
-          }
-        }),
+        kv.set(`push:teams:${userId}`, teams, { ex: PUSH_SUB_TTL }),  // store as direct array going forward
+        ...removeOps,
+        ...addOps,
       ])
       return res.status(200).json({ ok: true })
     } catch (err) {
