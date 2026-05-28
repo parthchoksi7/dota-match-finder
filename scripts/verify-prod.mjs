@@ -316,13 +316,19 @@ async function checkOdTournamentConsistency() {
   }
 
   // Cross-validate spectate count vs OD direct count.
-  // tournament-heroes caps at 60 games and only counts those with picks_bans parsed,
-  // so spectateGameCount ≤ min(odGameCount, 60) is expected.
+  // tournament-heroes counts only matches with picks_bans and caps at 60. It writes
+  // to a 3h KV cache, so the spectate count reflects OD's state at cache-write time,
+  // not now. OD can drop or re-index games between cache write and verify time, so
+  // a small overage (≤15 games) is expected and self-correcting once the cache expires.
+  // Only fail on a large discrepancy that indicates a real duplication/pipeline bug.
   if (odGameCount !== null) {
     const HEROES_MAX_GAMES = 60
     const odEffective = Math.min(odGameCount, HEROES_MAX_GAMES)
-    if (spectateGameCount > odEffective) {
-      fail(`Spectate shows ${spectateGameCount} OD games but capped OD count is only ${odEffective} (raw: ${odGameCount}) — impossible overcounting`)
+    const TOLERANCE = Math.max(15, Math.floor(odEffective * 0.20))
+    if (spectateGameCount > odEffective + TOLERANCE) {
+      fail(`Spectate shows ${spectateGameCount} OD games but capped OD count is only ${odEffective} (raw: ${odGameCount}) — overcounting beyond tolerance (${TOLERANCE})`)
+    } else if (spectateGameCount > odEffective) {
+      pass(`Spectate OD count (${spectateGameCount}) slightly above OD direct (${odEffective}) — within tolerance (${TOLERANCE}), likely stale cache`)
     } else {
       pass(`Spectate OD count (${spectateGameCount}) ≤ OD effective cap (${odEffective} of ${odGameCount}) — consistent`)
     }
