@@ -63,20 +63,30 @@ async function postTweet(text, mediaId = null, replyToId = null) {
 
 // ── Cron / auto-tweet: tweet template ───────────────────────────────────────
 
-export function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link, isDraw = false) {
-  const loser = winner === team1 ? team2 : team1
+// handles = { team1Handle, team2Handle, tournamentHandle, talentTags: [] }
+// All handle fields are optional; falls back to bare names when absent.
+export function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tournament, link, isDraw = false, handles = {}) {
+  const { team1Handle, team2Handle, tournamentHandle, talentTags = [] } = handles
   const tournamentStr = tournament || 'Unknown Tournament'
 
+  const t1Display = team1Handle ? `@${team1Handle}` : team1
+  const t2Display = team2Handle ? `@${team2Handle}` : team2
+  const tournamentDisplay = tournamentHandle ? `${tournamentStr} | @${tournamentHandle}` : tournamentStr
+  const talentLine = talentTags.length > 0 ? `\n${talentTags.map(t => `@${t}`).join(' ')}` : ''
+
   if (isDraw) {
-    return `${team1} and ${team2} split the series 1-1\n${seriesLabel} | ${tournamentStr}\n${link}`
+    return `${t1Display} and ${t2Display} split the series 1-1\n${seriesLabel} | ${tournamentDisplay}\n${link}${talentLine}`
   }
 
-  return `${winner} win ${score} over ${loser}\n${seriesLabel} | ${tournamentStr}\n${link}`
+  const winnerDisplay = winner === team1 ? t1Display : t2Display
+  const loserDisplay = winner === team1 ? t2Display : t1Display
+  return `${winnerDisplay} win ${score} over ${loserDisplay}\n${seriesLabel} | ${tournamentDisplay}\n${link}${talentLine}`
 }
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
 import { getPremiumLeagueIds, trackError, PERMANENT_TIER1_NAMES, KV_TIER1_NAMES_KEY, isTier1ByName } from './_shared.js'
+import { lookupTournamentHandle, lookupTeamHandle, pickTournamentTalent } from './_x-accounts.js'
 
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1
@@ -211,7 +221,14 @@ async function runAutoTweet(req, res) {
     const team1 = games[0].radiant_name || 'Radiant'
     const team2 = games[0].dire_name || 'Dire'
     const link = seriesUrl(games[0]) // always links to the first match
-    const text = makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link, isBO2Draw)
+    const tournamentHandle = lookupTournamentHandle(games[0].league_name)
+    const handles = {
+      team1Handle: lookupTeamHandle(team1),
+      team2Handle: lookupTeamHandle(team2),
+      tournamentHandle,
+      talentTags: pickTournamentTalent(tournamentHandle),
+    }
+    const text = makeSeriesTweet(team1, team2, winner, score, seriesLabel, games[0].league_name, link, isBO2Draw, handles)
 
     let mediaId = null
     try {
