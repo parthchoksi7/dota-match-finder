@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 28, 2026",
+    tag: "improvement",
+    title: "Gold graph markers redesigned as lollipops with two-color encoding",
+    desc: "Roshan, Rampage, and Divine Rapier events on the gold advantage graph now render as lollipop markers — a thin stem from the data point topped with a disc and icon. Two independent color layers make each marker instantly readable: the disc and icon show the event type (amber for Roshan, orange for Rampage, red for Rapier), while the outer ring shows which side triggered it (green for Radiant, red for Dire). Radiant markers float above the line; Dire markers hang below. Active markers are brighter and slightly larger; inactive markers are dimmed to 65%.",
+  },
+  {
     date: "May 27, 2026",
     tag: "fix",
     title: "Removed currency symbol from net worth in player stats",

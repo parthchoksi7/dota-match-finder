@@ -731,3 +731,33 @@ Dark inline-styled card (#030712 bg, 1px #1f2937 border, 4px radius, `0 10px 30p
 ### Click-to-VOD
 
 `buildEventUrl(vodUrl, event.time)` adds `event.time` seconds to the existing `?t=` offset in the Twitch VOD URL, reformats as `Xh Ym Zs`, opens in new tab. No-op when `vodUrl` is null.
+
+## Graph marker color system (Option F)
+
+Graph markers use a two-layer color system:
+
+| Layer | What it encodes | Color |
+|---|---|---|
+| Icon + disc fill tint | Event type | Chip indicator hue (same as match-card chip row) |
+| Outer ring | Side (who triggered it) | Radiant `#22c55e` / Dire `#ef4444` |
+
+### Event hues (graph markers)
+| Event | Icon | Disc fill |
+|---|---|---|
+| Divine Rapier | `#ef4444` | `rgba(239,68,68,0.18)` |
+| Rampage | `#f97316` | `rgba(249,115,22,0.18)` |
+| Roshan | `#f59e0b` | `rgba(245,158,11,0.18)` |
+
+Disc has no border — the only ring is the outer side ring.
+
+### Side ring
+Radiant: `#22c55e` · Dire: `#ef4444`
+Default: 1.5px stroke, 55% opacity · Active: 2px stroke, 100% opacity
+
+### Position rule
+Radiant lollipops rise above the line. Dire lollipops fall below.
+Position and ring color are redundant signals — either alone conveys the side.
+
+### Active vs inactive
+Active marker: full opacity, disc 1px larger, ring thicker.
+Inactive markers: 65% opacity on disc and icon, 55% opacity on ring.

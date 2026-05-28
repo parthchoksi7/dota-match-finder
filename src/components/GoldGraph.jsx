@@ -47,6 +47,70 @@ const MARKER_SVG = {
   rapier: RapierSvg,
 }
 
+// Lollipop marker color system (Option F — chip indicator hues + side ring)
+const SIDE_COLOR = {
+  radiant: '#22c55e',
+  dire:    '#ef4444',
+}
+
+const CHIP = {
+  roshan:  { icon: '#f59e0b', disc: 'rgba(245,158,11,0.18)'  },
+  rampage: { icon: '#f97316', disc: 'rgba(249,115,22,0.18)'  },
+  rapier:  { icon: '#ef4444', disc: 'rgba(239,68,68,0.18)'   },
+}
+
+const LOLLIPOP_STEM_LEN = 12
+
+function GraphMarker({ event, isActive, chartX, dataY, onMouseEnter, onMouseLeave, onClick }) {
+  const type = event.type
+  const side = event.team
+  const chip = CHIP[type] || CHIP.rapier
+  const ringColor = SIDE_COLOR[side] || '#6b7280'
+  const Icon = MARKER_SVG[type] || RapierSvg
+
+  const DISC_R = isActive ? 11 : 10
+  const RING_R = DISC_R + 4
+  const isRadiant = side === 'radiant'
+  const stemDir = isRadiant ? -1 : 1
+  const discCY = dataY + stemDir * (DISC_R + LOLLIPOP_STEM_LEN)
+  const iconSize = DISC_R * 1.15
+
+  const itemOpacity = isActive ? 1 : 0.65
+  const ringOpacity = isActive ? 1 : 0.55
+  const ringStroke = isActive ? 2 : 1.5
+
+  return (
+    <g style={{ cursor: 'pointer' }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onClick={onClick}>
+      <circle cx={chartX} cy={discCY} r={12} fill="transparent"/>
+      <line
+        x1={chartX} y1={dataY}
+        x2={chartX} y2={dataY + stemDir * LOLLIPOP_STEM_LEN}
+        stroke="#6b7280" strokeWidth={1} opacity={0.7}
+      />
+      <circle cx={chartX} cy={dataY} r={2} fill="#6b7280"/>
+      <circle
+        cx={chartX} cy={discCY} r={RING_R}
+        fill="none" stroke={ringColor}
+        strokeWidth={ringStroke} opacity={ringOpacity}
+      />
+      <circle
+        cx={chartX} cy={discCY} r={DISC_R}
+        fill={chip.disc} stroke="none"
+        opacity={itemOpacity}
+      />
+      <g style={{ color: chip.icon }} opacity={itemOpacity}>
+        <Icon
+          className=""
+          x={chartX - iconSize / 2}
+          y={discCY - iconSize / 2}
+          width={iconSize}
+          height={iconSize}
+        />
+      </g>
+    </g>
+  )
+}
+
 // Adds event.time seconds to an existing Twitch VOD URL's ?t= offset
 function buildEventUrl(vodUrl, eventTimeSecs) {
   try {
@@ -109,7 +173,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     }
     const svgRect = svgRef.current.getBoundingClientRect()
     const markerVPX = svgRect.left + activeEvent.x * (svgRect.width / VW)
-    const markerVPY = svgRect.top + activeEvent.y * (svgRect.height / VH)
+    const markerVPY = svgRect.top + activeEvent.discY * (svgRect.height / VH)
     const tipW = tooltipRef.current.offsetWidth
     const flipLeft = (activeEvent.x - PL) / CW > 0.45
     const left = flipLeft
@@ -402,25 +466,31 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           />
         )}
 
-        {/* Event markers — active marker rendered last so it sits above all siblings */}
+        {/* Event markers — inactive first, active last so active sits on top */}
         {[
           ...eventMarkers.filter(m => m.i !== activeEvent?.markerIdx),
           ...eventMarkers.filter(m => m.i === activeEvent?.markerIdx),
         ].map(({ i, event, x, y, sideColor, eventUrl }) => {
           const isActive = activeEvent?.markerIdx === i
-          const Icon = MARKER_SVG[event.type] || RapierSvg
+          function makePayload() {
+            const side = event.team
+            const stemDir = side === 'radiant' ? -1 : 1
+            const discY = y + stemDir * (11 + LOLLIPOP_STEM_LEN) // active DISC_R=11
+            const chipColor = (CHIP[event.type] || CHIP.rapier).icon
+            return { event, x, y, discY, chipColor, sideColor, eventUrl, markerIdx: i }
+          }
           return (
-            <g
+            <GraphMarker
               key={`ev-${i}`}
-              className="gold-graph-marker"
-              style={{ color: sideColor }}
-              transform={`translate(${(x - 6).toFixed(1)},${(y - 6).toFixed(1)})`}
-              onPointerEnter={(e) => { if (e.pointerType === 'mouse') setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i }) }}
-              onPointerLeave={(e) => { if (e.pointerType === 'mouse') setActiveEvent(null) }}
+              event={event}
+              isActive={isActive}
+              chartX={x}
+              dataY={y}
+              onMouseEnter={() => setActiveEvent(makePayload())}
+              onMouseLeave={() => setActiveEvent(null)}
               onClick={(e) => {
-                e.stopPropagation() // prevent SVG onClick from dismissing immediately
+                e.stopPropagation()
                 if (activeEvent?.markerIdx === i) {
-                  // Second tap (or desktop click-while-hovered): open VOD link
                   if (eventUrl) {
                     trackEvent('gold_graph_marker_click', { type: event.type, team: event.team })
                     window.open(eventUrl, '_blank', 'noopener')
@@ -428,20 +498,10 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
                     setActiveEvent(null)
                   }
                 } else {
-                  // First tap on mobile: show tooltip
-                  setActiveEvent({ event, x, y, sideColor, eventUrl, markerIdx: i })
+                  setActiveEvent(makePayload())
                 }
               }}
-            >
-              {/* 24px transparent hit area */}
-              <circle cx="6" cy="6" r="12" fill="transparent" />
-              {/* Focus ring — visible only on the active marker */}
-              {isActive && (
-                <circle cx="6" cy="6" r="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              )}
-              {/* Icon: same shape as the GameIndicators chip for this event type */}
-              <Icon width="12" height="12" />
-            </g>
+            />
           )
         })}
       </svg>
@@ -501,7 +561,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
               gap: '8px',
             }}
           >
-            <span style={{ color: activeEvent.sideColor, display: 'inline-flex' }}>
+            <span style={{ color: activeEvent.chipColor, display: 'inline-flex' }}>
               <Icon style={{ width: 12, height: 12 }} />
             </span>
             <span style={{ fontWeight: 700 }}>{eventLabel}</span>
