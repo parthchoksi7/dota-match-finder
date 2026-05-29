@@ -423,7 +423,7 @@ export const TOURNAMENT_FORMAT_CONFIGS = {
 export function getTournamentFormatKey(leagueName, tournamentName) {
   const league = (leagueName || '').toLowerCase()
   const name = (tournamentName || '').toLowerCase()
-  if (league.includes('blast') && name.includes('slam')) return 'blast-slam'
+  if (league.includes('blast') && (league.includes('slam') || name.includes('slam'))) return 'blast-slam'
   return null
 }
 
