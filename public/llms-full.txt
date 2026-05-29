@@ -21,7 +21,7 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 ## Complete Page Index
 
 ### Core Pages
-- **Home** (https://spectateesports.live/) — Live matches, upcoming schedule, completed results. Polls every 2 minutes. Shows series score (e.g. 1-0 in a BO3), current game number, active Twitch/YouTube streams, tournament name, and bracket round label (e.g. "Grand Final", "Upper Bracket Semifinal").
+- **Home** (https://spectateesports.live/) — Live matches, upcoming schedule, completed results. Polls every 2 minutes. Shows series score (e.g. 1-0 in a BO3), current game number, active Twitch/YouTube streams, tournament name, and bracket round label (e.g. "Grand Final", "Upper Bracket Semifinal"). During active tournament coverage, shows an editorial story card (sky-tinted, above live matches) with the latest article title, category, and read time.
 - **Tournaments** (https://spectateesports.live/tournaments) — Index of all Tier 1 series. Filterable by status: running/upcoming/completed. Shows prize pools in USD, team counts, date ranges, region breakdown.
 - **Tournament Detail** (https://spectateesports.live/tournament/{id}) — Full tournament hub for a single event series. Tabs: Info (overview + live matches), Standings (W-L table with advancing/eliminated zones), Schedule (bracket view), Stats (hero pick/ban table + player performance leaderboard), Videos (YouTube highlights).
 - **News** (https://spectateesports.live/news) — Aggregated news feed. Sources: Steam Community (official patches), Liquipedia (roster moves), PCGamesN, Dot Esports, Currents API. Filters by category (roster, patch, match-result). Unread indicator tracks articles since last visit.

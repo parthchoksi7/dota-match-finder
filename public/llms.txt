@@ -6,7 +6,7 @@ Spectate Esports (https://spectateesports.live) is a Dota 2 esports intelligence
 
 ## Main Pages
 
-- [Home](https://spectateesports.live/): Live match scores with series progress, upcoming scheduled matches, and completed results. Automatically updates every 2 minutes. Shows current game scores, active streams (Twitch/YouTube), and series format (BO1/BO3/BO5).
+- [Home](https://spectateesports.live/): Live match scores with series progress, upcoming scheduled matches, and completed results. Automatically updates every 2 minutes. Shows current game scores, active streams (Twitch/YouTube), and series format (BO1/BO3/BO5). During active tournament coverage, surfaces the latest editorial article as a story card above the live matches section.
 - [Tournaments](https://spectateesports.live/tournaments): All active, upcoming, and recently completed Tier 1 Dota 2 tournaments. Shows prize pools, team counts, date ranges, and tournament status.
 - [News](https://spectateesports.live/news): Aggregated Dota 2 esports headlines from Steam Community, Liquipedia (roster transfers), editorial sources (PCGamesN, Dot Esports), and Currents API. Updated every 30 minutes.
 - [Calendar](https://spectateesports.live/calendar): Subscribe to .ics calendar feeds for specific teams or entire tournaments. Compatible with Google Calendar, Apple Calendar, and Outlook.

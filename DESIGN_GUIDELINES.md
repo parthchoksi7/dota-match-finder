@@ -60,6 +60,7 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 - **Red is reserved** for: active tab indicators, live pulse dots, primary CTAs, and loss states. Never use red for decorative purposes.
 - **Purple is reserved** for watch/VOD actions only. Don't repurpose it.
 - **Yellow-400 is reserved** for the follow/star active state only. Don't repurpose it.
+- **Sky-50 / sky-950/20 tinted background** is reserved for the editorial card (`EditorialCard`) — the only tinted background in the feed. It signals "this is context, not a score." Do not use tinted backgrounds for other card types.
 - Light mode must use gray-900 (not gray-700) for primary text — never sacrifice contrast for softness
 - No gradients. No shadows except on the match drawer overlay.
 - Borders are always 1px, never 2px+, unless it's an active indicator underline
@@ -341,6 +342,7 @@ Homepage sections use **floating labels** — a small `<h2>` rendered *above* th
 | Recently Completed | `border-emerald-500` | Emerald = concluded successfully |
 | Latest Results | `border-gray-400 dark:border-gray-600` | Gray = historical/neutral |
 | News Feed | `border-sky-500` | Sky blue = discovery/information content |
+| Editorial Card | `border-sky-500` (hover) | Sky blue = editorial; uses tinted background instead of left border |
 
 - Label text is always tertiary style: `text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`
 - `mb-2` gap between label and the card below
