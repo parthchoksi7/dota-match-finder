@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 29, 2026",
+    tag: "fix",
+    title: "Rampage markers missing from gold graph",
+    desc: "Rampage indicators were showing correctly in the game summary row but not as markers on the gold advantage graph. The graph reconstructed rampages from kill timestamps using a 30-second total window, but Dota 2's actual rule is each consecutive kill within 18 seconds — so rampages spread across 31-72 seconds were silently missed. Detection now uses multi_kills[\"5\"] from OpenDota as the authoritative check (the same data the summary row uses) and kills_log only to locate the timestamp, with the correct 18-second consecutive-pair window.",
+  },
+  {
     date: "May 28, 2026",
     tag: "fix",
     title: "Tier filter regression — lower-tier tournaments no longer appear",

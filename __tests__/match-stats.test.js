@@ -573,13 +573,21 @@ function extractMatchEvents(players) {
         }
       }
     }
-    if (Array.isArray(p.kills_log) && p.kills_log.length >= 5) {
+    const rampageCount = p.multi_kills?.['5'] || p.multi_kills?.[5] || 0
+    if (rampageCount > 0 && Array.isArray(p.kills_log) && p.kills_log.length >= 5) {
       const times = p.kills_log.map(k => k.time).filter(t => typeof t === 'number').sort((a, b) => a - b)
+      let found = 0
       let skipUntil = -Infinity
-      for (let i = 4; i < times.length; i++) {
-        if (times[i - 4] > skipUntil && times[i] - times[i - 4] <= 30) {
+      for (let i = 4; i < times.length && found < rampageCount; i++) {
+        if (times[i - 4] <= skipUntil) continue
+        let valid = true
+        for (let j = 1; j <= 4; j++) {
+          if (times[i - 4 + j] - times[i - 4 + j - 1] > 18) { valid = false; break }
+        }
+        if (valid) {
           evts.push({ type: 'rampage', team, player, time: times[i - 4] })
-          skipUntil = times[i] + 1
+          skipUntil = times[i]
+          found++
         }
       }
     }
@@ -607,9 +615,10 @@ describe('extractMatchEvents', () => {
     expect(events[0].team).toBe('dire')
   })
 
-  it('detects rampage from 5 kills within 30 seconds', () => {
+  it('detects rampage using multi_kills["5"] as authority and kills_log for timestamp', () => {
     const players = [{
       player_slot: 0, name: 'yatoro',
+      multi_kills: { '5': 1 },
       kills_log: [
         { time: 1200 }, { time: 1210 }, { time: 1220 }, { time: 1225 }, { time: 1228 },
       ],
@@ -619,19 +628,56 @@ describe('extractMatchEvents', () => {
     expect(events[0]).toMatchObject({ type: 'rampage', team: 'radiant', player: 'yatoro', time: 1200 })
   })
 
-  it('does NOT detect rampage when kills span more than 30 seconds', () => {
+  it('detects rampage spanning > 30s when each consecutive kill is within 18s', () => {
+    // 5 kills each 14s apart = 56s total span — old 30s window missed this
     const players = [{
-      player_slot: 0, name: 'player',
+      player_slot: 0, name: 'ana',
+      multi_kills: { '5': 1 },
       kills_log: [
-        { time: 1000 }, { time: 1010 }, { time: 1020 }, { time: 1030 }, { time: 1035 },
+        { time: 1000 }, { time: 1014 }, { time: 1028 }, { time: 1042 }, { time: 1056 },
       ],
     }]
     const events = extractMatchEvents(players)
-    // last 4 kills are within 30s (1010-1035=25s) but first set: 1000-1035=35s > 30
-    // window [1010,1020,1030,1035]: diff = 25s < 30 but only 4 kills starting from index 1
-    // window [1000-1035]: 35s — no rampage
-    const rampages = events.filter(e => e.type === 'rampage')
-    expect(rampages).toHaveLength(0)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'rampage', team: 'radiant', player: 'ana', time: 1000 })
+  })
+
+  it('does NOT detect rampage when multi_kills["5"] is absent, even if kills_log pattern matches', () => {
+    const players = [{
+      player_slot: 0, name: 'player',
+      kills_log: [
+        { time: 1000 }, { time: 1005 }, { time: 1010 }, { time: 1015 }, { time: 1020 },
+      ],
+    }]
+    const events = extractMatchEvents(players)
+    expect(events.filter(e => e.type === 'rampage')).toHaveLength(0)
+  })
+
+  it('does NOT detect rampage when a consecutive pair exceeds 18s', () => {
+    // gap between kill 3 and 4 is 20s > 18s
+    const players = [{
+      player_slot: 0, name: 'player',
+      multi_kills: { '5': 1 },
+      kills_log: [
+        { time: 1000 }, { time: 1010 }, { time: 1020 }, { time: 1040 }, { time: 1050 },
+      ],
+    }]
+    const events = extractMatchEvents(players)
+    expect(events.filter(e => e.type === 'rampage')).toHaveLength(0)
+  })
+
+  it('caps detected rampages at multi_kills["5"] count', () => {
+    // kills_log has two valid 5-kill windows but multi_kills says only 1 rampage
+    const players = [{
+      player_slot: 0, name: 'player',
+      multi_kills: { '5': 1 },
+      kills_log: [
+        { time: 100 }, { time: 105 }, { time: 110 }, { time: 115 }, { time: 120 },
+        { time: 500 }, { time: 505 }, { time: 510 }, { time: 515 }, { time: 520 },
+      ],
+    }]
+    const events = extractMatchEvents(players)
+    expect(events.filter(e => e.type === 'rampage')).toHaveLength(1)
   })
 
   it('returns events sorted by time ascending', () => {

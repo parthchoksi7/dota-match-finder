@@ -1025,7 +1025,7 @@ export default async function handler(req, res) {
     const STATS_TTL = 60 * 60 * 24 * 7 // 7 days — only for parsed matches (immutable)
     const STATS_TTL_UNPARSED = 60 * 30  // 30 min — match not yet parsed by OD; retry soon
     const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
-    const STATS_KV_KEY = `stats:match:v5:${matchId}`
+    const STATS_KV_KEY = `stats:match:v6:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
     const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [] }
@@ -1096,13 +1096,23 @@ export default async function handler(req, res) {
               }
             }
           }
-          if (Array.isArray(p.kills_log) && p.kills_log.length >= 5) {
+          // multi_kills["5"] is the game engine's authoritative rampage count.
+          // kills_log is used only to locate the timestamp of each rampage.
+          const rampageCount = p.multi_kills?.['5'] || p.multi_kills?.[5] || 0
+          if (rampageCount > 0 && Array.isArray(p.kills_log) && p.kills_log.length >= 5) {
             const times = p.kills_log.map(k => k.time).filter(t => typeof t === 'number').sort((a, b) => a - b)
+            let found = 0
             let skipUntil = -Infinity
-            for (let i = 4; i < times.length; i++) {
-              if (times[i - 4] > skipUntil && times[i] - times[i - 4] <= 30) {
+            for (let i = 4; i < times.length && found < rampageCount; i++) {
+              if (times[i - 4] <= skipUntil) continue
+              let valid = true
+              for (let j = 1; j <= 4; j++) {
+                if (times[i - 4 + j] - times[i - 4 + j - 1] > 18) { valid = false; break }
+              }
+              if (valid) {
                 evts.push({ type: 'rampage', team, player, time: times[i - 4] })
-                skipUntil = times[i] + 1
+                skipUntil = times[i]
+                found++
               }
             }
           }
