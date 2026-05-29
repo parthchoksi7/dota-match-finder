@@ -7,7 +7,7 @@ import TeamRoster from '../components/TeamRoster'
 import RegionBreakdown from '../components/RegionBreakdown'
 import { HorizontalBracket } from '../components/BracketView'
 import StatusBadge from '../components/StatusBadge'
-import { trackEvent, formatDateRange, buildTournamentName } from '../utils'
+import { trackEvent, formatDateRange, buildTournamentName, getTournamentFormatKey, getStageFormatConfig } from '../utils'
 
 function getSeriesIdFromPath() {
   if (typeof window === 'undefined') return null
@@ -15,58 +15,6 @@ function getSeriesIdFromPath() {
   return match ? match[1] : null
 }
 
-const TOURNAMENT_FORMAT_CONFIGS = {
-  'blast-slam': {
-    stages: [
-      {
-        match: name => /group/i.test(name),
-        format: 'Round Robin',
-        matchFormat: 'BO1',
-        teamCount: 12,
-        advancement: [
-          { label: 'Top 2',     dest: 'UB Semifinals',    type: 'up' },
-          { label: '3rd–4th',   dest: 'UB Quarterfinals', type: 'up' },
-          { label: '5th–6th',   dest: 'Last Chance R2',   type: 'conditional' },
-          { label: '7th–10th',  dest: 'Last Chance R1',   type: 'conditional' },
-          { label: '11th–12th', dest: 'Eliminated',       type: 'out' },
-        ],
-      },
-      {
-        match: name => /last.?chance|lcq/i.test(name),
-        format: 'Single Elim',
-        matchFormat: 'BO3',
-        teamCount: 8,
-        advancement: [
-          { label: 'Top 2', dest: 'UB Quarterfinals', type: 'up' },
-          { label: 'Rest',  dest: 'Eliminated',       type: 'out' },
-        ],
-      },
-      {
-        match: name => /playoff|main.?event/i.test(name),
-        format: 'Double Elim',
-        matchFormat: 'BO3',
-        grandFinalFormat: 'BO5',
-        advancement: [
-          { label: 'Winner', dest: 'Champion', type: 'up' },
-        ],
-      },
-    ],
-  },
-}
-
-function getTournamentFormatKey(leagueName, tournamentName) {
-  const league = (leagueName || '').toLowerCase()
-  const name = (tournamentName || '').toLowerCase()
-  if (league.includes('blast') && name.includes('slam')) return 'blast-slam'
-  return null
-}
-
-function getStageFormatConfig(formatKey, stageName) {
-  if (!formatKey) return null
-  const config = TOURNAMENT_FORMAT_CONFIGS[formatKey]
-  if (!config) return null
-  return config.stages.find(s => s.match(stageName || '')) ?? null
-}
 
 function StageFormatBadge({ config }) {
   if (!config) return null

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
-import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName } from '../utils'
+import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName, getTournamentFormatKey, getStageFormatConfig } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
 import HighlightsTab from './HighlightsTab'
 import { fetchTournamentPlayers, fetchHeroes } from '../api'
@@ -567,6 +567,44 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       {/* Tab content */}
       {activeTab === 'Stage' && (
         <div>
+          {(() => {
+            const activeStageName = stageShortName(
+              detail?.eventStages?.find(s => s.id === activeStageId)?.name || ''
+            )
+            const hubFormatKey = getTournamentFormatKey(getLeagueLabel(tournament.name) || '', tournament.name || '')
+            const hubStageConfig = getStageFormatConfig(hubFormatKey, activeStageName)
+            if (!hubStageConfig || isStageLoading) return null
+            const parts = [hubStageConfig.format, hubStageConfig.matchFormat]
+            if (hubStageConfig.grandFinalFormat) parts.push(`${hubStageConfig.grandFinalFormat} GF`)
+            if (hubStageConfig.teamCount) parts.push(`${hubStageConfig.teamCount} teams`)
+            return (
+              <div className="px-3 sm:px-4 pt-2.5 pb-2 border-b border-gray-100 dark:border-gray-900">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">
+                  {parts.join(' · ')}
+                </p>
+                {hubStageConfig.advancement?.length > 0 && (
+                  <ul role="list" aria-label="Advancement rules" className="flex flex-col gap-0.5">
+                    {hubStageConfig.advancement.map((rule, i) => {
+                      const isUp = rule.type === 'up'
+                      const isOut = rule.type === 'out'
+                      const arrow = isUp ? '↑' : isOut ? '✕' : '→'
+                      const arrowColor = isUp
+                        ? 'text-emerald-600 dark:text-emerald-500'
+                        : isOut ? 'text-red-500 dark:text-red-400'
+                        : 'text-amber-500 dark:text-amber-400'
+                      return (
+                        <li key={i} className="flex items-center gap-1.5">
+                          <span className={`text-[10px] font-bold w-3 flex-shrink-0 ${arrowColor}`}>{arrow}</span>
+                          <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-500 min-w-[52px]">{rule.label}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-600">{rule.dest}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )
+          })()}
           {isStageLoading ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
