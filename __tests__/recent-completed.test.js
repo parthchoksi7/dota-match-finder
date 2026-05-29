@@ -131,6 +131,32 @@ describe('findOdMatchByTime', () => {
     expect(result?.match_id).toBe(99)
   })
 
+  it('does not match OD entries with null team names even if closer in time', () => {
+    // Reproduces the Road to EWC bug: many concurrent qualifiers have null dire_name
+    // and started just seconds before the BLAST SLAM VII game. Before the fix, the null
+    // dire_name caused sub('og', '') = true (empty string always matches), so the qualifier
+    // was incorrectly selected as the exact match.
+    const T = 10000
+    const odMatches = [
+      { match_id: 99, start_time: T + 6, radiant_name: 'Yellow Submarine', dire_name: null },
+      { match_id: 42, start_time: T + 357, radiant_name: 'Aurora Gaming', dire_name: 'OG' },
+    ]
+    const opponents = [makeOpp('Aurora'), makeOpp('OG')]
+    const result = findOdMatchByTime(odMatches, T + 400, opponents)
+    expect(result?.match_id).toBe(42)
+  })
+
+  it('time fallback prefers named matches over null-named matches', () => {
+    const T = 10000
+    const odMatches = [
+      { match_id: 1, start_time: T + 5, radiant_name: null, dire_name: null },
+      { match_id: 2, start_time: T + 300, radiant_name: 'Team A', dire_name: 'Team B' },
+    ]
+    const opponents = [makeOpp('Team C'), makeOpp('Team D')]
+    const result = findOdMatchByTime(odMatches, T, opponents)
+    expect(result?.match_id).toBe(2)
+  })
+
   it('tiebreaker works with flat radiant_name/dire_name shape (OD promatches format)', () => {
     // OD /api/promatches returns radiant_name and dire_name as flat fields,
     // not radiant_team.name — the tiebreaker must handle both shapes.

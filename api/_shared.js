@@ -321,11 +321,18 @@ export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
     const exact = candidates.find(c => {
       const r = (c.radiant_name || c.radiant_team?.name || '').toLowerCase()
       const d = (c.dire_name || c.dire_team?.name || '').toLowerCase()
+      if (!r || !d) return false  // skip OD matches with missing team names — empty string matches everything
       return (sub(names[0], r) || sub(names[0], d)) && (sub(names[1], r) || sub(names[1], d))
     })
     if (exact) return exact
   }
-  return candidates.reduce((best, m) =>
+  // Prefer candidates where both team names are known; fall back to all candidates
+  // only when every candidate has at least one null team name (very rare).
+  const named = candidates.filter(m =>
+    (m.radiant_name || m.radiant_team?.name) && (m.dire_name || m.dire_team?.name)
+  )
+  const pool = named.length > 0 ? named : candidates
+  return pool.reduce((best, m) =>
     Math.abs(m.start_time - beginAtUnix) < Math.abs(best.start_time - beginAtUnix) ? m : best
   )
 }

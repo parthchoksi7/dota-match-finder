@@ -264,7 +264,9 @@ function App() {
     const odIds = new Set(currentAllMatches.map(m => String(m.id)))
     return psSeries.filter(entry => {
       const resolved = entry.games.map(g => g.id).filter(id => !id.startsWith('_ps-'))
-      if (resolved.length > 0) return !resolved.some(id => odIds.has(id))
+      if (resolved.length > 0 && resolved.some(id => odIds.has(id))) return false
+      // Resolved IDs exist but none match allMatches (may be stale/wrong IDs from concurrent
+      // non-tier-1 games resolved by time proximity) — fall through to team-name check.
       const psTeams = [entry.games[0]?.radiantTeam, entry.games[0]?.direTeam]
         .map(t => (t || '').toLowerCase()).filter(Boolean)
       if (psTeams.length < 2) return true
