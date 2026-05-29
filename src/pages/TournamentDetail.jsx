@@ -15,6 +15,107 @@ function getSeriesIdFromPath() {
   return match ? match[1] : null
 }
 
+const TOURNAMENT_FORMAT_CONFIGS = {
+  'blast-slam': {
+    stages: [
+      {
+        match: name => /group/i.test(name),
+        format: 'Round Robin',
+        matchFormat: 'BO1',
+        teamCount: 12,
+        advancement: [
+          { label: 'Top 2',     dest: 'UB Semifinals',    type: 'up' },
+          { label: '3rd–4th',   dest: 'UB Quarterfinals', type: 'up' },
+          { label: '5th–6th',   dest: 'Last Chance R2',   type: 'conditional' },
+          { label: '7th–10th',  dest: 'Last Chance R1',   type: 'conditional' },
+          { label: '11th–12th', dest: 'Eliminated',       type: 'out' },
+        ],
+      },
+      {
+        match: name => /last.?chance|lcq/i.test(name),
+        format: 'Single Elim',
+        matchFormat: 'BO3',
+        teamCount: 8,
+        advancement: [
+          { label: 'Top 2', dest: 'UB Quarterfinals', type: 'up' },
+          { label: 'Rest',  dest: 'Eliminated',       type: 'out' },
+        ],
+      },
+      {
+        match: name => /playoff|main.?event/i.test(name),
+        format: 'Double Elim',
+        matchFormat: 'BO3',
+        grandFinalFormat: 'BO5',
+        advancement: [
+          { label: 'Winner', dest: 'Champion', type: 'up' },
+        ],
+      },
+    ],
+  },
+}
+
+function getTournamentFormatKey(leagueName, tournamentName) {
+  const league = (leagueName || '').toLowerCase()
+  const name = (tournamentName || '').toLowerCase()
+  if (league.includes('blast') && name.includes('slam')) return 'blast-slam'
+  return null
+}
+
+function getStageFormatConfig(formatKey, stageName) {
+  if (!formatKey) return null
+  const config = TOURNAMENT_FORMAT_CONFIGS[formatKey]
+  if (!config) return null
+  return config.stages.find(s => s.match(stageName || '')) ?? null
+}
+
+function StageFormatBadge({ config }) {
+  if (!config) return null
+  const parts = [config.format, config.matchFormat]
+  if (config.grandFinalFormat) parts.push(`${config.grandFinalFormat} GF`)
+  if (config.teamCount) parts.push(`${config.teamCount} teams`)
+  return (
+    <p
+      className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500"
+      aria-label={`Format: ${parts.join(', ')}`}
+    >
+      {parts.join(' · ')}
+    </p>
+  )
+}
+
+function AdvancementLadder({ rules }) {
+  if (!rules?.length) return null
+  return (
+    <ul
+      role="list"
+      aria-label="Advancement rules"
+      className="flex flex-col gap-0.5"
+    >
+      {rules.map((rule, i) => {
+        const isUp = rule.type === 'up'
+        const isOut = rule.type === 'out'
+        const arrowColor = isUp
+          ? 'text-emerald-600 dark:text-emerald-500'
+          : isOut
+          ? 'text-red-500 dark:text-red-400'
+          : 'text-amber-500 dark:text-amber-400'
+        const arrow = isUp ? '↑' : isOut ? '✕' : '→'
+        return (
+          <li
+            key={i}
+            className="flex items-center gap-1.5"
+            aria-label={`${rule.label}: advances to ${rule.dest}`}
+          >
+            <span className={`text-[10px] font-bold w-3 flex-shrink-0 ${arrowColor}`}>{arrow}</span>
+            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-500 min-w-[52px]">{rule.label}</span>
+            <span className="text-[10px] text-gray-400 dark:text-gray-600">{rule.dest}</span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 function StandingsTable({ standings }) {
   if (!standings || standings.length === 0) return null
 
@@ -566,12 +667,15 @@ export default function TournamentDetail() {
 
                 {stagesExpanded && (
                   <div className="flex flex-col gap-3">
-                    {data.stages.map(stage => {
+                    {(() => {
+                      const formatKey = getTournamentFormatKey(data.leagueName, data.name)
+                      return data.stages.map(stage => {
                       const now = new Date()
                       const stageBegin = stage.beginAt ? new Date(stage.beginAt) : null
                       const stageEnd = stage.endAt ? new Date(stage.endAt) : null
                       const isLive = stageBegin && stageEnd && stageBegin <= now && now <= stageEnd
                       const hasStandingsData = stage.standings?.some(s => s.wins != null || s.losses != null)
+                      const stageConfig = getStageFormatConfig(formatKey, stage.name)
 
                       return (
                         <div
@@ -583,7 +687,7 @@ export default function TournamentDetail() {
                           })}
                         >
                           <div className="p-4">
-                            <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
                               <div className="flex items-center gap-2">
                                 {isLive && (
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
@@ -591,7 +695,7 @@ export default function TournamentDetail() {
                                 <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
                                   {stage.name}
                                 </h3>
-                                <StageInfoTooltip stageName={stage.name} hasBracket={stage.hasBracket} />
+                                {!stageConfig && <StageInfoTooltip stageName={stage.name} hasBracket={stage.hasBracket} />}
                               </div>
                               <div className="flex items-center gap-2">
                                 {stage.tier && (
@@ -606,6 +710,13 @@ export default function TournamentDetail() {
                                 )}
                               </div>
                             </div>
+
+                            {stageConfig && (
+                              <div className="flex flex-col gap-1 mb-2">
+                                <StageFormatBadge config={stageConfig} />
+                                <AdvancementLadder rules={stageConfig.advancement} />
+                              </div>
+                            )}
 
                             {(stage.beginAt || stage.endAt) && (
                               <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums">
@@ -632,7 +743,8 @@ export default function TournamentDetail() {
                           )}
                         </div>
                       )
-                    })}
+                    })
+                    })()}
                   </div>
                 )}
               </section>

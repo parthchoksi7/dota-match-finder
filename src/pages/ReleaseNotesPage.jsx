@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 28, 2026",
+    tag: "new",
+    title: "Tournament stage format + advancement ladder",
+    desc: "Each stage card on tournament pages now shows the match format and a color-coded advancement ladder. For BLAST Slam VII: the Group Stage card shows Round Robin · BO1 · 12 teams with arrows indicating who advances to Upper Bracket Semifinals, Upper Bracket Quarterfinals, Last Chance R1/R2, or gets eliminated. The Last Chance Qualifier shows BO3 Single Elim with the top 2 advancing to UB Quarters. Playoffs shows Double Elim · BO3 with BO5 Grand Final.",
+  },
+  {
     date: "May 29, 2026",
     tag: "new",
     title: "Share buttons on article pages",
