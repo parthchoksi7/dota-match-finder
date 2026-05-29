@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
@@ -32,6 +32,91 @@ function ArticleSection({ section }) {
     <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed mb-5">
       {section.text}
     </p>
+  )
+}
+
+const BASE_URL = 'https://spectateesports.live'
+
+function ShareButtons({ article }) {
+  const [copied, setCopied] = useState(false)
+  const articleUrl = `${BASE_URL}/articles/${article.slug}`
+  const hasNativeShare = typeof navigator !== 'undefined' && !!navigator.share
+
+  function handleNativeShare() {
+    navigator.share({
+      title: article.title,
+      text: article.subtitle || article.excerpt,
+      url: articleUrl,
+    }).then(() => {
+      trackEvent('article_share_native', { slug: article.slug })
+    }).catch(() => {})
+  }
+
+  function handleCopyLink() {
+    navigator.clipboard?.writeText(articleUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      trackEvent('article_share_copy_link', { slug: article.slug })
+    })
+  }
+
+  const xShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(articleUrl)}&via=SpectateDota2`
+
+  if (hasNativeShare) {
+    return (
+      <button
+        type="button"
+        onClick={handleNativeShare}
+        className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold uppercase tracking-widest rounded transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+          <polyline points="16 6 12 2 8 6"/>
+          <line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        Share
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <a
+        href={xShareUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => trackEvent('article_share_x', { slug: article.slug })}
+        className="inline-flex items-center gap-2 px-4 py-2.5 bg-black hover:bg-gray-900 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
+      >
+        {/* X (formerly Twitter) logo */}
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+        Share on X
+      </a>
+      <button
+        type="button"
+        onClick={handleCopyLink}
+        className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold uppercase tracking-widest rounded transition-colors"
+      >
+        {copied ? (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-green-500" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Copied
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            Copy link
+          </>
+        )}
+      </button>
+    </div>
   )
 }
 
@@ -133,11 +218,9 @@ export default function ArticlePage() {
             ))}
           </div>
 
-          {/* Footer CTA */}
-          <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-3">
-              Watch their matches
-            </p>
+          {/* Footer actions */}
+          <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-wrap items-center gap-3">
+            <ShareButtons article={article} />
             <a
               href="/?q=yandex"
               onClick={() => trackEvent('article_watch_cta', { slug: article.slug })}
@@ -146,7 +229,7 @@ export default function ArticlePage() {
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
               </svg>
-              Find Yandex VODs on Spectate
+              Watch on Spectate
             </a>
           </div>
         </article>
