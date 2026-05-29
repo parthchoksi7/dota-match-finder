@@ -420,6 +420,20 @@ export const TOURNAMENT_FORMAT_CONFIGS = {
   },
 }
 
+// Returns the advancement type ('up'|'conditional'|'out') for a given rank (1-based).
+export function getAdvancementType(advancement, rank) {
+  if (!advancement?.length || rank == null) return null
+  for (const rule of advancement) {
+    const label = rule.label.toLowerCase().trim()
+    const topMatch = label.match(/^top\s+(\d+)/)
+    if (topMatch && rank <= parseInt(topMatch[1])) return rule.type
+    const rangeMatch = label.match(/^(\d+)[^\d]+(\d+)/)
+    if (rangeMatch && rank >= parseInt(rangeMatch[1]) && rank <= parseInt(rangeMatch[2])) return rule.type
+    if (label === 'rest') return rule.type
+  }
+  return null
+}
+
 export function getTournamentFormatKey(leagueName, tournamentName) {
   const league = (leagueName || '').toLowerCase()
   const name = (tournamentName || '').toLowerCase()

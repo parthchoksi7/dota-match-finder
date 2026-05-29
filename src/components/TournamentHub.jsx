@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
-import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName, getTournamentFormatKey, getStageFormatConfig } from '../utils'
+import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName, getTournamentFormatKey, getStageFormatConfig, getAdvancementType } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
 import HighlightsTab from './HighlightsTab'
 import { fetchTournamentPlayers, fetchHeroes } from '../api'
@@ -116,7 +116,7 @@ function getTabLabel(tournament, allOngoing) {
   return leagueLabel || region || cleanTournamentName(tournament.name).split(' ').slice(0, 2).join(' ')
 }
 
-function StandingsTable({ standings }) {
+function StandingsTable({ standings, advancement }) {
   if (!standings || standings.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
       No standings yet
@@ -139,14 +139,22 @@ function StandingsTable({ standings }) {
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
           {standings.map((s, i) => {
-              const isEliminated = showZones && i >= midpoint && s.losses > s.wins
+            const rank = s.rank ?? i + 1
+            const advType = getAdvancementType(advancement, rank)
+            const isEliminated = advType
+              ? advType === 'out'
+              : (showZones && i >= midpoint && s.losses > s.wins)
+            const barColor = advType === 'up' ? 'bg-green-500/60'
+              : advType === 'conditional' ? 'bg-amber-500/60'
+              : advType === 'out' ? 'bg-red-500/60'
+              : isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'
             return (
               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{s.rank}</td>
+                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{rank}</td>
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     {showZones && (
-                      <span className={`w-1 h-4 rounded-full flex-shrink-0 ${isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'}`} />
+                      <span className={`w-1 h-4 rounded-full flex-shrink-0 ${barColor}`} />
                     )}
                     <span className={`font-semibold ${isEliminated ? 'text-gray-400 dark:text-gray-600' : 'text-gray-900 dark:text-white'}`}>
                       {s.team}
@@ -565,15 +573,17 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       )}
 
       {/* Tab content */}
-      {activeTab === 'Stage' && (
+      {activeTab === 'Stage' && (() => {
+        const activeStageName = stageShortName(
+          detail?.eventStages?.find(s => s.id === activeStageId)?.name || ''
+        )
+        const hubFormatKey = getTournamentFormatKey(getLeagueLabel(tournament.name) || '', tournament.name || '')
+        const hubStageConfig = getStageFormatConfig(hubFormatKey, activeStageName)
+        const advancement = hubStageConfig?.advancement ?? null
+
+        return (
         <div>
-          {(() => {
-            const activeStageName = stageShortName(
-              detail?.eventStages?.find(s => s.id === activeStageId)?.name || ''
-            )
-            const hubFormatKey = getTournamentFormatKey(getLeagueLabel(tournament.name) || '', tournament.name || '')
-            const hubStageConfig = getStageFormatConfig(hubFormatKey, activeStageName)
-            if (!hubStageConfig || isStageLoading) return null
+          {!isStageLoading && hubStageConfig && (() => {
             const parts = [hubStageConfig.format, hubStageConfig.matchFormat]
             if (hubStageConfig.grandFinalFormat) parts.push(`${hubStageConfig.grandFinalFormat} GF`)
             if (hubStageConfig.teamCount) parts.push(`${hubStageConfig.teamCount} teams`)
@@ -632,7 +642,7 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
             <HorizontalBracket bracket={effectiveDetail?.bracket} />
           ) : (
             <>
-              <StandingsTable standings={effectiveDetail?.standings} />
+              <StandingsTable standings={effectiveDetail?.standings} advancement={advancement} />
               {effectiveDetail?.bracket?.length > 0 && (
                 <>
                   <div className="px-3 sm:px-4 pt-3 pb-1 border-t border-gray-100 dark:border-gray-900">
@@ -644,7 +654,8 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
             </>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {activeTab === 'Highlights' && (
         <div className="px-3 sm:px-4 py-4">
