@@ -135,6 +135,25 @@ Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes 
 - [Bounty Rune](https://spectateesports.live/glossary/bounty-rune): Gold-granting map rune spawning every 3 minutes
 - [True Sight](https://spectateesports.live/glossary/true-sight): Invisibility detection mechanic
 
+## Editorial Articles
+
+Spectate Esports publishes original editorial coverage of Tier 1 Dota 2 tournaments — daily analysis, team narratives, match previews, and storyline breakdowns.
+
+- [Articles Index](https://spectateesports.live/articles): All published articles
+- [BLAST Slam VII Coverage](https://spectateesports.live/articles?tournament=blast-slam-vii): Daily coverage of BLAST Slam VII (May 26–June 7, 2026, Copenhagen, $1,000,000 prize pool)
+
+### BLAST Slam VII — Published Articles
+
+- [Nobody Predicted Team Yandex Would Lead BLAST Slam VII](https://spectateesports.live/articles/team-yandex-blast-slam-vii-dark-horse) — May 28, 2026. Analysis of Team Yandex's surprise 5–1 group stage lead. Team Yandex: ranked #2 globally, PGL Wallachia Season 7 winners, acquired Cyber Goose roster in June 2025. Roster: Saksa (Finland), watson, Malady (Kazakhstan, ex-Gaimin Gladiators), CHIRA_JUNIOR, DM (offlaner added May 24, four days before tournament).
+
+### BLAST Slam VII — Tournament Facts
+
+- **Dates**: May 26 – June 7, 2026
+- **Location**: Online group stage (May 26–29) + BLAST Studios Copenhagen, Denmark (June 4–7)
+- **Prize pool**: $1,000,000
+- **Format**: Bo1 round-robin group stage (12 teams) → Last Chance Qualifier (May 30, 6 teams, 2 advance) → Double-elimination playoffs (6 teams, Bo3/Bo5 grand final)
+- **Teams**: Team Falcons (defending world champions), Team Yandex, PARIVISION (DreamLeague S29 winners), Team Liquid (BLAST Slam VI winners), Team Spirit, LGD Gaming, OG Esports, Tundra Esports, BetBoom Team, HEROIC, Aurora Gaming, GLYPH (SEA qualifier)
+
 ## Data Sources & Methodology
 
 - **Match results and statistics**: OpenDota API (open source, community-maintained database of all Dota 2 matches). Typically indexes completed matches 30–90 minutes after a series ends.

@@ -64,6 +64,8 @@ Allow: /tournaments
 Allow: /tournament/
 Allow: /calendar
 Allow: /news
+Allow: /articles
+Allow: /articles/
 Allow: /glossary
 Allow: /glossary/
 Allow: /teams

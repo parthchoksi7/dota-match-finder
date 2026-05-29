@@ -1,5 +1,9 @@
 import { getPremiumLeagueIds } from './_shared.js'
 
+const ARTICLE_SLUGS = [
+  'team-yandex-blast-slam-vii-dark-horse',
+]
+
 const GLOSSARY_TERM_IDS = [
   'draft', 'gpm', 'roshan', 'rampage', 'divine-rapier', 'aegis', 'mega-creeps',
   'buyback', 'net-worth', 'first-blood', 'smoke-of-deceit', 'ancient', 'barracks',
@@ -135,6 +139,21 @@ export default async function handler(req, res) {
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>${BASE_URL}/articles</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/articles?tournament=blast-slam-vii</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+${ARTICLE_SLUGS.map(slug => `  <url>
+    <loc>${BASE_URL}/articles/${slug}</loc>
+    <changefreq>never</changefreq>
+    <priority>0.8</priority>
+  </url>`).join('\n')}
   <url>
     <loc>${BASE_URL}/llms.txt</loc>
     <changefreq>monthly</changefreq>

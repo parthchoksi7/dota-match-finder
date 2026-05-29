@@ -11,6 +11,8 @@ export const config = {
     '/glossary/:termId*',
     '/teams',
     '/teams/:slug*',
+    '/articles',
+    '/articles/:slug*',
   ],
 }
 
@@ -63,6 +65,22 @@ const GLOSSARY_TERMS_SSR = [
 
 const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.id, t]))
 
+// Article metadata (kept inline — edge middleware cannot import from src/)
+// Source of truth: src/data/articles.js — keep slugs, titles, excerpts, and publishedAt in sync.
+const ARTICLES_SSR = [
+  {
+    slug: 'team-yandex-blast-slam-vii-dark-horse',
+    title: 'Nobody Predicted Team Yandex Would Lead BLAST Slam VII',
+    subtitle: "Here's Why They Might Actually Win This Thing",
+    publishedAt: '2026-05-28',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'Analysis',
+    excerpt: "Team Yandex added their offlaner four days before the tournament started. They're tied for first. This is the story nobody is covering.",
+  },
+]
+const ARTICLES_MAP_SSR = Object.fromEntries(ARTICLES_SSR.map(a => [a.slug, a]))
+
 const BASE_URL = 'https://spectateesports.live'
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`
 const SITE_NAME = 'Spectate Esports'
@@ -82,6 +100,8 @@ export default async function middleware(req) {
   if (pathname.startsWith('/glossary/')) return handleGlossaryTerm(url)
   if (pathname === '/teams') return handleTeams(url)
   if (pathname.startsWith('/teams/')) return handleTeamDetail(url)
+  if (pathname === '/articles') return handleArticles(url)
+  if (pathname.startsWith('/articles/')) return handleArticleDetail(url)
 
   return new Response(null, { status: 302, headers: { Location: '/' } })
 }
@@ -762,6 +782,132 @@ async function handleTeamDetail(url) {
   return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
 }
 
+// ─── /articles ────────────────────────────────────────────────────────────────
+
+async function handleArticles(url) {
+  const tournamentFilter = url.searchParams.get('tournament')
+  const articles = tournamentFilter
+    ? ARTICLES_SSR.filter(a => a.tournament === tournamentFilter)
+    : ARTICLES_SSR
+
+  const isHub = tournamentFilter === 'blast-slam-vii'
+  const title = isHub
+    ? 'BLAST Slam VII Coverage — Daily Articles | Spectate Esports'
+    : 'Dota 2 Esports Articles — Tournament Coverage | Spectate Esports'
+  const description = isHub
+    ? 'Daily editorial coverage of BLAST Slam VII (May 26–June 7, 2026, Copenhagen). One article per day covering storylines, team analysis, and match previews.'
+    : 'Tournament analysis, team narratives, and editorial coverage of professional Dota 2 esports. Covers BLAST Slam, DreamLeague, PGL, and The International.'
+  const canonical = tournamentFilter
+    ? `${BASE_URL}/articles?tournament=${tournamentFilter}`
+    : `${BASE_URL}/articles`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'about': { '@type': 'SportsEvent', 'name': 'BLAST Slam VII', 'sport': 'Dota 2' },
+        'breadcrumb': breadcrumb([{ name: 'Articles', url: `${BASE_URL}/articles` }]),
+      },
+    ],
+  }
+
+  const articleItems = articles.map(a =>
+    `<li style="margin-bottom:12px"><a href="${BASE_URL}/articles/${escapeHtml(a.slug)}"><strong>${escapeHtml(a.title)}</strong></a> <span style="color:#888;font-size:0.85em">${escapeHtml(a.publishedAt)} · ${escapeHtml(a.category)}</span><br/>${escapeHtml(a.excerpt)}</li>`
+  ).join('')
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › Articles</nav>
+      <h1>${isHub ? 'BLAST Slam VII — Daily Coverage' : 'Dota 2 Esports Articles'}</h1>
+      <p>${description}</p>
+      ${articles.length > 0 ? `<ul>${articleItems}</ul>` : '<p>No articles published yet.</p>'}
+    </main>`
+
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+// ─── /articles/:slug ──────────────────────────────────────────────────────────
+
+async function handleArticleDetail(url) {
+  const slug = url.pathname.replace('/articles/', '').split('/')[0]
+  const article = ARTICLES_MAP_SSR[slug]
+
+  if (!article) {
+    return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/articles` } })
+  }
+
+  const canonical = `${BASE_URL}/articles/${slug}`
+  const title = `${article.title} | Spectate Esports`
+  const description = article.excerpt
+  const publishedDate = article.publishedAt
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Article',
+        '@id': `${canonical}#article`,
+        'headline': article.title,
+        'description': description,
+        'url': canonical,
+        'datePublished': publishedDate,
+        'dateModified': publishedDate,
+        'author': {
+          '@type': 'Organization',
+          'name': 'Spectate Esports',
+          '@id': `${BASE_URL}/#organization`,
+        },
+        'publisher': {
+          '@type': 'Organization',
+          'name': 'Spectate Esports',
+          'url': BASE_URL,
+        },
+        'about': {
+          '@type': 'SportsEvent',
+          'name': article.tournamentLabel,
+          'sport': 'Dota 2',
+        },
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'datePublished': publishedDate,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'breadcrumb': breadcrumb([
+          { name: 'Articles', url: `${BASE_URL}/articles` },
+          { name: article.tournamentLabel, url: `${BASE_URL}/articles?tournament=${article.tournament}` },
+          { name: article.title, url: canonical },
+        ]),
+      },
+    ],
+  }
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/articles">Articles</a> › <a href="${BASE_URL}/articles?tournament=${escapeHtml(article.tournament)}">${escapeHtml(article.tournamentLabel)}</a></nav>
+      <p style="color:#888;font-size:0.85em;text-transform:uppercase">${escapeHtml(article.category)} · ${escapeHtml(article.publishedAt)}</p>
+      <h1>${escapeHtml(article.title)}</h1>
+      ${article.subtitle ? `<p><em>${escapeHtml(article.subtitle)}</em></p>` : ''}
+      <p>${escapeHtml(article.excerpt)}</p>
+    </main>`
+
+  const articleMetaTags = `
+    <meta property="article:published_time" content="${publishedDate}" />
+    <meta property="article:author" content="Spectate Esports" />
+    <meta property="article:section" content="${escapeHtml(article.category)}" />`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent, articleMetaTags, 'article')
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function breadcrumb(items) {
@@ -779,12 +925,12 @@ function breadcrumb(items) {
   }
 }
 
-async function buildResponse(url, title, description, canonical, imageUrl, jsonLd, rootContent, extraHeadTags = '') {
+async function buildResponse(url, title, description, canonical, imageUrl, jsonLd, rootContent, extraHeadTags = '', ogType = 'website') {
   const indexRes = await fetch(`${url.origin}/index.html`)
   let html = await indexRes.text()
 
   const injected = `
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content="${ogType}" />
     <meta property="og:site_name" content="${SITE_NAME}" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />

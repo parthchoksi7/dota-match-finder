@@ -1,65 +1,7 @@
-import { createHmac, randomBytes } from 'crypto'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-
-// ── Cron / auto-tweet: Twitter OAuth 1.0a ───────────────────────────────────
-
-function pct(s) {
-  return encodeURIComponent(String(s))
-    .replace(/!/g, '%21').replace(/'/g, '%27')
-    .replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/\*/g, '%2A')
-}
-
-function buildOAuthHeader(method, url) {
-  const cred = {
-    oauth_consumer_key: process.env.TWITTER_API_KEY,
-    oauth_nonce: randomBytes(16).toString('hex'),
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp: String(Math.floor(Date.now() / 1000)),
-    oauth_token: process.env.TWITTER_ACCESS_TOKEN,
-    oauth_version: '1.0',
-  }
-  const paramStr = Object.keys(cred).sort().map(k => `${pct(k)}=${pct(cred[k])}`).join('&')
-  const base = `${method.toUpperCase()}&${pct(url)}&${pct(paramStr)}`
-  const key = `${pct(process.env.TWITTER_API_SECRET)}&${pct(process.env.TWITTER_ACCESS_TOKEN_SECRET)}`
-  cred.oauth_signature = createHmac('sha1', key).update(base).digest('base64')
-  return 'OAuth ' + Object.keys(cred).sort().map(k => `${pct(k)}="${pct(cred[k])}"`).join(', ')
-}
-
-async function uploadMedia(pngBuffer) {
-  const url = 'https://upload.twitter.com/1.1/media/upload.json'
-  const boundary = `TwitterBoundary${Date.now()}`
-  const body = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="media"\r\n\r\n`),
-    pngBuffer,
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ])
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      Authorization: buildOAuthHeader('POST', url),
-    },
-    body,
-  })
-  const data = await res.json()
-  return data.media_id_string || null
-}
-
-// replyToId: tweet ID to reply to (null = thread root)
-async function postTweet(text, mediaId = null, replyToId = null) {
-  const url = 'https://api.twitter.com/2/tweets'
-  const payload = { text }
-  if (mediaId) payload.media = { media_ids: [mediaId] }
-  if (replyToId) payload.reply = { in_reply_to_tweet_id: replyToId }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: buildOAuthHeader('POST', url) },
-    body: JSON.stringify(payload),
-  })
-  return res.json()
-}
+import { uploadMedia, postTweet, checkTwitterEnv } from './_x-post.js'
 
 // ── Cron / auto-tweet: tweet template ───────────────────────────────────────
 
@@ -143,8 +85,7 @@ async function runAutoTweet(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const missing = ['TWITTER_API_KEY', 'TWITTER_API_SECRET', 'TWITTER_ACCESS_TOKEN', 'TWITTER_ACCESS_TOKEN_SECRET']
-    .filter(k => !process.env[k])
+  const missing = checkTwitterEnv()
   if (missing.length) {
     return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
   }

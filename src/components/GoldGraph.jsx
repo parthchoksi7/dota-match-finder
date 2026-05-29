@@ -61,7 +61,23 @@ const CHIP = {
 
 const LOLLIPOP_STEM_LEN = 12
 
-function GraphMarker({ event, isActive, chartX, dataY, onMouseEnter, onMouseLeave, onClick }) {
+// Returns clamped disc center y so the disc+ring stays within the chart area.
+// Top: clears the SVG top edge. Bottom: clears the time-label zone (VH - PB).
+// When the chart line is near an edge the stem shortens gracefully.
+function computeDiscCY(dataY, stemDir, discR, effectiveStem) {
+  const raw = dataY + stemDir * (discR + effectiveStem)
+  const topMin = discR + 4 + 2  // ring must clear top edge
+  const botMax = VH - PB - 2    // ring must clear time-label zone
+  return Math.min(botMax, Math.max(topMin, raw))
+}
+
+function GraphMarker({ event, isActive, chartX, dataY, stemMultiplier = 1, xOffset = 0, invScaleX = 1, onMouseEnter, onMouseLeave, onClick }) {
+  // Capture whether this marker was already active at pointerdown — before the browser
+  // synthesizes mouseenter+click from a touch. On mobile, mouseenter fires as part of
+  // the tap sequence and sets activeEvent, so by the time onClick fires the marker looks
+  // "already active" even on a first tap. wasActiveRef bypasses that race.
+  const wasActiveRef = useRef(false)
+
   const type = event.type
   const side = event.team
   const chip = CHIP[type] || CHIP.rapier
@@ -72,36 +88,60 @@ function GraphMarker({ event, isActive, chartX, dataY, onMouseEnter, onMouseLeav
   const RING_R = DISC_R + 4
   const isRadiant = side === 'radiant'
   const stemDir = isRadiant ? -1 : 1
-  const discCY = dataY + stemDir * (DISC_R + LOLLIPOP_STEM_LEN)
-  const iconSize = DISC_R * 1.15
+  const rawStem = LOLLIPOP_STEM_LEN * stemMultiplier
+  const discCY = computeDiscCY(dataY, stemDir, DISC_R, rawStem)
 
+  // When the disc had to clamp past the data point, skip the stem to avoid
+  // drawing it in the wrong direction
+  const stemCrossed = isRadiant ? discCY > dataY : discCY < dataY
+
+  const iconSize = DISC_R * 1.15
   const itemOpacity = isActive ? 1 : 0.65
   const ringOpacity = isActive ? 1 : 0.55
   const ringStroke = isActive ? 2 : 1.5
 
+  // translate to chartX then apply inverse X scale so circles render as circles
+  // despite the SVG's non-uniform preserveAspectRatio="none" stretching.
+  // All child x-coords are relative to 0 (the group origin = chartX).
   return (
-    <g style={{ cursor: 'pointer' }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onClick={onClick}>
-      <circle cx={chartX} cy={discCY} r={12} fill="transparent"/>
-      <line
-        x1={chartX} y1={dataY}
-        x2={chartX} y2={dataY + stemDir * LOLLIPOP_STEM_LEN}
-        stroke="#6b7280" strokeWidth={1} opacity={0.7}
-      />
-      <circle cx={chartX} cy={dataY} r={2} fill="#6b7280"/>
+    <g
+      transform={`translate(${chartX + xOffset},0) scale(${invScaleX},1)`}
+      style={{ cursor: 'pointer' }}
+      onPointerDown={() => { wasActiveRef.current = isActive }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={(e) => {
+        if (wasActiveRef.current) {
+          onClick?.(e)        // already active: 2nd tap / desktop click → navigate
+        } else {
+          e.stopPropagation() // not active: 1st tap → show tooltip, don't bubble to SVG dismiss
+          onMouseEnter?.()
+        }
+      }}
+    >
+      <circle cx={0} cy={discCY} r={12} fill="transparent"/>
+      {!stemCrossed && (
+        <line
+          x1={0} y1={dataY}
+          x2={0} y2={dataY + stemDir * rawStem}
+          stroke="#6b7280" strokeWidth={1} opacity={0.7}
+        />
+      )}
+      <circle cx={0} cy={dataY} r={2} fill="#6b7280"/>
       <circle
-        cx={chartX} cy={discCY} r={RING_R}
+        cx={0} cy={discCY} r={RING_R}
         fill="none" stroke={ringColor}
         strokeWidth={ringStroke} opacity={ringOpacity}
       />
       <circle
-        cx={chartX} cy={discCY} r={DISC_R}
+        cx={0} cy={discCY} r={DISC_R}
         fill={chip.disc} stroke="none"
         opacity={itemOpacity}
       />
       <g style={{ color: chip.icon }} opacity={itemOpacity}>
         <Icon
           className=""
-          x={chartX - iconSize / 2}
+          x={-iconSize / 2}
           y={discCY - iconSize / 2}
           width={iconSize}
           height={iconSize}
@@ -109,6 +149,55 @@ function GraphMarker({ event, isActive, chartX, dataY, onMouseEnter, onMouseLeav
       </g>
     </g>
   )
+}
+
+const COLLISION_THRESHOLD = 30
+const RING_R_INACTIVE = 14  // DISC_R(10) + ring(4), used for horizontal nudge sizing
+const EVENT_PRIORITY = { rampage: 3, rapier: 2, roshan: 1 }
+
+function resolveCollisions(markers) {
+  if (markers.length < 2) return markers.map(m => ({ ...m, stemMultiplier: 1, xOffset: 0 }))
+
+  const mults = new Array(markers.length).fill(1)
+  const xOffsets = new Array(markers.length).fill(0)
+  const sortedIdx = markers.map((_, i) => i).sort((a, b) => markers[a].x - markers[b].x)
+
+  for (let j = 0; j < sortedIdx.length - 1; j++) {
+    const ai = sortedIdx[j]
+    const a = markers[ai]
+    for (let k = j + 1; k < sortedIdx.length; k++) {
+      const bi = sortedIdx[k]
+      const b = markers[bi]
+      if (b.x - a.x >= COLLISION_THRESHOLD) break
+      if (a.event.team !== b.event.team) continue // opposite sides separate naturally via stemDir
+
+      const aPri = EVENT_PRIORITY[a.event.type] || 1
+      const bPri = EVENT_PRIORITY[b.event.type] || 1
+      const hiIdx = aPri >= bPri ? ai : bi
+      const loIdx = aPri >= bPri ? bi : ai
+
+      // Test if 2.2× stem actually separates the discs after clamping.
+      // Near chart edges, computeDiscCY clamps both discs to the same y,
+      // making the stem multiplier useless — fall back to horizontal nudge.
+      const stemDir = a.event.team === 'radiant' ? -1 : 1
+      const DISC_R_INACTIVE = 10
+      const hiCY = computeDiscCY(markers[hiIdx].y, stemDir, DISC_R_INACTIVE, LOLLIPOP_STEM_LEN)
+      const loCY = computeDiscCY(markers[loIdx].y, stemDir, DISC_R_INACTIVE, LOLLIPOP_STEM_LEN * 2.2)
+
+      if (Math.abs(hiCY - loCY) >= DISC_R_INACTIVE * 2 + 2) {
+        mults[hiIdx] = 1
+        mults[loIdx] = 2.2
+      } else {
+        // Clamping nullified vertical separation — nudge the pair apart horizontally.
+        // Always use x-position order (ai = earlier/left, bi = later/right) so
+        // temporal order is never reversed by priority differences.
+        xOffsets[ai] = -(RING_R_INACTIVE + 1)
+        xOffsets[bi] = +(RING_R_INACTIVE + 1)
+      }
+    }
+  }
+
+  return markers.map((m, i) => ({ ...m, stemMultiplier: mults[i], xOffset: xOffsets[i] }))
 }
 
 // Adds event.time seconds to an existing Twitch VOD URL's ?t= offset
@@ -140,6 +229,9 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   // Computed fixed-position coords for the event tooltip — measured after render so we
   // can clamp to the viewport and escape the drawer's overflow-x-hidden context.
   const [tooltipFixed, setTooltipFixed] = useState(null)
+  // Inverse X-scale factor to keep marker circles round under preserveAspectRatio="none".
+  // Without correction, circles become ovals because the SVG stretches horizontally.
+  const [invScaleX, setInvScaleX] = useState(1)
   // 'mouse' | 'touch' — tracked via ref so tooltip source reads correctly on the same render cycle
   const hoverSourceRef = useRef(null)
   const wrapperRef = useRef(null)
@@ -147,6 +239,9 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   const touchStateRef = useRef({ startX: 0, startY: 0, intent: null, hideTimer: null })
   // Fire gold_chart_scrub GA event once per scrub session (not on every pixel)
   const hasTrackedScrubRef = useRef(false)
+
+  const data = radiantGoldAdv || []
+  const n = data.length
 
   // Dismiss event tooltip on any outside click, scroll, or resize while it is open.
   // Scroll: fixed tooltip would float disconnected from the chart as the drawer scrolls.
@@ -163,6 +258,23 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
       window.removeEventListener('resize', dismiss)
     }
   }, [activeEvent])
+
+  // Measure when SVG becomes visible (n transitions from 0 after data loads).
+  // useLayoutEffect so it runs synchronously before paint — no flash of oval circles.
+  useLayoutEffect(() => {
+    const w = svgRef.current?.getBoundingClientRect().width
+    if (w) setInvScaleX(VW / w)
+  }, [n])
+
+  // Separate resize listener mounted once — re-measures if viewport width changes.
+  useEffect(() => {
+    function measure() {
+      const w = svgRef.current?.getBoundingClientRect().width
+      if (w) setInvScaleX(VW / w)
+    }
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   // Convert SVG-space marker coords → viewport-space fixed coords, clamped to stay on screen.
   // Runs synchronously after DOM paint so the tooltip never visibly snaps.
@@ -181,9 +293,6 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
       : Math.min(window.innerWidth - tipW - 8, markerVPX + 4)
     setTooltipFixed({ left, top: Math.max(8, markerVPY - 46) })
   }, [activeEvent])
-
-  const data = radiantGoldAdv || []
-  const n = data.length
 
   const minuteFromSvgX = useCallback((svgX) => {
     const raw = ((svgX - PL) / CW) * (n - 1)
@@ -310,6 +419,8 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     const eventUrl = vodUrl ? buildEventUrl(vodUrl, event.time) : null
     return [{ i, event, x: eventX, y: eventY, sideColor, eventUrl }]
   })
+
+  const resolvedMarkers = resolveCollisions(eventMarkers)
 
   // Hover state derived values
   const hoverPt = hoverMinute !== null ? pts[hoverMinute] : null
@@ -468,16 +579,17 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
 
         {/* Event markers — inactive first, active last so active sits on top */}
         {[
-          ...eventMarkers.filter(m => m.i !== activeEvent?.markerIdx),
-          ...eventMarkers.filter(m => m.i === activeEvent?.markerIdx),
-        ].map(({ i, event, x, y, sideColor, eventUrl }) => {
+          ...resolvedMarkers.filter(m => m.i !== activeEvent?.markerIdx),
+          ...resolvedMarkers.filter(m => m.i === activeEvent?.markerIdx),
+        ].map(({ i, event, x, y, sideColor, eventUrl, stemMultiplier, xOffset }) => {
           const isActive = activeEvent?.markerIdx === i
           function makePayload() {
             const side = event.team
             const stemDir = side === 'radiant' ? -1 : 1
-            const discY = y + stemDir * (11 + LOLLIPOP_STEM_LEN) // active DISC_R=11
+            const rawStem = LOLLIPOP_STEM_LEN * (stemMultiplier || 1)
+            const discY = computeDiscCY(y, stemDir, 11, rawStem) // active DISC_R=11
             const chipColor = (CHIP[event.type] || CHIP.rapier).icon
-            return { event, x, y, discY, chipColor, sideColor, eventUrl, markerIdx: i }
+            return { event, x: x + (xOffset || 0), y, discY, chipColor, sideColor, eventUrl, markerIdx: i }
           }
           return (
             <GraphMarker
@@ -486,19 +598,18 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
               isActive={isActive}
               chartX={x}
               dataY={y}
+              stemMultiplier={stemMultiplier}
+              xOffset={xOffset}
+              invScaleX={invScaleX}
               onMouseEnter={() => setActiveEvent(makePayload())}
               onMouseLeave={() => setActiveEvent(null)}
               onClick={(e) => {
                 e.stopPropagation()
-                if (activeEvent?.markerIdx === i) {
-                  if (eventUrl) {
-                    trackEvent('gold_graph_marker_click', { type: event.type, team: event.team })
-                    window.open(eventUrl, '_blank', 'noopener')
-                  } else {
-                    setActiveEvent(null)
-                  }
+                if (eventUrl) {
+                  trackEvent('gold_graph_marker_click', { type: event.type, team: event.team })
+                  window.open(eventUrl, '_blank', 'noopener')
                 } else {
-                  setActiveEvent(makePayload())
+                  setActiveEvent(null)
                 }
               }}
             />

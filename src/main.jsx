@@ -15,6 +15,8 @@ import GlossaryPage from './pages/GlossaryPage.jsx'
 import TeamsPage from './pages/TeamsPage.jsx'
 import AdminCoveragePage from './pages/AdminCoveragePage.jsx'
 import AdminReviewPage from './pages/AdminReviewPage.jsx'
+import ArticlesPage from './pages/ArticlesPage.jsx'
+import ArticlePage from './pages/ArticlePage.jsx'
 
 const path = window.location.pathname
 
@@ -30,6 +32,8 @@ function Root() {
   if (path === '/teams' || path.startsWith('/teams/')) return <TeamsPage />
   if (path === '/admin/coverage') return <AdminCoveragePage />
   if (path.startsWith('/admin/review/')) return <AdminReviewPage />
+  if (path === '/articles') return <ArticlesPage />
+  if (path.startsWith('/articles/')) return <ArticlePage />
   return <App />
 }
 

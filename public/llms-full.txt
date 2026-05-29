@@ -31,6 +31,8 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 - **Release Notes** (https://spectateesports.live/release-notes) — Chronological feature changelog.
 - **Glossary** (https://spectateesports.live/glossary) — Definitions for 25 Dota 2 professional terms (draft, GPM, Roshan, Rampage, BKB, Aegis, etc.). Each term has a dedicated page at /glossary/{term-id} with full definition and related terms. All pages include DefinedTerm schema.org structured data.
 - **Pro Teams** (https://spectateesports.live/teams) — Tier 1 organization index. 13 orgs listed by competitive region (WEU/EEU/CN/SEA/NA). Each org has a dedicated page at /teams/{slug} covering: competitive region, HQ country, TI championship record (immutable historical facts), org description, and a Liquipedia link for current rosters. Includes SportsTeam schema.org structured data. Player rosters are intentionally not included — they change frequently; Liquipedia is the authoritative source.
+- **Articles** (https://spectateesports.live/articles) — Original editorial coverage of Tier 1 Dota 2 tournaments. One article per day during major events. Includes tournament analysis, team narratives, match previews, and storyline breakdowns. Individual articles at /articles/{slug}.
+- **BLAST Slam VII Coverage Hub** (https://spectateesports.live/articles?tournament=blast-slam-vii) — Daily editorial coverage of BLAST Slam VII (May 26 – June 7, 2026, Copenhagen, $1,000,000 prize pool). Twelve teams: Team Falcons (TI14 champions), Team Yandex, PARIVISION, Team Liquid, Team Spirit, LGD Gaming, OG Esports, Tundra Esports, BetBoom Team, HEROIC, Aurora Gaming, GLYPH.
 
 ---
 
@@ -591,6 +593,21 @@ Source: Liquipedia (https://liquipedia.net/dota2/The_International)
 - **Push Notifications**: Web Push API with VAPID keys. Subscriptions stored in Redis. Notifications triggered by live match cron (every 2 min).
 
 ---
+
+## Editorial Articles
+
+### BLAST Slam VII (May 26 – June 7, 2026)
+
+**Tournament facts**:
+- Location: Online group stage (May 26–29) + BLAST Studios Copenhagen, Denmark (June 4–7)
+- Prize pool: $1,000,000 USD
+- Format: Bo1 round-robin group stage (12 teams) → Last Chance Qualifier (May 30, 6 teams, 2 advance) → Double-elimination LAN playoffs (6 teams; Bo3/Bo5 grand final)
+- Top 2 group stage finishers → Semifinals. 3rd/4th → Upper Bracket Quarters. 5th/6th → LCQ Round 2. 7th–10th → LCQ Round 1. Bottom 2 → eliminated.
+- Teams: Team Falcons (defending world champions, TI14 2025), Team Yandex, PARIVISION (DreamLeague S29 winners), Team Liquid (BLAST Slam VI winners), Team Spirit, LGD Gaming, OG Esports, Tundra Esports, BetBoom Team, HEROIC, Aurora Gaming, GLYPH (SEA qualifier)
+
+**Published articles**:
+
+- **Nobody Predicted Team Yandex Would Lead BLAST Slam VII** (https://spectateesports.live/articles/team-yandex-blast-slam-vii-dark-horse) — Published 2026-05-28. Team Yandex are tied for first place at 5–1 after the first two days of the group stage, alongside Team Falcons. Context: Yandex entered Dota 2 in June 2025 by acquiring the Cyber Goose roster; ranked #2 globally (118 teams tracked); won PGL Wallachia Season 7 ($300K). Roster: Saksa (Finland, veteran support), watson + Malady (Kazakhstan, ex-Gaimin Gladiators), CHIRA_JUNIOR, DM (offlaner added May 24, four days before tournament start). Coach: Accell (Alexander Litvinenko). Organization backed by Yandex (Russian technology conglomerate: search engine, marketplace, online cinema).
 
 ## See Also
 

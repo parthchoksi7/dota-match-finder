@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 28, 2026",
+    tag: "new",
+    title: "Editorial articles — daily tournament coverage",
+    desc: "Spectate now publishes original editorial articles covering major Dota 2 tournaments. One article per day during BLAST Slam VII (May 28 – June 7). Each piece covers a different angle — team analysis, storylines, LAN previews, and grand final recaps — to give context to what you're watching. All articles live at /articles, with a BLAST Slam VII hub at /articles?tournament=blast-slam-vii.",
+  },
+  {
+    date: "May 28, 2026",
     tag: "improvement",
     title: "Gold graph markers redesigned as lollipops with two-color encoding",
     desc: "Roshan, Rampage, and Divine Rapier events on the gold advantage graph now render as lollipop markers — a thin stem from the data point topped with a disc and icon. Two independent color layers make each marker instantly readable: the disc and icon show the event type (amber for Roshan, orange for Rampage, red for Rapier), while the outer ring shows which side triggered it (green for Radiant, red for Dire). Radiant markers float above the line; Dire markers hang below. Active markers are brighter and slightly larger; inactive markers are dimmed to 65%.",
