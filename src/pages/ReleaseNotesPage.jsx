@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 29, 2026",
     tag: "new",
+    title: "Share buttons on article pages",
+    desc: "Each article now has a share row in the footer. On mobile, a single Share button triggers the OS native share sheet — covers WhatsApp, Telegram, Discord, iMessage, and everything else installed. On desktop, two buttons appear: Share on X (pre-fills the article title, URL, and via @SpectateDota2) and Copy link with a 2-second confirmation.",
+  },
+  {
+    date: "May 29, 2026",
+    tag: "new",
     title: "Editorial card on the homepage + Articles nav link",
     desc: "The latest tournament story now surfaces directly in the homepage feed — a sky-tinted card above the live matches section showing today's article title, category, and read time. When multiple articles have been published for the same tournament, a footer row shows the count and links to the full archive. The card only appears during active tournament coverage and vanishes between events. Articles is also now a nav link in the desktop header.",
   },
