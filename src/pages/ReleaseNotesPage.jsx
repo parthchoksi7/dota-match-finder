@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 28, 2026",
+    tag: "fix",
+    title: "Tier filter regression — lower-tier tournaments no longer appear",
+    desc: "A merge earlier today widened the completed-match filter to include OpenDota's broad 'professional' tier, which caused tournaments like Ultras Dota Pro League, Lunar Trophy, and Destiny League to appear on the homepage. Reverted to the correct 'premium'-only filter (TI + Majors). Regional qualifiers for known top-tier events (DreamLeague, PGL, ESL) still appear as before via the PandaScore name-matching fallback.",
+  },
+  {
+    date: "May 28, 2026",
     tag: "new",
     title: "Tournament stage format + advancement ladder",
     desc: "Each stage card on tournament pages now shows the match format and a color-coded advancement ladder. For BLAST Slam VII: the Group Stage card shows Round Robin · BO1 · 12 teams with arrows indicating who advances to Upper Bracket Semifinals, Upper Bracket Quarterfinals, Last Chance R1/R2, or gets eliminated. The Last Chance Qualifier shows BO3 Single Elim with the top 2 advancing to UB Quarters. Playoffs shows Double Elim · BO3 with BO5 Grand Final.",

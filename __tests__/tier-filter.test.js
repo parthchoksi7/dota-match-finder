@@ -2,15 +2,15 @@
  * Unit tests for tier-based filtering functions in api/_shared.js.
  *
  * isTier1            - checks a PandaScore match/tournament object by league.tier ('s' or 'a')
- * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for 'premium' and 'professional' tiers
+ * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for 'premium' tier only (TI + Majors)
  *
  * Both are pure functions with no external dependencies or mocking required.
  *
  * Background:
  *   PandaScore tier 's' = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, ...)
  *   PandaScore tier 'a' = second-tier professional events (ESL Challenger, regional circuits, ...)
- *   OpenDota 'premium'      = Valve-sponsored DPC events (equivalent of PandaScore tier s)
- *   OpenDota 'professional' = second-tier pro events    (equivalent of PandaScore tier a)
+ *   OpenDota 'premium'      = Valve-sponsored events: TI, Majors (PandaScore tier s equivalent)
+ *   OpenDota 'professional' = excluded — too broad; includes non-tier-1 online leagues
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -209,7 +209,7 @@ describe('isTier1ByFields', () => {
 
 describe('buildPremiumLeagueIds', () => {
   describe('correct filtering', () => {
-    it('returns a Set containing premium and professional tier league IDs', () => {
+    it('returns a Set containing only premium tier league IDs', () => {
       const leagues = [
         { leagueid: 1, tier: 'premium', name: 'The International 2025' },
         { leagueid: 2, tier: 'professional', name: 'BetBoom Dacha' },
@@ -220,26 +220,28 @@ describe('buildPremiumLeagueIds', () => {
       const ids = buildPremiumLeagueIds(leagues)
 
       expect(ids).toBeInstanceOf(Set)
-      expect(ids.size).toBe(3)
+      expect(ids.size).toBe(2)
       expect(ids.has(1)).toBe(true)
-      expect(ids.has(2)).toBe(true)
+      expect(ids.has(2)).toBe(false)  // professional is excluded — too broad
       expect(ids.has(3)).toBe(true)
     })
 
-    it('includes professional tier (ESL Challenger, regional pro circuits)', () => {
+    it('excludes professional tier (too broad — includes non-tier-1 online leagues)', () => {
       const leagues = [
         { leagueid: 10, tier: 'professional' },
       ]
       const ids = buildPremiumLeagueIds(leagues)
-      expect(ids.has(10)).toBe(true)
+      expect(ids.has(10)).toBe(false)
     })
 
-    it('excludes amateur and excluded tiers', () => {
+    it('excludes professional, amateur, and excluded tiers', () => {
       const leagues = [
+        { leagueid: 10, tier: 'professional' },
         { leagueid: 20, tier: 'amateur' },
         { leagueid: 30, tier: 'excluded' },
       ]
       const ids = buildPremiumLeagueIds(leagues)
+      expect(ids.has(10)).toBe(false)
       expect(ids.has(20)).toBe(false)
       expect(ids.has(30)).toBe(false)
     })
@@ -258,7 +260,7 @@ describe('buildPremiumLeagueIds', () => {
       expect(buildPremiumLeagueIds(undefined)).toEqual(new Set())
     })
 
-    it('returns an empty Set when no leagues are premium or professional', () => {
+    it('returns an empty Set when no leagues are premium', () => {
       const leagues = [
         { leagueid: 1, tier: 'amateur' },
         { leagueid: 2, tier: 'excluded' },
@@ -279,7 +281,7 @@ describe('buildPremiumLeagueIds', () => {
   })
 
   describe('used to filter OpenDota promatches', () => {
-    it('filters promatches to include both premium and professional leagues', () => {
+    it('filters promatches to only premium leagues (excludes professional)', () => {
       const leagues = [
         { leagueid: 100, tier: 'premium' },
         { leagueid: 200, tier: 'professional' },
@@ -295,7 +297,7 @@ describe('buildPremiumLeagueIds', () => {
       ]
 
       const filtered = promatches.filter(m => premiumIds.has(m.leagueid))
-      expect(filtered.map(m => m.match_id)).toEqual([1, 2])
+      expect(filtered.map(m => m.match_id)).toEqual([1])  // professional excluded
     })
 
     it('excludes promatches from amateur and unknown leagues', () => {

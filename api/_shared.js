@@ -81,13 +81,17 @@ export function parseBracketRound(name) {
 export const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
 
 /**
- * Builds a Set of OpenDota league IDs whose tier is "premium" or "professional"
- * (the OpenDota equivalent of PandaScore tier S).
+ * Builds a Set of OpenDota league IDs whose tier is "premium"
+ * (Valve-sponsored events: TI, Majors — the OpenDota equivalent of PandaScore tier S).
+ * The broader "professional" tier is intentionally excluded because OpenDota classifies
+ * many lower-tier online leagues as professional, which bleeds non-tier-1 events into
+ * the homepage feed. Regional qualifiers for known major events are caught by rule 2+3
+ * (tier1Names name-matching) instead.
  * Pure function; accepts the raw array returned by GET /api/leagues.
  */
 export function buildPremiumLeagueIds(leagues) {
   return new Set(
-    (leagues || []).filter(l => l.tier === 'premium' || l.tier === 'professional').map(l => l.leagueid)
+    (leagues || []).filter(l => l.tier === 'premium').map(l => l.leagueid)
   )
 }
 
