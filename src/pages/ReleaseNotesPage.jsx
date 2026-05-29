@@ -884,6 +884,12 @@ const RELEASES = [
   {
     date: "Apr 12, 2026",
     tag: "fix",
+    title: "All DreamLeague S29 regional qualifier series now appear in the Tournaments tab",
+    desc: "Only the SEA qualifier was showing in the Tournaments tab. WEU, NA, and other regional qualifier series were missing because PandaScore sometimes creates a series in /series/upcoming before it creates the tournament sub-stages that the filter depended on. The fix adds a direct league-name check as a fallback so any DreamLeague, PGL, ESL One, or other major-brand series is included regardless of whether its tournament sub-stages exist yet.",
+  },
+  {
+    date: "Apr 12, 2026",
+    tag: "fix",
     title: "Stream caching now works for DreamLeague and other tier1 events even on cold start",
     desc: "Stream channel caching for live matches was silently skipped for events like DreamLeague qualifier matches when the tier1 names cache in Redis was cold (e.g. after a fresh flush). The fix merges a hardcoded permanent list of tier1 organizers (DreamLeague, ESL One, PGL, BLAST, etc.) into the filter so it always catches these events, regardless of whether the KV cache has been pre-warmed.",
   },

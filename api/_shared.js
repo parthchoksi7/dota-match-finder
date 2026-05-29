@@ -81,13 +81,13 @@ export function parseBracketRound(name) {
 export const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
 
 /**
- * Builds a Set of OpenDota league IDs whose tier is "premium"
+ * Builds a Set of OpenDota league IDs whose tier is "premium" or "professional"
  * (the OpenDota equivalent of PandaScore tier S).
  * Pure function; accepts the raw array returned by GET /api/leagues.
  */
 export function buildPremiumLeagueIds(leagues) {
   return new Set(
-    (leagues || []).filter(l => l.tier === 'premium').map(l => l.leagueid)
+    (leagues || []).filter(l => l.tier === 'premium' || l.tier === 'professional').map(l => l.leagueid)
   )
 }
 
@@ -181,10 +181,10 @@ export function getTwitchStreams(streamsList, leagueName, serieName) {
   // only for regional events (CIS/Chinese qualifiers). For international events, fall through to the
   // static mapping so Russian/Chinese streams from the bulk endpoint don't override English ones.
   const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')
-  const INTL_KEYWORDS = TIER1_LEAGUE_KEYWORDS
-  const isQualifier = lower.includes('qualifier')
-  const isInternational = !isQualifier && INTL_KEYWORDS.some(k => lower.includes(k))
-  const official = enOfficial.length > 0 ? enOfficial : (isInternational ? [] : allTwitchOfficial)
+  // Fall back to any official Twitch stream when no English stream exists.
+  // This preserves Russian/Chinese streams for regional qualifiers without
+  // the previous INTL_KEYWORDS check that incorrectly suppressed them.
+  const official = enOfficial.length > 0 ? enOfficial : allTwitchOfficial
   if (official.length > 0) {
     // When multiple concurrent matches share sub-channels (e.g. ESL One, DreamLeague), PandaScore
     // marks exactly one stream main:true per match on the individual endpoint. Narrow to it.

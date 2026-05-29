@@ -521,8 +521,13 @@ async function fetchSeriesList(token) {
   }
 
   // Merge series-level upcoming (filtered by tier-1 serie_id set) with synthetic entries.
+  // Also passes series whose league name matches a known major brand — catches regional qualifier
+  // series that PandaScore creates in /series/upcoming before their tournament sub-stages exist.
   const allUpcoming = [
-    ...(upcoming || []).filter(s => tier1UpcomingSerieIds.has(s.id)).map(s => mapSeries(s, 'upcoming')),
+    ...(upcoming || []).filter(s =>
+      tier1UpcomingSerieIds.has(s.id) ||
+      isTier1ByFields(null, s.league?.name)
+    ).map(s => mapSeries(s, 'upcoming')),
     ...syntheticUpcoming,
   ]
   const seenUpcomingIds = new Set()
@@ -537,14 +542,14 @@ async function fetchSeriesList(token) {
   const completedFiltered = (past || []).filter(s => tier1PastSerieIds.has(s.id))
   const rescuedToLive = completedFiltered.filter(s => runningTourSerieIds.has(s.id))
   const trulyCompleted = completedFiltered.filter(s => !runningTourSerieIds.has(s.id))
-  console.log(`After tier filter - live:${(running||[]).filter(s => tier1RunningSerieIds.has(s.id)).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(s => tier1UpcomingSerieIds.has(s.id)).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length} | synthetic:${syntheticUpcoming.length} deduped:${deduplicatedUpcoming.length}`)
+  console.log(`After tier filter - live:${(running||[]).filter(s => tier1RunningSerieIds.has(s.id) || isTier1ByFields(null, s.league?.name)).length}/${(running||[]).length} upcoming:${(upcoming||[]).filter(s => tier1UpcomingSerieIds.has(s.id) || isTier1ByFields(null, s.league?.name)).length}/${(upcoming||[]).length} past:${completedFiltered.length}/${(past||[]).length} | synthetic:${syntheticUpcoming.length} deduped:${deduplicatedUpcoming.length}`)
   if (rescuedToLive.length > 0) {
     console.log(`Rescued ${rescuedToLive.length} series from past→live: ${rescuedToLive.map(s => s.full_name || s.name).join(', ')}`)
   }
 
   const payload = {
     live: [
-      ...(running || []).filter(s => tier1RunningSerieIds.has(s.id)).map(s => mapSeries(s, 'live')),
+      ...(running || []).filter(s => tier1RunningSerieIds.has(s.id) || isTier1ByFields(null, s.league?.name)).map(s => mapSeries(s, 'live')),
       ...rescuedToLive.map(s => mapSeries(s, 'live')),
     ],
     upcoming: deduplicatedUpcoming,

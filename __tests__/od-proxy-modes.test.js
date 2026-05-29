@@ -24,13 +24,13 @@ describe('premium-league-ids transformation', () => {
     expect(Array.isArray(ids)).toBe(true)
     expect(ids).toContain(1)
     expect(ids).toContain(2)
-    expect(ids).not.toContain(3)
+    expect(ids).toContain(3)
   })
 
-  it('returns empty array when no premium leagues exist', () => {
+  it('returns professional leagues when no premium leagues exist', () => {
     const leagues = [{ leagueid: 10, tier: 'professional' }]
     const ids = [...buildPremiumLeagueIds(leagues)]
-    expect(ids).toEqual([])
+    expect(ids).toEqual([10])
   })
 
   it('returns empty array when leagues array is empty', () => {

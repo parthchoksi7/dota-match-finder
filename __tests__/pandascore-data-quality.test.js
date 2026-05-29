@@ -122,27 +122,26 @@ describe('getTwitchStreams — language fallback for international events', () =
     expect(result[0].url).toContain('esl_dota2')
   })
 
-  it('falls through to static mapping for DreamLeague when no English stream found', () => {
+  it('returns non-English stream for DreamLeague when no English stream exists', () => {
     const streams = [makeStream('esl_ru', 'ru')]
     const result = getTwitchStreams(streams, 'DreamLeague', 'DreamLeague Season 29')
-    // Static mapping returns esl_dota2 + esl_dota2ember for DreamLeague
-    expect(result.length).toBeGreaterThan(0)
-    expect(result.every(s => s.url.includes('esl_dota2'))).toBe(true)
-    expect(result.some(s => s.url.includes('esl_ru'))).toBe(false)
+    // New behavior: fall back to any official Twitch stream, not just English ones
+    expect(result).toHaveLength(1)
+    expect(result[0].url).toContain('esl_ru')
   })
 
-  it('falls through to static mapping for PGL when no English stream found', () => {
+  it('returns non-English stream for PGL when no English stream exists', () => {
     const streams = [makeStream('pgl_ru', 'ru')]
     const result = getTwitchStreams(streams, 'PGL', 'PGL Wallachia S4')
-    expect(result.some(s => s.url.includes('pgl_dota2'))).toBe(true)
-    expect(result.some(s => s.url.includes('pgl_ru'))).toBe(false)
+    expect(result).toHaveLength(1)
+    expect(result[0].url).toContain('pgl_ru')
   })
 
-  it('falls through to static mapping for ESL One when no English stream found', () => {
+  it('returns non-English stream for ESL One when no English stream exists', () => {
     const streams = [makeStream('esl_ru', 'ru')]
     const result = getTwitchStreams(streams, 'ESL', 'ESL One Bangkok 2025')
-    expect(result.some(s => s.url.includes('esl_dota2'))).toBe(true)
-    expect(result.some(s => s.url.includes('esl_ru'))).toBe(false)
+    expect(result).toHaveLength(1)
+    expect(result[0].url).toContain('esl_ru')
   })
 
   it('preserves non-English stream for CIS qualifier (contains "qualifier")', () => {

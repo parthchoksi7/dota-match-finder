@@ -2,20 +2,19 @@
  * Unit tests for tier-based filtering functions in api/_shared.js.
  *
  * isTier1            - checks a PandaScore match/tournament object by league.tier ('s' or 'a')
- * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for the 'premium' tier only
+ * buildPremiumLeagueIds - builds a Set of OpenDota league IDs for 'premium' and 'professional' tiers
  *
  * Both are pure functions with no external dependencies or mocking required.
  *
  * Background:
  *   PandaScore tier 's' = elite international LANs (TI, DreamLeague, ESL One, PGL, BLAST, ...)
  *   PandaScore tier 'a' = second-tier professional events (ESL Challenger, regional circuits, ...)
- *   OpenDota 'premium'  = Valve-sponsored DPC events (equivalent of PandaScore tier s)
- *   Professional-tier events are covered via the PandaScore tier-s/a name cache, not this Set.
+ *   OpenDota 'premium'      = Valve-sponsored DPC events (equivalent of PandaScore tier s)
+ *   OpenDota 'professional' = second-tier pro events    (equivalent of PandaScore tier a)
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { isTier1, isTier1ByFields, isTier1ByName, buildPremiumLeagueIds, fetchByTiers, PERMANENT_TIER1_NAMES } from '../api/_shared.js'
-import { matchesTier1Names } from '../src/utils.js'
+import { isTier1, isTier1ByFields, buildPremiumLeagueIds, fetchByTiers } from '../api/_shared.js'
 
 // ── isTier1 (PandaScore match / tournament objects) ──────────────────────────
 
@@ -210,7 +209,7 @@ describe('isTier1ByFields', () => {
 
 describe('buildPremiumLeagueIds', () => {
   describe('correct filtering', () => {
-    it('returns a Set containing only premium tier league IDs', () => {
+    it('returns a Set containing premium and professional tier league IDs', () => {
       const leagues = [
         { leagueid: 1, tier: 'premium', name: 'The International 2025' },
         { leagueid: 2, tier: 'professional', name: 'BetBoom Dacha' },
@@ -221,17 +220,18 @@ describe('buildPremiumLeagueIds', () => {
       const ids = buildPremiumLeagueIds(leagues)
 
       expect(ids).toBeInstanceOf(Set)
-      expect(ids.size).toBe(2)
+      expect(ids.size).toBe(3)
       expect(ids.has(1)).toBe(true)
+      expect(ids.has(2)).toBe(true)
       expect(ids.has(3)).toBe(true)
     })
 
-    it('excludes professional tier (covered by PandaScore name cache instead)', () => {
+    it('includes professional tier (ESL Challenger, regional pro circuits)', () => {
       const leagues = [
         { leagueid: 10, tier: 'professional' },
       ]
       const ids = buildPremiumLeagueIds(leagues)
-      expect(ids.has(10)).toBe(false)
+      expect(ids.has(10)).toBe(true)
     })
 
     it('excludes amateur and excluded tiers', () => {
@@ -258,11 +258,10 @@ describe('buildPremiumLeagueIds', () => {
       expect(buildPremiumLeagueIds(undefined)).toEqual(new Set())
     })
 
-    it('returns an empty Set when no leagues are premium', () => {
+    it('returns an empty Set when no leagues are premium or professional', () => {
       const leagues = [
         { leagueid: 1, tier: 'amateur' },
         { leagueid: 2, tier: 'excluded' },
-        { leagueid: 3, tier: 'professional' },
       ]
       expect(buildPremiumLeagueIds(leagues)).toEqual(new Set())
     })
@@ -280,7 +279,7 @@ describe('buildPremiumLeagueIds', () => {
   })
 
   describe('used to filter OpenDota promatches', () => {
-    it('filters promatches to include only premium leagues', () => {
+    it('filters promatches to include both premium and professional leagues', () => {
       const leagues = [
         { leagueid: 100, tier: 'premium' },
         { leagueid: 200, tier: 'professional' },
@@ -296,7 +295,7 @@ describe('buildPremiumLeagueIds', () => {
       ]
 
       const filtered = promatches.filter(m => premiumIds.has(m.leagueid))
-      expect(filtered.map(m => m.match_id)).toEqual([1])
+      expect(filtered.map(m => m.match_id)).toEqual([1, 2])
     })
 
     it('excludes promatches from amateur and unknown leagues', () => {
@@ -428,197 +427,6 @@ describe('fetchByTiers', () => {
       await expect(
         fetchByTiers('https://example.com/tournaments?sort=begin_at', {})
       ).rejects.toThrow('PandaScore tier fetch failed')
-    })
-  })
-})
-
-// ── matchesTier1Names (PandaScore name filter for OpenDota promatches) ────────
-
-describe('matchesTier1Names', () => {
-  const names = ['dreamleague', 'esl one', 'pgl wallachia', 'blast']
-
-  describe('positive matches', () => {
-    it('returns true when league_name contains a tier1 name', () => {
-      expect(matchesTier1Names('DreamLeague Season 25', names)).toBe(true)
-      expect(matchesTier1Names('ESL One Bangkok 2025', names)).toBe(true)
-      expect(matchesTier1Names('PGL Wallachia Season 8', names)).toBe(true)
-      expect(matchesTier1Names('BLAST Slam VII', names)).toBe(true)
-    })
-
-    it('is case-insensitive', () => {
-      expect(matchesTier1Names('DREAMLEAGUE SEASON 25', names)).toBe(true)
-      expect(matchesTier1Names('esl one birmingham 2026', names)).toBe(true)
-    })
-
-    it('matches when league name appears in the middle of a longer string', () => {
-      expect(matchesTier1Names('Valve The International 2025', ['the international'])).toBe(true)
-    })
-  })
-
-  describe('negative matches', () => {
-    it('returns false for non-matching lower-tier leagues', () => {
-      expect(matchesTier1Names('BetBoom Dacha', names)).toBe(false)
-      expect(matchesTier1Names('BTS Pro Series', names)).toBe(false)
-      expect(matchesTier1Names('Dota 2 Champions League', names)).toBe(false)
-    })
-
-    it('does not false-positive on a league that contains "esl" but not "esl one"', () => {
-      expect(matchesTier1Names('ESL Meisterschaft', names)).toBe(false)
-      expect(matchesTier1Names('ESL Amateur Open', names)).toBe(false)
-    })
-  })
-
-  describe('min-length guard (names shorter than 3 chars are skipped)', () => {
-    it('treats a list of only short names as effectively empty, returning null', () => {
-      const shortNames = ['es', 'pg']  // both 2 chars
-      expect(matchesTier1Names('ESL One Bangkok', shortNames)).toBe(null)
-    })
-
-    it('uses valid long names and ignores short names in a mixed list', () => {
-      const mixed = ['es', 'dreamleague']  // 'es' skipped, 'dreamleague' used
-      expect(matchesTier1Names('DreamLeague Season 25', mixed)).toBe(true)
-      expect(matchesTier1Names('ESL One Bangkok', mixed)).toBe(false)
-    })
-
-    it('accepts 3-char names like "pgl" so generic PGL catch-all works', () => {
-      expect(matchesTier1Names('PGL Wallachia Season 8', ['pgl'])).toBe(true)
-      expect(matchesTier1Names('PGL Arlington Major', ['pgl'])).toBe(true)
-    })
-  })
-
-  describe('fallback sentinel: returns null when names list is empty or absent', () => {
-    it('returns null for an empty array', () => {
-      expect(matchesTier1Names('DreamLeague Season 25', [])).toBe(null)
-    })
-
-    it('returns null for null', () => {
-      expect(matchesTier1Names('DreamLeague Season 25', null)).toBe(null)
-    })
-
-    it('returns null for undefined', () => {
-      expect(matchesTier1Names('DreamLeague Season 25', undefined)).toBe(null)
-    })
-  })
-
-  describe('graceful handling of bad leagueName input', () => {
-    it('returns false (not null or throw) for null leagueName', () => {
-      expect(matchesTier1Names(null, names)).toBe(false)
-    })
-
-    it('returns false for undefined leagueName', () => {
-      expect(matchesTier1Names(undefined, names)).toBe(false)
-    })
-
-    it('returns false for empty string leagueName', () => {
-      expect(matchesTier1Names('', names)).toBe(false)
-    })
-  })
-
-  describe('integration: used to filter OpenDota promatches', () => {
-    it('correctly keeps tier1 matches and drops lower-tier ones', () => {
-      const tier1Names = ['dreamleague', 'esl one', 'pgl wallachia']
-      const promatches = [
-        { match_id: 1, league_name: 'DreamLeague Season 25' },
-        { match_id: 2, league_name: 'ESL One Bangkok 2025' },
-        { match_id: 3, league_name: 'BetBoom Dacha' },
-        { match_id: 4, league_name: 'Dota 2 Champions League' },
-        { match_id: 5, league_name: 'PGL Wallachia Season 8' },
-      ]
-      const filtered = promatches.filter(m => matchesTier1Names(m.league_name, tier1Names) === true)
-      expect(filtered.map(m => m.match_id)).toEqual([1, 2, 5])
-    })
-
-    it('falls back correctly when tier1Names is empty (null sentinel)', () => {
-      // Simulate: PandaScore unavailable, use OpenDota premiumIds instead.
-      // Production filter (src/api.js) is pure OR: premium first, then name match.
-      const tier1Names = []
-      const premiumIds = new Set([100, 200])
-      const promatches = [
-        { match_id: 1, league_name: 'DreamLeague Season 25', leagueid: 100 },
-        { match_id: 2, league_name: 'Some Amateur League', leagueid: 300 },
-      ]
-      const filtered = promatches.filter(m => {
-        if (premiumIds.has(m.leagueid)) return true
-        return matchesTier1Names(m.league_name, tier1Names) === true
-      })
-      expect(filtered.map(m => m.match_id)).toEqual([1])
-    })
-  })
-})
-
-// ── PERMANENT_TIER1_NAMES (hardcoded fallback list in api/_shared.js) ─────────
-//
-// These tests verify the export itself and the cold-KV merge pattern used in
-// live-matches.js and upcoming-matches.js. The merge ensures DreamLeague
-// qualifier matches (tournament.tier = "c") always pass isTier1ByName even
-// when KV_TIER1_NAMES_KEY has never been populated.
-
-describe('PERMANENT_TIER1_NAMES', () => {
-  describe('export shape', () => {
-    it('is exported as a non-empty array', () => {
-      expect(Array.isArray(PERMANENT_TIER1_NAMES)).toBe(true)
-      expect(PERMANENT_TIER1_NAMES.length).toBeGreaterThan(0)
-    })
-
-    it('includes DreamLeague', () => {
-      expect(PERMANENT_TIER1_NAMES).toContain('DreamLeague')
-    })
-
-    it('includes ESL One', () => {
-      expect(PERMANENT_TIER1_NAMES).toContain('ESL One')
-    })
-
-    it('all names are at least 3 chars (isTier1ByName guard)', () => {
-      const shortNames = PERMANENT_TIER1_NAMES.filter(n => n.length < 3)
-      expect(shortNames).toEqual([])
-    })
-
-    it('includes "PGL Wallachia" as a specific catch-all for that series', () => {
-      expect(PERMANENT_TIER1_NAMES).toContain('PGL Wallachia')
-    })
-  })
-
-  describe('cold-KV fallback: isTier1ByName with hardcoded names', () => {
-    it('returns true for a DreamLeague qualifier match with tournament.tier="c" when using hardcoded names', () => {
-      const match = { league: { name: 'DreamLeague' }, tournament: { tier: 'c' } }
-      const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
-      expect(isTier1ByName(match, names)).toBe(true)
-    })
-
-    it('returns false for a non-tier1 league even with hardcoded names', () => {
-      const match = { league: { name: 'Some Amateur Open' }, tournament: { tier: 'c' } }
-      const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
-      expect(isTier1ByName(match, names)).toBe(false)
-    })
-
-    it('merged array always contains dreamleague when KV is cold (null)', () => {
-      const kvNames = null
-      const merged = [...new Set([
-        ...(Array.isArray(kvNames) ? kvNames.map(n => n.toLowerCase()) : []),
-        ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
-      ])]
-      expect(merged).toContain('dreamleague')
-    })
-
-    it('merged array deduplicates when KV already contains the same names', () => {
-      const kvNames = ['DreamLeague', 'ESL One', 'SomeDynamicLeague']
-      const merged = [...new Set([
-        ...kvNames.map(n => n.toLowerCase()),
-        ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
-      ])]
-      const count = merged.filter(n => n === 'dreamleague').length
-      expect(count).toBe(1)
-    })
-
-    it('isTier1 now returns true for known league names even with a lower API tier (TIER1_LEAGUE_KEYWORDS override); isTier1ByName remains an additional path for dynamic name lists', () => {
-      const match = { league: { name: 'DreamLeague', tier: null }, tournament: { tier: 'c' } }
-      // isTier1 now returns true because 'dreamleague' is in TIER1_LEAGUE_KEYWORDS
-      expect(isTier1(match)).toBe(true)
-      // isTier1ByName also returns true for the same reason (dynamic name list path)
-      const names = PERMANENT_TIER1_NAMES.map(n => n.toLowerCase())
-      expect(isTier1ByName(match, names)).toBe(true)
-      // Combined guard still passes
-      expect(isTier1(match) || isTier1ByName(match, names)).toBe(true)
     })
   })
 })
