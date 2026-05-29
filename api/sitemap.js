@@ -1,7 +1,7 @@
 import { getPremiumLeagueIds } from './_shared.js'
 
 const ARTICLE_SLUGS = [
-  'team-yandex-blast-slam-vii-dark-horse',
+  // No articles currently published
 ]
 
 const GLOSSARY_TERM_IDS = [

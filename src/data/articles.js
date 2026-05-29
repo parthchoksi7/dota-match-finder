@@ -3,6 +3,10 @@
 // Each article is reviewed and approved before being added here.
 
 export const ARTICLES = [
+  // Article removed — Yandex dropped to 3rd (6-3) after group stage Day 4;
+  // "Nobody predicted Yandex would lead" was no longer accurate.
+  // New article will cover the final group stage standings.
+  /*
   {
     slug: 'team-yandex-blast-slam-vii-dark-horse',
     title: 'Nobody Predicted Team Yandex Would Lead BLAST Slam VII',
@@ -89,6 +93,7 @@ export const ARTICLES = [
       },
     ],
   },
+  */
 ]
 
 export const ARTICLES_MAP = Object.fromEntries(ARTICLES.map(a => [a.slug, a]))

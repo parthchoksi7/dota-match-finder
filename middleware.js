@@ -68,16 +68,7 @@ const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.
 // Article metadata (kept inline — edge middleware cannot import from src/)
 // Source of truth: src/data/articles.js — keep slugs, titles, excerpts, and publishedAt in sync.
 const ARTICLES_SSR = [
-  {
-    slug: 'team-yandex-blast-slam-vii-dark-horse',
-    title: 'Nobody Predicted Team Yandex Would Lead BLAST Slam VII',
-    subtitle: "Here's Why They Might Actually Win This Thing",
-    publishedAt: '2026-05-28',
-    tournament: 'blast-slam-vii',
-    tournamentLabel: 'BLAST Slam VII',
-    category: 'Analysis',
-    excerpt: "Team Yandex added their offlaner four days before the tournament started. They're tied for first. This is the story nobody is covering.",
-  },
+  // No articles currently published — next article pending approval.
 ]
 const ARTICLES_MAP_SSR = Object.fromEntries(ARTICLES_SSR.map(a => [a.slug, a]))
 
