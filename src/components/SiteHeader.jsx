@@ -46,6 +46,13 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle, onSearchOpen 
             Tournaments
           </a>
           <a
+            href="/articles"
+            onClick={() => trackEvent('nav_articles_click', {})}
+            className="hidden md:inline text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            Articles
+          </a>
+          <a
             href="/news"
             onClick={() => trackEvent('nav_news_click', {})}
             className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"

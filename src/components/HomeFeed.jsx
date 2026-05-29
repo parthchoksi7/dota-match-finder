@@ -5,6 +5,7 @@ import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
 import UpcomingMatchRow from './UpcomingMatchRow'
 import TournamentHub from './TournamentHub'
+import EditorialCard from './EditorialCard'
 
 function getDayKey(unixSeconds) {
   if (!unixSeconds) return 'unknown'
@@ -230,6 +231,9 @@ function HomeFeed({
           loadingEarlier={loadingMore}
         />
       </div>
+
+      {/* Editorial story card — today's article, active tournament coverage only */}
+      {isToday && <EditorialCard />}
 
       {/* Dismissible calendar nudge */}
       {!calNudgeDismissed && (
