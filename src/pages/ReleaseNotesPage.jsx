@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 29, 2026",
     tag: "fix",
+    title: "Just Ended duplicates when Road to EWC qualifiers run concurrently",
+    desc: "BLAST Slam VII games were appearing in both the Just Ended section and the Results section simultaneously. Root cause: Road to EWC Regional Qualifiers flooded OpenDota promatches with 60+ concurrent games, many with a null dire_name. The OD match resolution function (findOdMatchByTime) uses bidirectional substring matching — but an empty string is always a substring of any string, so a null-named qualifier starting 6 seconds before a BLAST Slam game was incorrectly selected as the exact match. The wrong (non-tier-1) OD match ID was stored for the PS game, and since that ID isn't in allMatches, the dedup check produced a false 'show'. Fix: null/empty team names are now skipped in the exact-match check; the time fallback also prefers named matches over unnamed ones. A second guard in buildVisibleJustEnded falls through to team-name matching when resolved IDs exist but none appear in allMatches.",
+  },
+  {
+    date: "May 29, 2026",
+    tag: "fix",
     title: "Rampage markers missing from gold graph",
     desc: "Rampage indicators were showing correctly in the game summary row but not as markers on the gold advantage graph. The graph reconstructed rampages from kill timestamps using a 30-second total window, but Dota 2's actual rule is each consecutive kill within 18 seconds — so rampages spread across 31-72 seconds were silently missed. Detection now uses multi_kills[\"5\"] from OpenDota as the authoritative check (the same data the summary row uses) and kills_log only to locate the timestamp, with the correct 18-second consecutive-pair window.",
   },
