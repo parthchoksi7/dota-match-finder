@@ -4,7 +4,6 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
-  {
     date: "May 29, 2026",
     tag: "new",
     title: "Editorial card on the homepage + Articles nav link",
