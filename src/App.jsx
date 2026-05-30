@@ -242,7 +242,7 @@ function App() {
   const loadMatches = useCallback(() => {
     setError(null)
     setInitialLoading(true)
-    fetchProMatches()
+    return fetchProMatches()
       .then(({ matches, nextMatchId }) => {
         setAllMatches(matches)
         setNextMatchId(nextMatchId)
@@ -298,7 +298,7 @@ function App() {
     })
   }
 
-  async function fetchJustEnded() {
+  const fetchJustEnded = useCallback(async () => {
     if (!JUST_ENDED_ENABLED) return
     try {
       const res = await fetch('/api/tournaments?mode=recent-completed')
@@ -308,9 +308,9 @@ function App() {
       lastPsGamesRef.current = games
       setJustEndedSeries(buildVisibleJustEnded(games, allMatchesRef.current))
     } catch {}
-  }
+  }, [])
 
-  async function fetchLiveData() {
+  const fetchLiveData = useCallback(async () => {
     try {
       const [liveRes, upcomingRes] = await Promise.all([
         fetch("/api/live-matches").then(r => r.json()),
@@ -320,9 +320,13 @@ function App() {
       setUpcomingMatches(upcomingRes.matches || [])
     } catch {}
     setLiveLoading(false)
-  }
+  }, [])
 
-  const { pullDistance, refreshing, THRESHOLD } = usePullToRefresh(loadMatches)
+  const refreshAll = useCallback(() => {
+    return Promise.all([loadMatches(), fetchLiveData(), fetchJustEnded()])
+  }, [loadMatches, fetchLiveData, fetchJustEnded])
+
+  const { pullDistance, refreshing, THRESHOLD } = usePullToRefresh(refreshAll)
 
   // Read ?q= param from URL so "Find VODs" links from tournament detail pages work
   const initialSearchQuery = typeof window !== "undefined"
@@ -343,7 +347,7 @@ function App() {
     const liveInterval = setInterval(fetchLiveData, 2 * 60 * 1000)
     const justEndedInterval = setInterval(fetchJustEnded, 5 * 60 * 1000)
     return () => { clearInterval(liveInterval); clearInterval(justEndedInterval) }
-  }, [loadMatches])
+  }, [loadMatches, fetchLiveData, fetchJustEnded])
 
   // Build tournament name → ID map for inline TournamentHub expand.
   // Store both the raw PandaScore name AND the display-transformed name so that
