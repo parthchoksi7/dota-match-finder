@@ -79,6 +79,15 @@ function usePullToRefresh(onRefresh) {
     (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true),
   [])
 
+  // In standalone PWA mode, keep overscroll-behavior disabled for the entire session.
+  // Without this, iOS Safari claims pull-down gestures for its elastic bounce animation
+  // and our touchmove events stop firing — breaking PTR after any modal closes.
+  useEffect(() => {
+    if (!isStandalone) return
+    document.body.style.overscrollBehavior = 'none'
+    return () => { document.body.style.overscrollBehavior = '' }
+  }, [isStandalone])
+
   useEffect(() => {
     if (!isStandalone) return
 
@@ -86,7 +95,8 @@ function usePullToRefresh(onRefresh) {
       // Don't initiate PTR when a modal/drawer is open — touches inside the dialog
       // would otherwise race with initialLoading and blank the drawer
       if (e.target.closest('[role="dialog"]')) return
-      if (window.scrollY === 0) startY.current = e.touches[0].clientY
+      // Use <= 0 to handle iOS Safari sub-pixel scroll positions
+      if (window.scrollY <= 0) startY.current = e.touches[0].clientY
     }
 
     function onTouchMove(e) {
@@ -118,10 +128,12 @@ function usePullToRefresh(onRefresh) {
     window.addEventListener('touchstart', onTouchStart, { passive: true })
     window.addEventListener('touchmove', onTouchMove, { passive: true })
     window.addEventListener('touchend', onTouchEnd)
+    window.addEventListener('touchcancel', onTouchEnd)
     return () => {
       window.removeEventListener('touchstart', onTouchStart)
       window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('touchcancel', onTouchEnd)
     }
   }, [isStandalone, onRefresh])
 

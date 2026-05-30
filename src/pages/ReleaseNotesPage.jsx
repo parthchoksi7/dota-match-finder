@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "May 30, 2026",
+    tag: "fix",
+    title: "Pull to refresh always works on PWA after closing a match",
+    desc: "On iOS home screen app (PWA), pull to refresh stopped working after opening and closing a match. Root cause: the match drawer set overscroll-behavior: none on the body to block iOS's native bounce, but when the drawer closed it restored the default — iOS then claimed the next pull-down gesture for its elastic bounce animation before our custom PTR could capture it. Fix: overscroll-behavior is now permanently disabled for the entire PWA session (managed by the PTR hook, not per-modal), so the gesture is always routed to our handler.",
+  },
+  {
     date: "May 29, 2026",
     tag: "improvement",
     title: "Series highlights — cleaner row, spoiler-safe in spoiler-free mode",

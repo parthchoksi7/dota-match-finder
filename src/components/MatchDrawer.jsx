@@ -50,14 +50,6 @@ function MatchDrawer({
   const drawerRef = useRef(null)
   const [scoreRevealed, setScoreRevealed] = useState(false)
 
-  // Prevent the browser's native pull-to-refresh while the drawer is open.
-  // CSS overscroll-behavior on the scroll container alone is not reliable on
-  // older iOS Safari; setting it on the body is the safest cross-browser fix.
-  useEffect(() => {
-    const prev = document.body.style.overscrollBehavior
-    document.body.style.overscrollBehavior = 'none'
-    return () => { document.body.style.overscrollBehavior = prev }
-  }, [])
   const [gameIndicators, setGameIndicators] = useState(null)
   const [draftExpanded, setDraftExpanded] = useState(true)
   const [matchStats, setMatchStats] = useState(null)
