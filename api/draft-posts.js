@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 import { uploadMedia, postTweet, postPoll, checkTwitterEnv, fetchUserIdByHandle, fetchRecentTweets } from './_x-post.js'
+import { Resend } from 'resend'
 
 // ── Cron / auto-tweet: tweet template ───────────────────────────────────────
 
@@ -539,6 +540,56 @@ async function runReplyInsertion(req, res) {
   return res.status(200).json({ replied, items: results })
 }
 
+// ── Feedback handler (type: 'feedback') ─────────────────────────────────────
+
+const _resend = new Resend(process.env.RESEND_API_KEY)
+const FEEDBACK_TO = 'parthchoksi007@gmail.com'
+const FEEDBACK_RATE_LIMIT = 3
+const FEEDBACK_WINDOW_S = 3600
+
+async function handleFeedback(req, res) {
+  const { message, email, page } = req.body ?? {}
+  if (!message || typeof message !== 'string') return res.status(400).json({ error: 'message_required' })
+  const trimmed = message.trim()
+  if (trimmed.length < 10) return res.status(400).json({ error: 'message_too_short' })
+  if (trimmed.length > 1000) return res.status(400).json({ error: 'message_too_long' })
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'invalid_email' })
+
+  const ip = (req.headers['x-forwarded-for'] ?? req.socket?.remoteAddress ?? 'unknown')
+    .toString().split(',')[0].trim()
+  const rlKey = `fb:rl:${ip}`
+  const count = await kv.incr(rlKey)
+  if (count === 1) await kv.expire(rlKey, FEEDBACK_WINDOW_S)
+  if (count > FEEDBACK_RATE_LIMIT) return res.status(200).json({ ok: true }) // silent limit
+
+  const subject = `[SpectateEsports Feedback] ${trimmed.slice(0, 60)}${trimmed.length > 60 ? '…' : ''}`
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a">
+      <h2 style="margin-bottom:4px">SpectateEsports Feedback</h2>
+      <hr style="margin-bottom:16px"/>
+      <p style="font-size:16px;white-space:pre-wrap;background:#f4f4f4;padding:12px;border-radius:6px">${trimmed.replace(/</g, '&lt;')}</p>
+      <table style="margin-top:16px;font-size:13px;color:#555;border-collapse:collapse">
+        <tr><td style="padding:2px 12px 2px 0;font-weight:600">From</td><td>${email ? email.replace(/</g, '&lt;') : 'Anonymous'}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;font-weight:600">Page</td><td>${(page || 'unknown').replace(/</g, '&lt;')}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;font-weight:600">Time</td><td>${new Date().toISOString()}</td></tr>
+      </table>
+    </div>`
+
+  try {
+    await _resend.emails.send({
+      from: 'SpectateEsports <onboarding@resend.dev>',
+      to: FEEDBACK_TO,
+      reply_to: email || undefined,
+      subject,
+      html,
+    })
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('feedback send error', err)
+    return res.status(500).json({ error: 'send_failed' })
+  }
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -557,6 +608,8 @@ export default async function handler(req, res) {
 
   const body = req.body || {}
   const type = body.type || 'x'
+
+  if (type === 'feedback') return handleFeedback(req, res)
 
   // Cron mode: fetch new match results and auto-post to X as a series thread
   if (type === 'cron') {

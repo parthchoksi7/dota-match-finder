@@ -17,6 +17,7 @@ import AdminCoveragePage from './pages/AdminCoveragePage.jsx'
 import AdminReviewPage from './pages/AdminReviewPage.jsx'
 import ArticlesPage from './pages/ArticlesPage.jsx'
 import ArticlePage from './pages/ArticlePage.jsx'
+import FeedbackWidget from './components/FeedbackWidget.jsx'
 
 const path = window.location.pathname
 
@@ -40,6 +41,7 @@ function Root() {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Root />
+    <FeedbackWidget />
     <Analytics />
     <SpeedInsights />
   </StrictMode>
