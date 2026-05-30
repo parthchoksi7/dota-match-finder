@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 29, 2026",
+    tag: "improvement",
+    title: "Series highlights — cleaner row, spoiler-safe in spoiler-free mode",
+    desc: "Removed the 'X days ago' timestamp from highlight rows — it added noise without value. In spoiler-free mode, the highlight title is now hidden (titles often name the winner) while the Watch button stays visible so you can still access the VOD.",
+  },
+  {
+    date: "May 29, 2026",
     tag: "fix",
     title: "Tournament hub link on BLAST Slam VII articles page was broken",
     desc: "The 'Tournament hub' link on /articles?tournament=blast-slam-vii pointed to /tournament/blast-slam-vii (a slug), but the tournament detail page requires a numeric PandaScore series ID. Link now correctly points to /tournament/10551 (BLAST Slam Season 7 2026).",

@@ -480,12 +480,11 @@ function MatchDrawer({
                     <path d="M6.5 5.5l4 2.5-4 2.5V5.5z" />
                   </svg>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold leading-snug line-clamp-2 text-gray-900 dark:text-white group-hover:text-purple-400 transition-colors">
-                      {seriesHighlight.title}
-                    </p>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-500 uppercase tracking-wide mt-0.5 tabular-nums">
-                      {(() => { const d = Math.floor((Date.now() - new Date(seriesHighlight.publishedAt)) / 86400000); return d === 1 ? '1 day ago' : `${d} days ago` })()}
-                    </p>
+                    {!spoilerFree && (
+                      <p className="text-xs font-semibold leading-snug line-clamp-2 text-gray-900 dark:text-white group-hover:text-purple-400 transition-colors">
+                        {seriesHighlight.title}
+                      </p>
+                    )}
                   </div>
                   <span className="text-xs font-semibold text-purple-500 group-hover:text-purple-400 flex-shrink-0 pl-2 transition-colors">
                     Watch
