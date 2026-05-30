@@ -315,20 +315,23 @@ The frontend (`findTwitchVod` in `src/api.js`) uses only `preferredChannel` from
 - Shared OAuth + posting logic lives in `api/_x-post.js` (`postTweet`, `postPoll`, `uploadMedia`, `checkTwitterEnv`) — imported by all auto-tweet endpoints
 
 ### Daily Digest Tweet (Owner Only — NOT Public)
-- GitHub Actions cron (`.github/workflows/daily-digest.yml`) fires at 9 AM UTC daily, calling `GET /api/daily-digest` with `CRON_SECRET`
-- `api/daily-digest.js` fetches today's tier-1 PandaScore upcoming matches (same tier filter as site), formats them as a "Today in pro Dota:" schedule tweet, and posts once per UTC date
+- GitHub Actions cron (`.github/workflows/daily-digest.yml`) fires at 9 AM UTC daily, calling `GET /api/draft-posts?type=digest` with `CRON_SECRET`
+- Handled by `runDailyDigest()` inside `api/draft-posts.js` — fetches today's tier-1 PandaScore upcoming matches (same tier filter as site), formats them as a "Today in pro Dota:" schedule tweet, and posts once per UTC date
 - KV dedup key: `x-digest:{YYYY-MM-DD}` (48h TTL) — skips silently if already posted today
 - Tweet lists matches as `HH:MM UTC — TeamA vs TeamB | Tournament BO3`, truncates to 280 chars with "+N more" if needed
 - No URLs use http/https protocol — all links are bare domain (e.g. `spectateesports.live/calendar`)
+- Pure function `buildDigestTweet(matches)` is exported and tested in `__tests__/x-auto-posts.test.js`
 
 ### Pre-Match Prediction Poll (Owner Only — NOT Public)
-- GitHub Actions cron (`.github/workflows/match-poll.yml`) fires every 2 hours at :30, calling `GET /api/match-poll` with `CRON_SECRET`
-- `api/match-poll.js` fetches PandaScore tier-1 matches starting in 90–240 minutes, posts a Twitter v2 poll for each that has known X handles for both teams (via `_x-accounts.js`)
+- GitHub Actions cron (`.github/workflows/match-poll.yml`) fires every 2 hours at :30, calling `GET /api/draft-posts?type=poll` with `CRON_SECRET`
+- Handled by `runMatchPoll()` inside `api/draft-posts.js` — fetches PandaScore tier-1 matches starting in 90–240 minutes, posts a Twitter v2 poll for each that has known X handles for both teams (via `_x-accounts.js`)
 - Matches are sorted BO5 > BO3 > BO2 > BO1; max 3 polls per cron run
 - Poll duration: 360 minutes (6 hours) — active through the end of any match in the window
 - KV dedup key: `x-poll:match:{matchId}` (24h TTL) — the 2-hour cadence + 150-minute window guarantees each match is caught by exactly one run
 - Poll format: `@handleA vs @handleB — who takes it?\n\nTournament | BO3\nspectateesports.live/calendar`
 - Polls require both team handles to be known — skips matches where `lookupTeamHandle()` returns null for either team
+- Pure function `buildPollTweet(match)` is exported and tested in `__tests__/x-auto-posts.test.js`
+- Both new types are merged into `api/draft-posts.js` (not separate files) to stay within the 12-function Vercel limit
 
 ### X Posts
 - "Draft X Posts" button appears on completed series cards (owner-only, gated by localStorage flag)

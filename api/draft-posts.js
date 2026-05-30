@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { uploadMedia, postTweet, checkTwitterEnv } from './_x-post.js'
+import { uploadMedia, postTweet, postPoll, checkTwitterEnv } from './_x-post.js'
 
 // ── Cron / auto-tweet: tweet template ───────────────────────────────────────
 
@@ -27,8 +27,10 @@ export function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tourna
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
-import { getPremiumLeagueIds, trackError, PERMANENT_TIER1_NAMES, KV_TIER1_NAMES_KEY, isTier1ByName } from './_shared.js'
+import { getPremiumLeagueIds, trackError, PERMANENT_TIER1_NAMES, KV_TIER1_NAMES_KEY, isTier1ByName, isTier1, buildTournamentName, getSeriesLabel } from './_shared.js'
 import { lookupTournamentHandle, lookupTeamHandle, pickTournamentTalent } from './_x-accounts.js'
+
+const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
 export function winsNeeded(seriesType) {
   if (seriesType === 0) return 1
@@ -207,11 +209,205 @@ async function runAutoTweet(req, res) {
   return res.status(200).json({ tweeted: count, items: results })
 }
 
+// ── Daily digest: "Today in pro Dota" schedule tweet ─────────────────────────
+
+async function fetchTodayMatches(token) {
+  const now = new Date()
+  const endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999))
+  const url = `${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=50&range[scheduled_at]=${now.toISOString()},${endOfDay.toISOString()}`
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  const [response, tier1Names] = await Promise.all([
+    fetch(url, { headers }),
+    kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
+  ])
+  if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+  const names = [...new Set([
+    ...(Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []),
+    ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+  ])]
+  const data = await response.json()
+  return (data || [])
+    .filter(m => isTier1(m) || isTier1ByName(m, names))
+    .filter(m => {
+      const opps = m.opponents || []
+      return opps.length === 2 && opps.every(o => o.opponent?.name && o.opponent.name !== 'TBD')
+    })
+}
+
+function formatUtcTime(isoStr) {
+  const d = new Date(isoStr)
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
+
+export function buildDigestTweet(matches) {
+  const header = 'Today in pro Dota:\n\n'
+  const footer = '\nspectateesports.live/calendar'
+  const lines = matches.map(m => {
+    const time = formatUtcTime(m.scheduled_at || m.begin_at)
+    const teamA = m.opponents[0].opponent.name
+    const teamB = m.opponents[1].opponent.name
+    const tournament = buildTournamentName(m)
+    const series = getSeriesLabel(m.match_type, m.number_of_games)
+    return `${time} UTC — ${teamA} vs ${teamB} | ${tournament}${series ? ` ${series}` : ''}`
+  })
+  let body = ''
+  let shown = 0
+  for (let i = 0; i < lines.length; i++) {
+    const candidate = body + lines[i] + '\n'
+    if ((header + candidate + footer).length > 280) {
+      const remaining = lines.length - shown
+      if (remaining > 0) body += `+${remaining} more`
+      break
+    }
+    body += lines[i] + '\n'
+    shown++
+  }
+  return header + body + footer
+}
+
+async function runDailyDigest(req, res) {
+  const auth = req.headers.authorization || ''
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const missing = checkTwitterEnv()
+  if (missing.length) return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
+  const token = process.env.PANDASCORE_TOKEN
+  if (!token) return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
+
+  const today = new Date().toISOString().slice(0, 10)
+  const kvKey = `x-digest:${today}`
+  const existing = await kv.get(kvKey).catch(() => null)
+  if (existing) return res.status(200).json({ posted: false, reason: 'Already posted today' })
+
+  let matches
+  try {
+    matches = await fetchTodayMatches(token)
+  } catch (err) {
+    await trackError('/api/draft-posts?type=digest', 502, err?.message)
+    return res.status(502).json({ error: err.message })
+  }
+  if (matches.length === 0) return res.status(200).json({ posted: false, reason: 'No tier-1 matches today' })
+
+  const text = buildDigestTweet(matches)
+  const twRes = await postTweet(text)
+  if (!twRes.data?.id) {
+    const detail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
+    await trackError('/api/draft-posts?type=digest', 500, detail)
+    return res.status(500).json({ error: 'Twitter post failed', detail })
+  }
+  await kv.set(kvKey, twRes.data.id, { ex: 172800 })
+  return res.status(200).json({ posted: true, tweetId: twRes.data.id, matchCount: matches.length })
+}
+
+// ── Pre-match prediction poll ─────────────────────────────────────────────────
+
+// Poll fires 90–240 min before match start. The 2-hour cron cadence and 150-minute
+// window guarantees every match is caught by exactly one run.
+const POLL_WINDOW_MIN_MS = 90 * 60 * 1000
+const POLL_WINDOW_MAX_MS = 240 * 60 * 1000
+const POLL_DURATION_MINUTES = 360
+const POLL_SERIES_PRIORITY = { BO5: 3, BO3: 2, BO2: 1, BO1: 0 }
+
+async function fetchPollWindowMatches(token) {
+  const now = new Date()
+  const windowStart = new Date(now.getTime() + POLL_WINDOW_MIN_MS)
+  const windowEnd = new Date(now.getTime() + POLL_WINDOW_MAX_MS)
+  const url = `${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=50&range[scheduled_at]=${windowStart.toISOString()},${windowEnd.toISOString()}`
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  const [response, tier1Names] = await Promise.all([
+    fetch(url, { headers }),
+    kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
+  ])
+  if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+  const names = [...new Set([
+    ...(Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []),
+    ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+  ])]
+  const data = await response.json()
+  return (data || [])
+    .filter(m => isTier1(m) || isTier1ByName(m, names))
+    .filter(m => {
+      const opps = m.opponents || []
+      return opps.length === 2 && opps.every(o => o.opponent?.name && o.opponent.name !== 'TBD')
+    })
+    .sort((a, b) => {
+      const pa = POLL_SERIES_PRIORITY[getSeriesLabel(a.match_type, a.number_of_games)] ?? -1
+      const pb = POLL_SERIES_PRIORITY[getSeriesLabel(b.match_type, b.number_of_games)] ?? -1
+      return pb - pa
+    })
+}
+
+export function buildPollTweet(m) {
+  const teamA = m.opponents[0].opponent.name
+  const teamB = m.opponents[1].opponent.name
+  const handleA = lookupTeamHandle(teamA)
+  const handleB = lookupTeamHandle(teamB)
+  // Only post when we can @mention both teams — that's what drives distribution
+  if (!handleA || !handleB) return null
+  const tournament = buildTournamentName(m)
+  const series = getSeriesLabel(m.match_type, m.number_of_games)
+  const text = `@${handleA} vs @${handleB} — who takes it?\n\n${tournament}${series ? ` | ${series}` : ''}\nspectateesports.live/calendar`
+  return { text, options: [teamA, teamB] }
+}
+
+async function runMatchPoll(req, res) {
+  const auth = req.headers.authorization || ''
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const missing = checkTwitterEnv()
+  if (missing.length) return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
+  const token = process.env.PANDASCORE_TOKEN
+  if (!token) return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
+
+  let matches
+  try {
+    matches = await fetchPollWindowMatches(token)
+  } catch (err) {
+    await trackError('/api/draft-posts?type=poll', 502, err?.message)
+    return res.status(502).json({ error: err.message })
+  }
+  if (matches.length === 0) return res.status(200).json({ posted: 0, reason: 'No eligible matches in window' })
+
+  let posted = 0
+  const results = []
+  const failures = []
+
+  for (const m of matches) {
+    if (posted >= 3) break
+    const kvKey = `x-poll:match:${m.id}`
+    const existing = await kv.get(kvKey).catch(() => null)
+    if (existing) continue
+    const poll = buildPollTweet(m)
+    if (!poll) continue
+    const twRes = await postPoll(poll.text, poll.options, POLL_DURATION_MINUTES)
+    if (twRes.data?.id) {
+      await kv.set(kvKey, twRes.data.id, { ex: 86400 })
+      posted++
+      results.push({ matchId: m.id, tweetId: twRes.data.id })
+    } else {
+      const detail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
+      console.error('Poll tweet failed:', m.id, detail)
+      failures.push({ matchId: m.id, error: detail })
+    }
+  }
+
+  if (failures.length > 0 && posted === 0) {
+    await trackError('/api/draft-posts?type=poll', 500, failures[0]?.error)
+    return res.status(500).json({ posted: 0, error: 'Twitter API errors on all attempts', failures })
+  }
+  return res.status(200).json({ posted, items: results })
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  // GET = Vercel Cron trigger. Authorization header checked inside runAutoTweet.
+  // GET = Vercel Cron trigger or GitHub Actions cron. Routes by ?type= param.
   if (req.method === 'GET') {
+    const type = req.query?.type
+    if (type === 'digest') return runDailyDigest(req, res)
+    if (type === 'poll') return runMatchPoll(req, res)
     return runAutoTweet(req, res)
   }
 

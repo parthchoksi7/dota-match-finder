@@ -44,6 +44,7 @@ export async function uploadMedia(pngBuffer) {
     },
     body,
   })
+  if (!res.ok) return null
   const data = await res.json()
   return data.media_id_string || null
 }
