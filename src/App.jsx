@@ -12,7 +12,7 @@ import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary } 
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, isSeriesComplete } from "./utils"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const JUST_ENDED_ENABLED = true
@@ -273,21 +273,26 @@ function App() {
 
   function buildVisibleJustEnded(psGames, currentAllMatches) {
     const psSeries = groupPsGamesIntoSeries(psGames)
-    const odIds = new Set(currentAllMatches.map(m => String(m.id)))
+    // Use complete OD series (not raw allMatches) so that games OD indexes with mismatched
+    // series_ids — present in allMatches but never forming a displayable complete series —
+    // don't falsely suppress the PS Just Ended entry.
+    const completedOdSeries = groupIntoSeries(currentAllMatches).filter(isSeriesComplete)
+    const completedOdIds = new Set(completedOdSeries.flatMap(s => s.games.map(g => String(g.id))))
     return psSeries.filter(entry => {
       const resolved = entry.games.map(g => g.id).filter(id => !id.startsWith('_ps-'))
-      if (resolved.length > 0 && resolved.some(id => odIds.has(id))) return false
-      // Resolved IDs exist but none match allMatches (may be stale/wrong IDs from concurrent
-      // non-tier-1 games resolved by time proximity) — fall through to team-name check.
+      if (resolved.length > 0 && resolved.some(id => completedOdIds.has(id))) return false
+      // Resolved IDs exist but none in a complete OD series (stale/wrong IDs from time
+      // collision, or OD split the series across different series_ids) — fall through to
+      // team-name check against complete OD series only.
       const psTeams = [entry.games[0]?.radiantTeam, entry.games[0]?.direTeam]
         .map(t => (t || '').toLowerCase()).filter(Boolean)
       if (psTeams.length < 2) return true
       const psTime = entry.games[0]?.startTime || 0
       const sub = (x, y) => x.includes(y) || y.includes(x)
-      return !currentAllMatches.some(m => {
-        if (Math.abs((m.startTime || 0) - psTime) > 3600) return false
-        const r = (m.radiantTeam || '').toLowerCase()
-        const d = (m.direTeam || '').toLowerCase()
+      return !completedOdSeries.some(s => {
+        if (Math.abs((s.games[0]?.startTime || s.startTime || 0) - psTime) > 3600) return false
+        const r = (s.games[0]?.radiantTeam || '').toLowerCase()
+        const d = (s.games[0]?.direTeam || '').toLowerCase()
         return (sub(psTeams[0], r) || sub(psTeams[0], d)) && (sub(psTeams[1], r) || sub(psTeams[1], d))
       })
     })
