@@ -23,6 +23,12 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"type":"cron"}' \
             --fail-with-body
+      - name: Reply to tournament result tweets
+        continue-on-error: true
+        run: |
+          curl -s -X GET "https://spectateesports.live/api/draft-posts?type=reply" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body
       - name: Create alert issue on failure
         if: failure()
         uses: actions/github-script@v7

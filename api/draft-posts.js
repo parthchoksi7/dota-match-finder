@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { uploadMedia, postTweet, postPoll, checkTwitterEnv } from './_x-post.js'
+import { uploadMedia, postTweet, postPoll, checkTwitterEnv, fetchUserIdByHandle, fetchRecentTweets } from './_x-post.js'
 
 // ── Cron / auto-tweet: tweet template ───────────────────────────────────────
 
@@ -17,12 +17,12 @@ export function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tourna
   const talentLine = talentTags.length > 0 ? `\n${talentTags.map(t => `@${t}`).join(' ')}` : ''
 
   if (isDraw) {
-    return `${t1Display} and ${t2Display} split the series 1-1\n${seriesLabel} | ${tournamentDisplay}\n${link}${talentLine}`
+    return `${t1Display} and ${t2Display} split the series 1-1\n${seriesLabel} | ${tournamentDisplay}\n${link}${talentLine}\n#Dota2`
   }
 
   const winnerDisplay = winner === team1 ? t1Display : t2Display
   const loserDisplay = winner === team1 ? t2Display : t1Display
-  return `${winnerDisplay} win ${score} over ${loserDisplay}\n${seriesLabel} | ${tournamentDisplay}\n${link}${talentLine}`
+  return `${winnerDisplay} win ${score} over ${loserDisplay}\n${seriesLabel} | ${tournamentDisplay}\n${link}${talentLine}\n#Dota2`
 }
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
@@ -400,6 +400,145 @@ async function runMatchPoll(req, res) {
   return res.status(200).json({ posted, items: results })
 }
 
+// ── Reply insertion: auto-reply to tournament result tweets ──────────────────
+
+// Tournament accounts to monitor. User IDs are resolved once and cached in KV.
+const REPLY_ACCOUNTS = ['pgldota2', 'ESLDota2', 'BLASTDota']
+const MAX_REPLIES_PER_DAY = 5
+
+// Team name → full name lookup for extracting teams from tweet text.
+// Order matters: more-specific entries before shorter ambiguous ones.
+const TEAM_TWEET_EXTRACT = [
+  { keywords: ['team spirit', 'spirit'], team: 'Team Spirit' },
+  { keywords: ['team liquid', 'liquid'], team: 'Team Liquid' },
+  { keywords: ['tundra esports', 'tundra'], team: 'Tundra Esports' },
+  { keywords: ['gaimin gladiators', 'gaimin'], team: 'Gaimin Gladiators' },
+  { keywords: ['aurora gaming', 'aurora'], team: 'Aurora Gaming' },
+  { keywords: ['betboom team', 'betboom'], team: 'BetBoom Team' },
+  { keywords: ['team secret', 'secret'], team: 'Team Secret' },
+  { keywords: ['natus vincere', 'navi'], team: 'Natus Vincere' },
+  { keywords: ['virtus.pro', 'virtuspro'], team: 'Virtus.pro' },
+  { keywords: ['team falcons', 'falcons'], team: 'Team Falcons' },
+  { keywords: ['team yandex', 'yandex'], team: 'Team Yandex' },
+  { keywords: ['parivision'], team: 'PARIVision' },
+  { keywords: ['nouns esports', 'nouns'], team: 'Nouns Esports' },
+  { keywords: ['og esports', 'og'], team: 'OG' }, // 'og' with \b won't match 'ongoing'/'logo'
+]
+
+export function extractTeamsFromTweet(text) {
+  const found = []
+  for (const { keywords, team } of TEAM_TWEET_EXTRACT) {
+    if (found.includes(team)) continue
+    for (const kw of keywords) {
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
+        found.push(team)
+        break
+      }
+    }
+    if (found.length >= 2) break
+  }
+  return found
+}
+
+// A tweet containing a score like "2-0", "2-1", or "3-2" (BO5) is a result tweet.
+// Pre-match announcements never have scores in this format.
+export function isResultTweet(text) {
+  return /\b[0-3]-[0-3]\b/.test(text)
+}
+
+// Find the most recent OD match within 48h between two teams (bidirectional substring).
+function findMatchUrl(odMatches, team1, team2) {
+  const sub = (a, b) => {
+    const al = (a || '').toLowerCase()
+    const bl = (b || '').toLowerCase()
+    return al.includes(bl) || bl.includes(al)
+  }
+  const cutoff = Date.now() / 1000 - 48 * 3600
+  const match = (odMatches || []).find(m => {
+    if ((m.start_time || 0) < cutoff) return false
+    const r = m.radiant_name || ''
+    const d = m.dire_name || ''
+    return (sub(team1, r) || sub(team1, d)) && (sub(team2, r) || sub(team2, d))
+  })
+  return match ? seriesUrl(match) : null
+}
+
+async function runReplyInsertion(req, res) {
+  const auth = req.headers.authorization || ''
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const missing = checkTwitterEnv()
+  if (missing.length) return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
+
+  const today = new Date().toISOString().slice(0, 10)
+  const countKey = `x-reply-daily:${today}`
+  const dailyCount = (await kv.get(countKey).catch(() => null)) || 0
+  if (dailyCount >= MAX_REPLIES_PER_DAY) {
+    return res.status(200).json({ replied: 0, reason: 'Daily cap reached' })
+  }
+
+  const odRes = await fetch('https://api.opendota.com/api/promatches')
+  if (!odRes.ok) return res.status(502).json({ error: 'OpenDota unavailable' })
+  const odMatches = await odRes.json().catch(() => [])
+  if (!Array.isArray(odMatches)) return res.status(502).json({ error: 'Bad OpenDota response' })
+
+  let replied = 0
+  const results = []
+
+  for (const handle of REPLY_ACCOUNTS) {
+    if (dailyCount + replied >= MAX_REPLIES_PER_DAY) break
+
+    // Resolve user ID once, cache 30 days
+    const idKey = `x-reply-uid:${handle}`
+    let userId = await kv.get(idKey).catch(() => null)
+    if (!userId) {
+      userId = await fetchUserIdByHandle(handle)
+      if (!userId) continue
+      await kv.set(idKey, String(userId), { ex: 86400 * 30 })
+    }
+
+    // Only fetch tweets newer than the last one we've seen
+    const sinceKey = `x-reply-since:${handle}`
+    const sinceId = await kv.get(sinceKey).catch(() => null)
+
+    const tweets = await fetchRecentTweets(String(userId), sinceId || undefined)
+    if (!tweets.length) continue
+
+    // Advance the cursor to the newest tweet regardless of whether we reply
+    await kv.set(sinceKey, tweets[0].id, { ex: 86400 * 7 })
+
+    for (const tweet of tweets) {
+      if (dailyCount + replied >= MAX_REPLIES_PER_DAY) break
+      if (!isResultTweet(tweet.text)) continue
+
+      const teams = extractTeamsFromTweet(tweet.text)
+      if (teams.length < 2) continue
+
+      const dedupKey = `x-reply:tweet:${tweet.id}`
+      const alreadyReplied = await kv.get(dedupKey).catch(() => null)
+      if (alreadyReplied) continue
+
+      const link = findMatchUrl(odMatches, teams[0], teams[1])
+      if (!link) continue
+
+      const twRes = await postTweet(`Watch every game back:\n${link}`, null, tweet.id)
+      if (twRes.data?.id) {
+        await kv.set(dedupKey, twRes.data.id, { ex: 86400 * 7 })
+        replied++
+        results.push({ handle, tweetId: tweet.id, replyId: twRes.data.id, teams })
+      } else {
+        const detail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
+        console.error('Reply tweet failed:', handle, tweet.id, detail)
+      }
+    }
+  }
+
+  if (replied > 0) await kv.set(countKey, dailyCount + replied, { ex: 172800 })
+  return res.status(200).json({ replied, items: results })
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -408,6 +547,7 @@ export default async function handler(req, res) {
     const type = req.query?.type
     if (type === 'digest') return runDailyDigest(req, res)
     if (type === 'poll') return runMatchPoll(req, res)
+    if (type === 'reply') return runReplyInsertion(req, res)
     return runAutoTweet(req, res)
   }
 

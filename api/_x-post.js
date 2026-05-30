@@ -1,5 +1,5 @@
 /**
- * Shared Twitter/X posting utilities (OAuth 1.0a + v2 tweets + polls).
+ * Shared Twitter/X utilities (OAuth 1.0a + v2 tweets + polls + timeline reads).
  * Prefixed with _ so Vercel does NOT deploy this as a serverless function.
  */
 import { createHmac, randomBytes } from 'crypto'
@@ -12,7 +12,9 @@ function pct(s) {
     .replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/\*/g, '%2A')
 }
 
-function buildOAuthHeader(method, url) {
+// queryParams must be included in the signature base for GET requests.
+// POST callers pass no queryParams (empty default), so existing calls are unaffected.
+function buildOAuthHeader(method, url, queryParams = {}) {
   const cred = {
     oauth_consumer_key: process.env.TWITTER_API_KEY,
     oauth_nonce: randomBytes(16).toString('hex'),
@@ -21,7 +23,8 @@ function buildOAuthHeader(method, url) {
     oauth_token: process.env.TWITTER_ACCESS_TOKEN,
     oauth_version: '1.0',
   }
-  const paramStr = Object.keys(cred).sort().map(k => `${pct(k)}=${pct(cred[k])}`).join('&')
+  const allParams = { ...cred, ...queryParams }
+  const paramStr = Object.keys(allParams).sort().map(k => `${pct(k)}=${pct(allParams[k])}`).join('&')
   const base = `${method.toUpperCase()}&${pct(url)}&${pct(paramStr)}`
   const key = `${pct(process.env.TWITTER_API_SECRET)}&${pct(process.env.TWITTER_ACCESS_TOKEN_SECRET)}`
   cred.oauth_signature = createHmac('sha1', key).update(base).digest('base64')
@@ -80,6 +83,32 @@ export async function postPoll(text, options, durationMinutes = 360) {
     body: JSON.stringify(payload),
   })
   return res.json()
+}
+
+// Resolve a Twitter @handle to a numeric user ID.
+// Returns null if the account is not found or the request fails.
+export async function fetchUserIdByHandle(handle) {
+  const url = `https://api.twitter.com/2/users/by/username/${handle}`
+  const res = await fetch(url, { headers: { Authorization: buildOAuthHeader('GET', url) } })
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.data?.id || null
+}
+
+// Fetch recent tweets from a user by numeric ID.
+// sinceId: only return tweets newer than this ID (avoids re-processing old tweets).
+// Returns newest-first array of { id, text } objects, or [] on failure.
+export async function fetchRecentTweets(userId, sinceId = null) {
+  const baseUrl = `https://api.twitter.com/2/users/${userId}/tweets`
+  const qp = { max_results: '20' }
+  if (sinceId) qp.since_id = sinceId
+  const qs = new URLSearchParams(qp).toString()
+  const res = await fetch(`${baseUrl}?${qs}`, {
+    headers: { Authorization: buildOAuthHeader('GET', baseUrl, qp) },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.data || []
 }
 
 export function checkTwitterEnv() {
