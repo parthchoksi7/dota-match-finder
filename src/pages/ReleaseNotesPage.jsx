@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 30, 2026",
+    tag: "fix",
+    title: "Just Ended missing when OpenDota indexes games with split series IDs",
+    desc: "When OpenDota indexed two games from the same series under different series_id values (observed during BLAST Slam S7), neither game formed a complete series, so neither appeared in Results. At the same time, the Just Ended dedup logic found both OD match IDs in the raw match list and incorrectly suppressed the PandaScore entry — leaving the match invisible everywhere on the site. Fix: the dedup now checks against complete OD series only, so a PS entry stays visible whenever OD hasn't properly grouped the games.",
+  },
+  {
+    date: "May 30, 2026",
     tag: "new",
     title: "Feedback button",
     desc: "A feedback button now appears in the bottom-right corner of every page. Send a bug report, feature request, or anything on your mind directly — no account required.",
