@@ -100,11 +100,11 @@ function MatchDrawer({
 
   useEffect(() => {
     setSeriesHighlight(null)
-    if (!match?.id || match._fromPandaScore || spoilerFree) return
+    if (!match?.id || match._fromPandaScore) return
     fetchHighlights(match.tournament).then(videos => {
       setSeriesHighlight(matchHighlightsToSeries(videos, match.radiantTeam, match.direTeam, match.startTime))
     }).catch(() => {})
-  }, [match?.id, match?._fromPandaScore, match?.tournament, spoilerFree])
+  }, [match?.id, match?._fromPandaScore, match?.tournament])
 
   useEffect(() => {
     function onKey(e) {
