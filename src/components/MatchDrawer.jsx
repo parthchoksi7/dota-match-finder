@@ -472,7 +472,9 @@ function MatchDrawer({
                     <path d="M6.5 5.5l4 2.5-4 2.5V5.5z" />
                   </svg>
                   <div className="min-w-0 flex-1">
-                    {!spoilerFree && (
+                    {spoilerFree ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-wide">Highlights available</p>
+                    ) : (
                       <p className="text-xs font-semibold leading-snug line-clamp-2 text-gray-900 dark:text-white group-hover:text-purple-400 transition-colors">
                         {seriesHighlight.title}
                       </p>
