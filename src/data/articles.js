@@ -14,11 +14,11 @@ export const ARTICLES = [
     readingTime: 4,
     watchQuery: 'blast slam',
     watchLabel: 'Watch LCQ VODs on Spectate',
-    excerpt: 'LGD Gaming won the group. Falcons finished fourth. The defending BLAST Slam VI champions are in the Last Chance Qualifier. Everything you need to know before tomorrow.',
+    excerpt: 'LGD Gaming — a Chinese org back after two years, now fielding a South American roster — won the group on their debut. Falcons finished fourth. The defending champions are in the LCQ. Everything you need to know.',
     sections: [
       {
         type: 'paragraph',
-        text: 'LGD Gaming won the BLAST Slam VII group stage. The Chinese team, who entered through regional qualifiers, finished 8-3 — ahead of PARIVISION, ahead of Team Falcons, ahead of everyone. The team most people were not discussing at the start of the week topped the field.',
+        text: 'LGD Gaming won the BLAST Slam VII group stage. The Chinese organization — returning to Dota 2 after a two-year absence, now fielding a South American roster built from the ex-HEROIC lineup — finished 8-3, ahead of PARIVISION, ahead of Team Falcons, ahead of everyone. The team making their competitive debut topped the field.',
       },
       {
         type: 'paragraph',

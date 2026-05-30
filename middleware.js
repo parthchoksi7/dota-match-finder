@@ -76,7 +76,7 @@ const ARTICLES_SSR = [
     tournament: 'blast-slam-vii',
     tournamentLabel: 'BLAST Slam VII',
     category: 'Preview',
-    excerpt: 'LGD Gaming won the group. Falcons finished fourth. The defending BLAST Slam VI champions are in the Last Chance Qualifier. Everything you need to know before tomorrow.',
+    excerpt: 'LGD Gaming — a Chinese org back after two years, now fielding a South American roster — won the group on their debut. Falcons finished fourth. The defending champions are in the LCQ. Everything you need to know.',
   },
 ]
 const ARTICLES_MAP_SSR = Object.fromEntries(ARTICLES_SSR.map(a => [a.slug, a]))

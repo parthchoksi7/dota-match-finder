@@ -605,6 +605,8 @@ Source: Liquipedia (https://liquipedia.net/dota2/The_International)
 - Top 2 group stage finishers → Semifinals. 3rd/4th → Upper Bracket Quarters. 5th/6th → LCQ Round 2. 7th–10th → LCQ Round 1. Bottom 2 → eliminated.
 - Teams: Team Falcons (defending world champions, TI14 2025), Team Yandex, PARIVISION (DreamLeague S29 winners), Team Liquid (BLAST Slam VI winners), Team Spirit, LGD Gaming, OG Esports, Tundra Esports, BetBoom Team, HEROIC, Aurora Gaming, GLYPH (SEA qualifier)
 
+**LGD Gaming**: Chinese organization returning to Dota 2 after a two-year absence. Signed the ex-HEROIC South American roster to compete in the SA region. Players: Yuma, TaiLung (Santiago Agüero Gustavo), Wisper (Adrian Cespedes Dobles), Thiolicor (Thiago Cordeiro), KJ (Matheus Santos Jungles Diniz). Coach: kaffs (Igor Estevão). BLAST Slam VII was their competitive debut under the LGD brand.
+
 **Final group stage standings** (May 29, 2026): LGD Gaming 8-3 (1st, UB Semis), PARIVISION 8-3 (2nd, UB Semis), BetBoom Team 8-3 (3rd, UB Quarters), Team Falcons 7-4 (4th, UB Quarters), Team Yandex 7-4 (5th, LCQ R2), Team Liquid 6-5 (6th, LCQ R2), Aurora Gaming 6-5 (7th, LCQ R1), Team Spirit 5-6 (8th, LCQ R1), OG/Tundra Esports 3-8 (LCQ R1), GLYPH 2-9 (eliminated). Xtreme Gaming eliminated.
 
 **Published articles**:
