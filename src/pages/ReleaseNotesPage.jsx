@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 29, 2026",
     tag: "fix",
+    title: "Tournament hub link on BLAST Slam VII articles page was broken",
+    desc: "The 'Tournament hub' link on /articles?tournament=blast-slam-vii pointed to /tournament/blast-slam-vii (a slug), but the tournament detail page requires a numeric PandaScore series ID. Link now correctly points to /tournament/10551 (BLAST Slam Season 7 2026).",
+  },
+  {
+    date: "May 29, 2026",
+    tag: "fix",
     title: "Just Ended duplicates when Road to EWC qualifiers run concurrently",
     desc: "BLAST Slam VII games were appearing in both the Just Ended section and the Results section simultaneously. Root cause: Road to EWC Regional Qualifiers flooded OpenDota promatches with 60+ concurrent games, many with a null dire_name. The OD match resolution function (findOdMatchByTime) uses bidirectional substring matching — but an empty string is always a substring of any string, so a null-named qualifier starting 6 seconds before a BLAST Slam game was incorrectly selected as the exact match. The wrong (non-tier-1) OD match ID was stored for the PS game, and since that ID isn't in allMatches, the dedup check produced a false 'show'. Fix: null/empty team names are now skipped in the exact-match check; the time fallback also prefers named matches over unnamed ones. A second guard in buildVisibleJustEnded falls through to team-name matching when resolved IDs exist but none appear in allMatches.",
   },

@@ -61,7 +61,7 @@ export default function ArticlesPage() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <a
-                href="/tournament/blast-slam-vii"
+                href="/tournament/10551"
                 className="text-[11px] font-bold uppercase tracking-widest text-sky-500 hover:text-sky-400 transition-colors"
                 onClick={() => trackEvent('articles_hub_tournament_link', { tournament: 'blast-slam-vii' })}
               >
