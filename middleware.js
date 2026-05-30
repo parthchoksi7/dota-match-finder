@@ -68,7 +68,16 @@ const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.
 // Article metadata (kept inline — edge middleware cannot import from src/)
 // Source of truth: src/data/articles.js — keep slugs, titles, excerpts, and publishedAt in sync.
 const ARTICLES_SSR = [
-  // No articles currently published — next article pending approval.
+  {
+    slug: 'blast-slam-vii-lcq-preview',
+    title: 'Six Teams, Two Copenhagen Spots: Inside the BLAST Slam VII Last Chance Qualifier',
+    subtitle: 'Team Liquid won this tournament six months ago. Tomorrow they play a qualifier just to reach the LAN.',
+    publishedAt: '2026-05-29',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'Preview',
+    excerpt: 'LGD Gaming won the group. Falcons finished fourth. The defending BLAST Slam VI champions are in the Last Chance Qualifier. Everything you need to know before tomorrow.',
+  },
 ]
 const ARTICLES_MAP_SSR = Object.fromEntries(ARTICLES_SSR.map(a => [a.slug, a]))
 

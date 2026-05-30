@@ -3,6 +3,113 @@
 // Each article is reviewed and approved before being added here.
 
 export const ARTICLES = [
+  {
+    slug: 'blast-slam-vii-lcq-preview',
+    title: 'Six Teams, Two Copenhagen Spots: Inside the BLAST Slam VII Last Chance Qualifier',
+    subtitle: 'Team Liquid won this tournament six months ago. Tomorrow they play a qualifier just to reach the LAN.',
+    publishedAt: '2026-05-29',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'Preview',
+    readingTime: 4,
+    watchQuery: 'blast slam',
+    watchLabel: 'Watch LCQ VODs on Spectate',
+    excerpt: 'LGD Gaming won the group. Falcons finished fourth. The defending BLAST Slam VI champions are in the Last Chance Qualifier. Everything you need to know before tomorrow.',
+    sections: [
+      {
+        type: 'paragraph',
+        text: 'LGD Gaming won the BLAST Slam VII group stage. The Chinese team, who entered through regional qualifiers, finished 8-3 — ahead of PARIVISION, ahead of Team Falcons, ahead of everyone. The team most people were not discussing at the start of the week topped the field.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Team Falcons, the defending TI14 world champions, finished fourth. They go to the Upper Bracket Quarterfinals in Copenhagen instead of straight to the semifinals — a meaningful difference in bracket advantage. The group stage produced results that nobody had pencilled in.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Six teams did not make it through directly. Tomorrow, May 30, they play for their tournament lives.',
+      },
+      {
+        type: 'heading',
+        text: 'What Is the Last Chance Qualifier?',
+      },
+      {
+        type: 'paragraph',
+        text: 'Six teams. Two spots. All matches are Bo3. Win and you\'re heading to Copenhagen. Lose, and BLAST Slam VII is over before the LAN begins.',
+      },
+      {
+        type: 'paragraph',
+        text: 'The two teams who advance go directly to the Upper Bracket Quarterfinals at BLAST Studios Copenhagen, joining the four direct qualifiers from the group stage. Everyone else goes home.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Bo3 changes everything. The group stage was Bo1 — one game, one result, move on. A single bad draft ended your day. Tomorrow, teams get to adapt. Captains can respond and correct. Teams that looked inconsistent through the week have a real chance to reset. Teams that survive Round 1 face Round 2 already battle-hardened.',
+      },
+      {
+        type: 'heading',
+        text: 'The Bracket',
+      },
+      {
+        type: 'paragraph',
+        text: 'LCQ Round 1: Team Spirit vs. OG, Aurora Gaming vs. Tundra Esports. Winners advance to Round 2. LCQ Round 2: Team Yandex vs. Round 1 winner, Team Liquid vs. Round 1 winner. Top two from Round 2 reach Copenhagen.',
+      },
+      {
+        type: 'heading',
+        text: 'The Biggest Story: Team Liquid',
+      },
+      {
+        type: 'paragraph',
+        text: 'Six months ago, Team Liquid defeated Natus Vincere in the BLAST Slam VI grand final in Malta. They were the best team in the world that week.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Tomorrow they play a Bo3 qualifier to reach the LAN stage of the same tournament.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Liquid finished sixth at 6-5. Four teams went directly to Copenhagen. Liquid and Yandex go through Round 2 of the LCQ. Win and the defending champions reach the LAN. Lose and they go home.',
+      },
+      {
+        type: 'paragraph',
+        text: 'That is not a storyline. That is a possible reality.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Defending champion eliminations happen in Dota. But rarely this quietly, this early. If Liquid win tomorrow, the Copenhagen narrative writes itself — the champions fought their way back from the edge. If they lose, it becomes one of the steepest falls a BLAST champion has taken.',
+      },
+      {
+        type: 'heading',
+        text: "Team Spirit's Fight",
+      },
+      {
+        type: 'paragraph',
+        text: 'Spirit finished eighth at 5-6 and face OG in Round 1. They came into this tournament after a last-minute roster change — swapping Panto for notme before DreamLeague Season 29, where they finished third. That result raised expectations for BLAST Slam VII. The group stage did not deliver on them.',
+      },
+      {
+        type: 'paragraph',
+        text: 'OG are a dangerous Round 1 opponent — a team with deep institutional experience at high-pressure formats who underperformed their pedigree this tournament and will be motivated tomorrow. Spirit need to show that the DreamLeague result was a sign of something real, not a ceiling they have already reached.',
+      },
+      {
+        type: 'heading',
+        text: 'What to Watch',
+      },
+      {
+        type: 'paragraph',
+        text: 'Aurora vs Tundra in Round 1 is the bracket\'s quieter match — two teams with LAN ambitions and nothing left to lose. Both play aggressive, forward Dota and a three-game series between them will be contested from the first draft.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Spirit vs OG is Round 1\'s headline match. Two experienced rosters, two teams who expected more from this week, one Bo3 to decide who gets another day.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Watch Round 2 for Liquid. Their series will tell you whether this team still has championship-level conviction.',
+      },
+      {
+        type: 'paragraph',
+        text: 'The LCQ is tomorrow. Two spots available. Six teams want them.',
+      },
+    ],
+  },
   // Article removed — Yandex dropped to 3rd (6-3) after group stage Day 4;
   // "Nobody predicted Yandex would lead" was no longer accurate.
   // New article will cover the final group stage standings.

@@ -221,16 +221,18 @@ export default function ArticlePage() {
           {/* Footer actions */}
           <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-wrap items-center gap-3">
             <ShareButtons article={article} />
-            <a
-              href="/?q=yandex"
-              onClick={() => trackEvent('article_watch_cta', { slug: article.slug })}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              Watch on Spectate
-            </a>
+            {article.watchQuery && (
+              <a
+                href={`/?q=${encodeURIComponent(article.watchQuery)}`}
+                onClick={() => trackEvent('article_watch_cta', { slug: article.slug })}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                {article.watchLabel || 'Watch on Spectate'}
+              </a>
+            )}
           </div>
         </article>
 

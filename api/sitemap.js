@@ -1,7 +1,7 @@
 import { getPremiumLeagueIds } from './_shared.js'
 
 const ARTICLE_SLUGS = [
-  // No articles currently published
+  'blast-slam-vii-lcq-preview',
 ]
 
 const GLOSSARY_TERM_IDS = [
