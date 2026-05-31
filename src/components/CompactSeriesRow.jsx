@@ -135,17 +135,17 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           </div>
         </div>
 
-        {/* Row 2: format label + bracket round + replay button */}
-        <div className="flex items-center justify-between">
-          {(seriesLabel || bracketRound) ? (
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
+        {/* Row 2: format label (centered under score) + replay button (right) */}
+        <div className="relative flex items-center">
+          {(seriesLabel || bracketRound) && (
+            <span className="absolute left-1/2 -translate-x-1/2 max-w-[calc(100%-3.5rem)] overflow-hidden text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500 whitespace-nowrap">
               {[seriesLabel, bracketRound].filter(Boolean).join(' · ')}
             </span>
-          ) : <span />}
+          )}
           <button
             type="button"
             onClick={handleReplayClick}
-            className="focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+            className="focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors ml-auto"
             aria-label={`Watch ${radiantTeam} vs ${direTeam} replay`}
           >
             <PlayIcon />

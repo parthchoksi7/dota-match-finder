@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 30, 2026",
     tag: "fix",
+    title: "Format label now centered under the score on mobile",
+    desc: "On mobile, the format label (e.g. BO3 · Semifinal 2) was left-aligned, visually implying it belonged to the left team. It now centers under the score — matching desktop and correctly anchoring the label to the match result.",
+  },
+  {
+    date: "May 30, 2026",
+    tag: "fix",
     title: "Bracket round label no longer floats below match cards",
     desc: "On mobile, the bracket stage label (e.g. Semifinal 2) was rendering as a separate element below the compact match row, visually disconnected from the series it described. It now appears inline next to the format label (e.g. BO3 · Semifinal 2) on both mobile and desktop.",
   },

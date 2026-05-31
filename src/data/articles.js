@@ -4,6 +4,129 @@
 
 export const ARTICLES = [
   {
+    slug: 'blast-slam-vii-copenhagen-playoffs-preview',
+    title: 'The Old Guard Is Gone. Copenhagen Belongs to Someone New.',
+    subtitle: 'OG, Spirit, Liquid, and Tundra — seven TI titles between them — are all home. Six teams reach BLAST Studios with everything to prove and nothing to protect.',
+    publishedAt: '2026-05-30',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'Preview',
+    readingTime: 5,
+    watchQuery: 'blast slam',
+    watchLabel: 'Watch BLAST Slam VII Copenhagen on Spectate',
+    excerpt: 'The four most decorated organizations in Dota 2 history couldn\'t make it through the LCQ. The only former TI champion in the Copenhagen field is the one who won it last year. This bracket is wide open, and the first match tells you everything.',
+    sections: [
+      {
+        type: 'paragraph',
+        text: 'When the BLAST Slam VII Last Chance Qualifier ended today, four organizations that have collectively won seven International championships were eliminated. OG. Team Spirit. Team Liquid. Tundra Esports. Gone. Not in the lower bracket. Not in Copenhagen. Home.',
+      },
+      {
+        type: 'paragraph',
+        text: 'The only former TI champion who made it to Copenhagen is Team Falcons — who won The International eight months ago. Every older dynasty failed to reach the LAN. The most recent champion is the only one standing.',
+      },
+      {
+        type: 'paragraph',
+        text: 'That is the fact that defines what you are about to watch. This is not the tournament anyone planned for. It is better.',
+      },
+      {
+        type: 'heading',
+        text: 'The Six Teams',
+      },
+      {
+        type: 'subheading',
+        text: 'LGD Gaming',
+      },
+      {
+        type: 'paragraph',
+        text: 'LGD arrive at BLAST Studios as something Dota has rarely produced: a genuinely improbable group stage winner. The Chinese organization — returning to competitive Dota after a two-year absence — entered this tournament with a South American roster built from the former HEROIC lineup. Not a Chinese roster. Not a Western European roster. A South American one, playing under the LGD banner, on debut.',
+      },
+      {
+        type: 'paragraph',
+        text: 'They finished 8-3. First in the group. Ahead of Falcons, ahead of PARIVISION, ahead of everyone. They earn a bye directly to the Upper Bracket Semifinal, meaning they will have played zero playoff matches when their first Copenhagen series begins.',
+      },
+      {
+        type: 'paragraph',
+        text: 'If LGD win BLAST Slam VII, it will be one of the most improbable stories this tournament has ever produced.',
+      },
+      {
+        type: 'subheading',
+        text: 'PARIVISION',
+      },
+      {
+        type: 'paragraph',
+        text: 'PARIVISION are not the story — they are the benchmark. DreamLeague Season 29 winners. Second in the group stage. They also earn a UB Semifinal bye, watching everyone else grind out quarterfinals while they wait. The question about PARIVISION is never whether they are good enough. It is whether they are good enough on the day that matters.',
+      },
+      {
+        type: 'subheading',
+        text: 'Team Falcons',
+      },
+      {
+        type: 'paragraph',
+        text: 'Falcons finished fourth in the group and nearly made the LCQ themselves. They are the defending TI14 world champions. In Copenhagen, that history means nothing unless they produce results. They open their LAN campaign against Yandex — a team that just survived the LCQ — in the first match of the bracket. Lose, and the world champions are immediately in an elimination bracket. Win, and they face LGD in the Upper Bracket Semifinal. There is no soft entry point for Falcons in this draw.',
+      },
+      {
+        type: 'subheading',
+        text: 'BetBoom Team',
+      },
+      {
+        type: 'paragraph',
+        text: 'BetBoom Team won BLAST Slam I in 2024. They are the tournament series\' original champions, now fighting to win it again two years later. They qualified third from the group — quietly, without headline results, doing the work. They face Aurora in the quarterfinal. BetBoom have the historical claim to this trophy and the credentials to back it up. No one is talking about them. That suits them.',
+      },
+      {
+        type: 'subheading',
+        text: 'Team Yandex',
+      },
+      {
+        type: 'paragraph',
+        text: 'Yandex added a new offlaner four days before the tournament started and won PGL Wallachia Season 7 earlier this year. They survived the LCQ. Their reward: the world champions in the opening match of BLAST Studios Copenhagen. If Yandex beat Falcons, it would be one of the most significant results of the year — an LCQ team dropping the world champion in the opening round of a $1M LAN. They have earned the right to try.',
+      },
+      {
+        type: 'subheading',
+        text: 'Aurora Gaming',
+      },
+      {
+        type: 'paragraph',
+        text: 'Aurora are the other LCQ survivor and the most unpredictable team in the field. They arrived in Copenhagen by fighting through a qualifier bracket that included two-time TI champions. Now they face BetBoom in what is technically the quietest quarterfinal on paper. Aurora did not come this far to be quiet.',
+      },
+      {
+        type: 'heading',
+        text: 'The Match to Watch First',
+      },
+      {
+        type: 'paragraph',
+        text: 'Falcons vs Yandex. World champions versus LCQ survivors. First match of the Copenhagen bracket.',
+      },
+      {
+        type: 'paragraph',
+        text: 'If you are going to watch one thing when the playoffs open, watch this. Falcons have the pedigree but looked inconsistent all week — fourth in the group is not the performance a world champion targets. Yandex have momentum, a recently proven roster, and nothing to lose. The first forty minutes of this series will tell you whether the world champions are recalibrating or whether something deeper is wrong.',
+      },
+      {
+        type: 'heading',
+        text: 'What the Lower Bracket Will Tell Us',
+      },
+      {
+        type: 'paragraph',
+        text: 'Four of these six teams will find themselves in the lower bracket. Someone will run it all the way to the Grand Final. In double-elimination, the team that loses an early upper bracket match and then wins four or five consecutive lower bracket series is often the team that wants it most. Watch who loses early. Watch how they respond.',
+      },
+      {
+        type: 'heading',
+        text: 'The Grand Final',
+      },
+      {
+        type: 'paragraph',
+        text: 'LGD Gaming won the group without being expected to. PARIVISION won DreamLeague and have been consistent all year. Falcons are the world champions. BetBoom won this tournament two years ago. Yandex and Aurora both earned their place today under elimination pressure.',
+      },
+      {
+        type: 'paragraph',
+        text: 'There is no team in this bracket that shouldn\'t be here. There is no team in this bracket that is safe.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Copenhagen starts now.',
+      },
+    ],
+  },
+  {
     slug: 'blast-slam-vii-lcq-preview',
     title: 'Six Teams, Two Copenhagen Spots: Inside the BLAST Slam VII Last Chance Qualifier',
     subtitle: 'Team Liquid won this tournament six months ago. Tomorrow they play a qualifier just to reach the LAN.',

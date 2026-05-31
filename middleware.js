@@ -69,6 +69,16 @@ const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.
 // Source of truth: src/data/articles.js — keep slugs, titles, excerpts, and publishedAt in sync.
 const ARTICLES_SSR = [
   {
+    slug: 'blast-slam-vii-copenhagen-playoffs-preview',
+    title: 'The Old Guard Is Gone. Copenhagen Belongs to Someone New.',
+    subtitle: 'OG, Spirit, Liquid, and Tundra — seven TI titles between them — are all home. Six teams reach BLAST Studios with everything to prove and nothing to protect.',
+    publishedAt: '2026-05-30',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'Preview',
+    excerpt: 'The four most decorated organizations in Dota 2 history couldn\'t make it through the LCQ. The only former TI champion in the Copenhagen field is the one who won it last year. This bracket is wide open, and the first match tells you everything.',
+  },
+  {
     slug: 'blast-slam-vii-lcq-preview',
     title: 'Six Teams, Two Copenhagen Spots: Inside the BLAST Slam VII Last Chance Qualifier',
     subtitle: 'Team Liquid won this tournament six months ago. Tomorrow they play a qualifier just to reach the LAN.',

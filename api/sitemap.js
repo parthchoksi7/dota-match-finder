@@ -1,6 +1,7 @@
 import { getPremiumLeagueIds } from './_shared.js'
 
 const ARTICLE_SLUGS = [
+  'blast-slam-vii-copenhagen-playoffs-preview',
   'blast-slam-vii-lcq-preview',
 ]
 
