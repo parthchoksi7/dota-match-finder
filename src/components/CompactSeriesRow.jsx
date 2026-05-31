@@ -135,11 +135,11 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
           </div>
         </div>
 
-        {/* Row 2: format label + replay button */}
+        {/* Row 2: format label + bracket round + replay button */}
         <div className="flex items-center justify-between">
-          {seriesLabel ? (
+          {(seriesLabel || bracketRound) ? (
             <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
-              {seriesLabel}
+              {[seriesLabel, bracketRound].filter(Boolean).join(' · ')}
             </span>
           ) : <span />}
           <button
@@ -189,9 +189,9 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
               </span>
             </div>
           )}
-          {seriesLabel && (
+          {(seriesLabel || bracketRound) && (
             <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
-              {seriesLabel}
+              {[seriesLabel, bracketRound].filter(Boolean).join(' · ')}
             </span>
           )}
         </div>
@@ -221,11 +221,6 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         </button>
       </div>
 
-      {bracketRound && (
-        <p className="px-4 pb-1 -mt-0.5 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-600">
-          {bracketRound}
-        </p>
-      )}
     </div>
   )
 }

@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 30, 2026",
     tag: "fix",
+    title: "Bracket round label no longer floats below match cards",
+    desc: "On mobile, the bracket stage label (e.g. Semifinal 2) was rendering as a separate element below the compact match row, visually disconnected from the series it described. It now appears inline next to the format label (e.g. BO3 · Semifinal 2) on both mobile and desktop.",
+  },
+  {
+    date: "May 30, 2026",
+    tag: "fix",
     title: "Series with split OpenDota series IDs now appear in Results",
     desc: "OpenDota occasionally assigns a different series_id to each game of the same series (observed across multiple BLAST Slam VII matches). Each game formed its own isolated stub that never reached the completion threshold, so the series never appeared in Results. A new merge pass in the series grouping logic detects stubs with the same teams, tournament, and games within a 4-hour window, and merges them into one series — correctly respecting the per-format game cap (BO1=1, BO2=2, BO3=3, BO5=5).",
   },

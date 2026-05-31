@@ -72,6 +72,11 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
             <span className="text-[10px] font-bold uppercase tracking-wide text-red-500">G{match.currentGame}</span>
           </div>
         )}
+        {match.bracketRound && (
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600">
+            {match.bracketRound}
+          </span>
+        )}
       </div>
 
       {/* Team B (right) */}
@@ -176,11 +181,6 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
         <div className="hidden sm:block w-[68px]" aria-hidden="true" />
       )}
     </div>
-    {match.bracketRound && (
-      <p className="px-4 pb-2 -mt-1 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-600">
-        {match.bracketRound}
-      </p>
-    )}
     </div>
   )
 }
