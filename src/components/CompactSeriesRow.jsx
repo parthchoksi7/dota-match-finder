@@ -156,7 +156,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
       {/* ── Desktop layout (≥ sm): horizontal 4-column grid ────────────────── */}
       <div
         className="hidden sm:grid sm:items-center sm:gap-2 sm:min-h-[36px]"
-        style={{ gridTemplateColumns: '1fr 76px 1fr auto' }}
+        style={{ gridTemplateColumns: '1fr minmax(76px, auto) 1fr auto' }}
       >
         {/* Radiant team + indicators (left-aligned) */}
         <div className="flex items-center gap-1.5 min-w-0">
@@ -190,7 +190,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
             </div>
           )}
           {(seriesLabel || bracketRound) && (
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500 whitespace-nowrap">
               {[seriesLabel, bracketRound].filter(Boolean).join(' · ')}
             </span>
           )}

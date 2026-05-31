@@ -38,7 +38,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
     >
     <div
       className="grid items-center gap-2 px-4 py-2.5 min-h-[48px]"
-      style={{ gridTemplateColumns: '1fr 80px 1fr auto' }}
+      style={{ gridTemplateColumns: '1fr minmax(80px, auto) 1fr auto' }}
     >
       {/* Team A (left) */}
       <div className="flex items-center min-w-0">
@@ -73,7 +73,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
           </div>
         )}
         {match.bracketRound && (
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 whitespace-nowrap">
             {match.bracketRound}
           </span>
         )}
