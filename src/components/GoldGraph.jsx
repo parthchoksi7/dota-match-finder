@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { RoshanSvg, RampageSvg, RapierSvg } from './GameIndicators'
+import { RoshanSvg, RampageSvg, RapierSvg, TeamFightSvg } from './GameIndicators'
 import { trackEvent } from '../utils'
 
 // SVG coordinate constants (viewBox: 480 × 160)
@@ -42,9 +42,10 @@ function formatHoverLabel(val, radiantName, direName) {
 
 // Icon component per event type — same SVG shapes as GameIndicators chips for visual consistency
 const MARKER_SVG = {
-  roshan: RoshanSvg,
-  rampage: RampageSvg,
-  rapier: RapierSvg,
+  roshan:    RoshanSvg,
+  rampage:   RampageSvg,
+  rapier:    RapierSvg,
+  teamfight: TeamFightSvg,
 }
 
 // Lollipop marker color system (Option F — chip indicator hues + side ring)
@@ -54,9 +55,10 @@ const SIDE_COLOR = {
 }
 
 const CHIP = {
-  roshan:  { icon: '#f59e0b', disc: 'rgba(245,158,11,0.18)'  },
-  rampage: { icon: '#f97316', disc: 'rgba(249,115,22,0.18)'  },
-  rapier:  { icon: '#ef4444', disc: 'rgba(239,68,68,0.18)'   },
+  roshan:    { icon: '#f59e0b', disc: 'rgba(245,158,11,0.18)'  },
+  rampage:   { icon: '#f97316', disc: 'rgba(249,115,22,0.18)'  },
+  rapier:    { icon: '#ef4444', disc: 'rgba(239,68,68,0.18)'   },
+  teamfight: { icon: '#06b6d4', disc: 'rgba(6,182,212,0.15)'   },
 }
 
 const LOLLIPOP_STEM_LEN = 12
@@ -145,6 +147,7 @@ function GraphMarker({ event, isActive, chartX, dataY, stemMultiplier = 1, xOffs
           y={discCY - iconSize / 2}
           width={iconSize}
           height={iconSize}
+          {...(type === 'teamfight' ? { compact: true } : {})}
         />
       </g>
     </g>
@@ -641,9 +644,12 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         const Icon = MARKER_SVG[ev.type] || RapierSvg
         const teamName = ev.team === 'radiant' ? (radiantName || 'Radiant') : (direName || 'Dire')
         const minute = Math.floor(ev.time / 60)
+        const isTeamfight = ev.type === 'teamfight'
         const eventLabel = ev.type === 'roshan'
           ? `Roshan${ev.index ? ` ${ev.index}` : ''}`
-          : ev.type === 'rampage' ? 'Rampage' : 'Divine Rapier'
+          : ev.type === 'rampage' ? 'Rampage'
+          : isTeamfight ? 'Team Fight'
+          : 'Divine Rapier'
         const subject = ev.type === 'roshan'
           ? teamName
           : ev.type === 'rampage'
@@ -673,11 +679,24 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
             }}
           >
             <span style={{ color: activeEvent.chipColor, display: 'inline-flex' }}>
-              <Icon style={{ width: 12, height: 12 }} />
+              <Icon style={{ width: 12, height: 12 }} {...(isTeamfight ? { compact: true } : {})} />
             </span>
             <span style={{ fontWeight: 700 }}>{eventLabel}</span>
-            <span style={{ color: '#374151' }}>·</span>
-            <span style={{ color: '#9ca3af', fontWeight: 500 }}>{subject}</span>
+            {isTeamfight ? (
+              <>
+                <span style={{ color: '#374151' }}>·</span>
+                <span style={{ color: activeEvent.sideColor, fontWeight: 600 }}>{teamName}</span>
+                <span style={{ color: '#374151' }}>·</span>
+                <span style={{ color: '#9ca3af', fontWeight: 500 }} className="tabular-nums">{ev.deaths}d</span>
+                <span style={{ color: '#374151' }}>·</span>
+                <span style={{ color: activeEvent.sideColor, fontWeight: 500 }} className="tabular-nums">{formatGold(ev.netGoldDelta)}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ color: '#374151' }}>·</span>
+                <span style={{ color: '#9ca3af', fontWeight: 500 }}>{subject}</span>
+              </>
+            )}
             <span style={{ color: '#374151' }}>·</span>
             <span style={{ color: '#9ca3af', fontWeight: 500 }} className="tabular-nums">{minute}m</span>
             {activeEvent.eventUrl && (

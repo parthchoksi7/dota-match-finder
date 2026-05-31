@@ -140,6 +140,33 @@ export function RampageSvg({ className = 'w-3.5 h-3.5', ...props }) {
   )
 }
 
+export function TeamFightSvg({ className = 'w-3.5 h-3.5', compact = false, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...rest}
+    >
+      <line x1="2.5" y1="2.5" x2="11.5" y2="11.5" />
+      <line x1="9.3" y1="11.7" x2="11.7" y2="9.3" />
+      <line x1="13.5" y1="2.5" x2="4.5" y2="11.5" />
+      <line x1="4.3" y1="9.3" x2="6.7" y2="11.7" />
+      {!compact && (
+        <>
+          <circle cx="12.7" cy="12.7" r="1" fill="currentColor" stroke="none" />
+          <circle cx="3.3" cy="12.7" r="1" fill="currentColor" stroke="none" />
+        </>
+      )}
+    </svg>
+  )
+}
+
 // ── Per-team inline badges ─────────────────────────────────────────────────────
 
 /**

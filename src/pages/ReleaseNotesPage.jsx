@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "May 30, 2026",
+    tag: "new",
+    title: "Team fight markers on the gold graph",
+    desc: "The gold advantage chart now shows up to 8 notable team fight markers per game — each fight is a cyan lollipop with a Radiant/Dire ring showing who won. Tap or hover to see the winning team, deaths count, gold delta, and jump to the VOD timestamp. Fights are ranked by a composite of deaths and gold swing, so both big engagements and economically decisive fights appear.",
+  },
+  {
+    date: "May 30, 2026",
     tag: "fix",
     title: "Gold graph event markers have a cleaner ring border",
     desc: "The Radiant/Dire color ring on gold-graph event markers (Roshan, Rampage, Rapier) now sits flush on the disc edge as a crisp colored border, instead of floating as a separate halo 4px outside the disc.",
