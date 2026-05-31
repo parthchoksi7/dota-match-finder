@@ -654,3 +654,79 @@ describe('trackEvent', () => {
     expect(track).toHaveBeenCalledWith('test_event', { key: 'value' })
   })
 })
+
+// ── groupIntoSeries — third pass: split series_ids ───────────────────────────
+
+const BASE = 1_780_000_000
+
+describe('groupIntoSeries — third pass merges stubs with split series_ids', () => {
+  it('T1: merges two BO3 games with different series_ids (Spirit vs OG pattern)', () => {
+    // G1 and G2 both incomplete (0 wins each — 1-1 pending G3)
+    const g1 = makeGame({ seriesId: 1000, seriesType: 1, startTime: BASE,          radiantWin: false })
+    const g2 = makeGame({ seriesId: 1001, seriesType: 1, startTime: BASE + 73 * 60, radiantWin: false })
+    const result = groupIntoSeries([g1, g2])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(2)
+    expect(result[0].id).toBe('1000') // lower series_id is canonical
+  })
+
+  it('T2: merges three games all with different series_ids into one complete BO3', () => {
+    // A wins G1 and G3 → 2-1 complete
+    const g1 = makeGame({ seriesId: 1000, seriesType: 1, startTime: BASE,           radiantWin: true  })
+    const g2 = makeGame({ seriesId: 1001, seriesType: 1, startTime: BASE + 60 * 60, radiantWin: false })
+    const g3 = makeGame({ seriesId: 1002, seriesType: 1, startTime: BASE + 120 * 60, radiantWin: true })
+    const result = groupIntoSeries([g1, g2, g3])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(3)
+    expect(isSeriesComplete(result[0])).toBe(true)
+  })
+
+  it('T3: does not merge stubs when games are 8 hours apart', () => {
+    const g1 = makeGame({ seriesId: 1000, seriesType: 0, startTime: BASE,               radiantWin: true })
+    const g2 = makeGame({ seriesId: 1001, seriesType: 0, startTime: BASE + 8 * 3600,    radiantWin: true })
+    const result = groupIntoSeries([g1, g2])
+    expect(result).toHaveLength(2)
+  })
+
+  it('T4: does not merge complete BO1 stubs (separate legitimate BO1s)', () => {
+    // Both are complete BO1s — third pass must leave them alone
+    const g1 = makeGame({ seriesId: 1000, seriesType: 0, startTime: BASE,            radiantWin: true })
+    const g2 = makeGame({ seriesId: 1001, seriesType: 0, startTime: BASE + 30 * 60,  radiantWin: true })
+    const result = groupIntoSeries([g1, g2])
+    expect(result).toHaveLength(2)
+  })
+
+  it('T5: does not merge when combined games would exceed the series-type max (BO3 max=3)', () => {
+    // Each stub has 2 games (1-1 each); combined = 4 > maxGamesForSeries(BO3)=3.
+    // Both are incomplete so pagination drops the older stub1000.
+    // Guard working → surviving stub1001 has 2 games; guard broken → 4 games in 1 merged series.
+    const g1a = makeGame({ seriesId: 1000, seriesType: 1, startTime: BASE,            radiantWin: true  })
+    const g1b = makeGame({ seriesId: 1000, seriesType: 1, startTime: BASE + 40 * 60,  radiantWin: false })
+    const g2a = makeGame({ seriesId: 1001, seriesType: 1, startTime: BASE + 80 * 60,  radiantWin: true  })
+    const g2b = makeGame({ seriesId: 1001, seriesType: 1, startTime: BASE + 120 * 60, radiantWin: false })
+    const result = groupIntoSeries([g1a, g1b, g2a, g2b])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(2) // 2 not 4 — max-games guard blocked the merge
+  })
+
+  it('T6: does not merge stubs from different tournaments', () => {
+    // Both stubs incomplete; pagination drops the older stub1000.
+    // Guard working → surviving stub1001 has 1 game (DreamLeague); broken → 2 games merged.
+    const g1 = makeGame({ seriesId: 1000, seriesType: 1, startTime: BASE,            tournament: 'BLAST Slam S7',  radiantWin: false })
+    const g2 = makeGame({ seriesId: 1001, seriesType: 1, startTime: BASE + 60 * 60,  tournament: 'DreamLeague S25', radiantWin: false })
+    const result = groupIntoSeries([g1, g2])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(1) // 1 not 2 — different-tournament guard blocked the merge
+    expect(result[0].games[0].tournament).toBe('DreamLeague S25')
+  })
+
+  it('T7: regression — null-series-id second pass still works alongside third pass', () => {
+    const g1 = makeGame({ seriesId: 99, seriesType: 1, startTime: BASE,              radiantWin: true  })
+    const g2 = makeGame({ seriesId: 99, seriesType: 1, startTime: BASE + 3600,       radiantWin: false })
+    const g3 = makeGame({ seriesId: null, seriesType: 1, startTime: BASE + 7200,     radiantWin: true  })
+    const result = groupIntoSeries([g1, g2, g3])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(3)
+    expect(result[0].id).toBe('99')
+  })
+})

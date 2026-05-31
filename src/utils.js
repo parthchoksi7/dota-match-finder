@@ -156,6 +156,39 @@ export function groupIntoSeries(matches) {
     }
   }
 
+  // Third pass: merge numbered stubs that OD split across different series_ids.
+  // OD occasionally assigns a fresh series_id to each game of the same real series.
+  // Merge criteria: same teams + same tournament + all game start times within 4h
+  // + neither stub already complete + combined games within the series-type max.
+  const FOUR_HOURS = 4 * 3600
+  let mergedAny = true
+  while (mergedAny) {
+    mergedAny = false
+    const numericEntries = Object.entries(seriesMap).filter(([k]) => /^\d+$/.test(k))
+    outer: for (let i = 0; i < numericEntries.length; i++) {
+      const [keyA, sA] = numericEntries[i]
+      if (!seriesMap[keyA]) continue
+      if (isSeriesComplete(sA)) continue
+      for (let j = i + 1; j < numericEntries.length; j++) {
+        const [keyB, sB] = numericEntries[j]
+        if (!seriesMap[keyB]) continue
+        if (isSeriesComplete(sB)) continue
+        if (sA.games[0]?.tournament !== sB.games[0]?.tournament) continue
+        const teamsA = [sA.games[0].radiantTeam, sA.games[0].direTeam].sort().join('|')
+        const teamsB = [sB.games[0].radiantTeam, sB.games[0].direTeam].sort().join('|')
+        if (teamsA !== teamsB) continue
+        if (sA.games.length + sB.games.length > maxGamesForSeries(sA.seriesType)) continue
+        const allTimes = [...sA.games, ...sB.games].map(g => g.startTime)
+        if (Math.max(...allTimes) - Math.min(...allTimes) > FOUR_HOURS) continue
+        for (const g of sB.games) sA.games.push(g)
+        if (sB.startTime > sA.startTime) sA.startTime = sB.startTime
+        delete seriesMap[keyB]
+        mergedAny = true
+        break outer
+      }
+    }
+  }
+
   let series = Object.values(seriesMap)
   series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)
@@ -175,6 +208,14 @@ export function winsRequiredForSeries(seriesType) {
   if (seriesType === 2) return 3
   if (seriesType === 3) return 2 // BO2
   return 2
+}
+
+/** Maximum games possible in a series (BO1=1, BO2=2, BO3=3, BO5=5) */
+function maxGamesForSeries(seriesType) {
+  if (seriesType === 0) return 1  // BO1
+  if (seriesType === 2) return 5  // BO5
+  if (seriesType === 3) return 2  // BO2
+  return 3                        // BO3 (type 1) or unknown
 }
 
 // ── Summary localStorage cache helpers ────────────────────────────────────

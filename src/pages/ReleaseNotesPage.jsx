@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 30, 2026",
     tag: "fix",
+    title: "Series with split OpenDota series IDs now appear in Results",
+    desc: "OpenDota occasionally assigns a different series_id to each game of the same series (observed across multiple BLAST Slam VII matches). Each game formed its own isolated stub that never reached the completion threshold, so the series never appeared in Results. A new merge pass in the series grouping logic detects stubs with the same teams, tournament, and games within a 4-hour window, and merges them into one series — correctly respecting the per-format game cap (BO1=1, BO2=2, BO3=3, BO5=5).",
+  },
+  {
+    date: "May 30, 2026",
+    tag: "fix",
     title: "Just Ended missing when OpenDota indexes games with split series IDs",
     desc: "When OpenDota indexed two games from the same series under different series_id values (observed during BLAST Slam S7), neither game formed a complete series, so neither appeared in Results. At the same time, the Just Ended dedup logic found both OD match IDs in the raw match list and incorrectly suppressed the PandaScore entry — leaving the match invisible everywhere on the site. Fix: the dedup now checks against complete OD series only, so a PS entry stays visible whenever OD hasn't properly grouped the games.",
   },
