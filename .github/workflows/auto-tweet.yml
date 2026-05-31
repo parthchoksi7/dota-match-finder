@@ -23,12 +23,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"type":"cron"}' \
             --fail-with-body
-      - name: Reply to tournament result tweets
-        continue-on-error: true
-        run: |
-          curl -s -X GET "https://spectateesports.live/api/draft-posts?type=reply" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail-with-body
+      # - name: Reply to tournament result tweets
+      #   continue-on-error: true
+      #   run: |
+      #     curl -s -X GET "https://spectateesports.live/api/draft-posts?type=reply" \
+      #       -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+      #       --fail-with-body
+      #   # Re-enable when Twitter API Basic tier ($100/mo) is active — free tier
+      #   # blocks GET /2/users/:id/tweets (other users' timelines).
       - name: Create alert issue on failure
         if: failure()
         uses: actions/github-script@v7
