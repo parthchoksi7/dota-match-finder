@@ -750,11 +750,13 @@ Graph markers use a two-layer color system:
 | Rampage | `#f97316` | `rgba(249,115,22,0.18)` |
 | Roshan | `#f59e0b` | `rgba(245,158,11,0.18)` |
 
-Disc has no border — the only ring is the outer side ring.
+Disc has no border — the side ring sits on the disc edge and acts as its colored border.
 
 ### Side ring
 Radiant: `#22c55e` · Dire: `#ef4444`
-Default: 1.5px stroke, 55% opacity · Active: 2px stroke, 100% opacity
+The ring sits on the disc edge (radius = disc radius), drawn on top of the
+disc fill as its colored border — no gap between disc and ring.
+Default: 2px stroke, 70% opacity · Active: 2.5px stroke, 100% opacity
 
 ### Position rule
 Radiant lollipops rise above the line. Dire lollipops fall below.
@@ -762,4 +764,4 @@ Position and ring color are redundant signals — either alone conveys the side.
 
 ### Active vs inactive
 Active marker: full opacity, disc 1px larger, ring thicker.
-Inactive markers: 65% opacity on disc and icon, 55% opacity on ring.
+Inactive markers: 65% opacity on disc and icon, 70% opacity on ring.

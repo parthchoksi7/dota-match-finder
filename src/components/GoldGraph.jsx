@@ -85,7 +85,7 @@ function GraphMarker({ event, isActive, chartX, dataY, stemMultiplier = 1, xOffs
   const Icon = MARKER_SVG[type] || RapierSvg
 
   const DISC_R = isActive ? 11 : 10
-  const RING_R = DISC_R + 4
+  const RING_R = DISC_R
   const isRadiant = side === 'radiant'
   const stemDir = isRadiant ? -1 : 1
   const rawStem = LOLLIPOP_STEM_LEN * stemMultiplier
@@ -97,8 +97,8 @@ function GraphMarker({ event, isActive, chartX, dataY, stemMultiplier = 1, xOffs
 
   const iconSize = DISC_R * 1.15
   const itemOpacity = isActive ? 1 : 0.65
-  const ringOpacity = isActive ? 1 : 0.55
-  const ringStroke = isActive ? 2 : 1.5
+  const ringOpacity = isActive ? 1 : 0.7
+  const ringStroke = isActive ? 2.5 : 2
 
   // translate to chartX then apply inverse X scale so circles render as circles
   // despite the SVG's non-uniform preserveAspectRatio="none" stretching.
@@ -129,14 +129,14 @@ function GraphMarker({ event, isActive, chartX, dataY, stemMultiplier = 1, xOffs
       )}
       <circle cx={0} cy={dataY} r={2} fill="#6b7280"/>
       <circle
-        cx={0} cy={discCY} r={RING_R}
-        fill="none" stroke={ringColor}
-        strokeWidth={ringStroke} opacity={ringOpacity}
-      />
-      <circle
         cx={0} cy={discCY} r={DISC_R}
         fill={chip.disc} stroke="none"
         opacity={itemOpacity}
+      />
+      <circle
+        cx={0} cy={discCY} r={RING_R}
+        fill="none" stroke={ringColor}
+        strokeWidth={ringStroke} opacity={ringOpacity}
       />
       <g style={{ color: chip.icon }} opacity={itemOpacity}>
         <Icon
@@ -152,7 +152,7 @@ function GraphMarker({ event, isActive, chartX, dataY, stemMultiplier = 1, xOffs
 }
 
 const COLLISION_THRESHOLD = 30
-const RING_R_INACTIVE = 14  // DISC_R(10) + ring(4), used for horizontal nudge sizing
+const RING_R_INACTIVE = 10  // DISC_R(10), used for horizontal nudge sizing
 const EVENT_PRIORITY = { rampage: 3, rapier: 2, roshan: 1 }
 
 function resolveCollisions(markers) {
