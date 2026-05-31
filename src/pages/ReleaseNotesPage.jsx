@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "May 30, 2026",
     tag: "fix",
+    title: "Gold graph event markers have a cleaner ring border",
+    desc: "The Radiant/Dire color ring on gold-graph event markers (Roshan, Rampage, Rapier) now sits flush on the disc edge as a crisp colored border, instead of floating as a separate halo 4px outside the disc.",
+  },
+  {
+    date: "May 30, 2026",
+    tag: "fix",
     title: "Format label now centered under the score on mobile",
     desc: "On mobile, the format label (e.g. BO3 · Semifinal 2) was left-aligned, visually implying it belonged to the left team. It now centers under the score — matching desktop and correctly anchoring the label to the match result.",
   },
