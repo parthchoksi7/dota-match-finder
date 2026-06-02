@@ -232,8 +232,8 @@ function HomeFeed({
         />
       </div>
 
-      {/* Editorial story card — today's article, active tournament coverage only */}
-      {isToday && <EditorialCard />}
+      {/* Editorial story card — shown on today and upcoming match days */}
+      {(isToday || activeUpcomingMatches.length > 0) && <EditorialCard />}
 
       {/* Dismissible calendar nudge */}
       {!calNudgeDismissed && (
