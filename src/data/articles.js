@@ -4,6 +4,65 @@
 
 export const ARTICLES = [
   {
+    slug: 'blast-slam-vii-parivision-visa-liquid-replacement',
+    title: 'Team Liquid Steps In as PARIVISION Forced Out of BLAST Slam VII Playoffs Over Visa Issues',
+    subtitle: 'PARIVISION earned their upper bracket semifinals bye then could not travel. Team Liquid, eliminated in the Last Chance Qualifier, fly to Copenhagen in their place.',
+    publishedAt: '2026-06-02',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'News',
+    readingTime: 3,
+    watchQuery: 'blast slam',
+    watchLabel: 'Watch BLAST Slam VII Copenhagen on Spectate',
+    excerpt: 'BLAST announced on June 2 that PARIVISION cannot attend the Copenhagen playoffs due to travel permission complications. Team Liquid, chosen over Team Spirit via Neustadtl score, earn a surprise second chance at the $1,000,000 prize pool.',
+    sections: [
+      {
+        type: 'paragraph',
+        text: 'In a last-minute shake-up ahead of the BLAST Slam VII LAN playoffs, PARIVISION will not compete in Copenhagen after the organization encountered what BLAST described as "complications in travel permissions." Team Liquid, despite being eliminated in the Last Chance Qualifier, have been called in as their replacement.',
+      },
+      {
+        type: 'heading',
+        text: 'The Situation',
+      },
+      {
+        type: 'paragraph',
+        text: 'PARIVISION had earned their playoff berth the hard way — finishing as the second seed in the BLAST Slam VII Group Stage, securing an upper bracket semifinals bye alongside first-place LGD Gaming. The visa complications strip them of a spot they had legitimately fought for during the online group stage.',
+      },
+      {
+        type: 'paragraph',
+        text: "BLAST's official announcement confirmed that PARIVISION's upper bracket semifinals position has been redistributed to BetBoom Team, who finished third in the Group Stage but had been slated for a quarterfinal match. The bracket restructuring bumps every affected team up one rung.",
+      },
+      {
+        type: 'heading',
+        text: 'Why Liquid, Not Spirit',
+      },
+      {
+        type: 'paragraph',
+        text: 'With a playoff slot suddenly vacant in the lower bracket, organizers turned to the teams most recently eliminated from contention. Both Team Liquid and Team Spirit lost in the second round of the Last Chance Qualifier — Liquid falling to Aurora Gaming — but Liquid edged out Spirit on Neustadtl score, the tiebreaker used to determine priority between identically placed sides. That margin secured Liquid a flight to Copenhagen and a second chance at the $1,000,000 prize pool.',
+      },
+      {
+        type: 'heading',
+        text: 'High Stakes for a Backdoor Run',
+      },
+      {
+        type: 'paragraph',
+        text: 'For Team Liquid, this is an unexpected lifeline. Entering as the lowest-seeded team at the LAN with nothing to lose, they face the restructured bracket when the upper bracket quarterfinals kick off on June 4. A deep run from here would be one of the more remarkable stories of the 2026 Dota 2 season.',
+      },
+      {
+        type: 'paragraph',
+        text: 'For PARIVISION, it is a crushing outcome. Visa denials are outside any team\'s control, but losing a playoffs appearance — and a legitimate shot at a share of seven figures — to a bureaucratic barrier is a brutal way to exit a tournament you technically never lost.',
+      },
+      {
+        type: 'heading',
+        text: 'What\'s Next',
+      },
+      {
+        type: 'paragraph',
+        text: 'The BLAST Slam VII LAN stage resumes June 4, 2026 at BLAST Studios in Copenhagen with the upper bracket quarterfinals. The revised bracket positions BetBoom in the upper bracket semifinals alongside LGD Gaming, while Team Liquid enters at the quarterfinal stage. The tournament concludes June 7.',
+      },
+    ],
+  },
+  {
     slug: 'blast-slam-vii-copenhagen-playoffs-preview',
     title: 'The Old Guard Is Gone. Copenhagen Belongs to Someone New.',
     subtitle: 'OG, Spirit, Liquid, and Tundra — seven TI titles between them — are all home. Six teams reach BLAST Studios with everything to prove and nothing to protect.',

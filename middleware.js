@@ -69,6 +69,16 @@ const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.
 // Source of truth: src/data/articles.js — keep slugs, titles, excerpts, and publishedAt in sync.
 const ARTICLES_SSR = [
   {
+    slug: 'blast-slam-vii-parivision-visa-liquid-replacement',
+    title: 'Team Liquid Steps In as PARIVISION Forced Out of BLAST Slam VII Playoffs Over Visa Issues',
+    subtitle: 'PARIVISION earned their upper bracket semifinals bye then could not travel. Team Liquid, eliminated in the Last Chance Qualifier, fly to Copenhagen in their place.',
+    publishedAt: '2026-06-02',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'News',
+    excerpt: 'BLAST announced on June 2 that PARIVISION cannot attend the Copenhagen playoffs due to travel permission complications. Team Liquid, chosen over Team Spirit via Neustadtl score, earn a surprise second chance at the $1,000,000 prize pool.',
+  },
+  {
     slug: 'blast-slam-vii-copenhagen-playoffs-preview',
     title: 'The Old Guard Is Gone. Copenhagen Belongs to Someone New.',
     subtitle: 'OG, Spirit, Liquid, and Tundra — seven TI titles between them — are all home. Six teams reach BLAST Studios with everything to prove and nothing to protect.',
