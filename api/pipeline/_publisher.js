@@ -43,7 +43,7 @@ async function getFileContent(repo, path) {
 
 // ── File patching helpers ─────────────────────────────────────────────────────
 
-function patchLlms(current, article) {
+export function patchLlms(current, article) {
   const dateStr = new Date(article.publishedAt).toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   })
@@ -73,7 +73,7 @@ function patchLlms(current, article) {
   return current.trimEnd() + `\n\n### ${article.tournamentLabel} — Coverage\n\n${entry}\n`
 }
 
-function patchSitemap(current, article) {
+export function patchSitemap(current, article) {
   // Prepend slug to ARTICLE_SLUGS
   let updated = current.replace(
     'const ARTICLE_SLUGS = [',
