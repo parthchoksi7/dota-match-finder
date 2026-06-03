@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 2, 2026",
+    tag: "improvement",
+    title: "Teams page updated: Tundra exits, 1win added",
+    desc: "Tundra Esports is now marked as having exited competitive Dota 2 in June 2026 after transferring their entire roster and TI 2026 direct invite to 1win. 1win Team has been added to the Teams page reflecting their new status as a Tier 1 org heading into TI 2026.",
+  },
+  {
     date: "May 30, 2026",
     tag: "new",
     title: "Team fight markers on the gold graph",
