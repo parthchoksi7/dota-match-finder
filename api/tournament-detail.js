@@ -1,10 +1,140 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { trackError } from './_shared.js'
+import { trackError, findLeague } from './_shared.js'
 
 const BASE = 'https://api.pandascore.co'
 const TTL = 60 * 3 // 3 minutes — bracket/standings change during live matches
+
+// ── Tournament heroes (?mode=heroes) — merged from api/tournament-heroes.js ──
+
+const OPENDOTA = 'https://api.opendota.com/api'
+const HEROES_CACHE_TTL = 60 * 60 * 3
+const LEAGUES_TTL = 60 * 60 * 4
+const HERO_MAP_TTL = 60 * 60 * 24
+
+async function handleHeroes(req, res) {
+  const { id } = req.query
+  if (!id) return res.status(400).json({ error: 'Missing id' })
+
+  let name = req.query.name || null
+  let beginAtUnix = null
+  if (req.query.begin_at) {
+    const t = Math.floor(new Date(req.query.begin_at).getTime() / 1000)
+    if (!isNaN(t) && t > 0) beginAtUnix = t
+  }
+
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
+
+  const KV_KEY = `dota2:tournament_heroes_v9:${id}`
+  if (req.query?.bust === '1') {
+    await kv.del(KV_KEY).catch(() => {})
+  } else {
+    try { const cached = await kv.get(KV_KEY); if (cached) return res.status(200).json(cached) } catch {}
+  }
+
+  try {
+    if (!name || !beginAtUnix) {
+      const token = process.env.PANDASCORE_TOKEN
+      if (token) {
+        const tRes = await fetch(`${BASE}/tournaments/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        })
+        if (tRes.ok) {
+          const t = await tRes.json()
+          if (!name) name = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || null
+          if (!beginAtUnix && t.begin_at) {
+            const ts = Math.floor(new Date(t.begin_at).getTime() / 1000)
+            if (!isNaN(ts) && ts > 0) beginAtUnix = ts
+          }
+        }
+      }
+    }
+
+    const [leagues, heroMap] = await Promise.all([
+      (async () => {
+        try { const c = await kv.get('opendota:leagues_v2'); if (c) return c } catch {}
+        const r = await fetch(`${OPENDOTA}/leagues`)
+        if (!r.ok) return []
+        const data = await r.json()
+        kv.set('opendota:leagues_v2', data, { ex: LEAGUES_TTL }).catch(() => {})
+        return data
+      })(),
+      (async () => {
+        try { const c = await kv.get('opendota:hero_map_v1'); if (c) return c } catch {}
+        const r = await fetch(`${OPENDOTA}/heroes`)
+        if (!r.ok) return {}
+        const heroes = await r.json()
+        const map = {}
+        for (const h of (heroes || [])) map[h.id] = h.localized_name || h.name
+        kv.set('opendota:hero_map_v1', map, { ex: HERO_MAP_TTL }).catch(() => {})
+        return map
+      })(),
+    ])
+
+    const league = findLeague(leagues, name)
+    if (!league) return res.status(200).json({ heroes: [], gameCount: 0 })
+
+    const matchListRes = await fetch(`${OPENDOTA}/leagues/${league.leagueid}/matches`)
+    if (!matchListRes.ok) return res.status(200).json({ heroes: [], gameCount: 0 })
+    const rawMatchList = await matchListRes.json()
+    if (!Array.isArray(rawMatchList) || !rawMatchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
+
+    const matchList = beginAtUnix
+      ? rawMatchList.filter(m => !m.start_time || m.start_time >= beginAtUnix)
+      : rawMatchList
+    if (!matchList.length) return res.status(200).json({ heroes: [], gameCount: 0 })
+
+    const CONCURRENCY = 10
+    const MAX_GAMES = 60
+    const TIME_BUDGET_MS = 7000
+    const fetchStart = Date.now()
+    const allMatches = []
+    for (let i = 0; i < Math.min(matchList.length, MAX_GAMES); i += CONCURRENCY) {
+      if (Date.now() - fetchStart > TIME_BUDGET_MS) break
+      const batch = matchList.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(async m => {
+        const r = await fetch(`${OPENDOTA}/matches/${m.match_id}`)
+        if (!r.ok) return null
+        return r.json()
+      }))
+      allMatches.push(...results.filter(Boolean))
+    }
+
+    const heroStats = {}
+    let gameCount = 0
+    for (const match of allMatches) {
+      if (!match.picks_bans?.length) continue
+      gameCount++
+      const radiantWin = match.radiant_win
+      for (const pb of match.picks_bans) {
+        const heroName = heroMap[pb.hero_id]
+        if (!heroName) continue
+        if (!heroStats[heroName]) heroStats[heroName] = { picks: 0, wins: 0, bans: 0 }
+        if (pb.is_pick) {
+          heroStats[heroName].picks++
+          const won = (pb.team === 0 && radiantWin) || (pb.team === 1 && !radiantWin)
+          if (won) heroStats[heroName].wins++
+        } else {
+          heroStats[heroName].bans++
+        }
+      }
+    }
+
+    const heroes = Object.entries(heroStats)
+      .map(([name, s]) => ({ name, picks: s.picks, wins: s.wins, bans: s.bans, contested: s.picks + s.bans }))
+      .sort((a, b) => b.contested - a.contested || b.picks - a.picks)
+
+    const payload = { heroes, gameCount, league: league.name }
+    const heroesTtl = req.query?.completed === '1' ? 60 * 60 * 24 * 30 : HEROES_CACHE_TTL
+    kv.set(KV_KEY, payload, { ex: heroesTtl }).catch(() => {})
+    return res.status(200).json(payload)
+  } catch (err) {
+    console.error('Tournament heroes error:', err?.message)
+    await trackError('/api/tournament-detail?mode=heroes', 500, err?.message)
+    return res.status(500).json({ error: 'Failed to fetch hero stats' })
+  }
+}
 
 function parseBracketPosition(name) {
   const n = (name || '').trim()
@@ -378,6 +508,8 @@ async function handleSeriesDetail(req, res, token) {
 }
 
 export default async function handler(req, res) {
+  if (req.query?.mode === 'heroes') return handleHeroes(req, res)
+
   const tournamentId = req.query?.id
   if (!tournamentId) return res.status(400).json({ error: 'Missing id' })
 

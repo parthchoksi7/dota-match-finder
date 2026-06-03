@@ -274,7 +274,7 @@ function HeroStatsSection({ stageId, seriesName, isCompleted }) {
     setLoading(true)
     const params = new URLSearchParams({ id: stageId, name: seriesName })
     if (isCompleted) params.set('completed', '1')
-    fetch(`/api/tournament-heroes?${params}`)
+    fetch(`/api/tournament-detail?mode=heroes&${params}`)
       .then(r => r.json())
       .then(d => { setHeroes(d); setLoading(false) })
       .catch(() => { setHeroes({ heroes: [], gameCount: 0 }); setLoading(false) })
