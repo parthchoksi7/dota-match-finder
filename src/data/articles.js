@@ -4,6 +4,73 @@
 
 export const ARTICLES = [
   {
+    slug: 'blast-slam-vii-liquid-aurora-rematch',
+    title: 'Aurora Knocked Them Out. Tomorrow, Liquid Gets a Rematch.',
+    subtitle: 'Team Liquid were eliminated from BLAST Slam VII by Aurora Gaming in the LCQ. A visa denial brought them back to Copenhagen. Their first match: Aurora Gaming.',
+    publishedAt: '2026-06-03',
+    tournament: 'blast-slam-vii',
+    tournamentLabel: 'BLAST Slam VII',
+    category: 'Preview',
+    readingTime: 3,
+    watchQuery: 'blast slam',
+    watchLabel: 'Watch BLAST Slam VII Copenhagen on Spectate',
+    excerpt: 'On Thursday, Aurora Gaming eliminated Team Liquid from the Last Chance Qualifier. On Friday, PARIVISION\'s visa complications handed Liquid a flight to Copenhagen. Tomorrow, Liquid\'s first match at the LAN is against Aurora.',
+    sections: [
+      {
+        type: 'paragraph',
+        text: 'On Thursday afternoon, Team Liquid played their last match of BLAST Slam VII. Aurora Gaming beat them in the Last Chance Qualifier Round 2. The tournament was over. Liquid went home.',
+      },
+      {
+        type: 'paragraph',
+        text: 'On Friday morning, PARIVISION could not travel to Copenhagen due to visa complications. BLAST turned to the most recently eliminated teams. Liquid edged Team Spirit on Neustadtl score. They got the call.',
+      },
+      {
+        type: 'paragraph',
+        text: "Tomorrow, Team Liquid's first match at BLAST Studios Copenhagen — the match that represents their entire second chance at a $1,000,000 prize pool — is against Aurora Gaming.",
+      },
+      {
+        type: 'heading',
+        text: 'The Match That Already Happened',
+      },
+      {
+        type: 'paragraph',
+        text: 'The LCQ bracket put Liquid and Aurora on a collision course. Aurora beat Tundra Esports in Round 1, then faced Liquid in Round 2. Aurora won. That result sent Liquid home and sent Aurora to Copenhagen as one of two LCQ survivors alongside Team Yandex.',
+      },
+      {
+        type: 'paragraph',
+        text: "Now the same bracket structure delivers the same matchup, except this time it is happening in Copenhagen on a LAN stage with the eyes of the Dota 2 world on it. Liquid didn't qualify for this tournament. They are here because PARIVISION couldn't be. Aurora earned their spot the hard way — twice over if they can do it again tomorrow.",
+      },
+      {
+        type: 'heading',
+        text: 'What Each Team Has to Prove',
+      },
+      {
+        type: 'paragraph',
+        text: 'For Team Liquid, this is an extraordinary situation. They are the BLAST Slam VI champions. Six months ago they won this tournament in Malta. The question is no longer whether Liquid belong at BLAST events — it is whether this version of the team, entering a LAN they technically didn\'t qualify for, can perform under pressure when the stakes are real.',
+      },
+      {
+        type: 'paragraph',
+        text: 'For Aurora, the simplest possible framing applies: they beat Liquid once already this week to get here. A second win tomorrow would end any conversation about whether their LCQ run was a lucky bracket or something real. An Aurora that can defeat Liquid twice in 48 hours is a team with genuine Copenhagen ambitions.',
+      },
+      {
+        type: 'heading',
+        text: 'The Rest of the Bracket',
+      },
+      {
+        type: 'paragraph',
+        text: 'The upper bracket quarterfinals open the LAN. Alongside Liquid vs Aurora, Team Falcons face Team Yandex — the other LCQ survivor. Yandex won PGL Wallachia Season 7 earlier this year and survived the qualifier that eliminated OG, Team Spirit, and Tundra. Falcons are the reigning TI14 world champions who finished a disappointing fourth in the group stage. That is a series with its own narrative weight.',
+      },
+      {
+        type: 'paragraph',
+        text: 'LGD Gaming and BetBoom Team — who finished first and third in the group stage respectively — hold upper bracket semifinal byes. BetBoom inherited PARIVISION\'s bracket position when the roster couldn\'t travel. LGD, the improbable group stage winners operating under a Chinese banner with a South American roster, wait for their semifinal opponent to emerge from the quarterfinals.',
+      },
+      {
+        type: 'paragraph',
+        text: 'BLAST Slam VII Copenhagen begins tomorrow, June 4. The opening match answers the first question: did this week change anything for Team Liquid, or did Aurora already figure them out?',
+      },
+    ],
+  },
+  {
     slug: 'blast-slam-vii-parivision-visa-liquid-replacement',
     title: 'Team Liquid Steps In as PARIVISION Forced Out of BLAST Slam VII Playoffs Over Visa Issues',
     subtitle: 'PARIVISION earned their upper bracket semifinals bye then could not travel. Team Liquid, eliminated in the Last Chance Qualifier, fly to Copenhagen in their place.',

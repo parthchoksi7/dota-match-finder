@@ -1,29 +1,38 @@
-import { ARTICLES } from '../data/articles'
+import { useEffect, useState } from 'react'
 import { trackEvent } from '../utils'
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
 
 export default function EditorialCard() {
-  const today = new Date().toDateString()
+  const [featured, setFeatured] = useState(null)
+  const [extraCount, setExtraCount] = useState(0)
+  const [label, setLabel] = useState('Latest Story')
 
-  // Only surface articles published in the last 14 days
-  const recent = ARTICLES.filter(
-    a => Date.now() - new Date(a.publishedAt).getTime() < TWO_WEEKS_MS
-  )
-  if (recent.length === 0) return null
+  useEffect(() => {
+    fetch('/api/articles')
+      .then(r => r.json())
+      .then(data => {
+        const today = new Date().toDateString()
+        const recent = (data.articles || []).filter(
+          a => Date.now() - new Date(a.publishedAt).getTime() < TWO_WEEKS_MS
+        )
+        if (recent.length === 0) return
+        const top = recent[0]
+        setFeatured(top)
+        const sameTourn = recent.filter(a => a.tournament === top.tournament)
+        setExtraCount(sameTourn.length - 1)
+        setLabel(new Date(top.publishedAt).toDateString() === today ? "Today's Story" : 'Latest Story')
+      })
+      .catch(() => {})
+  }, [])
 
-  const featured = recent[0] // ARTICLES is newest-first
-  const tournamentArticles = recent.filter(a => a.tournament === featured.tournament)
-  const extraCount = tournamentArticles.length - 1
-
-  const isToday = new Date(featured.publishedAt).toDateString() === today
-  const label = isToday ? 'Today\'s Story' : 'Latest Story'
+  if (!featured) return null
 
   const meta = [
     featured.tournamentLabel,
     featured.category,
-    `${featured.readingTime} min`,
-  ].join(' · ')
+    featured.readingTime ? `${featured.readingTime} min` : null,
+  ].filter(Boolean).join(' · ')
 
   return (
     <a

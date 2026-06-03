@@ -1,11 +1,5 @@
 import { getPremiumLeagueIds } from './_shared.js'
 
-const ARTICLE_SLUGS = [
-  'blast-slam-vii-parivision-visa-liquid-replacement',
-  'blast-slam-vii-copenhagen-playoffs-preview',
-  'blast-slam-vii-lcq-preview',
-]
-
 const GLOSSARY_TERM_IDS = [
   'draft', 'gpm', 'roshan', 'rampage', 'divine-rapier', 'aegis', 'mega-creeps',
   'buyback', 'net-worth', 'first-blood', 'smoke-of-deceit', 'ancient', 'barracks',
@@ -41,6 +35,18 @@ export default async function handler(req, res) {
   const BASE_URL = 'https://spectateesports.live'
 
   try {
+    // Fetch article slugs/tournaments and match data in parallel.
+    let articleSlugs = []
+    let articleTournaments = []
+    try {
+      const artRes = await fetch(`${BASE_URL}/api/articles?mode=slugs`).catch(() => null)
+      if (artRes?.ok) {
+        const artData = await artRes.json().catch(() => null)
+        articleSlugs = artData?.slugs || []
+        articleTournaments = artData?.tournaments || []
+      }
+    } catch (_) { /* use empty lists if articles API is unavailable */ }
+
     // Fetch recent pro matches and premium league IDs in parallel.
     const [page1, premiumIds] = await Promise.all([
       fetch('https://api.opendota.com/api/proMatches').then(r => r.json()),
@@ -146,12 +152,12 @@ export default async function handler(req, res) {
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
-    <loc>${BASE_URL}/articles?tournament=blast-slam-vii</loc>
+${articleTournaments.map(t => `  <url>
+    <loc>${BASE_URL}/articles?tournament=${t}</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
-  </url>
-${ARTICLE_SLUGS.map(slug => `  <url>
+  </url>`).join('\n')}
+${articleSlugs.map(slug => `  <url>
     <loc>${BASE_URL}/articles/${slug}</loc>
     <changefreq>never</changefreq>
     <priority>0.8</priority>

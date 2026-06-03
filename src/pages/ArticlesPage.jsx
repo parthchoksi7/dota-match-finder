@@ -1,8 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
-import { ARTICLES } from '../data/articles'
 import { trackEvent } from '../utils'
 
 function formatDate(iso) {
@@ -22,13 +21,19 @@ export default function ArticlesPage() {
   const tournamentFilter = params.get('tournament') || null
   const tournamentLabel = tournamentFilter ? (TOURNAMENT_LABELS[tournamentFilter] || tournamentFilter) : null
 
-  const articles = tournamentFilter
-    ? ARTICLES.filter(a => a.tournament === tournamentFilter)
-    : ARTICLES
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     trackEvent('articles_page_view', { tournament: tournamentFilter || 'all' })
-  }, [])
+    const url = tournamentFilter
+      ? `/api/articles?tournament=${encodeURIComponent(tournamentFilter)}`
+      : '/api/articles'
+    fetch(url)
+      .then(r => r.json())
+      .then(data => { setArticles(data.articles || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [tournamentFilter])
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
@@ -72,7 +77,11 @@ export default function ArticlesPage() {
         )}
 
         {/* Article list */}
-        {articles.length === 0 ? (
+        {loading ? (
+          <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-8 animate-pulse">
+            Loading…
+          </p>
+        ) : articles.length === 0 ? (
           <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-8">
             No articles yet
           </p>

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
-import { ARTICLES_MAP, getArticlesByTournament } from '../data/articles'
 import { trackEvent } from '../utils'
 
 function formatDate(iso) {
@@ -122,17 +121,42 @@ function ShareButtons({ article }) {
 
 export default function ArticlePage() {
   const slug = window.location.pathname.replace('/articles/', '').split('/')[0]
-  const article = ARTICLES_MAP[slug]
+  const [article, setArticle] = useState(null)
+  const [related, setRelated] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (article) {
-      trackEvent('article_view', {
-        slug: article.slug,
-        tournament: article.tournament,
-        category: article.category,
+    setLoading(true)
+    fetch(`/api/articles?slug=${encodeURIComponent(slug)}`)
+      .then(r => r.json())
+      .then(data => {
+        setArticle(data.article || null)
+        setLoading(false)
       })
-    }
-  }, [article?.slug])
+      .catch(() => setLoading(false))
+  }, [slug])
+
+  useEffect(() => {
+    if (!article?.tournament) return
+    trackEvent('article_view', { slug: article.slug, tournament: article.tournament, category: article.category })
+    fetch(`/api/articles?tournament=${encodeURIComponent(article.tournament)}`)
+      .then(r => r.json())
+      .then(data => setRelated((data.articles || []).filter(a => a.slug !== slug)))
+      .catch(() => {})
+  }, [article?.tournament])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
+        <SiteHeader />
+        <main className="max-w-3xl mx-auto px-4 py-16 flex-1 w-full text-center">
+          <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest animate-pulse">Loading…</p>
+        </main>
+        <SiteFooter />
+        <BottomTabBar />
+      </div>
+    )
+  }
 
   if (!article) {
     return (
@@ -154,10 +178,6 @@ export default function ArticlePage() {
       </div>
     )
   }
-
-  const related = getArticlesByTournament(article.tournament).filter(
-    a => a.slug !== article.slug
-  )
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">

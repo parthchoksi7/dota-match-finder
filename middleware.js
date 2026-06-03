@@ -66,41 +66,8 @@ const GLOSSARY_TERMS_SSR = [
 
 const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.id, t]))
 
-// Article metadata (kept inline — edge middleware cannot import from src/)
-// Source of truth: src/data/articles.js — keep slugs, titles, excerpts, and publishedAt in sync.
-const ARTICLES_SSR = [
-  {
-    slug: 'blast-slam-vii-parivision-visa-liquid-replacement',
-    title: 'Team Liquid Steps In as PARIVISION Forced Out of BLAST Slam VII Playoffs Over Visa Issues',
-    subtitle: 'PARIVISION earned their upper bracket semifinals bye then could not travel. Team Liquid, eliminated in the Last Chance Qualifier, fly to Copenhagen in their place.',
-    publishedAt: '2026-06-02',
-    tournament: 'blast-slam-vii',
-    tournamentLabel: 'BLAST Slam VII',
-    category: 'News',
-    excerpt: 'BLAST announced on June 2 that PARIVISION cannot attend the Copenhagen playoffs due to travel permission complications. Team Liquid, chosen over Team Spirit via Neustadtl score, earn a surprise second chance at the $1,000,000 prize pool.',
-  },
-  {
-    slug: 'blast-slam-vii-copenhagen-playoffs-preview',
-    title: 'The Old Guard Is Gone. Copenhagen Belongs to Someone New.',
-    subtitle: 'OG, Spirit, Liquid, and Tundra — seven TI titles between them — are all home. Six teams reach BLAST Studios with everything to prove and nothing to protect.',
-    publishedAt: '2026-05-30',
-    tournament: 'blast-slam-vii',
-    tournamentLabel: 'BLAST Slam VII',
-    category: 'Preview',
-    excerpt: 'The four most decorated organizations in Dota 2 history couldn\'t make it through the LCQ. The only former TI champion in the Copenhagen field is the one who won it last year. This bracket is wide open, and the first match tells you everything.',
-  },
-  {
-    slug: 'blast-slam-vii-lcq-preview',
-    title: 'Six Teams, Two Copenhagen Spots: Inside the BLAST Slam VII Last Chance Qualifier',
-    subtitle: 'Team Liquid won this tournament six months ago. Tomorrow they play a qualifier just to reach the LAN.',
-    publishedAt: '2026-05-29',
-    tournament: 'blast-slam-vii',
-    tournamentLabel: 'BLAST Slam VII',
-    category: 'Preview',
-    excerpt: 'LGD Gaming — a Chinese org back after two years, now fielding a South American roster — won the group on their debut. Falcons finished fourth. The defending champions are in the LCQ. Everything you need to know.',
-  },
-]
-const ARTICLES_MAP_SSR = Object.fromEntries(ARTICLES_SSR.map(a => [a.slug, a]))
+// Article metadata is now served dynamically from /api/articles (Supabase).
+// The functions below fetch from that endpoint with a short timeout.
 
 const BASE_URL = 'https://spectateesports.live'
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`
@@ -807,9 +774,20 @@ async function handleTeamDetail(url) {
 
 async function handleArticles(url) {
   const tournamentFilter = url.searchParams.get('tournament')
-  const articles = tournamentFilter
-    ? ARTICLES_SSR.filter(a => a.tournament === tournamentFilter)
-    : ARTICLES_SSR
+  let articles = []
+  try {
+    const apiUrl = tournamentFilter
+      ? `${BASE_URL}/api/articles?mode=meta&tournament=${encodeURIComponent(tournamentFilter)}`
+      : `${BASE_URL}/api/articles?mode=meta`
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 3000)
+    const res = await fetch(apiUrl, { signal: controller.signal }).catch(() => null)
+    clearTimeout(timer)
+    if (res?.ok) {
+      const data = await res.json().catch(() => null)
+      articles = data?.articles || []
+    }
+  } catch (_) { /* serve with empty articles if API is unavailable */ }
 
   const isHub = tournamentFilter === 'blast-slam-vii'
   const title = isHub
@@ -857,7 +835,20 @@ async function handleArticles(url) {
 
 async function handleArticleDetail(url) {
   const slug = url.pathname.replace('/articles/', '').split('/')[0]
-  const article = ARTICLES_MAP_SSR[slug]
+  let article = null
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 3000)
+    const res = await fetch(
+      `${BASE_URL}/api/articles?slug=${encodeURIComponent(slug)}&mode=meta`,
+      { signal: controller.signal }
+    ).catch(() => null)
+    clearTimeout(timer)
+    if (res?.ok) {
+      const data = await res.json().catch(() => null)
+      article = data?.article || null
+    }
+  } catch (_) { /* fall through to 302 redirect below */ }
 
   if (!article) {
     return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/articles` } })
