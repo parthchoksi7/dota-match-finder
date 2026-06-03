@@ -83,6 +83,12 @@ TOURNAMENT: ${topic.tournamentLabel}
 TARGET LENGTH: 300-400 words
 ${revisionNote}
 
+STRICT FACTUAL RULES:
+- Only state facts that are explicitly present in the CONTEXT below.
+- Do NOT invent scores, player names, match results, roster moves, or dates not in the context.
+- If the context lacks a specific detail, write around it — use framing and analysis rather than fabricated specifics.
+- When in doubt about a fact, omit it rather than guess.
+
 CONTEXT:
 ${newsContext}
 

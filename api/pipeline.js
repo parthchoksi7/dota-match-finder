@@ -173,6 +173,10 @@ async function handleWebhook(req, res) {
   if (seen) return res.status(200).end()
   await kv.set(dedupKey, 1, { ex: 3600 }).catch(() => {})
 
+  // Respond to Telegram immediately — prevents retries while Claude runs (15-30s).
+  // Vercel continues executing the function after res.end() up to the timeout limit.
+  res.status(200).end()
+
   try {
     if (update.callback_query) await onCallback(update.callback_query)
     else if (update.message?.text) await onMessage(update.message)
@@ -180,7 +184,6 @@ async function handleWebhook(req, res) {
     console.error('[webhook] error:', err.message)
     await sendMessage(`⚠️ Pipeline error: ${err.message}`).catch(() => {})
   }
-  return res.status(200).end()
 }
 
 async function onCallback(cb) {
