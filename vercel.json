@@ -5,7 +5,7 @@
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/pipeline/trigger",
+      "path": "/api/pipeline?type=trigger",
       "schedule": "0 14 * * *"
     }
   ],

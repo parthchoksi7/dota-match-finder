@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     let articleSlugs = []
     let articleTournaments = []
     try {
-      const artRes = await fetch(`${BASE_URL}/api/articles?mode=slugs`).catch(() => null)
+      const artRes = await fetch(`${BASE_URL}/api/pipeline?type=articles&mode=slugs`).catch(() => null)
       if (artRes?.ok) {
         const artData = await artRes.json().catch(() => null)
         articleSlugs = artData?.slugs || []

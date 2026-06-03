@@ -66,7 +66,7 @@ const GLOSSARY_TERMS_SSR = [
 
 const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.id, t]))
 
-// Article metadata is now served dynamically from /api/articles (Supabase).
+// Article metadata is now served dynamically from /api/pipeline?type=articles (Supabase).
 // The functions below fetch from that endpoint with a short timeout.
 
 const BASE_URL = 'https://spectateesports.live'
@@ -777,8 +777,8 @@ async function handleArticles(url) {
   let articles = []
   try {
     const apiUrl = tournamentFilter
-      ? `${BASE_URL}/api/articles?mode=meta&tournament=${encodeURIComponent(tournamentFilter)}`
-      : `${BASE_URL}/api/articles?mode=meta`
+      ? `${BASE_URL}/api/pipeline?type=articles&mode=meta&tournament=${encodeURIComponent(tournamentFilter)}`
+      : `${BASE_URL}/api/pipeline?type=articles&mode=meta`
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 3000)
     const res = await fetch(apiUrl, { signal: controller.signal }).catch(() => null)
@@ -840,7 +840,7 @@ async function handleArticleDetail(url) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 3000)
     const res = await fetch(
-      `${BASE_URL}/api/articles?slug=${encodeURIComponent(slug)}&mode=meta`,
+      `${BASE_URL}/api/pipeline?type=articles&slug=${encodeURIComponent(slug)}&mode=meta`,
       { signal: controller.signal }
     ).catch(() => null)
     clearTimeout(timer)

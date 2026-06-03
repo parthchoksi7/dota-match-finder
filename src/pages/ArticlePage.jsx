@@ -127,7 +127,7 @@ export default function ArticlePage() {
 
   useEffect(() => {
     setLoading(true)
-    fetch(`/api/articles?slug=${encodeURIComponent(slug)}`)
+    fetch(`/api/pipeline?type=articles&slug=${encodeURIComponent(slug)}`)
       .then(r => r.json())
       .then(data => {
         setArticle(data.article || null)
@@ -139,7 +139,7 @@ export default function ArticlePage() {
   useEffect(() => {
     if (!article?.tournament) return
     trackEvent('article_view', { slug: article.slug, tournament: article.tournament, category: article.category })
-    fetch(`/api/articles?tournament=${encodeURIComponent(article.tournament)}`)
+    fetch(`/api/pipeline?type=articles&tournament=${encodeURIComponent(article.tournament)}`)
       .then(r => r.json())
       .then(data => setRelated((data.articles || []).filter(a => a.slug !== slug)))
       .catch(() => {})

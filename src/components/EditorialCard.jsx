@@ -9,7 +9,7 @@ export default function EditorialCard() {
   const [label, setLabel] = useState('Latest Story')
 
   useEffect(() => {
-    fetch('/api/articles')
+    fetch('/api/pipeline?type=articles')
       .then(r => r.json())
       .then(data => {
         const today = new Date().toDateString()

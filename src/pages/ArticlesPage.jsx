@@ -27,8 +27,8 @@ export default function ArticlesPage() {
   useEffect(() => {
     trackEvent('articles_page_view', { tournament: tournamentFilter || 'all' })
     const url = tournamentFilter
-      ? `/api/articles?tournament=${encodeURIComponent(tournamentFilter)}`
-      : '/api/articles'
+      ? `/api/pipeline?type=articles&tournament=${encodeURIComponent(tournamentFilter)}`
+      : '/api/pipeline?type=articles'
     fetch(url)
       .then(r => r.json())
       .then(data => { setArticles(data.articles || []); setLoading(false) })
