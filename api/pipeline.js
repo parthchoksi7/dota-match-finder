@@ -173,8 +173,8 @@ async function handleWebhook(req, res) {
   if (seen) return res.status(200).end()
   await kv.set(dedupKey, 1, { ex: 3600 }).catch(() => {})
 
-  // Respond to Telegram immediately — prevents retries while Claude runs (15-30s).
-  // Vercel continues executing the function after res.end() up to the timeout limit.
+  // Respond to Telegram immediately — prevents retries during slow Claude calls.
+  // Vercel continues background execution after res.end() up to the timeout limit.
   res.status(200).end()
 
   try {

@@ -3,6 +3,7 @@
  * Pulls from: own published articles (best factual ground), external news headlines,
  * and live match scores/results.
  */
+import { getSupabaseAnon } from '../_supabase.js'
 
 const BASE_URL = 'https://spectateesports.live'
 
@@ -14,18 +15,22 @@ export async function fetchNewsContext() {
     const [newsResult, matchesResult, articlesResult] = await Promise.allSettled([
       fetch(`${BASE_URL}/api/news?limit=20`, { signal: controller.signal }),
       fetch(`${BASE_URL}/api/live-matches`, { signal: controller.signal }),
-      fetch(`${BASE_URL}/api/pipeline?type=articles`, { signal: controller.signal }),
+      getSupabaseAnon()
+        .from('articles')
+        .select('title, published_at, excerpt')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false })
+        .limit(5),
     ])
     clearTimeout(timer)
 
     // Own published articles are the most reliable factual source
     let articlesText = ''
-    if (articlesResult.status === 'fulfilled' && articlesResult.value.ok) {
-      const data = await articlesResult.value.json().catch(() => null)
-      const recent = (data?.articles || []).slice(0, 5)
+    if (articlesResult.status === 'fulfilled' && !articlesResult.value.error) {
+      const recent = articlesResult.value.data || []
       if (recent.length > 0) {
         articlesText = 'OUR RECENT PUBLISHED ARTICLES (verified facts):\n' + recent.map(a =>
-          `- "${a.title}" (${a.publishedAt}): ${a.excerpt}`
+          `- "${a.title}" (${a.published_at}): ${a.excerpt}`
         ).join('\n')
       }
     }
