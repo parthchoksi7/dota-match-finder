@@ -151,18 +151,18 @@ async function handleMessage(message) {
   }
 
   if (text === '/reset' || text.startsWith('/reset@')) {
-    if (session) await deleteSession(key)
     await sendMessage('🔄 Session cleared. Send /trigger to start fresh.')
+    if (session) await deleteSession(key)
     return
   }
 
   if (text === '/trigger' || text.startsWith('/trigger@')) {
+    await sendMessage('⚡ Received. Generating topics...')
     if (session && !['DISMISSED', 'REJECTED', 'PUBLISHED', 'EXPIRED'].includes(session.state)) {
       await sendMessage(`⚠️ Session already active (${session.state}). Send /reset first.`)
       return
     }
     if (session) await deleteSession(key)
-    await sendMessage('⚡ Generating topics...')
     let newsContext, topics
     try {
       newsContext = await fetchNewsContext()

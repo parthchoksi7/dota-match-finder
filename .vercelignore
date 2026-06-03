@@ -1,3 +1,3 @@
 # In-progress work not ready for deployment
-pipeline/
+/pipeline/
 scripts/probe-od-match.mjs
