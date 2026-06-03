@@ -47,6 +47,7 @@ This applies to: className edits, new components, loading/empty/error states, an
 - **New entity type** (hero, player, team) → add to `public/llms-full.txt` with schema and known values; add `SportsTeam`/`Person`/`Thing` JSON-LD to middleware
 - **New API endpoint or mode** → add URL to "Machine-Readable Endpoints" section in `public/llms.txt`; add response schema to `public/llms-full.txt`
 - **Every page** must pass the bare-HTML test: `curl -A "GPTBot/1.0" https://spectateesports.live/{route}` should return a meaningful `<h1>`, `<meta name="description">`, `<link rel="canonical">`, and `<script type="application/ld+json">`
+- **Content changes to existing entities** (team status, org history, editorial facts) → update the relevant entries in `public/llms.txt` and `public/llms-full.txt` to match. These files are read by AI crawlers and GEO pipelines — stale entity data here means stale AI answers. Check: team list counts, org status (disbanded/active), shortDesc summaries.
 
 ### 6. robots.txt and Sitemap
 - File: `public/robots.txt`

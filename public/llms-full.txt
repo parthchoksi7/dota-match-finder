@@ -30,7 +30,7 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 - **About** (https://spectateesports.live/about) — Site description and data attribution.
 - **Release Notes** (https://spectateesports.live/release-notes) — Chronological feature changelog.
 - **Glossary** (https://spectateesports.live/glossary) — Definitions for 25 Dota 2 professional terms (draft, GPM, Roshan, Rampage, BKB, Aegis, etc.). Each term has a dedicated page at /glossary/{term-id} with full definition and related terms. All pages include DefinedTerm schema.org structured data.
-- **Pro Teams** (https://spectateesports.live/teams) — Tier 1 organization index. 13 orgs listed by competitive region (WEU/EEU/CN/SEA/NA). Each org has a dedicated page at /teams/{slug} covering: competitive region, HQ country, TI championship record (immutable historical facts), org description, and a Liquipedia link for current rosters. Includes SportsTeam schema.org structured data. Player rosters are intentionally not included — they change frequently; Liquipedia is the authoritative source.
+- **Pro Teams** (https://spectateesports.live/teams) — Tier 1 organization index. 14 orgs listed by competitive region (WEU/EEU/CN/SEA/NA). Each org has a dedicated page at /teams/{slug} covering: competitive region, HQ country, TI championship record (immutable historical facts), org description, and a Liquipedia link for current rosters. Includes SportsTeam schema.org structured data. Player rosters are intentionally not included — they change frequently; Liquipedia is the authoritative source.
 - **Articles** (https://spectateesports.live/articles) — Original editorial coverage of Tier 1 Dota 2 tournaments. One article per day during major events. Includes tournament analysis, team narratives, match previews, and storyline breakdowns. Individual articles at /articles/{slug}.
 - **BLAST Slam VII Coverage Hub** (https://spectateesports.live/articles?tournament=blast-slam-vii) — Daily editorial coverage of BLAST Slam VII (May 26 – June 7, 2026, Copenhagen, $1,000,000 prize pool). Twelve teams: Team Falcons (TI14 champions), Team Yandex, PARIVISION, Team Liquid, Team Spirit, LGD Gaming, OG Esports, Tundra Esports, BetBoom Team, HEROIC, Aurora Gaming, GLYPH.
 
@@ -100,11 +100,18 @@ Source: Liquipedia (https://liquipedia.net/dota2/). TI records verified against 
 - **Iconic players**: skiter, Malr1ne, ATF, Cr1t-, Sneyking
 - **Historic note**: Won DreamLeague Season 22, 23, and 24 before winning TI14. Defeated Xtreme Gaming 3-2 in the grand final.
 
-### Tundra Esports (WEU)
+### Tundra Esports (WEU) — exited Dota 2
 - **Organization based in**: United Kingdom (London; founded January 25, 2021)
 - **TI wins**: TI11 (2022) — dropped only one game across the entire playoff stage
 - **Iconic players**: skiter, Nine, 33, Saksa, Sneyking
 - **Historic note**: Defeated Team Secret 3-0 in the TI11 Grand Final without losing a single series in the main event.
+- **Status**: Exited competitive Dota 2 on June 1, 2026. Full roster and TI 2026 direct invite transferred to 1win Team.
+
+### 1win Team (EEU)
+- **Organization based in**: Russia (entered Dota 2 February 2024)
+- **TI wins**: None
+- **Iconic players**: None established (org is new to Dota 2)
+- **Notable**: Signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite. Previous 1win Dota 2 squad departed to compete independently as "Enjoy" per Valve regulations prohibiting multiple affiliated teams in official tournaments.
 
 ### Evil Geniuses (NA) — disbanded
 - **Organization based in**: United States (Dota 2 division est. October 2011; disbanded November 2023)

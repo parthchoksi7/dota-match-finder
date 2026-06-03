@@ -90,12 +90,13 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 
 Dedicated pages for each Tier 1 Dota 2 organization at /teams/{slug}. Each page covers organization history, TI championship record, iconic players, and a Liquipedia link for current rosters. All pages include SportsTeam schema.org structured data. Source: Liquipedia.
 
-- [Teams Index](https://spectateesports.live/teams): All 10 organizations
+- [Teams Index](https://spectateesports.live/teams): All 11 organizations
 - [OG](https://spectateesports.live/teams/og): 2× TI champion (2018, 2019). Iconic players: N0tail, Fly, ana, Topson, Ceb.
 - [Team Liquid](https://spectateesports.live/teams/team-liquid): 2× TI champion (2017, 2024). Iconic players: KuroKy, Miracle-, MATUMBAMAN, GH, MinD_ContRoL.
 - [Team Spirit](https://spectateesports.live/teams/team-spirit): 2× TI champion (2021, 2023). Iconic players: Yatoro, Collapse, TORONTOTOKYO, Miposhka, Mira.
 - [Team Falcons](https://spectateesports.live/teams/team-falcons): TI14 champion (2025). Iconic players: skiter, Malr1ne, ATF, Cr1t-, Sneyking.
-- [Tundra Esports](https://spectateesports.live/teams/tundra-esports): TI11 champion (2022). Iconic players: skiter, Nine, 33, Saksa, Sneyking.
+- [Tundra Esports](https://spectateesports.live/teams/tundra-esports): TI11 champion (2022), exited Dota 2 June 2026. Iconic players: skiter, Nine, 33, Saksa, Sneyking.
+- [1win Team](https://spectateesports.live/teams/1win): Russian EEU org. Signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite.
 - [Evil Geniuses](https://spectateesports.live/teams/evil-geniuses): TI5 champion (2015), disbanded November 2023. Iconic players: Fear, SumaiL, UNiVeRsE, ppd, Arteezy.
 - [Nigma Galaxy](https://spectateesports.live/teams/nigma-galaxy): Founded 2019 by four TI7 champions. Iconic players: Miracle-, KuroKy, GH, MinD_ContRoL, w33.
 - [BetBoom Team](https://spectateesports.live/teams/betboom-team): Russian EEU org est. 2022. Iconic players: save-, gpk, TORONTOTOKYO, Nightfall, SoNNeikO.
