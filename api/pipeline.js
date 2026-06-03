@@ -204,9 +204,10 @@ async function onCallback(cb) {
     const topicId = parseInt(data.split(':')[1], 10)
     const topic = session.topics?.find(t => t.id === topicId)
     if (!topic) return
-    await saveSession(key, { ...session, state: 'DRAFT_GENERATING', selectedTopicId: topicId })
+    const updatedSession = { ...session, state: 'DRAFT_GENERATING', selectedTopicId: topicId }
+    await saveSession(key, updatedSession)
     await sendMessage(`✍️ Generating draft for: <b>${topic.title}</b>...`)
-    await runDraftGeneration(key, session, topic)
+    await runDraftGeneration(key, updatedSession, topic)
     return
   }
 
