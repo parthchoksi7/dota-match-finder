@@ -126,7 +126,7 @@ export async function generateXPost(article) {
 Title: ${article.title}
 Tournament: ${article.tournamentLabel}
 Excerpt: ${article.excerpt}
-URL: https://spectateesports.live/articles/${article.slug}
+URL: spectateesports.live/articles/${article.slug}
 
 Rules:
 - Hook line first: punchy, specific, max 120 chars
