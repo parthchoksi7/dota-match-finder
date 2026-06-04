@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 4, 2026",
+    tag: "fix",
+    title: "Live match rows: team names no longer truncated on mobile",
+    desc: "Team names in live match rows were being cut to 'TEA...' when a bracket stage label (e.g. Upper Bracket Quarterfinal 2) was present. The layout is now split into two lines: team names and score on the first line, and the current game indicator (G3) plus bracket stage on a second line — so both team names and stage context are fully visible.",
+  },
+  {
     date: "June 2, 2026",
     tag: "improvement",
     title: "Teams page updated: Tundra exits, 1win added",

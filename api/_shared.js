@@ -287,6 +287,24 @@ export const NEWS_SOURCES = [
       categories.some(c => c.toLowerCase().includes('dota')) ||
       (url || '').toLowerCase().includes('/dota'),
   },
+  {
+    id: 'gosugamers',
+    name: 'Gosugamers',
+    feedUrl: 'https://www.gosugamers.net/dota2/news/rss',
+    games: ['dota2'],
+    reliability: 5,
+    baseUrl: 'https://www.gosugamers.net',
+    categoryFilter: null,
+  },
+  {
+    id: 'esportsgg',
+    name: 'Esports.gg',
+    feedUrl: 'https://esports.gg/news/dota2/feed/',
+    games: ['dota2'],
+    reliability: 4,
+    baseUrl: 'https://esports.gg',
+    categoryFilter: null,
+  },
 ]
 
 /**

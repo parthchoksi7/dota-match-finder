@@ -246,30 +246,41 @@ async function handleTournamentDetail(url) {
           ...(t.imageUrl ? { 'image': t.imageUrl } : {}),
         }))
 
+        const sportsEventNode = data.beginAt ? {
+          '@type': 'SportsEvent',
+          '@id': `${canonical}#event`,
+          'name': tName,
+          'url': canonical,
+          'sport': 'Dota 2',
+          'eventStatus': data.status === 'running' || data.status === 'upcoming'
+            ? 'https://schema.org/EventScheduled'
+            : 'https://schema.org/EventCompleted',
+          'startDate': data.beginAt,
+          ...(data.endAt ? { 'endDate': data.endAt } : {}),
+          'location': { '@type': 'VirtualLocation', 'url': `${BASE_URL}/tournament/${seriesId}` },
+          'image': data.imageUrl || DEFAULT_OG_IMAGE,
+          ...(data.prizePool ? { 'description': `${tName}. Prize pool: $${data.prizePool.toLocaleString()} USD.` } : {}),
+          'organizer': {
+            '@type': 'SportsOrganization',
+            'name': league || SITE_NAME,
+            'sport': 'Dota 2',
+            'url': data.liquipediaUrl || BASE_URL,
+          },
+          ...(contestants.length > 0 ? { 'competitor': contestants, 'performer': contestants } : {}),
+          'offers': {
+            '@type': 'Offer',
+            'name': 'Free to watch',
+            'price': 0,
+            'priceCurrency': 'USD',
+            'availability': 'https://schema.org/InStock',
+            'url': canonical,
+          },
+        } : null
+
         jsonLd = {
           '@context': 'https://schema.org',
           '@graph': [
-            {
-              '@type': 'SportsEvent',
-              '@id': `${canonical}#event`,
-              'name': tName,
-              'url': canonical,
-              'sport': 'Dota 2',
-              'eventStatus': data.status === 'running'
-                ? 'https://schema.org/EventScheduled'
-                : data.status === 'upcoming'
-                  ? 'https://schema.org/EventScheduled'
-                  : 'https://schema.org/EventPostponed',
-              ...(data.beginAt ? { 'startDate': data.beginAt } : {}),
-              ...(data.endAt ? { 'endDate': data.endAt } : {}),
-              ...(data.prizePool ? { 'description': `${tName}. Prize pool: $${data.prizePool.toLocaleString()} USD.` } : {}),
-              'organizer': {
-                '@type': 'SportsOrganization',
-                'name': league || SITE_NAME,
-                'sport': 'Dota 2',
-              },
-              ...(contestants.length > 0 ? { 'competitor': contestants } : {}),
-            },
+            ...(sportsEventNode ? [sportsEventNode] : []),
             {
               '@type': 'WebPage',
               '@id': `${canonical}#webpage`,
@@ -482,6 +493,10 @@ async function handleMatch(url) {
       }
       imageUrl = `${url.origin}/api/og?matchId=${matchId}`
 
+      const matchCompetitors = [
+        { '@type': 'SportsTeam', 'name': radiantTeam },
+        { '@type': 'SportsTeam', 'name': direTeam },
+      ]
       jsonLd = {
         '@context': 'https://schema.org',
         '@graph': [
@@ -492,15 +507,31 @@ async function handleMatch(url) {
             'url': canonical,
             'sport': 'Dota 2',
             'description': description,
-            ...(league ? { 'organizer': { '@type': 'SportsOrganization', 'name': league, 'sport': 'Dota 2' } } : {}),
-            'competitor': [
-              { '@type': 'SportsTeam', 'name': radiantTeam },
-              { '@type': 'SportsTeam', 'name': direTeam },
-            ],
+            'eventStatus': 'https://schema.org/EventCompleted',
+            ...(data.start_time ? { 'startDate': new Date(data.start_time * 1000).toISOString() } : {}),
+            'location': { '@type': 'VirtualLocation', 'url': canonical },
+            'image': imageUrl,
+            ...(league ? {
+              'organizer': {
+                '@type': 'SportsOrganization',
+                'name': league,
+                'sport': 'Dota 2',
+                'url': BASE_URL,
+              },
+            } : {}),
+            'competitor': matchCompetitors,
+            'performer': matchCompetitors,
             ...(data.radiant_win != null ? {
               'winner': { '@type': 'SportsTeam', 'name': winner },
             } : {}),
-            'eventStatus': 'https://schema.org/EventPostponed',
+            'offers': {
+              '@type': 'Offer',
+              'name': 'Free to watch',
+              'price': 0,
+              'priceCurrency': 'USD',
+              'availability': 'https://schema.org/InStock',
+              'url': canonical,
+            },
           },
           {
             '@type': 'WebPage',

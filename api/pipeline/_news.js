@@ -12,9 +12,10 @@ export async function fetchNewsContext() {
   const timer = setTimeout(() => controller.abort(), 10000)
 
   try {
-    const [newsResult, matchesResult, articlesResult] = await Promise.allSettled([
+    const [newsResult, recentResult, upcomingResult, articlesResult] = await Promise.allSettled([
       fetch(`${BASE_URL}/api/news?limit=20`, { signal: controller.signal }),
-      fetch(`${BASE_URL}/api/live-matches`, { signal: controller.signal }),
+      fetch(`${BASE_URL}/api/tournaments?mode=recent-completed`, { signal: controller.signal }),
+      fetch(`${BASE_URL}/api/upcoming-matches`, { signal: controller.signal }),
       getSupabaseAnon()
         .from('articles')
         .select('title, published_at, excerpt')
@@ -47,30 +48,41 @@ export async function fetchNewsContext() {
       }
     }
 
-    // Match results with scores
+    // Recent completed series from PandaScore — returns individual games, group into series
     let matchText = ''
-    if (matchesResult.status === 'fulfilled' && matchesResult.value.ok) {
-      const data = await matchesResult.value.json().catch(() => null)
-      const completed = (data?.recentlyCompleted || data?.completed || []).slice(0, 8)
-      const upcoming = (data?.upcoming || data?.upcomingToday || []).slice(0, 5)
-
-      if (completed.length > 0) {
-        matchText += '\n\nRECENT MATCH RESULTS:\n' + completed.map(m => {
-          const t1 = m.team1 || m.opponents?.[0]?.opponent?.name || 'Team A'
-          const t2 = m.team2 || m.opponents?.[1]?.opponent?.name || 'Team B'
-          const league = m.tournamentName || m.league?.name || m.tournament || ''
-          const score = m.score || (m.games ? `${m.games.filter(g => g.winner === t1).length}-${m.games.filter(g => g.winner === t2).length}` : '')
-          const winner = m.winner || ''
-          return `- ${t1} vs ${t2}${score ? ` (${score})` : ''}${winner ? ` — ${winner} wins` : ''}${league ? ` | ${league}` : ''}`
+    if (recentResult.status === 'fulfilled' && recentResult.value.ok) {
+      const data = await recentResult.value.json().catch(() => null)
+      const games = data?.games || []
+      if (games.length > 0) {
+        const seriesMap = new Map()
+        for (const game of games) {
+          if (!seriesMap.has(game.seriesId)) {
+            seriesMap.set(game.seriesId, { tournament: game.tournament, wins: new Map() })
+          }
+          const s = seriesMap.get(game.seriesId)
+          const winner = game.radiantWin ? game.radiantTeam : game.direTeam
+          s.wins.set(winner, (s.wins.get(winner) || 0) + 1)
+        }
+        const seriesList = [...seriesMap.values()].slice(0, 10)
+        matchText += 'RECENT COMPLETED SERIES (authoritative scores):\n' + seriesList.map(s => {
+          const sorted = [...s.wins.entries()].sort((a, b) => b[1] - a[1])
+          const [winner, wWins] = sorted[0] || ['?', 0]
+          const [loser, lWins] = sorted[1] || ['?', 0]
+          return `- ${winner} def. ${loser} (${wWins}-${lWins}) | ${s.tournament}`
         }).join('\n')
       }
+    }
 
+    // Upcoming matches for preview angles
+    if (upcomingResult.status === 'fulfilled' && upcomingResult.value.ok) {
+      const data = await upcomingResult.value.json().catch(() => null)
+      const upcoming = (data?.matches || data?.upcoming || []).slice(0, 6)
       if (upcoming.length > 0) {
-        matchText += '\n\nUPCOMING MATCHES:\n' + upcoming.map(m => {
+        matchText += (matchText ? '\n\n' : '') + 'UPCOMING MATCHES:\n' + upcoming.map(m => {
           const t1 = m.opponents?.[0]?.opponent?.name || m.team1 || 'TBD'
           const t2 = m.opponents?.[1]?.opponent?.name || m.team2 || 'TBD'
           const league = m.league?.name || m.tournament || ''
-          const time = m.scheduledAt || m.scheduled_at || ''
+          const time = m.scheduledAt || m.scheduled_at || m.begin_at || ''
           return `- ${t1} vs ${t2}${league ? ` | ${league}` : ''}${time ? ` at ${time}` : ''}`
         }).join('\n')
       }

@@ -26,8 +26,9 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
   const amberStyle = 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10'
   const redStyle = 'border-l-2 border-l-red-500 bg-red-50/20 dark:bg-red-950/10'
 
-  // Clickable when score shows completed games exist (1-0, 0-1, 1-1, etc.)
   const isClickable = hasScore && !!onSelectLiveMatch
+
+  const hasSubRow = match.currentGame || match.bracketRound || watchUrl || match.youtubeStream
 
   return (
     <div
@@ -36,151 +37,141 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
         isFollowedMatch ? amberStyle : redStyle
       } ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
     >
-    <div
-      className="grid items-center gap-2 px-4 py-2.5 min-h-[48px]"
-      style={{ gridTemplateColumns: '1fr minmax(80px, auto) 1fr auto' }}
-    >
-      {/* Team A (left) */}
-      <div className="flex items-center min-w-0">
-        <span className={`font-display text-sm tracking-wide uppercase truncate font-black ${
-          !spoilerFree && hasScore && scoreA < scoreB
-            ? 'text-gray-400 dark:text-gray-500'
-            : 'text-gray-900 dark:text-white'
-        }`}>
-          {match.teamA}
-        </span>
-      </div>
-
-      {/* Score center */}
-      <div className="flex flex-col items-center gap-0.5">
-        {hasScore && !spoilerFree ? (
-          <div className="flex items-center gap-1">
-            <span className={`font-display font-black text-xl tabular-nums ${scoreA > scoreB ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
-              {scoreA}
-            </span>
-            <span className="text-sm font-medium text-gray-300 dark:text-gray-700">-</span>
-            <span className={`font-display font-black text-xl tabular-nums ${scoreB > scoreA ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
-              {scoreB}
-            </span>
-          </div>
-        ) : (
-          <span className="font-display font-black text-base text-gray-400 dark:text-gray-600 select-none">vs</span>
-        )}
-        {match.currentGame && (
-          <div className="flex items-center gap-1">
-            <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-            <span className="text-[10px] font-bold uppercase tracking-wide text-red-500">G{match.currentGame}</span>
-          </div>
-        )}
-        {match.bracketRound && (
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 whitespace-nowrap">
-            {match.bracketRound}
+      {/* Main row: Team A · Score · Team B */}
+      <div
+        className="grid items-center gap-2 px-4 pt-2.5 pb-1 min-h-[40px]"
+        style={{ gridTemplateColumns: '1fr auto 1fr' }}
+      >
+        {/* Team A (left) */}
+        <div className="flex items-center min-w-0">
+          <span className={`font-display text-sm tracking-wide uppercase truncate font-black ${
+            !spoilerFree && hasScore && scoreA < scoreB
+              ? 'text-gray-400 dark:text-gray-500'
+              : 'text-gray-900 dark:text-white'
+          }`}>
+            {match.teamA}
           </span>
-        )}
-      </div>
+        </div>
 
-      {/* Team B (right) */}
-      <div className="flex items-center justify-end min-w-0">
-        <span className={`font-display text-sm tracking-wide uppercase truncate text-right font-black ${
-          !spoilerFree && hasScore && scoreB < scoreA
-            ? 'text-gray-400 dark:text-gray-500'
-            : 'text-gray-600 dark:text-gray-400'
-        }`}>
-          {match.teamB}
-        </span>
-      </div>
-
-      {/* Watch buttons — mobile: icon squares side by side; desktop: Twitch full pill + YouTube icon square */}
-      {watchUrl || match.youtubeStream ? (
-        <div className="flex items-center gap-1">
-          {/* Mobile: Twitch icon square */}
-          {watchUrl && (
-            <a
-              href={watchUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => {
-                e.stopPropagation()
-                trackEvent('live_match_watch', {
-                  channel: watchLabel,
-                  teamA: match.teamA,
-                  teamB: match.teamB,
-                  tournament: match.tournament,
-                })
-              }}
-              className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
-              aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
-            >
-              <TwitchIcon />
-            </a>
-          )}
-          {/* Mobile: YouTube icon square */}
-          {match.youtubeStream && (
-            <a
-              href={match.youtubeStream}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => {
-                e.stopPropagation()
-                trackEvent('live_match_watch_youtube', {
-                  teamA: match.teamA,
-                  teamB: match.teamB,
-                  tournament: match.tournament,
-                })
-              }}
-              className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
-              aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
-            >
-              <YouTubeIcon />
-            </a>
-          )}
-          {/* Desktop: Twitch full pill (primary) */}
-          {watchUrl && (
-            <a
-              href={watchUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => {
-                e.stopPropagation()
-                trackEvent('live_match_watch', {
-                  channel: watchLabel,
-                  teamA: match.teamA,
-                  teamB: match.teamB,
-                  tournament: match.tournament,
-                })
-              }}
-              className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
-              aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
-            >
-              <TwitchIcon />
-              Watch{watchLabel ? ` · ${watchLabel}` : ''}
-            </a>
-          )}
-          {/* Desktop: YouTube icon square (secondary) */}
-          {match.youtubeStream && (
-            <a
-              href={match.youtubeStream}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => {
-                e.stopPropagation()
-                trackEvent('live_match_watch_youtube', {
-                  teamA: match.teamA,
-                  teamB: match.teamB,
-                  tournament: match.tournament,
-                })
-              }}
-              className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
-              aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
-            >
-              <YouTubeIcon />
-            </a>
+        {/* Score */}
+        <div className="flex items-center gap-1 shrink-0">
+          {hasScore && !spoilerFree ? (
+            <>
+              <span className={`font-display font-black text-xl tabular-nums ${scoreA > scoreB ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
+                {scoreA}
+              </span>
+              <span className="text-sm font-medium text-gray-300 dark:text-gray-700">-</span>
+              <span className={`font-display font-black text-xl tabular-nums ${scoreB > scoreA ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-500'}`}>
+                {scoreB}
+              </span>
+            </>
+          ) : (
+            <span className="font-display font-black text-base text-gray-400 dark:text-gray-600 select-none">vs</span>
           )}
         </div>
-      ) : (
-        <div className="hidden sm:block w-[68px]" aria-hidden="true" />
+
+        {/* Team B (right) */}
+        <div className="flex items-center justify-end min-w-0">
+          <span className={`font-display text-sm tracking-wide uppercase truncate text-right font-black ${
+            !spoilerFree && hasScore && scoreB < scoreA
+              ? 'text-gray-400 dark:text-gray-500'
+              : 'text-gray-600 dark:text-gray-400'
+          }`}>
+            {match.teamB}
+          </span>
+        </div>
+      </div>
+
+      {/* Sub-row: G{n} · bracket stage (centered) + watch button (right) */}
+      {hasSubRow && (
+        <div className="relative flex items-center px-4 pb-2.5 min-h-[28px]">
+          {(match.currentGame || match.bracketRound) && (
+            <span className="absolute left-1/2 -translate-x-1/2 max-w-[calc(100%-3.5rem)] flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden">
+              {match.currentGame && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <span className="font-bold text-red-500">G{match.currentGame}</span>
+                </>
+              )}
+              {match.currentGame && match.bracketRound && (
+                <span className="text-gray-300 dark:text-gray-700">·</span>
+              )}
+              {match.bracketRound && (
+                <span className="text-gray-500 dark:text-gray-500">{match.bracketRound}</span>
+              )}
+            </span>
+          )}
+
+          {/* Watch buttons */}
+          {watchUrl || match.youtubeStream ? (
+            <div className="flex items-center gap-1 ml-auto">
+              {watchUrl && (
+                <a
+                  href={watchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => {
+                    e.stopPropagation()
+                    trackEvent('live_match_watch', { channel: watchLabel, teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
+                  }}
+                  className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+                  aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
+                >
+                  <TwitchIcon />
+                </a>
+              )}
+              {match.youtubeStream && (
+                <a
+                  href={match.youtubeStream}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => {
+                    e.stopPropagation()
+                    trackEvent('live_match_watch_youtube', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
+                  }}
+                  className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+                  aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
+                >
+                  <YouTubeIcon />
+                </a>
+              )}
+              {watchUrl && (
+                <a
+                  href={watchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => {
+                    e.stopPropagation()
+                    trackEvent('live_match_watch', { channel: watchLabel, teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
+                  }}
+                  className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+                  aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
+                >
+                  <TwitchIcon />
+                  Watch{watchLabel ? ` · ${watchLabel}` : ''}
+                </a>
+              )}
+              {match.youtubeStream && (
+                <a
+                  href={match.youtubeStream}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => {
+                    e.stopPropagation()
+                    trackEvent('live_match_watch_youtube', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
+                  }}
+                  className="hidden sm:inline-flex focus-ring flex-shrink-0 items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+                  aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
+                >
+                  <YouTubeIcon />
+                </a>
+              )}
+            </div>
+          ) : (
+            <div className="ml-auto w-7 h-7" aria-hidden="true" />
+          )}
+        </div>
       )}
-    </div>
     </div>
   )
 }
