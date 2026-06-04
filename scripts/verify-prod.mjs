@@ -226,12 +226,13 @@ async function checkOdTournamentConsistency() {
     : (leagueName || serieName || tournament.name || '')
   info(`Tournament: "${tournament.name}" (OD search name: "${tournamentName}", PS id: ${tournamentId})`)
 
-  // NOTE: do NOT pass bust=1 to tournament-heroes. For large tournaments (100+ games)
+  // NOTE: do NOT pass bust=1 to tournament-detail?mode=heroes. For large tournaments (100+ games)
   // the cold fetch times out within Vercel's function limit. Use the cached result,
   // which is correct once the function has completed at least once via normal traffic.
+  // tournament-heroes was merged into tournament-detail?mode=heroes in commit 8ada845.
   const [detailData, heroesData] = await Promise.all([
     fetchJson(`${BASE}/api/tournament-detail?id=${tournamentId}&bust=1`, 'tournament-detail'),
-    fetchJson(`${BASE}/api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}${tournament.startdate ? `&begin_at=${encodeURIComponent(tournament.startdate)}` : ''}`, 'tournament-heroes'),
+    fetchJson(`${BASE}/api/tournament-detail?mode=heroes&id=${tournamentId}&name=${encodeURIComponent(tournamentName)}${tournament.startdate ? `&begin_at=${encodeURIComponent(tournament.startdate)}` : ''}`, 'tournament-heroes'),
   ])
   if (!detailData) return
 
@@ -286,9 +287,9 @@ async function checkOdTournamentConsistency() {
   // but spectate's pipeline returned 0 cleanly (not via HTTP error).
   if (spectateGameCount === 0) {
     if (odGameCount !== null && odGameCount > 0) {
-      fail(`OD directly has ${odGameCount} games for "${odLeagueName}" but spectate/api/tournament-heroes returned 0 — findLeague or fetch pipeline broken`)
+      fail(`OD directly has ${odGameCount} games for "${odLeagueName}" but spectate/api/tournament-detail?mode=heroes returned 0 — findLeague or fetch pipeline broken`)
     } else {
-      info(`OD game count is 0 — cache may be cold or tournament is new. Verify: /api/tournament-heroes?id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`)
+      info(`OD game count is 0 — cache may be cold or tournament is new. Verify: /api/tournament-detail?mode=heroes&id=${tournamentId}&name=${encodeURIComponent(tournamentName)}`)
     }
     return
   }
