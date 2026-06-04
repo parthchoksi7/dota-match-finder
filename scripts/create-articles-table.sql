@@ -59,6 +59,7 @@ BEGIN
   END IF;
 END$$;
 
--- Explicit grants for service_role (needed with Supabase's new sb_secret key format)
+-- Explicit grants (required — RLS controls row access, but role-level GRANT controls table access)
+GRANT SELECT ON TABLE articles TO anon;
 GRANT ALL ON TABLE articles TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE articles_id_seq TO service_role;
