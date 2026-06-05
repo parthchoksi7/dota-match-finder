@@ -98,7 +98,7 @@ describe('seriesComplete', () => {
     expect(seriesComplete(games, 3)).toBe(true)
   })
 
-  it('is complete for a BO2 draw (seriesType 1 fallback, 1-1 after 2 games)', () => {
+  it('is complete for a BO3 group-stage draw (seriesType 1, 1-1 after 2 games)', () => {
     const games = [
       makeGame({ radiant_win: true,  radiant_name: 'Team A', dire_name: 'Team B' }),
       makeGame({ radiant_win: false, radiant_name: 'Team A', dire_name: 'Team B' }),

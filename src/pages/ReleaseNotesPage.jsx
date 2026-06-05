@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 4, 2026",
     tag: "fix",
+    title: "Auto-tweets: BO3 group-stage draws now correctly labelled BO3",
+    desc: "Series that ended 1-1 in a BO3 group-stage format (e.g. BLAST SLAM VII) were being posted to X as \"BO2\" instead of \"BO3\". The series format label now always reflects the actual series type — only a true BO2 series (PandaScore series_type 3) is labelled BO2.",
+  },
+  {
+    date: "June 4, 2026",
+    tag: "fix",
     title: "Live match rows: team names no longer truncated on mobile",
     desc: "Team names in live match rows were being cut to 'TEA...' when a bracket stage label (e.g. Upper Bracket Quarterfinal 2) was present. The layout is now split into two lines: team names and score on the first line, and the current game indicator (G3) plus bracket stage on a second line — so both team names and stage context are fully visible.",
   },
