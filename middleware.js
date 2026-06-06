@@ -257,6 +257,7 @@ async function handleTournamentDetail(url) {
             : 'https://schema.org/EventCompleted',
           'startDate': data.beginAt,
           ...(data.endAt ? { 'endDate': data.endAt } : {}),
+          'eventAttendanceMode': 'https://schema.org/OnlineEventAttendanceMode',
           'location': { '@type': 'VirtualLocation', 'url': `${BASE_URL}/tournament/${seriesId}` },
           'image': data.imageUrl || DEFAULT_OG_IMAGE,
           ...(data.prizePool ? { 'description': `${tName}. Prize pool: $${data.prizePool.toLocaleString()} USD.` } : {}),
@@ -274,6 +275,7 @@ async function handleTournamentDetail(url) {
             'priceCurrency': 'USD',
             'availability': 'https://schema.org/InStock',
             'url': canonical,
+            'validFrom': data.beginAt,
           },
         } : null
 
@@ -508,6 +510,7 @@ async function handleMatch(url) {
             'sport': 'Dota 2',
             'description': description,
             'eventStatus': 'https://schema.org/EventCompleted',
+            'eventAttendanceMode': 'https://schema.org/OnlineEventAttendanceMode',
             ...(data.start_time ? { 'startDate': new Date(data.start_time * 1000).toISOString() } : {}),
             'location': { '@type': 'VirtualLocation', 'url': canonical },
             'image': imageUrl,
@@ -531,6 +534,7 @@ async function handleMatch(url) {
               'priceCurrency': 'USD',
               'availability': 'https://schema.org/InStock',
               'url': canonical,
+              ...(data.start_time ? { 'validFrom': new Date(data.start_time * 1000).toISOString() } : {}),
             },
           },
           {

@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 5, 2026",
+    tag: "fix",
+    title: "Google Search: Events structured data now fully valid",
+    desc: "Fixed all Google Search Console Events structured data issues on tournament and match pages. Added required location (VirtualLocation + OnlineEventAttendanceMode), startDate, image, organizer URL, offers with validFrom, and performer fields. Also corrected eventStatus for past events from EventPostponed to EventCompleted.",
+  },
+  {
     date: "June 4, 2026",
     tag: "fix",
     title: "Auto-tweets: BO3 group-stage draws now correctly labelled BO3",
