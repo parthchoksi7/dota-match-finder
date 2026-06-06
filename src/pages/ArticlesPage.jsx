@@ -16,24 +16,65 @@ const TOURNAMENT_LABELS = {
   'blast-slam-vii': 'BLAST Slam VII',
 }
 
+// Module-level session cache keyed by tournament filter value
+const _cache = new Map()
+
 export default function ArticlesPage() {
   const params = new URLSearchParams(window.location.search)
   const tournamentFilter = params.get('tournament') || null
   const tournamentLabel = tournamentFilter ? (TOURNAMENT_LABELS[tournamentFilter] || tournamentFilter) : null
 
-  const [articles, setArticles] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cacheKey = tournamentFilter || 'all'
+  const [articles, setArticles] = useState(() => _cache.get(cacheKey) || [])
+  const [loading, setLoading] = useState(!_cache.has(cacheKey))
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     trackEvent('articles_page_view', { tournament: tournamentFilter || 'all' })
+    if (_cache.has(cacheKey)) return
     const url = tournamentFilter
       ? `/api/pipeline?type=articles&tournament=${encodeURIComponent(tournamentFilter)}`
       : '/api/pipeline?type=articles'
     fetch(url)
-      .then(r => r.json())
-      .then(data => { setArticles(data.articles || []); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then(data => {
+        const list = data.articles || []
+        _cache.set(cacheKey, list)
+        setArticles(list)
+        setLoading(false)
+      })
+      .catch(() => {
+        setError('Articles unavailable right now.')
+        setLoading(false)
+      })
   }, [tournamentFilter])
+
+  function retry() {
+    _cache.delete(cacheKey)
+    setError(null)
+    setLoading(true)
+    const url = tournamentFilter
+      ? `/api/pipeline?type=articles&tournament=${encodeURIComponent(tournamentFilter)}`
+      : '/api/pipeline?type=articles'
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then(data => {
+        const list = data.articles || []
+        _cache.set(cacheKey, list)
+        setArticles(list)
+        setLoading(false)
+      })
+      .catch(() => {
+        setError('Articles unavailable right now.')
+        setLoading(false)
+      })
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
@@ -44,13 +85,30 @@ export default function ArticlesPage() {
         {/* Header */}
         <div>
           <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-widest text-gray-900 dark:text-white">
-            {tournamentLabel ? tournamentLabel : 'Articles'}
+            {tournamentLabel ? tournamentLabel : 'News'}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 uppercase tracking-widest">
             {tournamentLabel
               ? 'Daily coverage · BLAST Slam VII · May 28 – Jun 7, 2026'
               : 'Tournament analysis and editorial coverage'}
           </p>
+        </div>
+
+        {/* Top-level: News | Articles */}
+        <div className="flex border-b border-gray-200 dark:border-gray-800">
+          <a
+            href="/news"
+            className="flex-shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white -mb-px transition-colors"
+          >
+            News
+          </a>
+          <a
+            href="/articles"
+            aria-current="page"
+            className="flex-shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 border-red-500 text-gray-900 dark:text-white -mb-px transition-colors"
+          >
+            Articles
+          </a>
         </div>
 
         {/* Tournament hub context (shown when filtered) */}
@@ -78,9 +136,29 @@ export default function ArticlesPage() {
 
         {/* Article list */}
         {loading ? (
-          <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-8 animate-pulse">
-            Loading…
-          </p>
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded p-4 sm:p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-4 w-16 rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                  <div className="h-4 w-20 rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                </div>
+                <div className="h-5 w-3/4 rounded bg-gray-200 dark:bg-gray-800 animate-pulse mb-2" />
+                <div className="h-4 w-full rounded bg-gray-200 dark:bg-gray-800 animate-pulse mb-1.5" />
+                <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="py-10 text-center">
+            <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-4">{error}</p>
+            <button
+              onClick={retry}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-wide border border-gray-300 dark:border-gray-700 rounded hover:border-gray-500 dark:hover:border-gray-500 transition-colors"
+            >
+              Try again
+            </button>
+          </div>
         ) : articles.length === 0 ? (
           <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest text-center py-8">
             No articles yet

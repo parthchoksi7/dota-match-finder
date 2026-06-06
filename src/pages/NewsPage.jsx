@@ -129,6 +129,23 @@ export default function NewsPage() {
           </p>
         </div>
 
+        {/* Top-level: News | Articles */}
+        <div className="flex border-b border-gray-200 dark:border-gray-800">
+          <a
+            href="/news"
+            aria-current="page"
+            className="flex-shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 border-red-500 text-gray-900 dark:text-white -mb-px transition-colors"
+          >
+            News
+          </a>
+          <a
+            href="/articles"
+            className="flex-shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white -mb-px transition-colors"
+          >
+            Articles
+          </a>
+        </div>
+
         {/* Category filter tabs */}
         <div className="flex gap-0 border-b border-gray-200 dark:border-gray-800 overflow-x-auto scrollbar-none">
           {CATEGORIES.map(c => (

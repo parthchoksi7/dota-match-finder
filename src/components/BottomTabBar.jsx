@@ -12,7 +12,7 @@ export default function BottomTabBar() {
   const path = typeof window === "undefined" ? "" : window.location.pathname
   const homeActive = path === "/" || path.startsWith("/match/")
   const tournamentsActive = path === "/tournaments" || path.startsWith("/tournament/")
-  const newsActive = path === "/news"
+  const newsActive = path === "/news" || path === "/articles" || path.startsWith('/articles/')
   const [newsUnread, setNewsUnread] = useState(() => !newsActive && hasUnreadNews())
 
   useEffect(() => {
