@@ -1,0 +1,17 @@
+name: Check Limits
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  function-count:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Vercel function count is within the 12-function Hobby plan limit
+        run: |
+          count=$(ls api/[^_]*.js | wc -l | tr -d ' ')
+          echo "Serverless function count: $count / 12"
+          [ "$count" -le 12 ] || (echo "ERROR: Vercel Hobby plan limit exceeded ($count functions deployed)" && exit 1)

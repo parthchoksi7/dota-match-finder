@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { formatDuration, getSeriesLabel, trackEvent, getSeriesWins } from "../utils"
 import { fetchMatchIndicators } from "../api"
 import GameIndicators from "./GameIndicators"
@@ -31,6 +31,7 @@ function MatchCard({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [indicatorsMap, setIndicatorsMap] = useState({})
+  const cardRef = useRef(null)
 
   useEffect(() => {
     if (series.id === expandedSeriesId) setExpanded(true)
@@ -44,6 +45,28 @@ function MatchCard({
       if (Object.keys(map).length > 0) setIndicatorsMap(map)
     }).catch(() => {})
   }, [expanded, series.id, spoilerFree])
+
+  // Pre-warm the match-indicators KV cache when the card scrolls into view.
+  // Only fires for series with at least one completed game; disconnects after first trigger.
+  useEffect(() => {
+    if (spoilerFree) return
+    const gameIds = series.games.map(g => g.id).filter(Boolean)
+    const hasResults = series.games.some(g => typeof g.radiant_win === 'boolean')
+    if (!gameIds.length || !hasResults) return
+    const el = cardRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetch(`/api/tournaments?mode=match-indicators&ids=${gameIds.join(',')}`, { priority: 'low' }).catch(() => {})
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '300px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [series.id, spoilerFree])
 
   const radiantTeam = series.games[0].radiantTeam
   const direTeam = series.games[0].direTeam
@@ -79,6 +102,7 @@ function MatchCard({
 
   return (
     <div
+      ref={cardRef}
       data-series-id={series.id}
       className={
         "transition-all rounded border " +

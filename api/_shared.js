@@ -460,6 +460,23 @@ function _getMonitorKv() {
   return _monitorKv
 }
 
+// Sliding-window IP rate limiter. Returns true if the request should proceed,
+// false if the caller has exceeded maxPerMin requests in the last 60 seconds.
+// Fails open on any KV error so a temporary outage never blocks legitimate users.
+export async function rateLimitByIp(req, kv, limitKey, maxPerMin = 10) {
+  const ip = String(
+    req.headers?.['x-forwarded-for'] ?? req.socket?.remoteAddress ?? 'unknown'
+  ).split(',')[0].trim()
+  const key = `rl:${limitKey}:${ip}`
+  try {
+    const count = await kv.incr(key)
+    if (count === 1) await kv.expire(key, 60)
+    return count <= maxPerMin
+  } catch {
+    return true
+  }
+}
+
 // Fire-and-forget error telemetry. Writes to a daily KV list capped at 100
 // entries with a 3-day TTL. Never throws or blocks the calling handler.
 export async function trackError(endpoint, statusCode, detail) {

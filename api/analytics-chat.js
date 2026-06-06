@@ -1,5 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { timingSafeEqual, createHash } from 'crypto';
+import { kv } from './_kv.js';
+import { rateLimitByIp } from './_shared.js';
 
 function safeCompare(a, b) {
   const aH = createHash('sha256').update(String(a ?? '')).digest()
@@ -139,6 +141,10 @@ async function handleChat(req, res) {
   }
 
   if (!message) return res.status(400).json({ error: 'Missing message' });
+
+  const allowed = await rateLimitByIp(req, kv, 'analytics-chat', 10)
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded. Try again in a minute.' });
+
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not set' });
   if (!process.env.GOOGLE_CREDENTIALS) return res.status(503).json({ error: 'GOOGLE_CREDENTIALS not set' });
   if (!process.env.GA4_BIGQUERY_DATASET) return res.status(503).json({ error: 'GA4_BIGQUERY_DATASET not set' });

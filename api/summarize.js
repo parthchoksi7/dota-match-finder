@@ -77,7 +77,7 @@ async function getHeroNames() {
 // Caches 24h for live/upcoming, 30 days for completed.
 
 import { kv as _kv } from './_kv.js'
-import { trackError } from './_shared.js'
+import { trackError, rateLimitByIp } from './_shared.js'
 
 async function handleTournamentSummary(req, res) {
   const { seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages } = req.body || {}
@@ -155,6 +155,9 @@ export default async function handler(req, res) {
       message: 'API key not configured. Set ANTHROPIC_API_KEY in Vercel environment variables.'
     })
   }
+
+  const allowed = await rateLimitByIp(req, _kv, 'summarize', 10)
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded. Try again in a minute.' })
 
   // Tournament summary mode
   if (req.body?.type === 'tournament') {

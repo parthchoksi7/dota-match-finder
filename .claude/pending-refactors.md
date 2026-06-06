@@ -14,55 +14,38 @@ Completed items removed.
 
 ---
 
-## Quick wins (June 2026 audit — all <1 day each)
+## Quick wins (June 2026 audit + followups — all <1 day each)
+
+~~### [SECURITY] Add security response headers to vercel.json~~ ✅ Done (commit 8cc3e69)
+~~### [SECURITY] Fix analytics-chat password comparison — timingSafeEqual~~ ✅ Done (commit 8cc3e69)
+~~### [RELIABILITY] Add distributed lock to draft-posts.js (cron dedup)~~ ✅ Done (commit 8cc3e69)
+~~### [RELIABILITY] Add TTL to module-level `_premiumLeagueIds` in-memory cache~~ ✅ Done (commit 468936e)
+~~### [RELIABILITY] Fix `getHeroNames()` in summarize.js — add KV cache + timeout~~ ✅ Done (commit 468936e)
+~~### [CORRECTNESS] Remove duplicate `PERMANENT_TIER1_NAMES` in tournaments.js~~ ✅ Done (commit 468936e)
 
 ### [SECURITY] Restrict CORS on sensitive endpoints
 - **Files:** `api/summarize.js`, `api/match-streams.js`, `api/pipeline.js`, `api/analytics-chat.js`, `api/live-matches.js`
 - **What:** All endpoints use `res.setHeader('Access-Control-Allow-Origin', '*')`. Sensitive endpoints (Twitch token, Claude summarize, analytics, pipeline webhook) must restrict to `https://spectateesports.live`. Add a `setCorsHeaders(req, res, { allowAll })` helper to `_shared.js`. Public read endpoints (live-matches, upcoming-matches) can stay `*`.
 - **Why:** The `?mode=twitch-token` endpoint returns a live OAuth token to any origin. The `/api/summarize` endpoint can be called from any site at your Claude API cost.
-- **Risk:** None if implemented correctly (SPA origin is fixed).
+- **Risk:** None if implemented correctly (SPA origin is fixed). Test on staging before shipping.
 
-### [SECURITY] Rate-limit LLM and expensive endpoints
-- **Files:** `api/summarize.js`, `api/analytics-chat.js`, `api/tournaments.js` (watchability mode)
-- **What:** Implement a Redis sliding-window rate limiter in `_shared.js`, keyed by `x-forwarded-for` IP. Apply 10 req/min to `/api/summarize` and `analytics-chat`. Apply 20 req/min to watchability.
-- **Why:** No rate limit = any bot loop can run up your Anthropic API bill until you notice.
-- **Risk:** None — only blocks high-frequency callers; legitimate users never hit 10 req/min.
+~~### [SECURITY] Rate-limit LLM and expensive endpoints~~ ✅ Done — `rateLimitByIp()` in `_shared.js`, 10 req/min on `summarize` and `analytics-chat`. Watchability still unthrottled.
 
-### [SECURITY] Add security response headers to vercel.json
-- **Files:** `vercel.json`
-- **What:** Add a global `headers` block with `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`. Log a follow-up to add a proper `Content-Security-Policy` once legitimate script sources are inventoried (GA4, Vercel Analytics, Twitch embed).
-- **Why:** The app injects dynamic HTML via middleware (JSON-LD, semantic HTML). Without these headers, any future XSS has full page access.
-- **Risk:** None for these three headers (no browser behavior changes for the SPA).
+### [SECURITY] Rate-limit watchability endpoint
+- **Files:** `api/tournaments.js` (watchability mode)
+- **What:** Apply 20 req/min via `rateLimitByIp()` (already in `_shared.js`). Import `_kv` and add a check at the start of the watchability handler.
+- **Why:** Watchability calls Twitch Helix for each match — an uncached bot loop can exhaust the Twitch rate-limit quota.
+- **Risk:** None — same pattern as summarize/analytics-chat.
 
-### [SECURITY] Fix analytics-chat password comparison
-- **Files:** `api/analytics-chat.js`
-- **What:** Replace `password === process.env.ANALYTICS_PASSWORD` with `timingSafeEqual` from `crypto`. Accept the password in an `x-analytics-password` header instead of the request body so it's not logged by Vercel's raw function logs.
-- **Why:** Plaintext equality check is vulnerable to timing attacks. Request body passwords appear in function logs.
-- **Risk:** Requires updating the `AnalyticsChat.jsx` component to send the header instead of body param.
+### [SECURITY] Move analytics-chat password to request header (PARTIAL — timingSafeEqual ✅ done)
+- **Files:** `api/analytics-chat.js`, `src/components/AnalyticsChat.jsx`
+- **What:** Read the password from `req.headers['x-analytics-password']` in both `handleAuth` and `handleChat` instead of `req.body.password`. Update `AnalyticsChat.jsx` to send an `x-analytics-password` header on all requests.
+- **Why:** Request body content appears in Vercel's raw function logs; HTTP headers are not logged. Closes the log-exposure gap the `timingSafeEqual` fix left open.
+- **Risk:** Coordinated two-file change — must deploy backend and frontend together.
 
-### [RELIABILITY] Add distributed lock to draft-posts.js (cron dedup)
-- **Files:** `api/draft-posts.js`
-- **What:** Acquire a KV lock (`cron:draft-posts:lock`, 2-min TTL, `nx: true`) at the start of each cron run. If the lock is already held, return 200 `{ skipped: true }` immediately. Release in a `finally` block.
-- **Why:** GitHub Actions (`13,43 * * * *`) and Vercel cron (daily backup) can fire simultaneously. Without a mutex, the same series results get tweeted twice.
-- **Risk:** Very low — adds one KV round-trip per cron invocation.
-
-### [RELIABILITY] Add TTL to module-level `_premiumLeagueIds` in-memory cache
-- **Files:** `api/_shared.js`
-- **What:** Track `_premiumLeagueIdsAt` timestamp alongside the cache. Invalidate after 4h (`Date.now() - _premiumLeagueIdsAt > 4 * 3600 * 1000`).
-- **Why:** A warm Vercel function instance can stay alive for hours. If OpenDota adds a new premium league, the stale set is served until the instance cold-starts, silently excluding the new event from tier filtering.
-- **Risk:** None — purely additive, falls back to a fresh fetch when stale.
-
-### [RELIABILITY] Fix `getHeroNames()` in summarize.js — add KV cache + timeout
-- **Files:** `api/summarize.js`
-- **What:** Cache hero names in KV under `opendota:hero_names_v1` (7-day TTL — heroes don't change between patches). Add a 5s `AbortController` timeout. Move hero resolution inside the existing `try/catch` block (lines 160–175 are currently outside it).
-- **Why:** Every summarize call makes an uncached, un-timed-out fetch to OpenDota /api/heroes. If OpenDota is slow, the entire summarize function hangs until Vercel's 10s timeout kills it.
-- **Risk:** None — purely additive cache layer.
-
-### [CORRECTNESS] Remove duplicate `PERMANENT_TIER1_NAMES` in tournaments.js
-- **Files:** `api/tournaments.js` (lines 579–590), `api/_shared.js` (lines 363–374)
-- **What:** Delete the local `PERMANENT_TIER1_NAMES` declaration in `tournaments.js`. The imported `SHARED_PERMANENT_TIER1_NAMES` (already imported, already used in some places) is the same array. Use `SHARED_PERMANENT_TIER1_NAMES` everywhere in the file.
-- **Why:** Two copies of the same constant silently diverge when a new Tier 1 organizer is added. `live-matches.js` uses `_shared.js`; `tournaments.js` uses its own copy. If you update only `_shared.js`, the tournament list and live-matches list disagree.
-- **Risk:** Zero — it's a pure deletion of redundant code.
+~~### [SECURITY] Add Permissions-Policy header to vercel.json~~ ✅ Done
+~~### [RELIABILITY] Log KV lock contention in auto-tweet cron~~ ✅ Done
+~~### [DX] Add Vercel function count guard to GitHub Actions CI~~ ✅ Done (`.github/workflows/check-limits.yml`)
 
 ---
 
@@ -132,6 +115,20 @@ Completed items removed.
 - **What:** Add `validateId(val, { name, numeric, maxLen })` and `validateEnum(val, allowed, name)` helpers to `_shared.js`. Apply at the entry of every handler before any processing. Numeric IDs: `/^\d+$/` check + max 15 chars. Mode strings: allowlist check against known modes.
 - **Why:** Query parameters are currently passed to external API URLs without sanitization. A crafted `ids` or `begin_at` could alter constructed fetch URLs or trigger unexpected behavior.
 - **Risk:** Very low — validation rejects invalid input fast, before any external calls.
+
+### [SECURITY] Content-Security-Policy header
+- **Files:** `vercel.json`, potentially `middleware.js` (for nonce generation)
+- **What:** Inventory all script/style/image origins used by the SPA (GA4: `www.googletagmanager.com`, `www.google-analytics.com`; Vercel Analytics: `va.vercel-scripts.com`; Vercel Speed Insights: similar). Build a restrictive CSP header: `script-src 'self' https://www.googletagmanager.com https://va.vercel-scripts.com 'nonce-{n}'`. Start with `Content-Security-Policy-Report-Only` and monitor violations for 2 weeks before enforcing.
+- **Why:** CSP is the strongest XSS mitigation available. The existing X-Frame-Options/X-Content-Type-Options/Referrer-Policy are hygiene; CSP is active defense.
+- **Risk:** Medium — inline scripts (React hydration, GA snippet) need nonces or hashes. A misconfigured CSP breaks the whole site. Use Report-Only mode first.
+
+### [MAINTAINABILITY] Move `_x-accounts.js` team/tournament handles to KV
+- **Files:** `api/_x-accounts.js` (hardcoded maps), `api/draft-posts.js` (lookup calls)
+- **What:** Store the `TEAM_HANDLES`, `TOURNAMENT_HANDLES`, and `TOURNAMENT_TALENT` maps as a single JSON blob in KV (`x-accounts:handles:v1`). Add a simple admin endpoint (POST `?mode=update-handles`, gated by `CRON_SECRET`) to update the blob without a deploy. `lookupTeamHandle()` and `lookupTournamentHandle()` read from KV with a 1h in-memory cache fallback.
+- **Why:** When a team rebrands (e.g. OG → OG Esports, new org entering the scene), the handle map goes stale and requires a code change + deploy. A KV-backed map can be updated in seconds.
+- **Risk:** Medium — handle lookup is on the critical path for auto-tweet cron. Must keep `_x-accounts.js` as a fallback if KV is unavailable.
+
+~~### [PERFORMANCE] Pre-warm match stats on completed card visibility~~ ✅ Done — `IntersectionObserver` in `MatchCard.jsx` pre-fetches `match-indicators` for completed-game cards 300px before they enter view.
 
 ### [CORRECTNESS] JSDoc type annotations for shared data shapes
 - **Files:** `api/_shared.js`, `src/utils.js`, `src/api.js`

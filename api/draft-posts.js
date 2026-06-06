@@ -94,7 +94,10 @@ async function runAutoTweet(req, res) {
   }
 
   const acquired = await kv.set('auto-tweet:lock', '1', { ex: 120, nx: true }).catch(() => null)
-  if (!acquired) return res.status(200).json({ tweeted: 0, message: 'Run already in progress' })
+  if (!acquired) {
+    console.log('auto-tweet: lock already held — skipping duplicate run')
+    return res.status(200).json({ tweeted: 0, message: 'Run already in progress' })
+  }
 
   try {
   const [odRes, premiumIds, kvNames] = await Promise.all([
