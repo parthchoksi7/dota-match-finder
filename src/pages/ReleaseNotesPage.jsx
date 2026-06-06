@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 6, 2026",
     tag: "fix",
+    title: "Multi-stream match enrichment now resolves correctly",
+    desc: "When a live match had multiple official English streams, the per-match API fetch was using the wrong URL (with a /dota2/ prefix that the single-match endpoint doesn't accept), causing a silent 404 and leaving stream ordering unresolved. Fixed the URL so the correct main stream is identified.",
+  },
+  {
+    date: "June 6, 2026",
+    tag: "fix",
     title: "News unread bubble now actually appears",
     desc: "The unread dot on the News link and mobile tab was never showing up. The latest article timestamp was only updated when visiting the News page itself, so it was always equal to the last-visited time and the dot never triggered. The header and bottom tab now proactively fetch the latest article on every page load and compare it against your last visit, so the bubble appears correctly when new articles have been published.",
   },

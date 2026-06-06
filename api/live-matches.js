@@ -109,7 +109,7 @@ async function enrichMultiStreamMatches(matches, headers) {
   if (multi.length === 0) return
   await Promise.all(multi.map(async m => {
     try {
-      const r = await fetch(`${PANDASCORE_BASE}/matches/${m.id}`, { headers })
+      const r = await fetch(`https://api.pandascore.co/matches/${m.id}`, { headers })
       if (!r.ok) {
         console.warn(`enrichMultiStream: match ${m.id} fetch failed (${r.status})`)
         return
