@@ -93,6 +93,10 @@ async function runAutoTweet(req, res) {
     return res.status(503).json({ error: `Missing env vars: ${missing.join(', ')}` })
   }
 
+  const acquired = await kv.set('auto-tweet:lock', '1', { ex: 120, nx: true }).catch(() => null)
+  if (!acquired) return res.status(200).json({ tweeted: 0, message: 'Run already in progress' })
+
+  try {
   const [odRes, premiumIds, kvNames] = await Promise.all([
     fetch('https://api.opendota.com/api/promatches'),
     // Fix: if OD leagues endpoint is down, fall back to empty Set so the
@@ -207,6 +211,9 @@ async function runAutoTweet(req, res) {
   }
 
   return res.status(200).json({ tweeted: count, items: results })
+  } finally {
+    await kv.del('auto-tweet:lock').catch(() => {})
+  }
 }
 
 // ── Daily digest: "Today in pro Dota" schedule tweet ─────────────────────────

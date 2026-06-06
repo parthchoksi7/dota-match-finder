@@ -1,4 +1,11 @@
 import { BigQuery } from '@google-cloud/bigquery';
+import { timingSafeEqual, createHash } from 'crypto';
+
+function safeCompare(a, b) {
+  const aH = createHash('sha256').update(String(a ?? '')).digest()
+  const bH = createHash('sha256').update(String(b ?? '')).digest()
+  return timingSafeEqual(aH, bH)
+}
 
 // ── Auth mode ────────────────────────────────────────────────────────────────
 // POST ?mode=auth { password } -> 200 or 401
@@ -6,7 +13,7 @@ function handleAuth(req, res) {
   const { password } = req.body || {};
   const expected = process.env.ANALYTICS_PASSWORD;
   if (!expected) return res.status(503).json({ error: 'ANALYTICS_PASSWORD not configured' });
-  if (password === expected) return res.status(200).json({ ok: true });
+  if (safeCompare(password, expected)) return res.status(200).json({ ok: true });
   return res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -127,7 +134,7 @@ async function handleChat(req, res) {
   const { message, history = [], password } = req.body || {};
 
   const expectedPassword = process.env.ANALYTICS_PASSWORD;
-  if (expectedPassword && password !== expectedPassword) {
+  if (expectedPassword && !safeCompare(password, expectedPassword)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
