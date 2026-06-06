@@ -47,15 +47,30 @@ function trimMatchDataForSummary(matchData) {
 
   return out
 }
-// Fetch hero names from OpenDota
+// Fetch hero names from OpenDota. KV-cached 7 days (heroes don't change between patches).
+// Falls back to empty map on any error so a slow OpenDota response never hangs the handler.
 async function getHeroNames() {
-  const res = await fetch('https://api.opendota.com/api/heroes')
-  const data = await res.json()
-  const map = {}
-  for (const h of data) {
-    map[h.id] = h.localized_name
+  const HERO_KV_KEY = 'opendota:hero_names_v1'
+  const HERO_TTL = 60 * 60 * 24 * 7
+  try {
+    const cached = await _kv.get(HERO_KV_KEY)
+    if (cached) return cached
+  } catch {}
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5000)
+  try {
+    const res = await fetch('https://api.opendota.com/api/heroes', { signal: controller.signal })
+    if (!res.ok) return {}
+    const data = await res.json()
+    const map = {}
+    for (const h of data) map[h.id] = h.localized_name
+    _kv.set(HERO_KV_KEY, map, { ex: HERO_TTL }).catch(() => {})
+    return map
+  } catch {
+    return {}
+  } finally {
+    clearTimeout(timeout)
   }
-  return map
 }
 // ── Tournament summary handler ───────────────────────────────────────────────
 // Called with POST { type: 'tournament', seriesId, name, leagueName, ... }
@@ -157,23 +172,21 @@ export default async function handler(req, res) {
   }
 
   const trimmed = trimMatchDataForSummary(matchData)
-    // Resolve hero IDs to names
-const heroes = await getHeroNames()
 
-if (Array.isArray(trimmed.players)) {
-  trimmed.players = trimmed.players.map(p => ({
-    ...p,
-    hero_name: heroes[p.hero_id] || 'Unknown Hero'
-  }))
-}
-
-if (Array.isArray(trimmed.picks_bans)) {
-  trimmed.picks_bans = trimmed.picks_bans.map(pb => ({
-    ...pb,
-    hero_name: heroes[pb.hero_id] || 'Unknown Hero'
-  }))
-}
   try {
+    const heroes = await getHeroNames()
+    if (Array.isArray(trimmed.players)) {
+      trimmed.players = trimmed.players.map(p => ({
+        ...p,
+        hero_name: heroes[p.hero_id] || 'Unknown Hero'
+      }))
+    }
+    if (Array.isArray(trimmed.picks_bans)) {
+      trimmed.picks_bans = trimmed.picks_bans.map(pb => ({
+        ...pb,
+        hero_name: heroes[pb.hero_id] || 'Unknown Hero'
+      }))
+    }
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {

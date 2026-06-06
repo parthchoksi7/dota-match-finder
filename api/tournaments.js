@@ -573,22 +573,6 @@ async function fetchSeriesList(token) {
 
 const TIER1_NAMES_TTL = 60 * 60 * 2 // 2 hours
 
-// Permanent tier 1 league organizers — always included regardless of PandaScore
-// tier assignment state. Covers the case where PandaScore creates a new series
-// (e.g. DreamLeague S29) before assigning a tier to its tournament object.
-const PERMANENT_TIER1_NAMES = [
-  'DreamLeague',
-  'ESL One',
-  'PGL',
-  'PGL Wallachia',
-  'BLAST',
-  'The International',
-  'Beyond The Summit',
-  'WePlay',
-  'Riyadh Masters',
-  '1win Essence',
-]
-
 async function fetchTier1LeagueNames(token) {
   try {
     const cached = await kv.get(KV_TIER1_NAMES_KEY)
@@ -626,7 +610,7 @@ async function fetchTier1LeagueNames(token) {
     .filter(n => n && n.length >= 3)
 
   // Merge permanent + dynamic; Set deduplicates when PandaScore also returns the same name.
-  const names = [...new Set([...PERMANENT_TIER1_NAMES, ...dynamicNames])]
+  const names = [...new Set([...SHARED_PERMANENT_TIER1_NAMES, ...dynamicNames])]
 
   console.log(`tier1-leagues: ${names.length} names — ${names.join(', ')}`)
 

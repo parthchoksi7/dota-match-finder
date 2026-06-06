@@ -97,18 +97,25 @@ export function buildPremiumLeagueIds(leagues) {
 
 // Module-level cache so successive calls within the same Lambda warm-up
 // (or browser session for client-side consumers) skip the network round-trip.
+// TTL prevents a long-lived warm instance from serving a stale set after a new
+// premium league is added to OpenDota (e.g. a new Major or TI).
 let _premiumLeagueIds = null
+let _premiumLeagueIdsAt = 0
+const _PREMIUM_LEAGUES_TTL_MS = 4 * 60 * 60 * 1000 // 4 hours
 
 /**
  * Fetches the OpenDota league list and returns a Set of premium-tier league IDs.
- * Result is cached in memory for the lifetime of the process/session.
+ * Result is cached in memory for up to 4 hours per process/session.
  */
 export async function getPremiumLeagueIds() {
-  if (_premiumLeagueIds) return _premiumLeagueIds
+  if (_premiumLeagueIds && Date.now() - _premiumLeagueIdsAt < _PREMIUM_LEAGUES_TTL_MS) {
+    return _premiumLeagueIds
+  }
   const res = await fetch('https://api.opendota.com/api/leagues')
   if (!res.ok) throw new Error(`OpenDota leagues error: ${res.status}`)
   const leagues = await res.json()
   _premiumLeagueIds = buildPremiumLeagueIds(leagues)
+  _premiumLeagueIdsAt = Date.now()
   return _premiumLeagueIds
 }
 
