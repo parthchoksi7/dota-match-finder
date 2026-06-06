@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 6, 2026",
     tag: "fix",
+    title: "Auto-tweets: BO3 series no longer post prematurely at 1-1",
+    desc: "A BO3 series at 1-1 (game 3 not yet played) was being posted to X as a completed draw. The series-complete check incorrectly treated seriesType 1 (BO3) the same as seriesType 3 (BO2), which is the only format that can legitimately end 1-1. BO3 games now wait for game 3 before posting.",
+  },
+  {
+    date: "June 6, 2026",
+    tag: "fix",
     title: "Multi-stream match enrichment now resolves correctly",
     desc: "When a live match had multiple official English streams, the per-match API fetch was using the wrong URL (with a /dota2/ prefix that the single-match endpoint doesn't accept), causing a silent 404 and leaving stream ordering unresolved. Fixed the URL so the correct main stream is identified.",
   },

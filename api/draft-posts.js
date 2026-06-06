@@ -48,8 +48,8 @@ export function seriesComplete(games, seriesType) {
   }
   const maxWins = Math.max(0, ...Object.values(wins))
   if (maxWins >= winsNeeded(seriesType)) return true
-  // BO2 (type 3) and BO3 group-stage draws (type 1): 1-1 after 2 games is a valid final result
-  const allowsDraw = seriesType === 3 || seriesType === 1
+  // BO2 (type 3) only: 1-1 after 2 games is a valid final result. BO3 cannot draw.
+  const allowsDraw = seriesType === 3
   if (allowsDraw && games.length >= 2 && maxWins === 1 && Object.keys(wins).length === 2) return true
   return false
 }
@@ -160,7 +160,7 @@ async function runAutoTweet(req, res) {
       finalWins[w] = (finalWins[w] || 0) + 1
     }
     const finalMax = Math.max(0, ...Object.values(finalWins))
-    const isDraw = (seriesType === 3 || seriesType === 1) && games.length >= 2 && finalMax === 1 && Object.keys(finalWins).length === 2
+    const isDraw = seriesType === 3 && games.length >= 2 && finalMax === 1 && Object.keys(finalWins).length === 2
     const seriesLabel = seriesType === 0 ? 'BO1' : seriesType === 2 ? 'BO5' : seriesType === 3 ? 'BO2' : 'BO3'
 
     const sk = `auto-tweet:series:${seriesKey}`
