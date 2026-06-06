@@ -1,5 +1,5 @@
-import { useEffect } from "react"
-import { trackEvent, hasUnreadNews } from "../utils"
+import { useEffect, useState } from "react"
+import { trackEvent, hasUnreadNews, fetchNewsUnread } from "../utils"
 import SettingsSheet, { SETTINGS_OPEN_EVENT } from "./SettingsSheet"
 import InstallPrompt from "./InstallPrompt"
 
@@ -13,7 +13,12 @@ import InstallPrompt from "./InstallPrompt"
 export default function SiteHeader({ spoilerFree, onSpoilerToggle, onSearchOpen }) {
   const showSpoiler = typeof onSpoilerToggle === "function"
   const isNewsPage = typeof window !== "undefined" && window.location.pathname === "/news"
-  const newsUnread = !isNewsPage && hasUnreadNews()
+  const [newsUnread, setNewsUnread] = useState(() => !isNewsPage && hasUnreadNews())
+
+  useEffect(() => {
+    if (isNewsPage) return
+    fetchNewsUnread().then(unread => setNewsUnread(unread))
+  }, [])
 
   useEffect(() => {
     if (newsUnread) trackEvent('news_unread_indicator_shown', { path: window.location.pathname })

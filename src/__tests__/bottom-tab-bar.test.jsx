@@ -14,7 +14,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import BottomTabBar from '../components/BottomTabBar'
 import { SETTINGS_OPEN_EVENT } from '../components/SettingsSheet'
 
-vi.mock('../utils', () => ({ trackEvent: vi.fn(), hasUnreadNews: vi.fn(() => false) }))
+vi.mock('../utils', () => ({ trackEvent: vi.fn(), hasUnreadNews: vi.fn(() => false), fetchNewsUnread: vi.fn(() => Promise.resolve(false)) }))
 
 function setPathname(path) {
   Object.defineProperty(window, 'location', {

@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 6, 2026",
+    tag: "fix",
+    title: "News unread bubble now actually appears",
+    desc: "The unread dot on the News link and mobile tab was never showing up. The latest article timestamp was only updated when visiting the News page itself, so it was always equal to the last-visited time and the dot never triggered. The header and bottom tab now proactively fetch the latest article on every page load and compare it against your last visit, so the bubble appears correctly when new articles have been published.",
+  },
+  {
     date: "June 5, 2026",
     tag: "fix",
     title: "Google Search: Events structured data now fully valid",

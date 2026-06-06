@@ -284,6 +284,23 @@ export function hasUnreadNews() {
   }
 }
 
+// Module-level promise so multiple components share a single fetch per page load.
+let _newsUnreadCheckPromise = null
+
+export function fetchNewsUnread() {
+  if (!_newsUnreadCheckPromise) {
+    _newsUnreadCheckPromise = fetch('/api/news?game=dota2&limit=1')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const latest = (data?.articles || [])[0]?.publishedAt
+        if (latest) setNewsLatestArticle(latest)
+        return hasUnreadNews()
+      })
+      .catch(() => hasUnreadNews())
+  }
+  return _newsUnreadCheckPromise
+}
+
 /** True if the series has a winner or ended in a BO2 draw. */
 /**
  * Returns true if leagueName contains any of the tier1Names substrings.

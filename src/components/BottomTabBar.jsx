@@ -1,4 +1,5 @@
-import { trackEvent, hasUnreadNews } from "../utils"
+import { useEffect, useState } from "react"
+import { trackEvent, hasUnreadNews, fetchNewsUnread } from "../utils"
 import { SETTINGS_OPEN_EVENT } from "./SettingsSheet"
 
 /**
@@ -12,7 +13,12 @@ export default function BottomTabBar() {
   const homeActive = path === "/" || path.startsWith("/match/")
   const tournamentsActive = path === "/tournaments" || path.startsWith("/tournament/")
   const newsActive = path === "/news"
-  const newsUnread = !newsActive && hasUnreadNews()
+  const [newsUnread, setNewsUnread] = useState(() => !newsActive && hasUnreadNews())
+
+  useEffect(() => {
+    if (newsActive) return
+    fetchNewsUnread().then(unread => setNewsUnread(unread))
+  }, [])
 
   function openSettings() {
     window.dispatchEvent(new Event(SETTINGS_OPEN_EVENT))
