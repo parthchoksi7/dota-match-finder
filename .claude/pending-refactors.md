@@ -31,17 +31,8 @@ Completed items removed.
 
 ~~### [SECURITY] Rate-limit LLM and expensive endpoints~~ ✅ Done — `rateLimitByIp()` in `_shared.js`, 10 req/min on `summarize` and `analytics-chat`. Watchability still unthrottled.
 
-### [SECURITY] Rate-limit watchability endpoint
-- **Files:** `api/tournaments.js` (watchability mode)
-- **What:** Apply 20 req/min via `rateLimitByIp()` (already in `_shared.js`). Import `_kv` and add a check at the start of the watchability handler.
-- **Why:** Watchability calls Twitch Helix for each match — an uncached bot loop can exhaust the Twitch rate-limit quota.
-- **Risk:** None — same pattern as summarize/analytics-chat.
-
-### [SECURITY] Move analytics-chat password to request header (PARTIAL — timingSafeEqual ✅ done)
-- **Files:** `api/analytics-chat.js`, `src/components/AnalyticsChat.jsx`
-- **What:** Read the password from `req.headers['x-analytics-password']` in both `handleAuth` and `handleChat` instead of `req.body.password`. Update `AnalyticsChat.jsx` to send an `x-analytics-password` header on all requests.
-- **Why:** Request body content appears in Vercel's raw function logs; HTTP headers are not logged. Closes the log-exposure gap the `timingSafeEqual` fix left open.
-- **Risk:** Coordinated two-file change — must deploy backend and frontend together.
+~~### [SECURITY] Rate-limit watchability endpoint~~ ✅ Done — 20 req/min on cache-miss path in `handleWatchability`
+~~### [SECURITY] Move analytics-chat password to request header~~ ✅ Done — header primary, body fallback; `AnalyticsPage.jsx` and `AnalyticsChat.jsx` updated
 
 ~~### [SECURITY] Add Permissions-Policy header to vercel.json~~ ✅ Done
 ~~### [RELIABILITY] Log KV lock contention in auto-tweet cron~~ ✅ Done

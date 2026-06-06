@@ -16,8 +16,8 @@ export default function AnalyticsPage() {
     try {
       const res = await fetch('/api/analytics-chat?mode=auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: input }),
+        headers: { 'Content-Type': 'application/json', 'x-analytics-password': input },
+        body: JSON.stringify({}),
       });
       if (res.ok) {
         sessionStorage.setItem(SESSION_KEY, '1');

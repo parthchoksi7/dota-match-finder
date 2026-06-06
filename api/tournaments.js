@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 
-import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, parseBracketRound, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime, buildPremiumLeagueIds, trackError, checkServices, findLeague } from './_shared.js'
+import { isTier1ByFields, isTier1 as isTier1Match, isTier1ByName, buildTournamentName as buildMatchTournamentName, parseBracketRound, PERMANENT_TIER1_NAMES as SHARED_PERMANENT_TIER1_NAMES, STREAM_TTL, KV_TIER1_NAMES_KEY, findOdMatchByTime, buildPremiumLeagueIds, trackError, checkServices, findLeague, rateLimitByIp } from './_shared.js'
 
 // ─── YouTube highlights config ────────────────────────────────────────────────
 
@@ -945,6 +945,9 @@ async function handleWatchability(req, res) {
     const cached = await kv.get(cacheKey)
     if (cached) return res.status(200).json({ ...cached, cached: true })
   } catch {}
+
+  const allowed = await rateLimitByIp(req, kv, 'watchability', 20)
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded. Try again in a minute.' })
 
   const results = await Promise.allSettled(
     matchIds.map(id => fetch(`https://api.opendota.com/api/matches/${id}`).then(r => {

@@ -50,10 +50,14 @@ export default function AnalyticsChat() {
     setLoading(true);
 
     try {
+      const pw = sessionStorage.getItem('analytics_auth') === '1' ? sessionStorage.getItem('analytics_pw') : null;
       const res = await fetch('/api/analytics-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userText, history, password: sessionStorage.getItem('analytics_auth') === '1' ? sessionStorage.getItem('analytics_pw') : undefined }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(pw ? { 'x-analytics-password': pw } : {}),
+        },
+        body: JSON.stringify({ message: userText, history }),
       });
 
       const data = await res.json();

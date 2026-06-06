@@ -10,9 +10,9 @@ function safeCompare(a, b) {
 }
 
 // ── Auth mode ────────────────────────────────────────────────────────────────
-// POST ?mode=auth { password } -> 200 or 401
+// POST ?mode=auth — password accepted via x-analytics-password header (preferred) or body
 function handleAuth(req, res) {
-  const { password } = req.body || {};
+  const password = req.headers['x-analytics-password'] || (req.body || {}).password;
   const expected = process.env.ANALYTICS_PASSWORD;
   if (!expected) return res.status(503).json({ error: 'ANALYTICS_PASSWORD not configured' });
   if (safeCompare(password, expected)) return res.status(200).json({ ok: true });
@@ -133,7 +133,8 @@ const TOOLS = [
 ];
 
 async function handleChat(req, res) {
-  const { message, history = [], password } = req.body || {};
+  const { message, history = [] } = req.body || {};
+  const password = req.headers['x-analytics-password'] || (req.body || {}).password;
 
   const expectedPassword = process.env.ANALYTICS_PASSWORD;
   if (expectedPassword && !safeCompare(password, expectedPassword)) {
