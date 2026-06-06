@@ -53,6 +53,15 @@ Allow: /
 User-agent: Bytespider
 Allow: /
 
+User-agent: CCBot
+Allow: /
+
+User-agent: DiffBot
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
 # -----------------------------------------------
 # All other crawlers
 # -----------------------------------------------

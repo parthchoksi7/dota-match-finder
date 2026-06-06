@@ -73,9 +73,29 @@ const BASE_URL = 'https://spectateesports.live'
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`
 const SITE_NAME = 'Spectate Esports'
 
+const LLM_BOTS = [
+  'GPTBot', 'ChatGPT-User', 'OAI-SearchBot',
+  'ClaudeBot', 'claude-web', 'anthropic-ai',
+  'Google-Extended',
+  'PerplexityBot',
+  'Bytespider',
+  'CCBot',
+  'DiffBot',
+  'FacebookBot',
+  'cohere-ai',
+  'YouBot',
+  'Applebot-Extended',
+]
+
 export default async function middleware(req) {
   const url = new URL(req.url)
   const { pathname } = url
+
+  const ua = req.headers.get('user-agent') || ''
+  const matchedBot = LLM_BOTS.find(b => ua.toLowerCase().includes(b.toLowerCase()))
+  if (matchedBot) {
+    console.log(JSON.stringify({ event: 'llm_bot_visit', bot: matchedBot, ua, path: pathname, ts: new Date().toISOString() }))
+  }
 
   if (pathname === '/news') return handleNews(url)
   if (pathname === '/tournaments') return handleTournaments(url)
