@@ -2,6 +2,7 @@ import webpush from 'web-push'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
+import { getSupabaseAdmin } from './_supabase.js'
 
 const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes
@@ -134,6 +135,7 @@ const FORMAT_MATCH_TTL = 14 * 24 * 3600 // 14 days
 async function cacheRunningStreams(rawMatches) {
   const streamWrites = []
   const tsBuckets = {} // roundedTs → Set<channel>
+  const supabaseRows = []
 
   for (const m of rawMatches) {
     const format = m.match_type // 'best_of_2', 'best_of_3', etc.
@@ -168,6 +170,16 @@ async function cacheRunningStreams(rawMatches) {
       tsBuckets[roundedTs].add(channel)
       // nx: true — write-once. First recorded channel is never overwritten.
       streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
+
+      supabaseRows.push({
+        od_match_id: Number(matchId),
+        ps_match_id: m.id,
+        channel,
+        started_at: game.begin_at,
+        team_a: m.opponents?.[0]?.opponent?.name || null,
+        team_b: m.opponents?.[1]?.opponent?.name || null,
+        tournament: buildTournamentName(m),
+      })
     }
   }
 
@@ -180,6 +192,16 @@ async function cacheRunningStreams(rawMatches) {
   if (streamWrites.length > 0) {
     await Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
   }
+
+  // Permanent write-through to Supabase. ignoreDuplicates replicates nx:true — first channel wins.
+  if (supabaseRows.length > 0) {
+    getSupabaseAdmin()
+      .from('match_stream_history')
+      .upsert(supabaseRows, { onConflict: 'od_match_id', ignoreDuplicates: true })
+      .then(({ error }) => { if (error) console.warn('match_stream_history upsert failed:', error.message) })
+      .catch(err => console.warn('match_stream_history upsert failed:', err?.message))
+  }
+
   return streamWrites.length
 }
 
