@@ -1,7 +1,9 @@
 # Dota Match Finder — Competitive Research
 
 ## Summary
-No competitor combines timestamped VOD deep links with AI match summaries. That is the core moat of Dota Match Finder.
+No competitor combines timestamped VOD deep links with AI match summaries. That is the core moat of Spectate Esports.
+
+_Matrix last updated: June 2026._
 
 ---
 
@@ -88,16 +90,16 @@ These are the companies that power other products' data — not direct competito
 
 ## Competitive Matrix
 
-| Feature | Dota Match Finder | Strafe | Liquipedia | GGScore | STRATZ |
+| Feature | Spectate Esports | Strafe | Liquipedia | GGScore | STRATZ |
 |---|---|---|---|---|---|
 | Timestamped VOD deep links | ✅ | ❌ | ❌ | ❌ | ❌ |
 | AI match summary | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Search by team/tournament | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Series score grouping | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Live scores | ❌ | ✅ | ✅ | ✅ | ❌ |
-| Tournament brackets | ❌ | ✅ | ✅ | ✅ | ❌ |
-| Draft analysis | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Player stats | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Live scores | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Tournament brackets | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Draft analysis | ✅ | ❌ | ✅ | ❌ | ✅ |
+| Player stats | ⚠️ per-game only | ✅ | ✅ | ✅ | ✅ |
 | Dota-only focus | ✅ | ❌ | ✅ | ❌ | ✅ |
 | Free, no login | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Automated (no manual updates) | ✅ | ✅ | ❌ | Partial | ✅ |

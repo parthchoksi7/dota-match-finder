@@ -178,3 +178,37 @@ Completed items removed.
 - **What:** Replace the 5-state summary cluster (`summary`, `summaryMatchId`, `summaryError`, `summaryErrorMatchId`, `summaryLoading`) with a `useReducer`. Same for xPosts and redditPosts clusters.
 - Start with the xPosts cluster (fully self-contained, no external callers) as a pilot.
 - **Effort:** Medium | **Payoff:** High (prevents impossible states, reduces reset-on-entry boilerplate)
+
+---
+
+## Frontend polish / UX
+
+Small-to-medium items consolidated from UI_UX_IMPROVEMENTS.md. All low blast radius.
+
+### Sticky "Now Watching" panel
+- **What:** Keep the match detail panel (currently a drawer) sticky below the header on scroll so Watch / Summary actions stay visible while browsing the match list.
+- **Effort:** Medium
+
+### `font-display: swap` for Barlow font
+- **What:** Add `font-display: swap` and `<link rel="preconnect">` to the Google Fonts import to avoid layout shift on first load.
+- **Effort:** Low
+
+### VOD pre-fetch in background
+- **What:** When a user clicks a game row, start resolving the VOD before the drawer finishes opening. Currently the "Finding VOD…" spinner only starts after the drawer is open.
+- **Effort:** Low
+
+### Recent / popular search suggestions
+- **What:** Show up to 5 recent searches (localStorage) and a few suggested queries ("Team Liquid", "DreamLeague") in the search overlay before the user types anything.
+- **Effort:** Medium
+
+### "Has VOD" filter
+- **What:** Post-search filter chip to narrow results to games that have a confirmed VOD link. Complements the existing All/BO1/BO3/BO5 series type filter.
+- **Effort:** Medium
+
+### `aria-describedby` on search errors
+- **What:** Associate the error message ("Failed to load matches") with the search form using `aria-describedby` for screen reader users.
+- **Effort:** Low
+
+### Mobile touch target audit
+- **What:** Verify button and list row heights are ≥44px on small screens. `MatchCard` rows and `SearchBar` buttons may need padding bumps below 375px.
+- **Effort:** Low
