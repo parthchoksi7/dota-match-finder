@@ -86,7 +86,11 @@ const article = {
     },
     {
       type: 'paragraph',
-      text: 'Falcons arrived in Copenhagen as TI14 world champions. They had earned a direct upper bracket quarterfinal berth despite finishing fourth in the group stage — a result that was disappointing but survivable. They beat Team Liquid 2-0 in the first round. Everything tracked.',
+      text: 'Falcons arrived in Copenhagen as TI14 world champions — but not with their full roster. Their starting mid, Malr1ne, had his visa denied in time to travel. For the entire LAN, Falcons played with Syed "SumaiL" Hassan as standin: a TI5 champion and one of the most decorated mid players in the history of the game. It was the tournament\'s second visa casualty after PARIVISION\'s exit before the bracket began, and it meant the defending world champions took the stage without the player they had built their mid-game identity around.',
+    },
+    {
+      type: 'paragraph',
+      text: 'With SumaiL, Falcons finished fourth in the group stage. They beat Team Liquid 2-0 in the upper bracket quarterfinals. The circumstances were difficult, but the results were there — right up until they weren\'t.',
     },
     {
       type: 'paragraph',
@@ -151,6 +155,10 @@ const article = {
     {
       type: 'heading',
       text: 'What Team Yandex Proved',
+    },
+    {
+      type: 'paragraph',
+      text: 'The tournament arrived in Copenhagen already reshaped by disruption. PARIVISION — group stage second seed — never made it due to visa complications. Malr1ne couldn\'t travel with Team Falcons. Team Liquid entered a LAN they had been eliminated from. A mid-tournament patch rewrote the meta overnight. By the time the bracket concluded, every pre-event assumption had been overturned.',
     },
     {
       type: 'paragraph',
