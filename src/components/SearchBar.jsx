@@ -46,7 +46,7 @@ function SearchBar(
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search teams or tournaments..."
+          placeholder="Search teams, tournaments, or heroes..."
           disabled={disabled}
           className="flex-1 min-w-0 bg-transparent border-none outline-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 disabled:opacity-60"
           aria-invalid={undefined}
@@ -75,7 +75,7 @@ function SearchBar(
     <div className="w-full">
       <form onSubmit={handleSubmit} className="flex gap-2" aria-describedby={errorId || undefined}>
         <label htmlFor="search-input" className="sr-only">
-          Search by team or tournament
+          Search by team, tournament, or hero
         </label>
         <div className="flex-1 relative">
           <input
@@ -84,7 +84,7 @@ function SearchBar(
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search teams or tournaments…"
+            placeholder="Search teams, tournaments, or heroes…"
             disabled={disabled}
             className="focus-ring w-full px-4 py-3 min-h-[44px] bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm placeholder-gray-500 dark:placeholder-gray-600 rounded transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             aria-invalid={undefined}
