@@ -39,6 +39,8 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
   const backpack = player.backpackItems || []
   const buffs = player.permanentBuffs || []
   const consumedUpgrades = AGHANIM_UPGRADES.filter(u => buffs.includes(u.buffId))
+  const neutralItemId = player.neutralItem ?? 0
+  const hasNeutral = neutralItemId !== 0
 
   return (
     <div className="space-y-1.5">
@@ -71,10 +73,10 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
         </span>
       </div>
 
-      {/* Main items + divider + backpack items */}
-      <div className="flex items-center gap-0.5 ml-8">
+      {/* Main items | backpack | consumed upgrades · neutral */}
+      <div className="flex items-center gap-0.5 ml-8 overflow-x-auto">
         {player.items.map((itemId, i) => (
-          <ItemSlot key={i} itemId={itemId} itemNames={itemNames} size="md" />
+          <ItemSlot key={i} itemId={itemId} itemNames={itemNames} size="md" edgePin={i < 2 ? 'left' : 'center'} />
         ))}
         {backpack.length > 0 && (
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-0.5 flex-shrink-0" aria-hidden="true" />
@@ -88,6 +90,18 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
         {consumedUpgrades.map(u => (
           <ConsumedUpgrade key={u.buffId} itemKey={u.key} label={u.label} />
         ))}
+        {hasNeutral && (
+          <>
+            <span className="text-gray-600 dark:text-gray-600 mx-1 flex-shrink-0 text-xs select-none" aria-hidden="true">·</span>
+            <ItemSlot
+              itemId={neutralItemId}
+              itemNames={itemNames}
+              size="md"
+              variant="neutral"
+              edgePin="right"
+            />
+          </>
+        )}
       </div>
 
       {/* Networth proportion bar */}

@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 7, 2026",
+    tag: "new",
+    title: "Neutral items and item wiki links in player stats",
+    desc: "Player stats now show each player's neutral item alongside their regular build. Neutral items appear at the far right of the item row, separated by a dot and marked with a gold border so they're visually distinct from the main inventory. Hover any item (main, backpack, or neutral) to see its name and a link to the Dota 2 Wiki — the tooltip stays open while your mouse moves to the link so you can actually click it.",
+  },
+  {
     date: "June 6, 2026",
     tag: "fix",
     title: "Auto-tweets: BO3 series no longer post prematurely at 1-1",

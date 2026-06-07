@@ -1157,6 +1157,7 @@ export default async function handler(req, res) {
           netWorth: p.net_worth ?? 0,
           items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].map(v => v ?? 0),
           backpackItems: [p.backpack_0, p.backpack_1, p.backpack_2].map(v => v ?? 0),
+          neutralItem: p.item_neutral ?? 0,
           permanentBuffs: (p.permanent_buffs || []).map(b => b.permanent_buff),
           kills: p.kills ?? 0,
           deaths: p.deaths ?? 0,
