@@ -7,7 +7,7 @@ const SIZE_CLASSES = {
 
 function wikiUrl(displayName) {
   if (!displayName) return null
-  return `https://www.dota2.fandom.com/wiki/${encodeURIComponent(displayName)}`
+  return `https://dota2.fandom.com/wiki/${encodeURIComponent(displayName)}`
 }
 
 export default function ItemSlot({ itemId, itemNames, size = 'md', variant, edgePin = 'center' }) {
