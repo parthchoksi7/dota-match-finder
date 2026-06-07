@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "re
 import { trackEvent } from "../utils"
 
 function SearchBar(
-  { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId, initialQuery, compact },
+  { onSearch, loading, initialLoadComplete, onClearSearch, disabled, errorId, initialQuery, compact, onQueryChange, onKeyDown },
   ref
 ) {
   const [query, setQuery] = useState(initialQuery || "")
@@ -45,7 +45,8 @@ function SearchBar(
           ref={inputRef}
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { setQuery(e.target.value); onQueryChange?.(e.target.value) }}
+          onKeyDown={onKeyDown}
           placeholder="Search teams, tournaments, or heroes..."
           disabled={disabled}
           className="flex-1 min-w-0 bg-transparent border-none outline-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 disabled:opacity-60"

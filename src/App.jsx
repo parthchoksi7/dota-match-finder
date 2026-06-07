@@ -238,6 +238,8 @@ function App() {
     try { localStorage.setItem(STORAGE_KEYS.CALENDAR_NUDGE_DISMISSED, '1') } catch {}
   }
   const searchInputRef = useRef(null)
+  const suggestionsRef = useRef(null)
+  const [liveQuery, setLiveQuery] = useState('')
 
   const loadMatches = useCallback(() => {
     setError(null)
@@ -511,7 +513,22 @@ function App() {
     setSearchQuery("")
     setSelectedMatch(null)
     setError(null)
+    setLiveQuery('')
     setTimeout(() => { if (window.matchMedia('(hover: hover)').matches) searchInputRef.current?.focus() }, 0)
+  }
+
+  function handleSearchKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      suggestionsRef.current?.moveDown()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      suggestionsRef.current?.moveUp()
+    } else if (e.key === 'Enter') {
+      if (suggestionsRef.current?.selectHighlighted()) {
+        e.preventDefault() // suggestion handled it — don't also submit the form
+      }
+    }
   }
 
   async function handleSelectMatch(match, source = 'homepage_feed') {
@@ -993,6 +1010,8 @@ function App() {
                 onClearSearch={handleClearSearch}
                 initialQuery=""
                 compact
+                onQueryChange={setLiveQuery}
+                onKeyDown={handleSearchKeyDown}
               />
               {/* Cancel */}
               <button
@@ -1008,8 +1027,13 @@ function App() {
           {/* Suggestions — pinned directly below search bar */}
           {!searched && (
             <div className="flex-shrink-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-              <div className="max-w-3xl mx-auto px-3 py-2.5">
-                <SearchSuggestions allMatches={allMatches} onSearch={handleSuggestionSelect} />
+              <div className="max-w-3xl mx-auto">
+                <SearchSuggestions
+                  ref={suggestionsRef}
+                  allMatches={allMatches}
+                  onSearch={handleSuggestionSelect}
+                  query={liveQuery}
+                />
               </div>
             </div>
           )}
