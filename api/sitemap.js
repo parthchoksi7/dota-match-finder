@@ -35,6 +35,24 @@ export default async function handler(req, res) {
   const BASE_URL = 'https://spectateesports.live'
 
   try {
+    // Fetch hero slugs from OpenDota for /heroes/:slug sitemap entries.
+    let heroSlugs = []
+    try {
+      const heroRes = await fetch('https://api.opendota.com/api/heroes').catch(() => null)
+      if (heroRes?.ok) {
+        const heroData = await heroRes.json().catch(() => null)
+        if (Array.isArray(heroData)) {
+          heroSlugs = heroData.map(h => h.name.replace('npc_dota_hero_', '')).filter(Boolean)
+        }
+      }
+    } catch (_) { /* skip hero URLs if OpenDota is unavailable */ }
+
+    const heroUrls = heroSlugs.map(slug => `  <url>
+    <loc>${BASE_URL}/heroes/${slug}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`)
+
     // Fetch article slugs/tournaments and match data in parallel.
     let articleSlugs = []
     let articleTournaments = []
@@ -192,6 +210,12 @@ ${TEAM_SLUGS.map(slug => `  <url>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>`).join('\n')}
+  <url>
+    <loc>${BASE_URL}/heroes</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+${heroUrls.join('\n')}
 ${tournamentUrls.join('\n')}
 ${urls.join('\n')}
 </urlset>`

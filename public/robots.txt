@@ -79,6 +79,8 @@ Allow: /glossary
 Allow: /glossary/
 Allow: /teams
 Allow: /teams/
+Allow: /heroes
+Allow: /heroes/
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/og

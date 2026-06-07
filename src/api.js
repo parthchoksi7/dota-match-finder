@@ -490,3 +490,26 @@ export async function fetchHeroes() {
   } catch {}
   return heroCache
 }
+
+// Resolve a search query string to a hero entry { id, name, key } or null.
+// Uses the cached hero list — always fast after the first fetchHeroes() call.
+export async function resolveHeroByName(query) {
+  if (!query || query.length < 2) return null
+  const heroes = await fetchHeroes()
+  const q = query.toLowerCase()
+  const entry = Object.entries(heroes).find(([, h]) =>
+    h.name.toLowerCase().includes(q)
+  )
+  if (!entry) return null
+  return { id: Number(entry[0]), name: entry[1].name, key: entry[1].key }
+}
+
+// Fetch tier-1 pro matches where the given hero was picked.
+// cursor: Unix timestamp — returns picks older than this value (for pagination).
+export async function fetchHeroMatches(heroId, cursor = null) {
+  const params = new URLSearchParams({ mode: 'hero-matches', hero_id: String(heroId) })
+  if (cursor) params.set('cursor', String(cursor))
+  const res = await fetch(`/api/tournaments?${params}`)
+  if (!res.ok) throw new Error(`Hero matches fetch failed: ${res.status}`)
+  return res.json()
+}

@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 7, 2026",
     tag: "new",
+    title: "Hero search — find every tier-1 match a hero was picked in",
+    desc: "Search for any Dota 2 hero by name in the search bar and go straight to their hero page at /heroes/{slug}. Each hero page lists every tier-1 professional match where they were picked — teams, tournament, date, and result — sorted newest first, 100 at a time. Load more to go further back. Bans excluded; picks only. Hero pages include schema.org structured data and are indexed in the sitemap for AI and search discoverability. The underlying data is sourced from the OpenDota Explorer API with tier-1 league filtering (DreamLeague, PGL, ESL One, BLAST, WePlay, The International, Riyadh Masters).",
+  },
+  {
+    date: "June 7, 2026",
+    tag: "new",
     title: "Neutral items and item wiki links in player stats",
     desc: "Player stats now show each player's neutral item alongside their regular build. Neutral items appear at the far right of the item row, separated by a dot and marked with a gold border so they're visually distinct from the main inventory. Hover any item (main, backpack, or neutral) to see its name and a link to the Dota 2 Wiki — the tooltip stays open while your mouse moves to the link so you can actually click it.",
   },

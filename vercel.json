@@ -26,6 +26,8 @@
     { "source": "/teams/:slug", "destination": "/" },
     { "source": "/articles", "destination": "/" },
     { "source": "/articles/:slug", "destination": "/" },
+    { "source": "/heroes", "destination": "/" },
+    { "source": "/heroes/:slug", "destination": "/" },
     { "source": "/admin/coverage", "destination": "/" },
     { "source": "/admin/review/:jobId", "destination": "/" }
   ],

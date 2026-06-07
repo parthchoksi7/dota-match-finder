@@ -136,6 +136,20 @@ Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes 
 - [Bounty Rune](https://spectateesports.live/glossary/bounty-rune): Gold-granting map rune spawning every 3 minutes
 - [True Sight](https://spectateesports.live/glossary/true-sight): Invisibility detection mechanic
 
+## Hero Pages
+
+Dedicated pages for each Dota 2 hero at /heroes/{slug}. Each page shows all tier-1 professional matches in which that hero was picked, with series context (teams, league, date, winner) and links to individual match replays. Includes Thing + WebPage schema.org structured data with BreadcrumbList.
+
+- [Heroes Index](https://spectateesports.live/heroes): All heroes (redirects to home with search)
+- `/heroes/{slug}` — Individual hero page. Slug is the hero's OpenDota key with `npc_dota_hero_` stripped (e.g., `puck`, `anti_mage`, `invoker`). Hero portrait sourced from Valve CDN.
+
+Examples:
+- [Puck](https://spectateesports.live/heroes/puck): All tier-1 matches where Puck was picked
+- [Anti-Mage](https://spectateesports.live/heroes/anti_mage): All tier-1 matches where Anti-Mage was picked
+- [Invoker](https://spectateesports.live/heroes/invoker): All tier-1 matches where Invoker was picked
+
+Match results are paginated in sets of 100, sorted by date (newest first). Data sourced from OpenDota Explorer API. Only picks are shown (bans excluded). Only tier-1 leagues are included (DreamLeague, PGL, ESL One, BLAST, WePlay, The International, Riyadh Masters).
+
 ## Editorial Articles
 
 Spectate Esports publishes original editorial coverage of Tier 1 Dota 2 tournaments — daily analysis, team narratives, match previews, and storyline breakdowns.
@@ -178,6 +192,7 @@ Spectate Esports publishes original editorial coverage of Tier 1 Dota 2 tourname
 - News feed (RSS 2.0): https://spectateesports.live/api/news?format=rss
 - All-tournament calendar (.ics): https://spectateesports.live/api/tournaments?mode=calendar-all
 - AI entity data (JSON): https://spectateesports.live/api/tournaments?mode=llms-data — Structured entity graph for AI systems: live/upcoming/completed tournaments, Tier 1 organizers, data sources, all 25 glossary terms with definitions, and all machine-readable endpoint URLs. Cached 1 hour.
+- Hero match history (JSON): https://spectateesports.live/api/tournaments?mode=hero-matches&hero_id={id} — Tier-1 professional matches where the given hero was picked, sorted newest first, 100 per page. Optional `cursor` param (Unix timestamp) for pagination. Response: `{ rows: [{match_id, start_time, radiant_win, league_name, radiant_name, dire_name}], exhausted: bool, cursor: number }`. Cached 15 minutes.
 
 ## Optional
 

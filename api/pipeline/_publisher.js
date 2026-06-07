@@ -107,6 +107,7 @@ export async function publishToDb(article) {
       title: article.title,
       subtitle: article.subtitle ?? null,
       published_at: article.publishedAt,
+      expires_at: article.expiresAt ?? null,
       tournament: article.tournament,
       tournament_label: article.tournamentLabel,
       category: article.category,

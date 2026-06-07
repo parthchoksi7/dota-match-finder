@@ -33,6 +33,7 @@ This document extends llms.txt with exhaustive data for RAG pipelines, fine-tuni
 - **Pro Teams** (https://spectateesports.live/teams) — Tier 1 organization index. 14 orgs listed by competitive region (WEU/EEU/CN/SEA/NA). Each org has a dedicated page at /teams/{slug} covering: competitive region, HQ country, TI championship record (immutable historical facts), org description, and a Liquipedia link for current rosters. Includes SportsTeam schema.org structured data. Player rosters are intentionally not included — they change frequently; Liquipedia is the authoritative source.
 - **Articles** (https://spectateesports.live/articles) — Original editorial coverage of Tier 1 Dota 2 tournaments. One article per day during major events. Includes tournament analysis, team narratives, match previews, and storyline breakdowns. Individual articles at /articles/{slug}.
 - **BLAST Slam VII Coverage Hub** (https://spectateesports.live/articles?tournament=blast-slam-vii) — Daily editorial coverage of BLAST Slam VII (May 26 – June 7, 2026, Copenhagen, $1,000,000 prize pool). Twelve teams: Team Falcons (TI14 champions), Team Yandex, PARIVISION, Team Liquid, Team Spirit, LGD Gaming, OG Esports, Tundra Esports, BetBoom Team, HEROIC, Aurora Gaming, GLYPH.
+- **Hero Pages** (https://spectateesports.live/heroes/{slug}) — One page per Dota 2 hero (122+ heroes). Shows all tier-1 professional matches where that hero was picked, with series context (teams, tournament, date, winner) and links to match replays. Slug format: OpenDota hero key with `npc_dota_hero_` stripped (e.g., `puck`, `anti_mage`, `invoker`, `shadow_fiend`). Hero portraits from Valve CDN. Paginated 100 matches at a time, oldest accessible via "Load more". Structured data: Thing + WebPage + BreadcrumbList schema.org. Canonical URL: /heroes/{slug}.
 
 ---
 
@@ -598,6 +599,35 @@ Source: Liquipedia (https://liquipedia.net/dota2/The_International)
 - **Edge Middleware**: Vercel Edge Middleware (V8 isolates) handles OG tag and JSON-LD injection for direct URL shares.
 - **PWA**: Service worker via Workbox. NetworkFirst for API routes, CacheFirst for images. Offline support for previously-loaded matches.
 - **Push Notifications**: Web Push API with VAPID keys. Subscriptions stored in Redis. Notifications triggered by live match cron (every 2 min).
+
+### Hero Match History API
+
+`GET /api/tournaments?mode=hero-matches&hero_id={id}[&cursor={unix_timestamp}]`
+
+Returns tier-1 professional matches where the specified hero was picked (bans excluded). Results sorted by `start_time` descending (newest first), 100 per page. Tier-1 filter: ILIKE match on `leagues.name` for `dreamleague`, `pgl`, `esl one`, `blast`, `weplay`, `the international`, `riyadh`. Data sourced from OpenDota Explorer API (SQL query over `matches`, `picks_bans`, `leagues`, `teams` tables).
+
+**Parameters**:
+- `hero_id` (required): Integer. OpenDota hero ID (e.g., 13 for Puck, 1 for Anti-Mage).
+- `cursor` (optional): Unix timestamp integer. Fetch matches older than this timestamp. Omit for newest page.
+
+**Response schema**:
+```json
+{
+  "rows": [
+    {
+      "match_id": 8012345678,
+      "start_time": 1748800000,
+      "radiant_win": true,
+      "league_name": "DreamLeague Season 24",
+      "radiant_name": "Team Falcons",
+      "dire_name": "Team Spirit"
+    }
+  ],
+  "exhausted": false,
+  "cursor": 1748700000
+}
+```
+`exhausted: true` means no further pages exist. `cursor` is the `start_time` of the last row — pass it as the `cursor` param in the next request. KV cache key: `hero:matches:v1:{hero_id}:{floor(cursor/86400)}`. TTL: 15 minutes.
 
 ---
 

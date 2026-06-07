@@ -13,6 +13,8 @@ export const config = {
     '/teams/:slug*',
     '/articles',
     '/articles/:slug*',
+    '/heroes',
+    '/heroes/:slug*',
   ],
 }
 
@@ -110,6 +112,8 @@ export default async function middleware(req) {
   if (pathname.startsWith('/teams/')) return handleTeamDetail(url)
   if (pathname === '/articles') return handleArticles(url)
   if (pathname.startsWith('/articles/')) return handleArticleDetail(url)
+  if (pathname === '/heroes') return handleHeroes(url)
+  if (pathname.startsWith('/heroes/')) return handleHeroDetail(url)
 
   return new Response(null, { status: 302, headers: { Location: '/' } })
 }
@@ -973,6 +977,88 @@ async function handleArticleDetail(url) {
     <meta property="article:author" content="Spectate Esports" />
     <meta property="article:section" content="${escapeHtml(article.category)}" />`
   return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent, articleMetaTags, 'article')
+}
+
+// ─── /heroes ─────────────────────────────────────────────────────────────────
+
+function heroSlugToDisplayName(slug) {
+  // e.g. "anti_mage" → "Anti Mage", "keeper_of_the_light" → "Keeper Of The Light"
+  return (slug || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+async function handleHeroes(url) {
+  const canonical = `${BASE_URL}/heroes`
+  const title = 'Dota 2 Hero Match History | Spectate Esports'
+  const description = 'Browse every Dota 2 hero and find recent tier-1 professional matches where they were picked. Includes Twitch VOD links, draft context, and match results.'
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'about': { '@type': 'VideoGame', 'name': 'Dota 2' },
+        'breadcrumb': breadcrumb([{ name: 'Heroes', url: canonical }]),
+      },
+    ],
+  }
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › Heroes</nav>
+      <h1>Dota 2 Heroes — Pro Match History</h1>
+      <p>Find recent Tier 1 professional Dota 2 matches for any hero. Each hero page shows the last 100 tier-1 picks with direct Twitch VOD links, draft context, and match results. Data sourced from OpenDota.</p>
+      <p>Search for a hero by name on the <a href="${BASE_URL}">homepage</a> to jump directly to their match history.</p>
+    </main>`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+async function handleHeroDetail(url) {
+  const slug = url.pathname.replace('/heroes/', '').split('/')[0]
+  if (!slug) return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/heroes` } })
+
+  const displayName = heroSlugToDisplayName(slug)
+  const canonical = `${BASE_URL}/heroes/${slug}`
+  const title = `${displayName} Pro Matches — Tier 1 VODs & Drafts | Spectate Esports`
+  const description = `Recent Tier 1 professional Dota 2 matches where ${displayName} was picked. Includes Twitch VOD links timestamped to game start, full hero draft, and match results.`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Thing',
+        '@id': `${canonical}#hero`,
+        'name': displayName,
+        'description': `${displayName} is a hero in Dota 2. This page shows recent tier-1 professional matches where ${displayName} was picked, with VOD links and draft context.`,
+        'url': canonical,
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'about': { '@id': `${canonical}#hero` },
+        'breadcrumb': breadcrumb([
+          { name: 'Heroes', url: `${BASE_URL}/heroes` },
+          { name: displayName, url: canonical },
+        ]),
+      },
+    ],
+  }
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/heroes">Heroes</a> › ${escapeHtml(displayName)}</nav>
+      <h1>${escapeHtml(displayName)} — Pro Match History</h1>
+      <p>Recent Tier 1 professional Dota 2 matches where <strong>${escapeHtml(displayName)}</strong> was picked. Each match includes a direct Twitch VOD link timestamped to game start, the full hero pick-and-ban draft, and match results. Data sourced from OpenDota and covers DreamLeague, ESL One, PGL, BLAST, WePlay, The International, and Riyadh Masters events.</p>
+      <p><a href="${BASE_URL}">Back to Spectate Esports</a> · <a href="${BASE_URL}/heroes">All Heroes</a></p>
+    </main>`
+
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
 }
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────

@@ -71,10 +71,12 @@ async function handleArticles(req, res) {
       return res.status(200).json({ article: mode === 'meta' ? mapMetaRow(data) : mapRow(data) })
     }
 
+    const notExpired = `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
+
     if (mode === 'slugs') {
       const { data, error } = await db
         .from('articles').select('slug,tournament')
-        .eq('status', 'published').order('published_at', { ascending: false })
+        .eq('status', 'published').or(notExpired).order('published_at', { ascending: false })
       if (error) throw error
       res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
       return res.status(200).json({
@@ -86,7 +88,7 @@ async function handleArticles(req, res) {
     if (mode === 'meta') {
       let q = db.from('articles')
         .select('slug,title,subtitle,published_at,tournament,tournament_label,category,excerpt')
-        .eq('status', 'published').order('published_at', { ascending: false }).limit(50)
+        .eq('status', 'published').or(notExpired).order('published_at', { ascending: false }).limit(50)
       if (tournament) q = q.eq('tournament', tournament)
       const { data, error } = await q
       if (error) throw error
@@ -95,7 +97,7 @@ async function handleArticles(req, res) {
     }
 
     let q = db.from('articles').select('*')
-      .eq('status', 'published').order('published_at', { ascending: false }).limit(100)
+      .eq('status', 'published').or(notExpired).order('published_at', { ascending: false }).limit(100)
     if (tournament) q = q.eq('tournament', tournament)
     const { data, error } = await q
     if (error) throw error

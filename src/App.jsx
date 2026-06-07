@@ -8,7 +8,7 @@ import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import ManageTeamsModal from "./components/ManageTeamsModal"
-import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, resolveHeroByName } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
@@ -471,12 +471,23 @@ function App() {
     }
   }
 
-  function handleSearch(query) {
+  async function handleSearch(query) {
     setLoading(true)
     setSelectedMatch(null)
     const trimmed = query.trim()
     const q = trimmed.toLowerCase()
     addRecentSearch(trimmed)
+
+    // Check if the query resolves to a hero name — if so, navigate to the hero page
+    // instead of doing a team/tournament search. resolveHeroByName uses the cached
+    // hero list so this is instant on repeat calls.
+    const hero = await resolveHeroByName(q).catch(() => null)
+    if (hero) {
+      trackEvent('hero_search', { hero_id: hero.id, hero_name: hero.name, query: q })
+      window.location.href = `/heroes/${hero.key}`
+      return
+    }
+
     setSearchQuery(q)
     trackEvent("search", { query: q })
     setTimeout(() => {
