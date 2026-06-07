@@ -74,7 +74,7 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
       </div>
 
       {/* Main items | backpack | consumed upgrades · neutral */}
-      <div className="flex items-center gap-0.5 ml-8 overflow-x-auto">
+      <div className="flex items-center gap-0.5 ml-8">
         {player.items.map((itemId, i) => (
           <ItemSlot key={i} itemId={itemId} itemNames={itemNames} size="md" edgePin={i < 2 ? 'left' : 'center'} />
         ))}

@@ -1012,7 +1012,7 @@ export default async function handler(req, res) {
     const STATS_TTL = 60 * 60 * 24 * 7 // 7 days — only for parsed matches (immutable)
     const STATS_TTL_UNPARSED = 60 * 30  // 30 min — match not yet parsed by OD; retry soon
     const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
-    const STATS_KV_KEY = `stats:match:v7:${matchId}`
+    const STATS_KV_KEY = `stats:match:v8:${matchId}`
     const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
     const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [] }
