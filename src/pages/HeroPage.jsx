@@ -70,6 +70,7 @@ export default function HeroPage() {
 
   const [hero, setHero] = useState(null)
   const [heroError, setHeroError] = useState(false)
+  const [portraitError, setPortraitError] = useState(false)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -124,7 +125,7 @@ export default function HeroPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
-      <SiteHeader />
+      <SiteHeader onSearchOpen={() => { window.location.href = '/?search=1' }} />
       <main className="max-w-2xl mx-auto px-4 pb-24 md:pb-8 pt-4">
 
         {/* Back link */}
@@ -149,13 +150,13 @@ export default function HeroPage() {
           <>
             {/* Hero header */}
             <div className="mb-5 rounded border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-950">
-              {portraitUrl && (
+              {portraitUrl && !portraitError && (
                 <div className="w-full h-36 sm:h-44 bg-gray-900 overflow-hidden">
                   <img
                     src={portraitUrl}
                     alt={hero?.name || slug}
                     className="w-full h-full object-cover object-center"
-                    onError={e => { e.currentTarget.style.display = 'none' }}
+                    onError={() => setPortraitError(true)}
                   />
                 </div>
               )}

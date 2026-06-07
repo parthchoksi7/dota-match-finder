@@ -332,6 +332,9 @@ function App() {
   const initialSearchQuery = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search).get("q") || ""
     : ""
+  // ?search=1 is set by HeroPage when the user clicks the search icon — open overlay with no pre-filled query
+  const openSearchOnLoad = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("search")
 
   useEffect(() => {
     allMatchesRef.current = allMatches
@@ -378,6 +381,8 @@ function App() {
     if (!initialLoading && initialSearchQuery) {
       setSearchOpen(true)
       handleSearch(initialSearchQuery)
+    } else if (!initialLoading && openSearchOnLoad) {
+      setSearchOpen(true)
     }
     // Only run once after initial load completes
     // eslint-disable-next-line react-hooks/exhaustive-deps
