@@ -342,13 +342,17 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         hasTrackedScrubRef.current = true
       }
       setHoverMinute(minuteFromSvgX(svgX))
+      setHoverViewport({ x: t.clientX, y: t.clientY })
     }
 
     function onTouchEnd() {
       touchStateRef.current.intent = null
       hasTrackedScrubRef.current = false
       // Brief linger so user can read the value before it disappears
-      touchStateRef.current.hideTimer = setTimeout(() => setHoverMinute(null), 600)
+      touchStateRef.current.hideTimer = setTimeout(() => {
+        setHoverMinute(null)
+        setHoverViewport(null)
+      }, 600)
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -472,15 +476,19 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
       {/* relative wrapper so tooltips can be absolutely positioned over the SVG */}
       <div ref={wrapperRef} className="relative select-none">
 
-      {/* Mobile tooltip strip — fixed at top of chart so the finger never occludes it */}
-      {hoverPt && hoverSourceRef.current === 'touch' && (
-        <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-2 py-0.5 pointer-events-none">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500 tabular-nums">
-            {hoverMinute}m
-          </span>
-          <span className="text-[10px] font-bold tabular-nums" style={{ color: hoverColor }}>
-            {formatHoverLabel(hoverVal, radiantName, direName)}
-          </span>
+      {/* Mobile scrub tooltip — same floating card as desktop, position:fixed above the thumb */}
+      {hoverPt && hoverSourceRef.current === 'touch' && !activeEvent && hoverViewport && (
+        <div
+          className="pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
+          style={{
+            position: 'fixed',
+            left: Math.max(8, Math.min(window.innerWidth - 210, hoverViewport.x - 80)),
+            top: Math.max(8, hoverViewport.y - 70),
+          }}
+        >
+          <span className="text-gray-400 font-medium tabular-nums">{hoverMinute}m</span>
+          <span className="mx-1.5 text-gray-600">·</span>
+          <span style={{ color: hoverColor }}>{formatHoverLabel(hoverVal, radiantName, direName)}</span>
         </div>
       )}
 
