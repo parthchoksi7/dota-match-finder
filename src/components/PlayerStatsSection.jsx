@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { fetchHeroes } from '../api'
 import ItemSlot from './ItemSlot'
 
@@ -14,9 +14,30 @@ const AGHANIM_UPGRADES = [
 
 function ConsumedUpgrade({ itemKey, label }) {
   const [imgError, setImgError] = useState(false)
+  const [visible, setVisible] = useState(false)
+  const showTimer = useRef(null)
+  const hideTimer = useRef(null)
+
+  const scheduleShow = useCallback(() => {
+    clearTimeout(hideTimer.current)
+    showTimer.current = setTimeout(() => setVisible(true), 120)
+  }, [])
+
+  const scheduleHide = useCallback(() => {
+    clearTimeout(showTimer.current)
+    hideTimer.current = setTimeout(() => setVisible(false), 80)
+  }, [])
+
   if (imgError) return null
+
+  const url = `https://dota2.fandom.com/wiki/${encodeURIComponent(label)}`
+
   return (
-    <div className="w-6 h-6 relative flex-shrink-0 group">
+    <div
+      className="w-6 h-6 relative flex-shrink-0"
+      onMouseEnter={scheduleShow}
+      onMouseLeave={scheduleHide}
+    >
       <img
         src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${itemKey}_lg.png`}
         alt={label}
@@ -24,11 +45,30 @@ function ConsumedUpgrade({ itemKey, label }) {
         className="w-full h-full object-cover rounded-sm opacity-90"
         onError={() => setImgError(true)}
       />
-      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
-        <span className="block bg-gray-900 dark:bg-gray-950 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap">
-          {label} (consumed)
-        </span>
-      </div>
+      {visible && (
+        <div
+          className="absolute bottom-full mb-2 z-[9999] left-1/2 -translate-x-1/2"
+          role="tooltip"
+          onMouseEnter={scheduleShow}
+          onMouseLeave={scheduleHide}
+        >
+          <div className="bg-gray-900 border border-gray-700/60 rounded-md shadow-xl p-2 min-w-[120px] max-w-[180px]">
+            <p className="text-xs font-semibold text-white whitespace-nowrap leading-tight">{label}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">Consumed</p>
+            <div className="border-t border-gray-700/50 my-1.5" />
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View ${label} on Dota 2 Wiki (opens in new tab)`}
+              className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors leading-tight"
+            >
+              <span>Dota 2 Wiki</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
