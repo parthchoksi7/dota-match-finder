@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "June 7, 2026",
+    tag: "improvement",
+    title: "As-you-type search suggestions for heroes, teams, and tournaments",
+    desc: "The search overlay now shows a live dropdown as you type. Matching happens instantly on every keystroke with no API calls — heroes, teams, and tournaments all searched at once. Hero suggestions go straight to the hero's match page; team and tournament suggestions run the filter. Arrow keys and Enter for keyboard navigation. When the input is empty, the original contextual chips (live tournament, recent matches, search history) still appear.",
+  },
+  {
+    date: "June 7, 2026",
     tag: "new",
     title: "Hero search — find every tier-1 match a hero was picked in",
     desc: "Search for any Dota 2 hero by name in the search bar and go straight to their hero page at /heroes/{slug}. Each hero page lists every tier-1 professional match where they were picked — teams, tournament, date, and result — sorted newest first, 100 at a time. Load more to go further back. Bans excluded; picks only. Hero pages include schema.org structured data and are indexed in the sitemap for AI and search discoverability. The underlying data is sourced from the OpenDota Explorer API with tier-1 league filtering (DreamLeague, PGL, ESL One, BLAST, WePlay, The International, Riyadh Masters).",
