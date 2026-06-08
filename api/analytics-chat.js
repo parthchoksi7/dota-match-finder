@@ -1,7 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { timingSafeEqual, createHash } from 'crypto';
 import { kv } from './_kv.js';
-import { rateLimitByIp } from './_shared.js';
+import { rateLimitByIp, setCorsHeaders } from './_shared.js';
 
 function safeCompare(a, b) {
   const aH = createHash('sha256').update(String(a ?? '')).digest()
@@ -212,6 +212,7 @@ The website tracks Dota 2 matches, tournaments, and esports content.`;
 
 // ── Router ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  if (setCorsHeaders(req, res)) return
   const mode = req.query.mode || (req.method === 'GET' ? 'query' : 'chat');
 
   if (mode === 'auth') return handleAuth(req, res);

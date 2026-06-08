@@ -23,11 +23,7 @@ Completed items removed.
 ~~### [RELIABILITY] Fix `getHeroNames()` in summarize.js — add KV cache + timeout~~ ✅ Done (commit 468936e)
 ~~### [CORRECTNESS] Remove duplicate `PERMANENT_TIER1_NAMES` in tournaments.js~~ ✅ Done (commit 468936e)
 
-### [SECURITY] Restrict CORS on sensitive endpoints
-- **Files:** `api/summarize.js`, `api/match-streams.js`, `api/pipeline.js`, `api/analytics-chat.js`, `api/live-matches.js`
-- **What:** All endpoints use `res.setHeader('Access-Control-Allow-Origin', '*')`. Sensitive endpoints (Twitch token, Claude summarize, analytics, pipeline webhook) must restrict to `https://spectateesports.live`. Add a `setCorsHeaders(req, res, { allowAll })` helper to `_shared.js`. Public read endpoints (live-matches, upcoming-matches) can stay `*`.
-- **Why:** The `?mode=twitch-token` endpoint returns a live OAuth token to any origin. The `/api/summarize` endpoint can be called from any site at your Claude API cost.
-- **Risk:** None if implemented correctly (SPA origin is fixed). Test on staging before shipping.
+~~### [SECURITY] Restrict CORS on sensitive endpoints~~ ✅ Done — `setCorsHeaders()` in `_shared.js`; `twitch-token`, `summarize`, `analytics-chat`, `pipeline` restricted to `https://spectateesports.live`; `live-matches` and `tournaments` stay `*`.
 
 ~~### [SECURITY] Rate-limit LLM and expensive endpoints~~ ✅ Done — `rateLimitByIp()` in `_shared.js`, 10 req/min on `summarize` and `analytics-chat`. Watchability still unthrottled.
 
@@ -54,28 +50,7 @@ Completed items removed.
 - **Why:** The Twitch OAuth token is currently returned to any origin (`CORS: *`). Any site can use it to make Helix API calls against your rate limit quota.
 - **Risk:** Adds latency to the VOD lookup flow (one extra server hop). KV caching of VOD results mitigates repeat lookups for the same match.
 
-### [ARCHITECTURE] Extract tournaments.js handlers into `api/_handlers/` modules
-- **Files:** `api/tournaments.js` (2,271 lines, 15+ modes)
-- **What:** Create `api/_handlers/` subdirectory (Vercel excludes `_`-prefixed paths from function deployment, so this does NOT increase the function count). Move each mode into its own file:
-  ```
-  api/_handlers/matchStats.js
-  api/_handlers/watchability.js
-  api/_handlers/recentCompleted.js
-  api/_handlers/tournamentPlayers.js
-  api/_handlers/highlights.js
-  api/_handlers/calendarTeam.js
-  api/_handlers/calendarTournament.js
-  api/_handlers/matchIndicators.js
-  api/_handlers/seriesList.js
-  api/_handlers/tier1Leagues.js
-  api/_handlers/syncTeams.js
-  api/_handlers/matchEnrichment.js
-  api/_handlers/llmsData.js
-  ```
-  `api/tournaments.js` becomes a thin 50-line router that dispatches `req.query.mode` to the appropriate handler.
-- **Why:** A 2,271-line file with 15 different concerns is the #1 maintainability risk in the codebase. A bug in one mode's handler can mask a syntax error in another. Code review requires reading the entire file.
-- **Risk:** Medium — each mode shares some module-level state (KV constants, isTier1 function). Must audit imports carefully. The iCal helpers in the file can stay in a `_handlers/_ical.js` shared helper.
-- **Start with:** `matchStats.js` and `watchability.js` — they have the most isolated KV namespaces and are already well-encapsulated.
+~~### [ARCHITECTURE] Extract tournaments.js handlers into `api/_handlers/` modules~~ ✅ Done — `api/tournaments.js` reduced to 156-line router; 17 handler files + 2 shared utility files created under `api/_handlers/`.
 
 ### [OBSERVABILITY] Structured logging with request correlation IDs
 - **Files:** `api/_shared.js`, all handler files

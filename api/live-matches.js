@@ -16,7 +16,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders } from './_shared.js'
 
 
 
@@ -244,7 +244,7 @@ async function sendPushNotificationsForMatches(matches) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  if (setCorsHeaders(req, res, { allowAll: true })) return
 
   const token = process.env.PANDASCORE_TOKEN
   if (!token) {

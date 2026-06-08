@@ -77,7 +77,7 @@ async function getHeroNames() {
 // Caches 24h for live/upcoming, 30 days for completed.
 
 import { kv as _kv } from './_kv.js'
-import { trackError, rateLimitByIp } from './_shared.js'
+import { trackError, rateLimitByIp, setCorsHeaders } from './_shared.js'
 
 async function handleTournamentSummary(req, res) {
   const { seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages } = req.body || {}
@@ -144,6 +144,7 @@ Write 3-5 sentences covering why this tournament matters, notable aspects (prize
 }
 
 export default async function handler(req, res) {
+  if (setCorsHeaders(req, res)) return
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

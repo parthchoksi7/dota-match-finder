@@ -493,6 +493,24 @@ export async function trackError(endpoint, statusCode, detail) {
 
 // Probes the three external dependencies used by most endpoints.
 // Returns { pandascore, opendota, kv } each with { status, latency_ms[, error] }.
+/**
+ * Set CORS headers on a response. Returns true if the request was an OPTIONS preflight
+ * (caller should `return` immediately after). Call this at the top of every handler.
+ *
+ * allowAll: true  → Access-Control-Allow-Origin: *   (public read endpoints)
+ * allowAll: false → Access-Control-Allow-Origin: https://spectateesports.live (sensitive endpoints)
+ */
+export function setCorsHeaders(req, res, { allowAll = false } = {}) {
+  res.setHeader('Access-Control-Allow-Origin', allowAll ? '*' : 'https://spectateesports.live')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-analytics-password')
+  if (req.method === 'OPTIONS') {
+    res.status(204).end()
+    return true
+  }
+  return false
+}
+
 export async function checkServices() {
   const probe = async (name, fn) => {
     const controller = new AbortController()

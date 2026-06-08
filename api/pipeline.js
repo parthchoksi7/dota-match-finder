@@ -19,6 +19,7 @@ import { fetchNewsContext } from './pipeline/_news.js'
 import { generateTopics, generateDraft, generateXPost } from './pipeline/_claude.js'
 import { sendMessage, answerCallback, topicsKeyboard, draftKeyboard, retryKeyboard, chunkText } from './pipeline/_telegram.js'
 import { publishToDb, postXTweet, updateMetadataFiles } from './pipeline/_publisher.js'
+import { setCorsHeaders } from './_shared.js'
 
 const MAX_REVISIONS = 3
 
@@ -386,6 +387,7 @@ async function sendDraft(key, session, draft, version) {
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  if (setCorsHeaders(req, res)) return
   const type = req.query?.type
 
   if (req.method === 'GET' && type === 'articles') return handleArticles(req, res)

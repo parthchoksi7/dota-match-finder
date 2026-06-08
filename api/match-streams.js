@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError } from './_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError, setCorsHeaders } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
@@ -37,7 +37,9 @@ function teamsMatch(psOpponents, radiantTeam, direTeam) {
  * Token is cached in KV for ~50 days (re-fetched 1h before Twitch expires it).
  */
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  // twitch-token returns a live OAuth token — restrict to our origin only
+  const isPublicMode = req.query?.mode !== 'twitch-token'
+  if (setCorsHeaders(req, res, { allowAll: isPublicMode })) return
 
   if (req.query?.mode === 'twitch-token') {
     const clientId = process.env.TWITCH_CLIENT_ID
