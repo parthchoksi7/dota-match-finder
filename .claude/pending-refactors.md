@@ -38,17 +38,9 @@ Completed items removed.
 
 ## Medium-effort (June 2026 audit)
 
-### [SECURITY] Push subscription userId must be server-derived, not client-provided
-- **Files:** `api/live-matches.js` (push-subscribe handler)
-- **What:** Derive `userId` server-side as `HMAC-SHA256(subscriptionEndpoint, VAPID_PRIVATE_KEY).slice(0,32)`. Ignore the client-provided `userId` entirely. The subscription endpoint is unique per browser/device and the client cannot forge it.
-- **Why:** Currently any caller can pass `userId: "someone-elses-id"` and overwrite another user's subscription or delete their team preferences. The KV `push:sub:{userId}` and `push:team:{name}` indexes are writable by anyone.
-- **Risk:** Medium — existing push subscriptions stored with client-generated IDs will lose their team preferences on first re-subscribe. Requires `src/utils/pushNotifications.js` to remove the localStorage-based userId.
+~~### [SECURITY] Push subscription userId must be server-derived, not client-provided~~ ✅ Done — `api/live-matches.js` now derives `userId = HMAC-SHA256(VAPID_PRIVATE_KEY, endpoint).slice(0,32)` server-side; client no longer sends or controls userId; `src/utils/push.js` localStorage UUID logic removed.
 
-### [SECURITY] Proxy Twitch Helix API calls server-side; don't send OAuth token to browser
-- **Files:** `api/match-streams.js`, `src/api.js`
-- **What:** Add `?mode=twitch-vod&channel={channel}&ts={offset}` to `match-streams.js` that fetches the Twitch VOD using the cached token server-side and returns only the VOD URL + metadata. Remove the `?mode=twitch-token` endpoint entirely. Update `src/api.js getTwitchToken()` to call the new proxy mode.
-- **Why:** The Twitch OAuth token is currently returned to any origin (`CORS: *`). Any site can use it to make Helix API calls against your rate limit quota.
-- **Risk:** Adds latency to the VOD lookup flow (one extra server hop). KV caching of VOD results mitigates repeat lookups for the same match.
+~~### [SECURITY] Proxy Twitch Helix API calls server-side; don't send OAuth token to browser~~ ✅ Done — `?mode=twitch-vod` added to `match-streams.js` with server-side Helix calls and dual KV caching (channel UID 30d, VOD result 24h/30min); `?mode=twitch-token` removed; `src/api.js findTwitchVod()` is now a thin proxy wrapper.
 
 ~~### [ARCHITECTURE] Extract tournaments.js handlers into `api/_handlers/` modules~~ ✅ Done — `api/tournaments.js` reduced to 156-line router; 17 handler files + 2 shared utility files created under `api/_handlers/`.
 

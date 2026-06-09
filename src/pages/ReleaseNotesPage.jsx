@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 8, 2026",
+    tag: "improvement",
+    title: "Security hardening: Twitch and push notifications",
+    desc: "Twitch VOD lookups now happen entirely server-side — the OAuth token never reaches the browser. Push notification subscriptions now use a server-derived identity so no client can impersonate another subscriber.",
+  },
+  {
     date: "June 7, 2026",
     tag: "improvement",
     title: "As-you-type search suggestions for heroes, teams, and tournaments",

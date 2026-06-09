@@ -1,3 +1,4 @@
+import { createHmac } from 'crypto'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('dotenv', () => ({ config: vi.fn() }))
@@ -7,7 +8,6 @@ vi.mock('../api/_shared.js', async (importOriginal) => {
 })
 
 // KV state: in-memory map that simulates Upstash Redis behavior.
-// Arrays stored directly are returned as arrays; JSON-stringified values return as strings.
 const { mockKv } = vi.hoisted(() => {
   const store = new Map()
   const mockKv = {
@@ -27,6 +27,11 @@ vi.mock('@upstash/redis', () => ({
 
 import handler from '../api/live-matches.js'
 
+// Server derives userId from HMAC(VAPID_PRIVATE_KEY, endpoint) — compute it here too.
+const FAKE_SUB = { endpoint: 'https://push.example.com/sub1', keys: { auth: 'a', p256dh: 'b' } }
+const VAPID_TEST_KEY = 'test-vapid-key'
+const USER_ID = createHmac('sha256', VAPID_TEST_KEY).update(FAKE_SUB.endpoint).digest('hex').slice(0, 32)
+
 function makeReq(body) {
   return { method: 'POST', query: { mode: 'push-subscribe' }, body }
 }
@@ -39,9 +44,6 @@ function makeRes() {
   res.end = vi.fn()
   return res
 }
-
-const FAKE_SUB = { endpoint: 'https://push.example.com/sub1', keys: { auth: 'a', p256dh: 'b' } }
-const USER_ID = 'user-abc-123'
 
 describe('push-subscribe: team index management', () => {
   beforeEach(() => {
@@ -61,11 +63,11 @@ describe('push-subscribe: team index management', () => {
       return Promise.resolve(1)
     })
     process.env.PANDASCORE_TOKEN = 'test-token'
-    process.env.VAPID_PRIVATE_KEY = undefined
+    process.env.VAPID_PRIVATE_KEY = VAPID_TEST_KEY
   })
 
   it('first-time subscribe: adds userId to each team index', async () => {
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid', 'Team Spirit'], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid', 'Team Spirit'] })
     const res = makeRes()
     await handler(req, res)
 
@@ -75,11 +77,10 @@ describe('push-subscribe: team index management', () => {
   })
 
   it('team change (new array format): removes userId from old team, adds to new', async () => {
-    // New format: push:teams stored as direct array
     mockKv.store.set(`push:teams:${USER_ID}`, ['Xtreme Gaming'])
     mockKv.store.set('push:team:xtreme gaming', [USER_ID])
 
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
     const res = makeRes()
     await handler(req, res)
 
@@ -94,7 +95,7 @@ describe('push-subscribe: team index management', () => {
     mockKv.store.set(`push:teams:${USER_ID}`, JSON.stringify(['Xtreme Gaming']))
     mockKv.store.set('push:team:xtreme gaming', [USER_ID])
 
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
     const res = makeRes()
     await handler(req, res)
 
@@ -111,7 +112,7 @@ describe('push-subscribe: team index management', () => {
     mockKv.store.set('push:team:team liquid', [USER_ID, 'other-user'])
     mockKv.store.set('push:team:xtreme gaming', [USER_ID])
 
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: [], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: [] })
     const res = makeRes()
     await handler(req, res)
 
@@ -128,7 +129,7 @@ describe('push-subscribe: team index management', () => {
     mockKv.store.set(`push:teams:${USER_ID}`, ['Team Liquid'])
     mockKv.store.set('push:team:team liquid', [USER_ID])
 
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
     const res = makeRes()
     await handler(req, res)
 
@@ -144,7 +145,7 @@ describe('push-subscribe: team index management', () => {
     mockKv.store.set('push:team:xtreme gaming', [USER_ID])
 
     // Remove Xtreme Gaming, keep Liquid, add Team Spirit
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid', 'Team Spirit'], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid', 'Team Spirit'] })
     const res = makeRes()
     await handler(req, res)
 
@@ -154,14 +155,23 @@ describe('push-subscribe: team index management', () => {
     expect(mockKv.store.get('push:team:team spirit')).toContain(USER_ID)
   })
 
-  it('missing subscription or userId returns 400', async () => {
+  it('missing subscription endpoint returns 400', async () => {
+    // No subscription at all
     const res = makeRes()
     await handler(makeReq({ teamNames: ['Team Liquid'] }), res)
     expect(res.statusCode).toBe(400)
 
+    // Subscription without endpoint
     const res2 = makeRes()
-    await handler(makeReq({ subscription: FAKE_SUB }), res2)
+    await handler(makeReq({ subscription: { keys: { auth: 'a', p256dh: 'b' } }, teamNames: [] }), res2)
     expect(res2.statusCode).toBe(400)
+  })
+
+  it('returns 503 when VAPID_PRIVATE_KEY is missing', async () => {
+    delete process.env.VAPID_PRIVATE_KEY
+    const res = makeRes()
+    await handler(makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] }), res)
+    expect(res.statusCode).toBe(503)
   })
 
   it('KV failure on prevTeams read: defaults to empty, subscribe still succeeds', async () => {
@@ -170,7 +180,7 @@ describe('push-subscribe: team index management', () => {
       return Promise.resolve(mockKv.store.has(key) ? mockKv.store.get(key) : null)
     })
 
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'], userId: USER_ID })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
     const res = makeRes()
     await handler(req, res)
 
@@ -178,7 +188,6 @@ describe('push-subscribe: team index management', () => {
     // OR succeeds with prevTeams = [] (addOps only, no removeOps)
     expect([200, 500]).toContain(res.statusCode)
     if (res.statusCode === 200) {
-      // If succeeded, new team was added
       expect(mockKv.store.get('push:team:team liquid')).toContain(USER_ID)
     }
   })

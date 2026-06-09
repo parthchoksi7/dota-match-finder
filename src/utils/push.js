@@ -1,5 +1,4 @@
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
-const PUSH_UID_KEY = 'spectate-push-uid'
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -33,16 +32,10 @@ export async function subscribeToPush(teamNames) {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     })
 
-    let userId = localStorage.getItem(PUSH_UID_KEY)
-    if (!userId) {
-      userId = crypto.randomUUID()
-      localStorage.setItem(PUSH_UID_KEY, userId)
-    }
-
     const res = await fetch('/api/live-matches?mode=push-subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON(), teamNames, userId }),
+      body: JSON.stringify({ subscription: sub.toJSON(), teamNames }),
     })
 
     return res.ok ? { ok: true } : { ok: false, reason: 'server_error' }

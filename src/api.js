@@ -198,22 +198,6 @@ export async function fetchProMatches(lastMatchId = null) {
   return { matches, nextMatchId: cursor }
 }
 
-let _twitchAuth = null
-async function getTwitchToken() {
-  if (_twitchAuth) return _twitchAuth
-  try {
-    const res = await fetch('/api/match-streams?mode=twitch-token')
-    if (!res.ok) return null
-    _twitchAuth = await res.json()
-    return _twitchAuth
-  } catch {
-    return null
-  }
-}
-
-// Pre-warm the Twitch token so the first drawer open has no waterfall.
-getTwitchToken().catch(() => {})
-
 // Human-readable label for VOD channel (for "Watch on Twitch (ESL Ember)" etc.).
 // Keep in sync with CHANNEL_LABELS in api/_shared.js (same entries, different runtime).
 export const VOD_CHANNEL_LABELS = {
@@ -227,30 +211,6 @@ export const VOD_CHANNEL_LABELS = {
   pgl_dota2en2: 'PGL EN2',
   blast_dota2: 'BLAST',
   weplaydota: 'WePlay',
-}
-
-async function findVodOnChannel(channelName, matchStartTime, headers) {
-  const userRes = await fetch('https://api.twitch.tv/helix/users?login=' + channelName, { headers })
-  const userData = await userRes.json()
-  const userId = userData.data?.[0]?.id
-  if (!userId) return null
-  const vodRes = await fetch('https://api.twitch.tv/helix/videos?user_id=' + userId + '&type=archive&first=30', { headers })
-  const vodData = await vodRes.json()
-  for (const vod of vodData.data || []) {
-    const vodStart = new Date(vod.created_at).getTime() / 1000
-    const durationSeconds = parseTwitchDuration(vod.duration)
-    const vodEnd = vodStart + durationSeconds
-    if (matchStartTime >= vodStart && matchStartTime <= vodEnd) {
-      const offset = Math.floor(matchStartTime - vodStart + 600)
-      return {
-        vodId: vod.id,
-        offset,
-        url: 'https://www.twitch.tv/videos/' + vod.id + '?t=' + offset + 's',
-        channel: channelName
-      }
-    }
-  }
-  return null
 }
 
 /**
@@ -275,41 +235,26 @@ export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam 
 
 /**
  * Find the Twitch VOD for a match.
- *
- * PandaScore is the authoritative source for which channel streamed a match.
- * - preferredChannel: exact channel resolved from PandaScore via /api/match-streams.
- *   Searched exclusively — no fallback to other channels if the VOD isn't there yet.
+ * Delegates Helix API calls to the server so the OAuth token never reaches the browser.
  */
 export async function findTwitchVod(matchStartTime, _tournamentName, preferredChannel = null) {
-  const auth = await getTwitchToken()
-  if (!auth?.token || !auth?.clientId) return { url: null, channel: null, allVods: [] }
-  const headers = {
-    'Client-ID': auth.clientId,
-    'Authorization': 'Bearer ' + auth.token
-  }
-
-  // PandaScore told us the exact channel — trust it. Don't fall back to other channels
-  // to avoid returning a wrong VOD (e.g. an ESL stream airing at the same time).
-  if (preferredChannel) {
-    const vod = await findVodOnChannel(preferredChannel, matchStartTime, headers)
-    if (vod) return { url: vod.url, channel: vod.channel, allVods: [vod] }
-    trackEvent('vod_not_found', { had_channel: true, channel: preferredChannel })
+  if (!preferredChannel) {
+    trackEvent('vod_not_found', { had_channel: false, channel: null })
     return { url: null, channel: null, allVods: [] }
   }
-
-  trackEvent('vod_not_found', { had_channel: false, channel: null })
-  return { url: null, channel: null, allVods: [] }
+  try {
+    const params = new URLSearchParams({ mode: 'twitch-vod', channel: preferredChannel, ts: String(matchStartTime) })
+    const res = await fetch(`/api/match-streams?${params}`)
+    if (!res.ok) return { url: null, channel: null, allVods: [] }
+    const data = await res.json()
+    if (data.url) return { url: data.url, channel: data.channel, allVods: [data] }
+    trackEvent('vod_not_found', { had_channel: true, channel: preferredChannel })
+    return { url: null, channel: null, allVods: [] }
+  } catch {
+    return { url: null, channel: null, allVods: [] }
+  }
 }
 
-function parseTwitchDuration(duration) {
-  if (duration == null || typeof duration !== 'string') return 0
-  const match = duration.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/)
-  if (!match) return 0
-  const hours = parseInt(match[1] || 0, 10)
-  const minutes = parseInt(match[2] || 0, 10)
-  const seconds = parseInt(match[3] || 0, 10)
-  return hours * 3600 + minutes * 60 + seconds
-}
 export async function fetchMatchSummary(matchId) {
   const matchRes = await fetch(OPENDOTA_BASE + '/matches/' + matchId)
   const matchData = await matchRes.json()

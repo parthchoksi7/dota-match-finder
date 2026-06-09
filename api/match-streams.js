@@ -19,6 +19,41 @@ function teamsMatch(psOpponents, radiantTeam, direTeam) {
          (matchesOne(names[1], r) || matchesOne(names[1], d))
 }
 
+async function getOrFetchTwitchToken() {
+  const clientId = process.env.TWITCH_CLIENT_ID
+  const clientSecret = process.env.TWITCH_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null
+  try {
+    const cached = await kv.get('twitch:token:v1')
+    if (cached) return cached
+  } catch {}
+  try {
+    const tokenRes = await fetch(
+      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+      { method: 'POST' }
+    )
+    if (!tokenRes.ok) return null
+    const { access_token, expires_in } = await tokenRes.json()
+    const payload = { token: access_token, clientId }
+    const ttl = Math.max(3600, (expires_in || 5_184_000) - 3600)
+    kv.set('twitch:token:v1', payload, { ex: ttl }).catch(() => {})
+    return payload
+  } catch (err) {
+    console.error('Twitch token fetch failed:', err?.message)
+    return null
+  }
+}
+
+function parseTwitchDuration(duration) {
+  if (duration == null || typeof duration !== 'string') return 0
+  const match = duration.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/)
+  if (!match) return 0
+  const hours = parseInt(match[1] || 0, 10)
+  const minutes = parseInt(match[2] || 0, 10)
+  const seconds = parseInt(match[3] || 0, 10)
+  return hours * 3600 + minutes * 60 + seconds
+}
+
 /**
  * GET /api/match-streams?ids=123,456&ts=1234567890&radiantTeam=Tundra&direTeam=REKONIX
  *
@@ -31,41 +66,83 @@ function teamsMatch(psOpponents, radiantTeam, direTeam) {
  *    stores a JSON array of all channels that were live in that time window.
  *    Returned as `_candidates` so the frontend can narrow its Twitch VOD search.
  *
- * GET /api/match-streams?mode=twitch-token
- * Returns a short-lived Twitch OAuth token for the frontend to use with Twitch Helix API.
- * TWITCH_CLIENT_SECRET stays server-side only; the client never sees it.
- * Token is cached in KV for ~50 days (re-fetched 1h before Twitch expires it).
+ * GET /api/match-streams?mode=twitch-vod&channel={channel}&ts={matchStartTime}
+ * Fetches the Twitch VOD for a match server-side. OAuth token never reaches the browser.
+ * Caches channel user-id (30d) and VOD result (24h hit / 30min miss) in KV.
  */
 export default async function handler(req, res) {
-  // twitch-token returns a live OAuth token — restrict to our origin only
-  const isPublicMode = req.query?.mode !== 'twitch-token'
-  if (setCorsHeaders(req, res, { allowAll: isPublicMode })) return
+  if (setCorsHeaders(req, res, { allowAll: true })) return
 
-  if (req.query?.mode === 'twitch-token') {
-    const clientId = process.env.TWITCH_CLIENT_ID
-    const clientSecret = process.env.TWITCH_CLIENT_SECRET
-    if (!clientId || !clientSecret) {
-      return res.status(503).json({ error: 'Twitch credentials not configured' })
-    }
+  if (req.query?.mode === 'twitch-vod') {
+    const { channel, ts } = req.query
+    if (!channel || !ts) return res.status(400).json({ error: 'channel and ts required' })
+    const matchStartTime = parseInt(ts, 10)
+    if (isNaN(matchStartTime)) return res.status(400).json({ error: 'ts must be a number' })
+
+    const dayBucket = Math.floor(matchStartTime / 86400)
+    const vodCacheKey = `twitch:vod:v1:${channel}:${dayBucket}`
+
     try {
-      const cached = await kv.get('twitch:token:v1')
-      if (cached) return res.status(200).json(cached)
+      const cached = await kv.get(vodCacheKey)
+      if (cached !== null) return res.status(200).json(cached)
     } catch {}
+
+    const auth = await getOrFetchTwitchToken()
+    if (!auth) return res.status(503).json({ error: 'Twitch credentials not configured' })
+
+    const headers = {
+      'Client-ID': auth.clientId,
+      'Authorization': `Bearer ${auth.token}`,
+    }
+
     try {
-      const tokenRes = await fetch(
-        `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
-        { method: 'POST' }
+      // Resolve channel login → user_id (cached 30d)
+      const uidCacheKey = `twitch:channel-uid:v1:${channel}`
+      let userId
+      try { userId = await kv.get(uidCacheKey) } catch {}
+
+      if (!userId) {
+        const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${channel}`, { headers })
+        if (!userRes.ok) return res.status(502).json({ error: 'Twitch users fetch failed' })
+        const userData = await userRes.json()
+        userId = userData.data?.[0]?.id
+        if (!userId) {
+          const miss = { url: null, channel }
+          kv.set(vodCacheKey, miss, { ex: 1800 }).catch(() => {})
+          return res.status(200).json(miss)
+        }
+        kv.set(uidCacheKey, userId, { ex: 30 * 24 * 3600 }).catch(() => {})
+      }
+
+      const vodRes = await fetch(
+        `https://api.twitch.tv/helix/videos?user_id=${userId}&type=archive&first=30`,
+        { headers }
       )
-      if (!tokenRes.ok) return res.status(502).json({ error: 'Twitch token fetch failed' })
-      const { access_token, expires_in } = await tokenRes.json()
-      const payload = { token: access_token, clientId }
-      const ttl = Math.max(3600, (expires_in || 5_184_000) - 3600)
-      kv.set('twitch:token:v1', payload, { ex: ttl }).catch(() => {})
-      return res.status(200).json(payload)
+      if (!vodRes.ok) return res.status(502).json({ error: 'Twitch videos fetch failed' })
+      const vodData = await vodRes.json()
+
+      for (const vod of vodData.data || []) {
+        const vodStart = new Date(vod.created_at).getTime() / 1000
+        const vodEnd = vodStart + parseTwitchDuration(vod.duration)
+        if (matchStartTime >= vodStart && matchStartTime <= vodEnd) {
+          const offset = Math.floor(matchStartTime - vodStart + 600)
+          const result = {
+            url: `https://www.twitch.tv/videos/${vod.id}?t=${offset}s`,
+            channel,
+            startedAt: vod.created_at,
+          }
+          kv.set(vodCacheKey, result, { ex: 24 * 3600 }).catch(() => {})
+          return res.status(200).json(result)
+        }
+      }
+
+      const miss = { url: null, channel }
+      kv.set(vodCacheKey, miss, { ex: 1800 }).catch(() => {})
+      return res.status(200).json(miss)
     } catch (err) {
-      console.error('twitch-token fetch failed:', err?.message)
+      console.error('twitch-vod fetch failed:', err?.message)
       await trackError('/api/match-streams', 502, err?.message)
-      return res.status(502).json({ error: 'Twitch token fetch failed' })
+      return res.status(502).json({ error: 'Twitch VOD fetch failed' })
     }
   }
 

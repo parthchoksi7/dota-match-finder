@@ -147,7 +147,7 @@ If you notice a refactor opportunity (duplicate logic, untested pure function, d
 ### Caching Strategy
 - **Hero list** — already cached in `localStorage` under `STORAGE_KEYS.HEROES` (`"spectate-heroes-v1"`) with a 24h TTL + module-level `heroCache` variable as L1. Do NOT add duplicate hero caching. Invalidate by clearing that key.
 - Cache match summaries by match ID (never regenerate)
-- **Twitch token** — cached server-side in KV (`twitch:token:v1`, ~50-day TTL) and pre-fetched at module load in `src/api.js` (`getTwitchToken().catch(() => {})`). Client never stores the token; it goes through `api/match-streams.js?mode=twitch-token`.
+- **Twitch token** — cached server-side in KV (`twitch:token:v1`, ~50-day TTL). The token is used exclusively server-side by `api/match-streams.js?mode=twitch-vod` to call Twitch Helix and return only the VOD URL. The `?mode=twitch-token` endpoint and the client-side `getTwitchToken()` function have been removed — the token never reaches the browser.
 - For search results: cache the filtered view, not raw API data
 - Add cache invalidation logic if data becomes stale
 

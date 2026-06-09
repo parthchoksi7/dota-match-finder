@@ -1,4 +1,5 @@
 import webpush from 'web-push'
+import { createHmac } from 'crypto'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
@@ -254,8 +255,13 @@ export default async function handler(req, res) {
   // Push subscription: store endpoint + team list in KV.
   if (req.method === 'POST' && req.query?.mode === 'push-subscribe') {
     try {
-      const { subscription, teamNames, userId } = req.body || {}
-      if (!subscription || !userId) return res.status(400).json({ error: 'Missing subscription or userId' })
+      const { subscription, teamNames } = req.body || {}
+      if (!subscription?.endpoint) return res.status(400).json({ error: 'Missing subscription endpoint' })
+      if (!process.env.VAPID_PRIVATE_KEY) return res.status(503).json({ error: 'Push not configured' })
+      const userId = createHmac('sha256', process.env.VAPID_PRIVATE_KEY)
+        .update(subscription.endpoint)
+        .digest('hex')
+        .slice(0, 32)
       const teams = Array.isArray(teamNames) ? teamNames : []
 
       // Fetch previous team list to diff — required to clean up removed team indexes.
