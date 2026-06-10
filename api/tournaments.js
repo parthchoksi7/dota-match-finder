@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-import { setCorsHeaders, buildPremiumLeagueIds, trackError } from './_shared.js'
+import { setCorsHeaders, buildPremiumLeagueIds, trackError, createLogger } from './_shared.js'
 
 import handleWatchability from './_handlers/watchability.js'
 import handleMatchStats from './_handlers/matchStats.js'
@@ -24,6 +24,7 @@ import { kv } from './_kv.js'
 import { fetchTournamentList, fetchTournamentStatuses, KV_LIST_KEY, KV_STATUS_KEY } from './_handlers/_tournamentUtils.js'
 
 export default async function handler(req, res) {
+  const log = createLogger('/api/tournaments')
   if (setCorsHeaders(req, res, { allowAll: true })) return
 
   // Watchability scoring (POST, no PANDASCORE_TOKEN needed)
@@ -124,7 +125,7 @@ export default async function handler(req, res) {
   if (req.query?.bust === '1') {
     await kv.del(KV_LIST_KEY)
     await kv.del(KV_STATUS_KEY)
-    console.log('KV cache cleared')
+    log.info('KV cache cleared')
   }
 
   try {
@@ -147,7 +148,7 @@ export default async function handler(req, res) {
       meta: { listFetchedAt: list.fetchedAt, statusesFresh: Object.keys(statuses).length > 0 },
     })
   } catch (err) {
-    console.error('Tournaments API error:', err?.message || err)
+    log.error('fetch failed', { error: err?.message })
     await trackError('/api/tournaments', 500, err?.message)
     return res.status(500).json({ error: 'Failed to fetch tournament data', message: err?.message })
   }

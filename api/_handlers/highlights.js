@@ -1,4 +1,5 @@
 import { kv } from '../_kv.js'
+import { createLogger } from '../_shared.js'
 
 const YT_HIGHLIGHTS_TTL = 60 * 60 * 6 // 6 hours
 const YT_HIGHLIGHTS_MAX_AGE_DAYS = 90
@@ -15,6 +16,7 @@ const YT_CHANNEL_MAP = [
 ]
 
 export default async function handleHighlights(req, res) {
+  const log = createLogger('/api/tournaments?mode=highlights')
   const rawName = (req.query?.name || '').trim()
   if (!rawName) return res.status(400).json({ error: 'name param required' })
   const rawBeginAt = req.query?.beginAt || null
@@ -22,7 +24,7 @@ export default async function handleHighlights(req, res) {
 
   const apiKey = process.env.YOUTUBE_API_KEY
   if (!apiKey) {
-    console.warn('[highlights] YOUTUBE_API_KEY not set')
+    log.warn('YOUTUBE_API_KEY not set')
     return res.status(200).json({ videos: [], channelHandle: null })
   }
 
@@ -52,7 +54,7 @@ export default async function handleHighlights(req, res) {
       const cached = await kv.get(cacheKey)
       if (cached) return res.status(200).json({ ...cached, cached: true })
     } catch (e) {
-      console.warn('[highlights] KV read failed:', e?.message)
+      log.warn('KV read failed', { error: e?.message })
     }
   }
 
@@ -97,7 +99,7 @@ export default async function handleHighlights(req, res) {
       const ytRes = await fetch(ytUrl.toString())
       if (!ytRes.ok) {
         const body = await ytRes.text()
-        console.error('[highlights] YouTube API error:', ytRes.status, body.slice(0, 200))
+        log.error('YouTube API error', { status: ytRes.status, body: body.slice(0, 200) })
         if (page === 0) return res.status(200).json({ videos: [], channelHandle: channel.handle, error: `YouTube ${ytRes.status}` })
         break
       }
@@ -130,11 +132,11 @@ export default async function handleHighlights(req, res) {
     // YouTube API quota on repeated page loads when no videos exist yet.
     const ttl = videos.length > 0 ? YT_HIGHLIGHTS_TTL : 60 * 30
     kv.set(cacheKey, result, { ex: ttl }).catch(e => {
-      console.error('[highlights] KV write failed:', e?.message)
+      log.error('KV write failed', { error: e?.message })
     })
     return res.status(200).json(result)
   } catch (err) {
-    console.error('[highlights] fetch error:', err?.message)
+    log.error('fetch error', { error: err?.message })
     return res.status(200).json({ videos: [], channelHandle: channel.handle, error: err?.message })
   }
 }

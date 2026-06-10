@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { trackError, findLeague } from './_shared.js'
+import { trackError, findLeague, createLogger, validateId } from './_shared.js'
 
 const BASE = 'https://api.pandascore.co'
 const TTL = 60 * 3 // 3 minutes — bracket/standings change during live matches
@@ -16,6 +16,8 @@ const HERO_MAP_TTL = 60 * 60 * 24
 async function handleHeroes(req, res) {
   const { id } = req.query
   if (!id) return res.status(400).json({ error: 'Missing id' })
+  const idV = validateId(id, { name: 'id' })
+  if (!idV.ok) return res.status(400).json({ error: idV.error })
 
   let name = req.query.name || null
   let beginAtUnix = null
@@ -130,7 +132,7 @@ async function handleHeroes(req, res) {
     kv.set(KV_KEY, payload, { ex: heroesTtl }).catch(() => {})
     return res.status(200).json(payload)
   } catch (err) {
-    console.error('Tournament heroes error:', err?.message)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/tournament-detail', msg: 'heroes error', error: err?.message, ts: Date.now() }))
     await trackError('/api/tournament-detail?mode=heroes', 500, err?.message)
     return res.status(500).json({ error: 'Failed to fetch hero stats' })
   }
@@ -277,7 +279,7 @@ function mapSeriesPlayer(p) {
 function mapSeriesTeam(t, qualified) {
   const name = t.team?.name || t.name || 'Unknown'
   const location = t.team?.location || t.location || null
-  console.log(`[team-location] ${name}: ${location}`)
+  console.log(JSON.stringify({ level: 'info', endpoint: '/api/tournament-detail', msg: 'team-location', team: name, location, ts: Date.now() }))
   return {
     id: t.team?.id || t.id,
     name,
@@ -295,15 +297,15 @@ async function fetchSeriesRosters(tournamentId, headers) {
     // /tournaments/{id} endpoint includes expected_roster with full player data.
     const res = await fetch(`${BASE}/tournaments/${tournamentId}`, { headers })
     if (!res.ok) {
-      console.warn(`[rosters] ${tournamentId} HTTP ${res.status}`)
+      console.error(JSON.stringify({ level: 'warn', endpoint: '/api/tournament-detail', msg: 'rosters HTTP error', tournamentId, status: res.status, ts: Date.now() }))
       return []
     }
     const data = await res.json()
     const arr = Array.isArray(data.expected_roster) ? data.expected_roster : []
-    console.log(`[rosters] ${tournamentId} OK — ${arr.length} entries, first has ${arr[0]?.players?.length ?? 'n/a'} players`)
+    console.log(JSON.stringify({ level: 'info', endpoint: '/api/tournament-detail', msg: 'rosters ok', tournamentId, count: arr.length, ts: Date.now() }))
     return arr
   } catch (e) {
-    console.warn(`[rosters] ${tournamentId} fetch error: ${e?.message}`)
+    console.error(JSON.stringify({ level: 'warn', endpoint: '/api/tournament-detail', msg: 'rosters fetch error', tournamentId, error: e?.message, ts: Date.now() }))
     return []
   }
 }
@@ -352,16 +354,16 @@ async function handleSeriesDetail(req, res, token) {
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
-    console.log(`Series detail cache cleared for ${seriesId}`)
+    console.log(JSON.stringify({ level: 'info', endpoint: '/api/tournament-detail', msg: 'series detail cache cleared', seriesId, ts: Date.now() }))
   } else {
     try {
       const cached = await kv.get(cacheKey)
       if (cached) {
-        console.log(`Series detail: serving from KV cache for ${seriesId}`)
+        console.log(JSON.stringify({ level: 'info', endpoint: '/api/tournament-detail', msg: 'series detail serving from KV cache', seriesId, ts: Date.now() }))
         return res.status(200).json(cached)
       }
     } catch (err) {
-      console.warn('KV cache read failed:', err?.message)
+      console.error(JSON.stringify({ level: 'warn', endpoint: '/api/tournament-detail', msg: 'KV cache read failed', error: err?.message, ts: Date.now() }))
     }
   }
 
@@ -502,16 +504,19 @@ async function handleSeriesDetail(req, res, token) {
   // we pick up player data once PandaScore publishes it.
   const hasPlayers = Array.from(teamMap.values()).some(t => t.players.length > 0)
   const cacheTtl = status === 'completed' && hasPlayers ? 60 * 60 * 24 * 30 : SERIES_DETAIL_TTL
-  console.log(`[series-detail] ${seriesId} caching ${payload.teams.length} teams (hasPlayers=${hasPlayers}) TTL=${cacheTtl}s`)
-  kv.set(cacheKey, payload, { ex: cacheTtl }).catch(e => console.error('KV write failed (series-detail):', e?.message || e))
+  console.log(JSON.stringify({ level: 'info', endpoint: '/api/tournament-detail', msg: 'series detail caching', seriesId, teamCount: payload.teams.length, hasPlayers, cacheTtl, ts: Date.now() }))
+  kv.set(cacheKey, payload, { ex: cacheTtl }).catch(e => console.error(JSON.stringify({ level: 'error', endpoint: '/api/tournament-detail', msg: 'KV write failed (series-detail)', error: e?.message, ts: Date.now() })))
   return res.status(200).json(payload)
 }
 
 export default async function handler(req, res) {
+  const log = createLogger('/api/tournament-detail')
   if (req.query?.mode === 'heroes') return handleHeroes(req, res)
 
   const tournamentId = req.query?.id
   if (!tournamentId) return res.status(400).json({ error: 'Missing id' })
+  const tidV = validateId(tournamentId, { name: 'id' })
+  if (!tidV.ok) return res.status(400).json({ error: tidV.error })
 
   const token = process.env.PANDASCORE_TOKEN
   if (!token) return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
@@ -523,7 +528,7 @@ export default async function handler(req, res) {
     try {
       return await handleSeriesDetail(req, res, token)
     } catch (err) {
-      console.error('Series detail error:', err?.message || err)
+      log.error('series detail error', { error: err?.message })
       await trackError('/api/tournament-detail', 500, err?.message)
       return res.status(500).json({ error: 'Failed to fetch tournament details', message: err?.message })
     }
@@ -650,11 +655,11 @@ export default async function handler(req, res) {
       fetchedAt: new Date().toISOString(),
     }
 
-    kv.set(KV_KEY, payload, { ex: TTL }).catch(e => console.error('KV write failed (tournament-detail):', e?.message || e))
+    kv.set(KV_KEY, payload, { ex: TTL }).catch(e => log.error('KV write failed', { error: e?.message }))
 
     return res.status(200).json(payload)
   } catch (err) {
-    console.error('Tournament detail error:', err?.message)
+    log.error('tournament detail error', { error: err?.message })
     await trackError('/api/tournament-detail', 500, err?.message)
     return res.status(500).json({ error: 'Failed to fetch tournament detail' })
   }

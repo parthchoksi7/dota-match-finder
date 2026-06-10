@@ -7,7 +7,7 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, createLogger } from './_shared.js'
 
 function mapMatch(m) {
   const opponents = m.opponents || []
@@ -29,6 +29,7 @@ function mapMatch(m) {
 }
 
 export default async function handler(req, res) {
+  const log = createLogger('/api/upcoming-matches')
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
 
@@ -39,21 +40,21 @@ export default async function handler(req, res) {
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY)
-    console.log('Upcoming matches cache cleared')
+    log.info('cache cleared')
   }
 
   try {
     const cached = await kv.get(KV_KEY)
     if (cached) {
-      console.log('Upcoming matches: serving from KV cache')
+      log.info('serving from KV cache')
       return res.status(200).json(cached)
     }
   } catch (err) {
-    console.warn('KV cache read failed:', err?.message)
+    log.warn('KV cache read failed', { error: err?.message })
   }
 
   try {
-    console.log('Upcoming matches: fetching from PandaScore')
+    log.info('fetching from PandaScore')
     const now = new Date()
     const cutoff = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString()
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
@@ -105,14 +106,14 @@ export default async function handler(req, res) {
     try {
       await kv.set(KV_KEY, payload, { ex: TTL })
     } catch (err) {
-      console.warn('KV cache write failed:', err?.message)
+      log.warn('KV cache write failed', { error: err?.message })
     }
 
     return res.status(200).json(payload)
 
   } catch (err) {
     await trackError('/api/upcoming-matches', 500, err?.message)
-    console.error('Upcoming matches error:', err?.message || err)
+    log.error('upcoming matches fetch failed', { error: err?.message })
     return res.status(500).json({ error: 'Failed to fetch upcoming matches', message: err?.message })
   }
 }

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": false,
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "target": "ESNext",
+    "baseUrl": ".",
+    "noEmit": true
+  },
+  "include": ["api/**/*.js", "src/**/*.js", "src/**/*.jsx"],
+  "exclude": ["node_modules", "dist", ".vercel"]
+}

@@ -1,8 +1,12 @@
 import { kv } from '../_kv.js'
+import { createLogger, validateId } from '../_shared.js'
 
 export default async function handleMatchStats(req, res) {
+  const log = createLogger('/api/tournaments?mode=match-stats')
   const { id: matchId } = req.query
   if (!matchId) return res.status(400).json({ error: 'id required' })
+  const idV = validateId(matchId, { name: 'id' })
+  if (!idV.ok) return res.status(400).json({ error: idV.error })
 
   const STATS_TTL = 60 * 60 * 24 * 7 // 7 days — only for parsed matches (immutable)
   const STATS_TTL_UNPARSED = 60 * 30  // 30 min — match not yet parsed by OD; retry soon
@@ -20,7 +24,7 @@ export default async function handleMatchStats(req, res) {
       return res.status(200).json(cached)
     }
   } catch (err) {
-    console.warn('match-stats KV read failed:', err?.message)
+    log.warn('KV read failed', { error: err?.message })
   }
 
   // Fetch item ID → name map (shared across all match-stats calls)
@@ -39,11 +43,11 @@ export default async function handleMatchStats(req, res) {
           if (meta?.id != null) itemNames[meta.id] = { key: name, dname: meta.dname || name.replace(/_/g, ' ') }
         }
         kv.set(ITEM_MAP_KV_KEY, itemNames, { ex: ITEM_MAP_TTL })
-          .catch(err => console.warn('item-map KV write failed:', err?.message))
+          .catch(err => log.warn('item-map KV write failed', { error: err?.message }))
       }
     }
   } catch (err) {
-    console.warn('match-stats item map fetch failed:', err?.message)
+    log.warn('item map fetch failed', { error: err?.message })
   }
 
   // Fetch match data from OpenDota
@@ -54,7 +58,7 @@ export default async function handleMatchStats(req, res) {
     try {
       const fetchRes = await fetch(`https://api.opendota.com/api/matches/${matchId}`, { signal: controller.signal })
       if (!fetchRes.ok) {
-        console.warn(`match-stats OpenDota ${fetchRes.status} for ${matchId}`)
+        log.warn('OpenDota error', { status: fetchRes.status, matchId })
         res.setHeader('Cache-Control', 'public, s-maxage=60')
         return res.status(200).json(EMPTY)
       }
@@ -184,12 +188,12 @@ export default async function handleMatchStats(req, res) {
     // the empty gold array for 7 days even after OD finishes parsing.
     const cacheTtl = data.radiant_gold_adv != null ? STATS_TTL : STATS_TTL_UNPARSED
     kv.set(STATS_KV_KEY, stats, { ex: cacheTtl })
-      .catch(err => console.warn('match-stats KV write failed:', err?.message))
+      .catch(err => log.warn('KV write failed', { error: err?.message }))
 
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
     return res.status(200).json(stats)
   } catch (err) {
-    console.warn('match-stats fetch error:', err?.message)
+    log.warn('fetch error', { error: err?.message })
     res.setHeader('Cache-Control', 'public, s-maxage=60')
     return res.status(200).json(EMPTY)
   }

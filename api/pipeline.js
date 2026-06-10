@@ -19,7 +19,7 @@ import { fetchNewsContext } from './pipeline/_news.js'
 import { generateTopics, generateDraft, generateXPost } from './pipeline/_claude.js'
 import { sendMessage, answerCallback, topicsKeyboard, draftKeyboard, retryKeyboard, chunkText } from './pipeline/_telegram.js'
 import { publishToDb, postXTweet, updateMetadataFiles } from './pipeline/_publisher.js'
-import { setCorsHeaders } from './_shared.js'
+import { setCorsHeaders, createLogger } from './_shared.js'
 
 const MAX_REVISIONS = 3
 
@@ -105,7 +105,7 @@ async function handleArticles(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
     return res.status(200).json({ articles: (data || []).map(mapRow) })
   } catch (err) {
-    console.error('articles error:', err.message)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/pipeline', msg: 'articles error', error: err.message, ts: Date.now() }))
     return res.status(500).json({ error: 'Internal server error' })
   }
 }
@@ -130,7 +130,7 @@ async function handleTrigger(req, res) {
     const recentTitles = await getRecentTopicTitles()
     topics = await generateTopics(newsContext, recentTitles)
   } catch (err) {
-    console.error('[trigger] error:', err.message)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/pipeline', msg: 'trigger error', error: err.message, ts: Date.now() }))
     await sendMessage(`⚠️ <b>Topic generation failed</b>\n\n${err.message}\n\nSend /trigger to retry.`).catch(() => {})
     return res.status(500).json({ error: err.message })
   }
@@ -180,7 +180,7 @@ async function handleWebhook(req, res) {
     if (update.callback_query) await onCallback(update.callback_query)
     else if (update.message?.text) await onMessage(update.message)
   } catch (err) {
-    console.error('[webhook] error:', err.message)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/pipeline', msg: 'webhook error', error: err.message, ts: Date.now() }))
     await sendMessage(`⚠️ Pipeline error: ${err.message}`).catch(() => {})
   }
 

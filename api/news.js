@@ -5,7 +5,7 @@ import { kv } from './_kv.js'
 import { get as httpsGet } from 'node:https'
 import { createGunzip } from 'node:zlib'
 import { XMLParser } from 'fast-xml-parser'
-import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER, trackError } from './_shared.js'
+import { NEWS_SOURCES, PERMANENT_TIER1_NAMES, TIER1_TEAMS_SERVER, trackError, createLogger } from './_shared.js'
 import { parseLiquipediaTransfers, getCurrentTransferPage } from './_liquipedia.js'
 
 const NEWS_CACHE_TTL = 30 * 60 // 30 min
@@ -388,9 +388,9 @@ async function fetchAndCacheNews(game) {
 
   const [rssResults, steamJsonItems, liquipediaItems, currentsItems] = await Promise.all([
     Promise.allSettled(sources.map(fetchFeedWithTimeout)),
-    fetchSteamJsonApi().catch(err => { console.error('[news] steam-json failed:', err?.message); return [] }),
-    isDota2 ? fetchLiquipediaTransfers().catch(err => { console.error('[news] liquipedia failed:', err?.message); return [] }) : Promise.resolve([]),
-    fetchCurrentsApi().catch(err => { console.error('[news] currents failed:', err?.message); return [] }),
+    fetchSteamJsonApi().catch(err => { console.error(JSON.stringify({ level: 'error', endpoint: '/api/news', msg: 'steam-json failed', error: err?.message, ts: Date.now() })); return [] }),
+    isDota2 ? fetchLiquipediaTransfers().catch(err => { console.error(JSON.stringify({ level: 'error', endpoint: '/api/news', msg: 'liquipedia failed', error: err?.message, ts: Date.now() })); return [] }) : Promise.resolve([]),
+    fetchCurrentsApi().catch(err => { console.error(JSON.stringify({ level: 'error', endpoint: '/api/news', msg: 'currents failed', error: err?.message, ts: Date.now() })); return [] }),
   ])
 
   const perSourceMeta = []
@@ -406,7 +406,7 @@ async function fetchAndCacheNews(game) {
       articles.push(...normalized)
       perSourceMeta.push({ id: src.id, name: src.name, count: normalized.length })
     } else {
-      console.error(`[news] ${src.id} failed: ${r.reason?.message}`)
+      console.error(JSON.stringify({ level: 'error', endpoint: '/api/news', msg: `${src.id} failed`, error: r.reason?.message, ts: Date.now() }))
       perSourceMeta.push({ id: src.id, name: src.name, count: 0, error: r.reason?.message })
     }
   })
@@ -478,7 +478,7 @@ async function fetchAndCacheNews(game) {
   // Never cache an empty result (KV poison prevention)
   if (articles.length > 0) {
     kv.set(`news:articles:${game}:v1`, payload, { ex: NEWS_CACHE_TTL }).catch(err => {
-      console.error('[news] KV write failed:', err?.message)
+      console.error(JSON.stringify({ level: 'error', endpoint: '/api/news', msg: 'KV write failed', error: err?.message, ts: Date.now() }))
     })
   }
 
@@ -488,6 +488,7 @@ async function fetchAndCacheNews(game) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  const log = createLogger('/api/news')
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800')
 
@@ -501,7 +502,7 @@ export default async function handler(req, res) {
 
   if (bust) {
     await kv.del(cacheKey).catch(() => {})
-    console.log('[news] cache cleared')
+    log.info('cache cleared', { game })
   }
 
   let result = null
@@ -515,7 +516,7 @@ export default async function handler(req, res) {
         served = true
       }
     } catch (err) {
-      console.warn('[news] KV read failed:', err?.message)
+      log.warn('KV read failed', { error: err?.message })
     }
   }
 
@@ -524,7 +525,7 @@ export default async function handler(req, res) {
       result = await fetchAndCacheNews(game)
     } catch (err) {
       await trackError('/api/news', 500, err?.message)
-      console.error('[news] ingestion failed:', err?.message)
+      log.error('ingestion failed', { error: err?.message })
       return res.status(200).json({
         articles: [],
         meta: { sources: [], fetchedAt: new Date().toISOString(), cached: false, error: err?.message },

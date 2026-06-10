@@ -17,7 +17,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger } from './_shared.js'
 
 
 
@@ -113,15 +113,15 @@ async function enrichMultiStreamMatches(matches, headers) {
     try {
       const r = await fetch(`https://api.pandascore.co/matches/${m.id}`, { headers })
       if (!r.ok) {
-        console.warn(`enrichMultiStream: match ${m.id} fetch failed (${r.status})`)
+        console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: `enrichMultiStream: match ${m.id} fetch failed`, status: r.status, ts: Date.now() }))
         return
       }
       const detail = await r.json()
       const en = (detail.streams_list || []).filter(s => s.official && s.language === 'en')
-      console.log(`enrichMultiStream: match ${m.id} →`, en.map(s => `${s.raw_url}(main=${s.main})`).join(', '))
+      console.log(JSON.stringify({ level: 'info', endpoint: '/api/live-matches', msg: `enrichMultiStream: match ${m.id}`, streams: en.map(s => `${s.raw_url}(main=${s.main})`), ts: Date.now() }))
       if (detail.streams_list) m.streams_list = detail.streams_list
     } catch (err) {
-      console.warn(`enrichMultiStream: match ${m.id} exception:`, err?.message)
+      console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: `enrichMultiStream: match ${m.id} exception`, error: err?.message, ts: Date.now() }))
     }
   }))
 }
@@ -191,7 +191,7 @@ async function cacheRunningStreams(rawMatches) {
   }
 
   if (streamWrites.length > 0) {
-    await Promise.all(streamWrites).catch(err => console.warn('Stream mapping write failed:', err?.message))
+    await Promise.all(streamWrites).catch(err => console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'stream mapping write failed', error: err?.message, ts: Date.now() })))
   }
 
   // Permanent write-through to Supabase. ignoreDuplicates replicates nx:true — first channel wins.
@@ -199,8 +199,8 @@ async function cacheRunningStreams(rawMatches) {
     getSupabaseAdmin()
       .from('match_stream_history')
       .upsert(supabaseRows, { onConflict: 'od_match_id', ignoreDuplicates: true })
-      .then(({ error }) => { if (error) console.warn('match_stream_history upsert failed:', error.message) })
-      .catch(err => console.warn('match_stream_history upsert failed:', err?.message))
+      .then(({ error }) => { if (error) console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: error.message, ts: Date.now() })) })
+      .catch(err => console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: err?.message, ts: Date.now() })))
   }
 
   return streamWrites.length
@@ -245,6 +245,7 @@ async function sendPushNotificationsForMatches(matches) {
 }
 
 export default async function handler(req, res) {
+  const log = createLogger('/api/live-matches')
   if (setCorsHeaders(req, res, { allowAll: true })) return
 
   const token = process.env.PANDASCORE_TOKEN
@@ -308,7 +309,7 @@ export default async function handler(req, res) {
       ])
       return res.status(200).json({ ok: true })
     } catch (err) {
-      console.error('push-subscribe error:', err?.message)
+      log.error('push-subscribe error', { error: err?.message })
       return res.status(500).json({ error: 'Failed to store subscription' })
     }
   }
@@ -337,12 +338,12 @@ export default async function handler(req, res) {
       await enrichMultiStreamMatches(tier1, headers)
       const written = await cacheRunningStreams(tier1)
       const mappedForPush = tier1.map(mapMatch)
-      await sendPushNotificationsForMatches(mappedForPush).catch(err => console.warn('push error:', err?.message))
-      console.log(`live-matches cron: ${written} stream writes`)
+      await sendPushNotificationsForMatches(mappedForPush).catch(err => log.warn('push error', { error: err?.message }))
+      log.info('cron complete', { written })
       return res.status(200).json({ written })
     } catch (err) {
       await trackError('/api/live-matches', 500, err?.message)
-      console.error('live-matches cron error:', err?.message)
+      log.error('cron error', { error: err?.message })
       return res.status(500).json({ error: err?.message })
     }
   }
@@ -351,21 +352,21 @@ export default async function handler(req, res) {
 
   if (req.query?.bust === '1') {
     await kv.del(KV_KEY)
-    console.log('Live matches cache cleared')
+    log.info('cache cleared')
   }
 
   try {
     const cached = await kv.get(KV_KEY)
     if (cached) {
-      console.log('Live matches: serving from KV cache')
+      log.info('serving from KV cache')
       return res.status(200).json(cached)
     }
   } catch (err) {
-    console.warn('KV cache read failed:', err?.message)
+    log.warn('KV cache read failed', { error: err?.message })
   }
 
   try {
-    console.log('Live matches: fetching from PandaScore')
+    log.info('fetching from PandaScore')
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
     const [response, tier1Names] = await Promise.all([
       fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers }),
@@ -403,7 +404,7 @@ export default async function handler(req, res) {
           if (kvValues[i]) matches[matchIdx].games[gameIdx].matchId = String(kvValues[i])
         })
       } catch (err) {
-        console.warn('live:game KV enrichment failed:', err?.message)
+        log.warn('live:game KV enrichment failed', { error: err?.message })
       }
     }
 
@@ -412,7 +413,7 @@ export default async function handler(req, res) {
     try {
       await kv.set(KV_KEY, payload, { ex: TTL })
     } catch (err) {
-      console.warn('KV cache write failed:', err?.message)
+      log.warn('KV cache write failed', { error: err?.message })
     }
 
     // Store game start timestamp → channel for single-stream matches.
@@ -423,7 +424,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     await trackError('/api/live-matches', 500, err?.message)
-    console.error('Live matches error:', err?.message || err)
+    log.error('fetch failed', { error: err?.message })
     return res.status(500).json({ error: 'Failed to fetch live matches', message: err?.message })
   }
 }

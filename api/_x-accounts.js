@@ -1,5 +1,28 @@
 // X (Twitter) handle repository for tournaments, teams, and talent.
 // All lookups use case-insensitive substring matching unless marked exact.
+// Live data is stored in KV (`x-accounts:handles:v1`) so handles can be
+// updated without a deploy. Static constants below serve as the fallback.
+
+import { kv } from './_kv.js'
+
+const HANDLES_KV_KEY = 'x-accounts:handles:v1'
+const HANDLES_CACHE_TTL = 3600 * 1000 // 1h
+
+let _live = null
+let _liveExpiry = 0
+
+// Call once per handler invocation to hydrate the in-memory cache from KV.
+// Safe to call multiple times — re-reads only when TTL has expired.
+export async function refreshHandles() {
+  if (Date.now() < _liveExpiry) return
+  try {
+    const data = await kv.get(HANDLES_KV_KEY)
+    if (data?.teams && data?.tournaments) {
+      _live = data
+      _liveExpiry = Date.now() + HANDLES_CACHE_TTL
+    }
+  } catch {}
+}
 
 const TOURNAMENT_HANDLES = [
   { patterns: ['blast slam', 'blast dota'], handle: 'BLASTDota' },
@@ -39,7 +62,8 @@ export const TOURNAMENT_TALENT = {
 export function lookupTournamentHandle(name) {
   if (!name) return null
   const lower = name.toLowerCase()
-  for (const { patterns, handle } of TOURNAMENT_HANDLES) {
+  const source = _live?.tournaments ?? TOURNAMENT_HANDLES
+  for (const { patterns, handle } of source) {
     if (patterns.some(p => lower.includes(p))) return handle
   }
   return null
@@ -48,7 +72,8 @@ export function lookupTournamentHandle(name) {
 export function lookupTeamHandle(name) {
   if (!name) return null
   const lower = name.toLowerCase().trim()
-  for (const { patterns, exact, handle } of TEAM_HANDLES) {
+  const source = _live?.teams ?? TEAM_HANDLES
+  for (const { patterns, exact, handle } of source) {
     if (exact
       ? patterns.some(p => lower === p)
       : patterns.some(p => lower.includes(p))
@@ -60,8 +85,15 @@ export function lookupTeamHandle(name) {
 // Returns `count` randomly-chosen talent handles for the tournament, or [] if none known.
 export function pickTournamentTalent(tournamentHandle, count = 2) {
   if (!tournamentHandle) return []
-  const pool = TOURNAMENT_TALENT[tournamentHandle]
+  const talentSource = _live?.talent ?? TOURNAMENT_TALENT
+  const pool = talentSource[tournamentHandle]
   if (!pool?.length) return []
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
   return shuffled.slice(0, Math.min(count, shuffled.length))
+}
+
+// Returns the current handles blob (live from KV if available, else static fallback).
+// Used by the admin update endpoint to read-then-patch the data.
+export function getHandlesSnapshot() {
+  return _live ?? { teams: TEAM_HANDLES, tournaments: TOURNAMENT_HANDLES, talent: TOURNAMENT_TALENT }
 }

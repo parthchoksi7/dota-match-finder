@@ -6,7 +6,51 @@ import { ExpirationPlugin } from 'workbox-expiration'
 // Precache app shell (manifest injected by vite-plugin-pwa at build time)
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Same-origin API routes: NetworkFirst, 1-day fallback
+// Live matches: short TTL — stale data is meaningless for "now live"
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/live-matches'),
+  new NetworkFirst({
+    cacheName: 'api-live',
+    plugins: [new ExpirationPlugin({ maxAgeSeconds: 120 })],
+  })
+)
+
+// Upcoming matches: 15-min fallback is acceptable
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/upcoming-matches'),
+  new NetworkFirst({
+    cacheName: 'api-upcoming',
+    plugins: [new ExpirationPlugin({ maxAgeSeconds: 900 })],
+  })
+)
+
+// Recent completed: scores change within minutes of a match ending
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && url.searchParams.get('mode') === 'recent-completed',
+  new NetworkFirst({
+    cacheName: 'api-recent-completed',
+    plugins: [new ExpirationPlugin({ maxAgeSeconds: 300 })],
+  })
+)
+
+// Match stats and indicators are immutable once a game is parsed — cache aggressively
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && url.searchParams.get('mode') === 'match-stats',
+  new CacheFirst({
+    cacheName: 'api-match-stats',
+    plugins: [new ExpirationPlugin({ maxAgeSeconds: 7 * 86400, maxEntries: 200 })],
+  })
+)
+
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && url.searchParams.get('mode') === 'match-indicators',
+  new CacheFirst({
+    cacheName: 'api-match-indicators',
+    plugins: [new ExpirationPlugin({ maxAgeSeconds: 7 * 86400, maxEntries: 200 })],
+  })
+)
+
+// All other same-origin API routes: NetworkFirst, 1-day fallback
 registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/'),
   new NetworkFirst({

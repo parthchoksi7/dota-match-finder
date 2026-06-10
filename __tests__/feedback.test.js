@@ -50,6 +50,8 @@ vi.mock('../api/_x-accounts.js', () => ({
   lookupTournamentHandle: vi.fn(),
   lookupTeamHandle: vi.fn(),
   pickTournamentTalent: vi.fn(),
+  refreshHandles: vi.fn().mockResolvedValue(undefined),
+  getHandlesSnapshot: vi.fn().mockReturnValue({ teams: [], tournaments: [], talent: {} }),
 }))
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

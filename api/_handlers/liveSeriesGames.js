@@ -1,10 +1,13 @@
 import { kv } from '../_kv.js'
-import { PANDASCORE_BASE, STREAM_TTL } from '../_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, createLogger, validateId } from '../_shared.js'
 
 export default async function handleLiveSeriesGames(req, res) {
+  const log = createLogger('/api/tournaments?mode=live-series-games')
   const token = process.env.PANDASCORE_TOKEN
   const pandaId = req.query?.id
   if (!pandaId) return res.status(400).json({ gameIds: [] })
+  const idV = validateId(pandaId, { name: 'id' })
+  if (!idV.ok) return res.status(400).json({ gameIds: [] })
   try {
     const positions = [1, 2, 3, 4, 5]
     const keys = positions.map(p => `live:game:${pandaId}:${p}`)
@@ -24,7 +27,7 @@ export default async function handleLiveSeriesGames(req, res) {
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
     const psRes = await fetch(`${PANDASCORE_BASE}/matches/${pandaId}`, { headers })
     if (!psRes.ok) {
-      console.warn(`live-series-games: PandaScore match ${pandaId} returned ${psRes.status}`)
+      log.warn('PS match fetch failed', { pandaId, status: psRes.status })
       return res.status(200).json({ gameIds: [] })
     }
     const detail = await psRes.json()
@@ -38,14 +41,14 @@ export default async function handleLiveSeriesGames(req, res) {
         finished.map(g =>
           kv.set(`live:game:${pandaId}:${g.position}`, String(g.external_identifier), { ex: STREAM_TTL })
         )
-      ).catch(err => console.warn('live-series-games backfill failed:', err?.message))
+      ).catch(err => log.warn('backfill failed', { error: err?.message }))
     }
 
     const gameIds = finished.map(g => String(g.external_identifier))
-    console.log(`live-series-games: PS fallback for ${pandaId} → [${gameIds.join(', ')}]`)
+    log.info('PS fallback resolved', { pandaId, gameIds })
     return res.status(200).json({ gameIds })
   } catch (err) {
-    console.warn('live-series-games failed:', err?.message)
+    log.warn('handler failed', { error: err?.message })
     return res.status(200).json({ gameIds: [] })
   }
 }

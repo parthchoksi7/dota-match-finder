@@ -7,6 +7,8 @@ Completed items removed.
 
 ## Safe to do anytime (low blast radius)
 
+~~### [UX] Shorten twitch-vod miss TTL for very recent matches~~ ✅ Done — 5-min TTL for matches in last 24h, 30-min for older; both miss paths in `match-streams.js` updated.
+
 ~~### Sync `findLeague` test copy with production implementation~~ ✅ Done
 ~~### Remove dead `rawUrl` fallback in LiveMatchRow~~ ✅ Done
 ~~### Extract `getSeriesLabel()` to `_shared.js`~~ ✅ Done
@@ -44,11 +46,7 @@ Completed items removed.
 
 ~~### [ARCHITECTURE] Extract tournaments.js handlers into `api/_handlers/` modules~~ ✅ Done — `api/tournaments.js` reduced to 156-line router; 17 handler files + 2 shared utility files created under `api/_handlers/`.
 
-### [OBSERVABILITY] Structured logging with request correlation IDs
-- **Files:** `api/_shared.js`, all handler files
-- **What:** Add a `createLogger(endpoint, requestId)` factory to `_shared.js` that writes structured JSON (`{ level, endpoint, requestId, msg, ts, ...extras }`). Generate a `requestId` at the top of each handler (`crypto.randomUUID().slice(0,8)`). Replace all `console.log/warn/error` with the logger.
-- **Why:** Current logging is ad-hoc strings with no correlation IDs. Debugging a production issue requires scrolling through Vercel's unstructured log UI. Structured JSON enables filtering and search if you ever add a log aggregator.
-- **Risk:** Very low — purely a logging format change.
+~~### [OBSERVABILITY] Structured logging with request correlation IDs~~ ✅ Done — `createLogger(endpoint)` factory in `_shared.js`; all handler files migrated to structured JSON logs with per-request correlation IDs.
 
 ### [OBSERVABILITY] Add Sentry error monitoring
 - **Files:** `api/_shared.js`, all handler files, `vite.config.js`
@@ -57,52 +55,21 @@ Completed items removed.
 - **Risk:** Low — additive. `trackError()` can be removed after Sentry is verified working.
 - **Dependencies:** Requires Sentry account + `SENTRY_DSN` env var.
 
-### [PERFORMANCE] Per-route service worker caching strategies
-- **Files:** `src/sw.js`
-- **What:** Apply granular `ExpirationPlugin` TTLs based on data volatility:
-  - `/api/live-matches*` → NetworkFirst, maxAge 120s
-  - `/api/upcoming-matches*` → NetworkFirst, maxAge 900s
-  - `/api/tournaments*mode=recent-completed*` → NetworkFirst, maxAge 300s
-  - `/api/tournaments*mode=match-stats*` → CacheFirst, maxAge 7 days (immutable once parsed)
-  - `/api/tournaments*mode=match-indicators*` → CacheFirst, maxAge 7 days
-- **Why:** The current setup uses a single NetworkFirst strategy for all `/api/*` routes. A user who opened a live match, went offline, and came back online may briefly see a stale final score. More importantly, immutable data (match stats) gets re-fetched unnecessarily.
-- **Risk:** Low — purely additive TTL config.
+~~### [PERFORMANCE] Per-route service worker caching strategies~~ ✅ Done — `src/sw.js` now uses per-route NetworkFirst/CacheFirst strategies with `ExpirationPlugin` TTLs matched to data volatility.
 
-### [CORRECTNESS] Input validation layer for query parameters
-- **Files:** `api/_shared.js`, all handler files
-- **What:** Add `validateId(val, { name, numeric, maxLen })` and `validateEnum(val, allowed, name)` helpers to `_shared.js`. Apply at the entry of every handler before any processing. Numeric IDs: `/^\d+$/` check + max 15 chars. Mode strings: allowlist check against known modes.
-- **Why:** Query parameters are currently passed to external API URLs without sanitization. A crafted `ids` or `begin_at` could alter constructed fetch URLs or trigger unexpected behavior.
-- **Risk:** Very low — validation rejects invalid input fast, before any external calls.
+~~### [CORRECTNESS] Input validation layer for query parameters~~ ✅ Done — `validateId()` and `validateEnum()` in `_shared.js`; applied to `match-streams.js`, `matchStats.js`, `matchIndicators.js`, `liveSeriesGames.js`, `tournament-detail.js`.
 
-### [SECURITY] Content-Security-Policy header
-- **Files:** `vercel.json`, potentially `middleware.js` (for nonce generation)
-- **What:** Inventory all script/style/image origins used by the SPA (GA4: `www.googletagmanager.com`, `www.google-analytics.com`; Vercel Analytics: `va.vercel-scripts.com`; Vercel Speed Insights: similar). Build a restrictive CSP header: `script-src 'self' https://www.googletagmanager.com https://va.vercel-scripts.com 'nonce-{n}'`. Start with `Content-Security-Policy-Report-Only` and monitor violations for 2 weeks before enforcing.
-- **Why:** CSP is the strongest XSS mitigation available. The existing X-Frame-Options/X-Content-Type-Options/Referrer-Policy are hygiene; CSP is active defense.
-- **Risk:** Medium — inline scripts (React hydration, GA snippet) need nonces or hashes. A misconfigured CSP breaks the whole site. Use Report-Only mode first.
+~~### [SECURITY] Content-Security-Policy header~~ ✅ Done — `Content-Security-Policy-Report-Only` header added to `vercel.json`; covers all known first- and third-party origins; report-only mode for 2-week observation before enforcement.
 
-### [MAINTAINABILITY] Move `_x-accounts.js` team/tournament handles to KV
-- **Files:** `api/_x-accounts.js` (hardcoded maps), `api/draft-posts.js` (lookup calls)
-- **What:** Store the `TEAM_HANDLES`, `TOURNAMENT_HANDLES`, and `TOURNAMENT_TALENT` maps as a single JSON blob in KV (`x-accounts:handles:v1`). Add a simple admin endpoint (POST `?mode=update-handles`, gated by `CRON_SECRET`) to update the blob without a deploy. `lookupTeamHandle()` and `lookupTournamentHandle()` read from KV with a 1h in-memory cache fallback.
-- **Why:** When a team rebrands (e.g. OG → OG Esports, new org entering the scene), the handle map goes stale and requires a code change + deploy. A KV-backed map can be updated in seconds.
-- **Risk:** Medium — handle lookup is on the critical path for auto-tweet cron. Must keep `_x-accounts.js` as a fallback if KV is unavailable.
+~~### [MAINTAINABILITY] Move `_x-accounts.js` team/tournament handles to KV~~ ✅ Done — `refreshHandles()` reads `x-accounts:handles:v1` from KV with 1h in-memory cache; static constants remain as fallback; admin `POST ?type=update-handles` in `draft-posts.js` gated by `CRON_SECRET`.
 
 ~~### [PERFORMANCE] Pre-warm match stats on completed card visibility~~ ✅ Done — `IntersectionObserver` in `MatchCard.jsx` pre-fetches `match-indicators` for completed-game cards 300px before they enter view.
 
-### [CORRECTNESS] JSDoc type annotations for shared data shapes
-- **Files:** `api/_shared.js`, `src/utils.js`, `src/api.js`
-- **What:** Add `@typedef` JSDoc blocks for the canonical data shapes: `PSMatch`, `ODMatch`, `SeriesGame`, `SeriesGroup`, `StreamResult`, `GameIndicators`. Reference them with `@param {SeriesGame[]} games` on every function. Enable `"checkJs": true` and `"strict": false` in a `jsconfig.json` to surface type errors in the IDE.
-- **Why:** With 41 components and 12 API handlers passing the same data shapes, a typo in a property name or a missing null guard causes a silent runtime bug. JSDoc costs nothing to add and is readable by humans and IDEs.
-- **Risk:** Zero — purely additive documentation.
+~~### [CORRECTNESS] JSDoc type annotations for shared data shapes~~ ✅ Done — `@typedef` blocks for `PSMatch`, `ODMatch`, `SeriesGame`, `SeriesGroup`, `StreamResult`, `GameIndicators` added to `api/_shared.js`; `jsconfig.json` created with `checkJs: true`.
 
 ---
 
 ## Strategic refactors (June 2026 audit — high effort, high impact)
-
-### [ARCHITECTURE] Upgrade to Vercel Pro and split the god function into real separate functions
-- **What:** Pay ~$20/month for Vercel Pro (removes the 12-function cap). Split `api/tournaments.js` 15 modes, `api/live-matches.js` push-subscribe handler, `api/analytics-chat.js` 3 modes, and `api/pipeline.js` 3 modes back into focused, individually-deployable serverless functions. Each function gets its own timeout and memory config in `vercel.json`.
-- **Expected benefit:** The single highest-leverage architectural change available. Every subsequent feature can be added without compromising existing endpoints. `tournaments.js` goes from 2,271 lines to ~15 focused files of 100–200 lines each. Independent timeouts mean a slow tournament-players fetch can't time out a match-stats request.
-- **Risk:** ~$20/month cost. `vercel.json` rewrites need updating. Some module-level state that currently lives in the god function may need refactoring once it's split across files.
-- **Sequence:** Upgrade plan → audit shared module state → split functions one at a time → update `vercel.json` rewrites → update CONTEXT.md.
 
 ### [ARCHITECTURE] Full TypeScript migration
 - **What:** Phase 1 (jsconfig + checkJs, 1 week): enable `checkJs: true`, fix all implicit any errors in `_shared.js` and `api.js`. Phase 2 (rename to .ts, 1–2 weeks): start with `_shared.ts`, `_kv.ts`, then API handlers, then React components. Phase 3: CI enforcement (`tsc --noEmit` in GitHub Actions).

@@ -1,10 +1,13 @@
 import { kv } from '../_kv.js'
+import { createLogger } from '../_shared.js'
 
 export default async function handleMatchIndicators(req, res) {
+  const log = createLogger('/api/tournaments?mode=match-indicators')
   const { ids } = req.query
   if (!ids) return res.status(400).json({ error: 'ids required' })
+  if (ids.length > 300) return res.status(400).json({ error: 'ids param too long' })
 
-  const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 15)
+  const matchIds = ids.split(',').map(s => s.trim()).filter(s => /^\d{1,15}$/.test(s)).slice(0, 15)
   if (matchIds.length === 0) return res.status(400).json({ error: 'no valid ids' })
 
   const INDICATORS_TTL = 60 * 60 * 24 * 7 // 7 days - match data is immutable
@@ -17,9 +20,9 @@ export default async function handleMatchIndicators(req, res) {
     try {
       const keys = matchIds.map(id => `${KV_PREFIX}${id}`)
       await Promise.all(keys.map(k => kv.del(k)))
-      console.log('match-indicators cache busted for:', matchIds.join(','))
+      log.info('cache busted', { matchIds: matchIds.join(',') })
     } catch (err) {
-      console.warn('match-indicators KV bust failed:', err?.message)
+      log.warn('KV bust failed', { error: err?.message })
     }
   }
 
@@ -29,7 +32,7 @@ export default async function handleMatchIndicators(req, res) {
     const cached = await kv.mget(...keys)
     matchIds.forEach((id, i) => { if (cached[i] != null) result[id] = cached[i] })
   } catch (err) {
-    console.warn('match-indicators KV read failed:', err?.message)
+    log.warn('KV read failed', { error: err?.message })
   }
 
   const uncached = matchIds.filter(id => !result[id])
@@ -120,7 +123,7 @@ export default async function handleMatchIndicators(req, res) {
         toCache.map(({ id, indicators }) =>
           kv.set(`${KV_PREFIX}${id}`, indicators, { ex: INDICATORS_TTL })
         )
-      ).catch(err => console.warn('match-indicators KV write failed:', err?.message))
+      ).catch(err => log.warn('KV write failed', { error: err?.message }))
     }
   }
 

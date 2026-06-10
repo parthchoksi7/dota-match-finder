@@ -77,7 +77,7 @@ async function getHeroNames() {
 // Caches 24h for live/upcoming, 30 days for completed.
 
 import { kv as _kv } from './_kv.js'
-import { trackError, rateLimitByIp, setCorsHeaders } from './_shared.js'
+import { trackError, rateLimitByIp, setCorsHeaders, createLogger } from './_shared.js'
 
 async function handleTournamentSummary(req, res) {
   const { seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages } = req.body || {}
@@ -139,18 +139,19 @@ Write 3-5 sentences covering why this tournament matters, notable aspects (prize
   const text = data.content?.[0]?.text
   if (typeof text !== 'string') return res.status(502).json({ error: 'Invalid response from summary service' })
 
-  _kv.set(cacheKey, text, { ex: TTL }).catch(e => console.error('KV write failed (summary):', e?.message || e))
+  _kv.set(cacheKey, text, { ex: TTL }).catch(e => console.error(JSON.stringify({ level: 'error', endpoint: '/api/summarize', msg: 'KV write failed', error: e?.message, ts: Date.now() })))
   return res.status(200).json({ summary: text })
 }
 
 export default async function handler(req, res) {
+  const log = createLogger('/api/summarize')
   if (setCorsHeaders(req, res)) return
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('Summarize API: ANTHROPIC_API_KEY is not set')
+    log.error('ANTHROPIC_API_KEY not set')
     return res.status(503).json({
       error: 'Summary service unavailable',
       message: 'API key not configured. Set ANTHROPIC_API_KEY in Vercel environment variables.'
@@ -165,7 +166,7 @@ export default async function handler(req, res) {
     try {
       return await handleTournamentSummary(req, res)
     } catch (err) {
-      console.error('Tournament summary error:', err?.message || err)
+      log.error('tournament summary error', { error: err?.message })
       return res.status(500).json({ error: 'Failed to generate summary', message: err?.message })
     }
   }
@@ -245,7 +246,7 @@ Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringi
 
     if (!response.ok) {
       const msg = data.error?.message || data.message || response.statusText
-      console.error('Anthropic API error:', response.status, msg)
+      log.error('Anthropic API error', { status: response.status, msg })
       return res.status(response.status >= 500 ? 502 : 400).json({
         error: 'Failed to generate summary',
         message: msg
@@ -254,14 +255,14 @@ Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringi
 
     const text = data.content?.[0]?.text
     if (typeof text !== 'string') {
-      console.error('Unexpected Anthropic response shape:', JSON.stringify(data).slice(0, 200))
+      log.error('unexpected Anthropic response shape', { preview: JSON.stringify(data).slice(0, 200) })
       return res.status(502).json({ error: 'Invalid response from summary service' })
     }
 
     return res.status(200).json({ summary: text })
   } catch (error) {
     await trackError('/api/summarize', 500, error?.message)
-    console.error('Summarize API error:', error?.message || error)
+    log.error('summarize error', { error: error?.message })
     return res.status(500).json({
       error: 'Failed to generate summary',
       message: error?.message || 'Internal server error'

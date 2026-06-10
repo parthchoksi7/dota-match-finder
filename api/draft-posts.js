@@ -28,8 +28,8 @@ export function makeSeriesTweet(team1, team2, winner, score, seriesLabel, tourna
 
 // ── Cron / auto-tweet: series helpers (exported for unit tests) ──────────────
 
-import { getPremiumLeagueIds, trackError, PERMANENT_TIER1_NAMES, KV_TIER1_NAMES_KEY, isTier1ByName, isTier1, buildTournamentName, getSeriesLabel } from './_shared.js'
-import { lookupTournamentHandle, lookupTeamHandle, pickTournamentTalent } from './_x-accounts.js'
+import { getPremiumLeagueIds, trackError, PERMANENT_TIER1_NAMES, KV_TIER1_NAMES_KEY, isTier1ByName, isTier1, buildTournamentName, getSeriesLabel, createLogger } from './_shared.js'
+import { lookupTournamentHandle, lookupTeamHandle, pickTournamentTalent, refreshHandles, getHandlesSnapshot } from './_x-accounts.js'
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
@@ -192,7 +192,7 @@ async function runAutoTweet(req, res) {
         mediaId = await uploadMedia(Buffer.from(await imgRes.arrayBuffer()))
       }
     } catch (e) {
-      console.error('OG image upload failed:', e.message)
+      console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'OG image upload failed', error: e.message, ts: Date.now() }))
     }
 
     const twRes = await postTweet(text, mediaId, null)
@@ -202,7 +202,7 @@ async function runAutoTweet(req, res) {
       results.push({ type: 'series', key: seriesKey, tweetId: twRes.data.id, hasImage: !!mediaId })
     } else {
       const errDetail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
-      console.error('Series tweet failed:', seriesKey, errDetail)
+      console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'series tweet failed', seriesKey, errDetail, ts: Date.now() }))
       failures.push({ key: seriesKey, error: errDetail })
     }
   }
@@ -398,7 +398,7 @@ async function runMatchPoll(req, res) {
       results.push({ matchId: m.id, tweetId: twRes.data.id })
     } else {
       const detail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
-      console.error('Poll tweet failed:', m.id, detail)
+      console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'poll tweet failed', matchId: m.id, detail, ts: Date.now() }))
       failures.push({ matchId: m.id, error: detail })
     }
   }
@@ -540,7 +540,7 @@ async function runReplyInsertion(req, res) {
         results.push({ handle, tweetId: tweet.id, replyId: twRes.data.id, teams })
       } else {
         const detail = twRes.errors?.[0]?.message || twRes.title || JSON.stringify(twRes)
-        console.error('Reply tweet failed:', handle, tweet.id, detail)
+        console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'reply tweet failed', handle, tweetId: tweet.id, detail, ts: Date.now() }))
       }
     }
   }
@@ -594,14 +594,36 @@ async function handleFeedback(req, res) {
     })
     return res.status(200).json({ ok: true })
   } catch (err) {
-    console.error('feedback send error', err)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'feedback send error', error: err?.message, ts: Date.now() }))
     return res.status(500).json({ error: 'send_failed' })
   }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
+async function handleUpdateHandles(req, res) {
+  const secret = process.env.CRON_SECRET
+  if (!secret || req.headers['x-cron-secret'] !== secret) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const body = req.body || {}
+  const patch = body.handles
+  if (!patch || typeof patch !== 'object') {
+    return res.status(400).json({ error: 'handles object required in body' })
+  }
+  const current = getHandlesSnapshot()
+  const next = {
+    teams: patch.teams ?? current.teams,
+    tournaments: patch.tournaments ?? current.tournaments,
+    talent: patch.talent ?? current.talent,
+  }
+  await kv.set('x-accounts:handles:v1', next)
+  return res.status(200).json({ ok: true, teams: next.teams.length, tournaments: next.tournaments.length })
+}
+
 export default async function handler(req, res) {
+  await refreshHandles()
+
   // GET = Vercel Cron trigger or GitHub Actions cron. Routes by ?type= param.
   if (req.method === 'GET') {
     const type = req.query?.type
@@ -619,6 +641,7 @@ export default async function handler(req, res) {
   const type = body.type || 'x'
 
   if (type === 'feedback') return handleFeedback(req, res)
+  if (type === 'update-handles') return handleUpdateHandles(req, res)
 
   // Cron mode: fetch new match results and auto-post to X as a series thread
   if (type === 'cron') {
@@ -774,7 +797,7 @@ Return ONLY a valid JSON object, no explanation, no markdown:
     }
   } catch (err) {
     await trackError('/api/draft-posts', 500, err?.message)
-    console.error('draft-posts error:', err?.message || err)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'draft posts error', error: err?.message, ts: Date.now() }))
     return res.status(500).json({ error: 'Failed to generate posts', message: err?.message })
   }
 }

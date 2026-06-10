@@ -6,6 +6,85 @@
 
 import { Redis } from '@upstash/redis'
 
+// ── Canonical data shapes ─────────────────────────────────────────────────────
+
+/**
+ * @typedef {Object} PSMatch
+ * @property {number} id
+ * @property {string} status - 'running' | 'finished' | 'not_started'
+ * @property {string|null} begin_at - ISO timestamp
+ * @property {string|null} end_at   - ISO timestamp
+ * @property {number} number_of_games
+ * @property {{ opponent: { id: number, name: string } }[]} opponents
+ * @property {{ id: number, name: string }|null} league
+ * @property {{ id: number, name: string, full_name: string|null }|null} serie
+ * @property {{ id: number, name: string }|null} tournament
+ * @property {{ raw_url: string, official: boolean, main: boolean, language: string }[]} streams_list
+ */
+
+/**
+ * @typedef {Object} ODMatch
+ * @property {number} match_id
+ * @property {number} start_time - Unix timestamp
+ * @property {boolean} radiant_win
+ * @property {string|null} radiant_name
+ * @property {string|null} dire_name
+ * @property {number|null} radiant_team_id
+ * @property {number|null} dire_team_id
+ * @property {number} league_id
+ * @property {number} series_id
+ * @property {number} series_type - 0=BO1, 1=BO3, 2=BO5, 3=BO2
+ */
+
+/**
+ * @typedef {Object} SeriesGame
+ * @property {number} matchId
+ * @property {boolean} radiantWin
+ * @property {number|null} radiantScore
+ * @property {number|null} direScore
+ * @property {number|null} duration  - seconds
+ * @property {number} startTime      - Unix timestamp
+ * @property {string|null} radiant_name
+ * @property {string|null} dire_name
+ */
+
+/**
+ * @typedef {Object} SeriesGroup
+ * @property {string} id              - unique series identifier
+ * @property {string} team1
+ * @property {string} team2
+ * @property {number|null} team1Id
+ * @property {number|null} team2Id
+ * @property {number} seriesType
+ * @property {SeriesGame[]} games
+ * @property {string|null} leagueName
+ * @property {string|null} serieName
+ * @property {string|null} tournamentName
+ * @property {number|null} beginAt    - Unix timestamp of first game
+ * @property {boolean} isComplete
+ */
+
+/**
+ * @typedef {Object} StreamResult
+ * @property {string} url            - Twitch channel URL
+ * @property {string|null} language
+ * @property {boolean} official
+ */
+
+/**
+ * @typedef {Object} GameIndicators
+ * @property {boolean} radiantHasRapier
+ * @property {boolean} direHasRapier
+ * @property {boolean} hasRapier
+ * @property {'radiant'|'dire'|null} goldSwingWinner
+ * @property {boolean} hasGoldSwing
+ * @property {'radiant'|'dire'|null} megaComebackWinner
+ * @property {boolean} hasMegaComeback
+ * @property {boolean} radiantHasRampage
+ * @property {boolean} direHasRampage
+ * @property {boolean} hasRampage
+ */
+
 /**
  * Known top-tier league name keywords. Single source of truth for the league-name override.
  *
@@ -448,6 +527,55 @@ export function findLeague(leagues, search) {
   }
 
   return null
+}
+
+// ── Structured logging ───────────────────────────────────────────────────────
+
+/**
+ * Returns a logger bound to an endpoint + requestId. Each log method writes a
+ * single-line JSON object to stdout so Vercel's log viewer can filter by field.
+ * @param {string} endpoint - e.g. '/api/match-streams'
+ * @param {string} [requestId] - short correlation ID, defaults to a fresh UUID slice
+ */
+export function createLogger(endpoint, requestId) {
+  const rid = requestId || (typeof crypto !== 'undefined' ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10))
+  const write = (level, msg, extras = {}) => {
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({ level, endpoint, requestId: rid, msg, ts: Date.now(), ...extras }))
+  }
+  return {
+    requestId: rid,
+    info:  (msg, extras) => write('info',  msg, extras),
+    warn:  (msg, extras) => write('warn',  msg, extras),
+    error: (msg, extras) => write('error', msg, extras),
+  }
+}
+
+// ── Input validation ─────────────────────────────────────────────────────────
+
+/**
+ * Validates a numeric or string ID query parameter.
+ * Returns { ok: true, value } or { ok: false, error } string.
+ * @param {string|undefined} val
+ * @param {{ name?: string, numeric?: boolean, maxLen?: number }} [opts]
+ */
+export function validateId(val, { name = 'id', numeric = true, maxLen = 15 } = {}) {
+  if (val == null || val === '') return { ok: false, error: `${name} is required` }
+  if (val.length > maxLen) return { ok: false, error: `${name} too long` }
+  if (numeric && !/^\d+$/.test(val)) return { ok: false, error: `${name} must be numeric` }
+  return { ok: true, value: val }
+}
+
+/**
+ * Validates that a string param is one of a known set of values.
+ * @param {string|undefined} val
+ * @param {string[]} allowed
+ * @param {string} [name]
+ */
+export function validateEnum(val, allowed, name = 'param') {
+  if (val == null) return { ok: false, error: `${name} is required` }
+  if (!allowed.includes(val)) return { ok: false, error: `${name} must be one of: ${allowed.join(', ')}` }
+  return { ok: true, value: val }
 }
 
 // ── Error telemetry ──────────────────────────────────────────────────────────

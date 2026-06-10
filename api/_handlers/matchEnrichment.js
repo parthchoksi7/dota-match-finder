@@ -1,10 +1,11 @@
 import { kv } from '../_kv.js'
-import { parseBracketRound, PANDASCORE_BASE } from '../_shared.js'
+import { parseBracketRound, PANDASCORE_BASE, createLogger } from '../_shared.js'
 
 // ── match-enrichment mode ────────────────────────────────────────────────────
 // Combines match-formats and match-brackets in a single KV round-trip.
 // Returns { formats, brackets } keyed by OpenDota match ID.
 export default async function handleMatchEnrichment(req, res) {
+  const log = createLogger('/api/tournaments?mode=match-enrichment')
   const ids = (req.query?.ids || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
   if (ids.length === 0) return res.status(200).json({ formats: {}, brackets: {} })
   const formats = {}
@@ -20,7 +21,7 @@ export default async function handleMatchEnrichment(req, res) {
       if (bktVals[i]) brackets[id] = bktVals[i]
     })
   } catch (err) {
-    console.warn('match-enrichment KV read failed:', err?.message)
+    log.warn('KV read failed', { error: err?.message })
   }
   const missing = ids.filter(id => !brackets[id])
   const psToken = process.env.PANDASCORE_TOKEN
@@ -47,7 +48,7 @@ export default async function handleMatchEnrichment(req, res) {
         if (writes.length) await Promise.allSettled(writes)
       }
     } catch (err) {
-      console.warn('match-enrichment PS fallback failed:', err?.message)
+      log.warn('PS fallback failed', { error: err?.message })
     }
   }
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
@@ -57,6 +58,7 @@ export default async function handleMatchEnrichment(req, res) {
 // ── match-formats mode ───────────────────────────────────────────────────────
 // Returns PandaScore-sourced format ('best_of_2' etc.) keyed by OpenDota match ID.
 export async function handleMatchFormats(req, res) {
+  const log = createLogger('/api/tournaments?mode=match-formats')
   const ids = (req.query?.ids || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
   if (ids.length === 0) return res.status(200).json({ formats: {} })
   try {
@@ -65,7 +67,7 @@ export async function handleMatchFormats(req, res) {
     ids.forEach((id, i) => { if (values[i]) formats[id] = values[i] })
     return res.status(200).json({ formats })
   } catch (err) {
-    console.warn('match-formats KV read failed:', err?.message)
+    log.warn('KV read failed', { error: err?.message })
     return res.status(200).json({ formats: {} })
   }
 }
@@ -74,6 +76,7 @@ export async function handleMatchFormats(req, res) {
 // Returns bracket round (e.g. "Grand Final") keyed by OpenDota match ID.
 // First checks KV, falls back to a 7-day PS past-matches lookup.
 export async function handleMatchBrackets(req, res) {
+  const log = createLogger('/api/tournaments?mode=match-brackets')
   const ids = (req.query?.ids || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
   if (ids.length === 0) return res.status(200).json({ brackets: {} })
   const brackets = {}
@@ -106,7 +109,7 @@ export async function handleMatchBrackets(req, res) {
         if (writes.length) await Promise.allSettled(writes)
       }
     } catch (err) {
-      console.warn('match-brackets PS fallback failed:', err?.message)
+      log.warn('match-brackets PS fallback failed', { error: err?.message })
     }
   }
   return res.status(200).json({ brackets })

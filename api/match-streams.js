@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError, setCorsHeaders } from './_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
@@ -39,7 +39,7 @@ async function getOrFetchTwitchToken() {
     kv.set('twitch:token:v1', payload, { ex: ttl }).catch(() => {})
     return payload
   } catch (err) {
-    console.error('Twitch token fetch failed:', err?.message)
+    console.error(JSON.stringify({ level: 'error', endpoint: '/api/match-streams', msg: 'Twitch token fetch failed', error: err?.message, ts: Date.now() }))
     return null
   }
 }
@@ -71,11 +71,15 @@ function parseTwitchDuration(duration) {
  * Caches channel user-id (30d) and VOD result (24h hit / 30min miss) in KV.
  */
 export default async function handler(req, res) {
+  const log = createLogger('/api/match-streams')
   if (setCorsHeaders(req, res, { allowAll: true })) return
 
   if (req.query?.mode === 'twitch-vod') {
     const { channel, ts } = req.query
     if (!channel || !ts) return res.status(400).json({ error: 'channel and ts required' })
+    if (!/^[a-zA-Z0-9_]{1,64}$/.test(channel)) return res.status(400).json({ error: 'invalid channel' })
+    const tsV = validateId(ts, { name: 'ts', numeric: true, maxLen: 12 })
+    if (!tsV.ok) return res.status(400).json({ error: tsV.error })
     const matchStartTime = parseInt(ts, 10)
     if (isNaN(matchStartTime)) return res.status(400).json({ error: 'ts must be a number' })
 
@@ -108,7 +112,8 @@ export default async function handler(req, res) {
         userId = userData.data?.[0]?.id
         if (!userId) {
           const miss = { url: null, channel }
-          kv.set(vodCacheKey, miss, { ex: 1800 }).catch(() => {})
+          const missTtl = matchStartTime > Date.now() / 1000 - 86400 ? 300 : 1800
+          kv.set(vodCacheKey, miss, { ex: missTtl }).catch(() => {})
           return res.status(200).json(miss)
         }
         kv.set(uidCacheKey, userId, { ex: 30 * 24 * 3600 }).catch(() => {})
@@ -137,10 +142,13 @@ export default async function handler(req, res) {
       }
 
       const miss = { url: null, channel }
-      kv.set(vodCacheKey, miss, { ex: 1800 }).catch(() => {})
+      // Use a shorter 5-min TTL for recent matches so a VOD that isn't indexed yet
+      // auto-retries quickly instead of staying absent for 30 minutes.
+      const missTtl = matchStartTime > Date.now() / 1000 - 86400 ? 300 : 1800
+      kv.set(vodCacheKey, miss, { ex: missTtl }).catch(() => {})
       return res.status(200).json(miss)
     } catch (err) {
-      console.error('twitch-vod fetch failed:', err?.message)
+      log.error('twitch-vod fetch failed', { error: err?.message })
       await trackError('/api/match-streams', 502, err?.message)
       return res.status(502).json({ error: 'Twitch VOD fetch failed' })
     }
@@ -148,10 +156,11 @@ export default async function handler(req, res) {
 
   const { ids, ts, radiantTeam, direTeam } = req.query
   if (!ids) return res.status(400).json({ error: 'ids required' })
+  if (ids.length > 500) return res.status(400).json({ error: 'ids param too long' })
 
   const result = {}
 
-  const matchIds = ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
+  const matchIds = ids.split(',').map(s => s.trim()).filter(s => /^\d{1,15}$/.test(s)).slice(0, 50)
 
   // Step 1: KV lookup by match ID
   try {
@@ -161,7 +170,7 @@ export default async function handler(req, res) {
       matchIds.forEach((id, i) => { if (values[i]) result[id] = values[i] })
     }
   } catch (err) {
-    console.warn('match-streams KV read failed:', err?.message)
+    log.warn('KV read failed', { error: err?.message })
   }
 
   const missingIds = matchIds.filter(id => !result[id])
@@ -183,7 +192,7 @@ export default async function handler(req, res) {
           if (psMatch) {
             // Log all streams PandaScore returned so we can debug VOD misses
             const allStreams = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)
-            console.log(`match-streams PandaScore streams for ${radiantTeam} vs ${direTeam}: [${allStreams.join(', ')}]`)
+            log.info('PS streams found', { match: `${radiantTeam} vs ${direTeam}`, streams: allStreams })
 
             // Use getTwitchStreams — same logic as live/upcoming matches:
             // prefers English, falls back to any-language official, then static mapping.
@@ -198,13 +207,13 @@ export default async function handler(req, res) {
                 result[id] = channel
                 kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(() => {})
               }
-              console.log(`match-streams fuzzy: ${radiantTeam} vs ${direTeam} → ${channel}`)
+              log.info('fuzzy match resolved', { match: `${radiantTeam} vs ${direTeam}`, channel })
             }
           }
         }
       }
     } catch (err) {
-      console.warn('match-streams PandaScore fuzzy match failed:', err?.message)
+      log.warn('PS fuzzy match failed', { error: err?.message })
     }
   }
 
@@ -224,7 +233,7 @@ export default async function handler(req, res) {
         }
       }
     } catch (err) {
-      console.warn('match-streams ts fallback failed:', err?.message)
+      log.warn('ts fallback failed', { error: err?.message })
     }
   }
 
