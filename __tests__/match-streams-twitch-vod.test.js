@@ -47,8 +47,7 @@ function makeRes() {
 }
 
 const MATCH_START = 1700000000
-const DAY_BUCKET = Math.floor(MATCH_START / 86400) // 19675
-const VOD_CACHE_KEY = `twitch:vod:v1:esl_dota2:${DAY_BUCKET}`
+const VOD_CACHE_KEY = `twitch:vod:v2:esl_dota2:${MATCH_START}`
 const UID_CACHE_KEY = 'twitch:channel-uid:v1:esl_dota2'
 
 beforeEach(() => {
@@ -144,7 +143,7 @@ describe('match-streams ?mode=twitch-vod', () => {
     expect(res._body.url).toBeNull()
     // Miss should be cached
     expect(mockKv.set).toHaveBeenCalledWith(
-      expect.stringContaining('twitch:vod:v1:unknown_channel:'),
+      `twitch:vod:v2:unknown_channel:${MATCH_START}`,
       expect.objectContaining({ url: null }),
       { ex: 1800 }
     )

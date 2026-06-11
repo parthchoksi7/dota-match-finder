@@ -83,8 +83,7 @@ export default async function handler(req, res) {
     const matchStartTime = parseInt(ts, 10)
     if (isNaN(matchStartTime)) return res.status(400).json({ error: 'ts must be a number' })
 
-    const dayBucket = Math.floor(matchStartTime / 86400)
-    const vodCacheKey = `twitch:vod:v1:${channel}:${dayBucket}`
+    const vodCacheKey = `twitch:vod:v2:${channel}:${matchStartTime}`
 
     try {
       const cached = await kv.get(vodCacheKey)
