@@ -13,13 +13,10 @@
  *    team/tournament name metadata. The handler deduplicates by
  *    (sorted opponent IDs | scheduled_at) and keeps the highest ID.
  *
- * 3. getTwitchStreams language fallback (api/_shared.js)
- *    When PandaScore's bulk endpoint omits language metadata, the English-stream
- *    filter produces an empty array. For international events (DreamLeague, PGL,
- *    ESL One, etc.) the code must fall through to the static channel mapping
- *    rather than picking a Russian/Chinese stream from allTwitchOfficial.
- *    For events whose name contains "qualifier", the fallback is preserved so
- *    CIS/Chinese qualifier streams are not dropped.
+ * 3. getTwitchStreams (api/_shared.js)
+ *    Only returns what PandaScore's streams_list actually contains.
+ *    Prefers English official streams; falls back to any-language official.
+ *    Returns [] when PandaScore has no official Twitch stream — no static fallback.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -111,58 +108,72 @@ function makeStream(channel, language, official = true, main = false) {
   }
 }
 
-describe('getTwitchStreams — language fallback for international events', () => {
+describe('getTwitchStreams — uses PandaScore streams_list exclusively', () => {
   it('prefers English stream when available', () => {
     const streams = [
       makeStream('esl_dota2', 'en'),
       makeStream('esl_ru', 'ru'),
     ]
-    const result = getTwitchStreams(streams, 'DreamLeague', 'DreamLeague Season 29')
+    const result = getTwitchStreams(streams)
     expect(result).toHaveLength(1)
     expect(result[0].url).toContain('esl_dota2')
   })
 
-  it('returns non-English stream for DreamLeague when no English stream exists', () => {
+  it('falls back to non-English official stream when no English stream exists', () => {
     const streams = [makeStream('esl_ru', 'ru')]
-    const result = getTwitchStreams(streams, 'DreamLeague', 'DreamLeague Season 29')
-    // New behavior: fall back to any official Twitch stream, not just English ones
+    const result = getTwitchStreams(streams)
     expect(result).toHaveLength(1)
     expect(result[0].url).toContain('esl_ru')
   })
 
-  it('returns non-English stream for PGL when no English stream exists', () => {
+  it('falls back to non-English stream for any tournament', () => {
     const streams = [makeStream('pgl_ru', 'ru')]
-    const result = getTwitchStreams(streams, 'PGL', 'PGL Wallachia S4')
+    const result = getTwitchStreams(streams)
     expect(result).toHaveLength(1)
     expect(result[0].url).toContain('pgl_ru')
   })
 
-  it('returns non-English stream for ESL One when no English stream exists', () => {
-    const streams = [makeStream('esl_ru', 'ru')]
-    const result = getTwitchStreams(streams, 'ESL', 'ESL One Bangkok 2025')
-    expect(result).toHaveLength(1)
-    expect(result[0].url).toContain('esl_ru')
-  })
-
-  it('preserves non-English stream for CIS qualifier (contains "qualifier")', () => {
+  it('returns non-English stream for regional qualifier (CIS, Chinese, etc.)', () => {
     const streams = [makeStream('dota2_ru', 'ru')]
-    const result = getTwitchStreams(streams, 'DreamLeague', 'DreamLeague Season 29 CIS Qualifier')
-    // Should NOT fall through to static; Russian stream is the correct VOD source
+    const result = getTwitchStreams(streams)
     expect(result).toHaveLength(1)
     expect(result[0].url).toContain('dota2_ru')
   })
 
-  it('preserves non-English stream for Chinese qualifier', () => {
-    const streams = [makeStream('dota2_cn', 'zh')]
-    const result = getTwitchStreams(streams, 'PGL', 'PGL Open Qualifier China')
-    expect(result).toHaveLength(1)
-    expect(result[0].url).toContain('dota2_cn')
+  it('returns empty array when PandaScore has no streams — no static fallback', () => {
+    expect(getTwitchStreams([])).toEqual([])
+    expect(getTwitchStreams(null)).toEqual([])
+    expect(getTwitchStreams(undefined)).toEqual([])
   })
 
-  it('returns empty array when no streams at all for international event (falls to static)', () => {
-    const result = getTwitchStreams([], 'DreamLeague', 'DreamLeague Season 29')
-    // Static DreamLeague mapping applies
-    expect(result.some(s => s.url.includes('esl_dota2'))).toBe(true)
+  it('ignores unofficial streams', () => {
+    const streams = [makeStream('some_channel', 'en', false)]
+    expect(getTwitchStreams(streams)).toEqual([])
+  })
+
+  it('ignores non-Twitch official streams', () => {
+    const streams = [{ raw_url: 'https://youtube.com/watch?v=123', official: true, language: 'en', main: false }]
+    expect(getTwitchStreams(streams)).toEqual([])
+  })
+
+  it('narrows to main:true stream when flag is present', () => {
+    const streams = [
+      makeStream('esl_dota2earth', 'en', true, true),
+      makeStream('esl_dota2', 'en', true, false),
+    ]
+    const result = getTwitchStreams(streams)
+    expect(result).toHaveLength(1)
+    expect(result[0].url).toContain('esl_dota2earth')
+  })
+
+  it('picks first official stream when no main flag is set', () => {
+    const streams = [
+      makeStream('esl_dota2', 'en', true, false),
+      makeStream('esl_ru', 'ru', true, false),
+    ]
+    const result = getTwitchStreams(streams)
+    expect(result).toHaveLength(1)
+    expect(result[0].url).toContain('esl_dota2')
   })
 })
 

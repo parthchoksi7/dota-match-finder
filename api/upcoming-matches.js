@@ -13,9 +13,6 @@ function mapMatch(m) {
   const opponents = m.opponents || []
   const teamA = opponents[0]?.opponent?.name || 'TBD'
   const teamB = opponents[1]?.opponent?.name || 'TBD'
-  const leagueName = m.league?.name || ''
-  const serieName = m.serie?.full_name || m.serie?.name || ''
-
   return {
     id: m.id,
     scheduledAt: m.scheduled_at || m.begin_at || null,
@@ -24,7 +21,7 @@ function mapMatch(m) {
     tournament: buildTournamentName(m),
     seriesLabel: getSeriesLabel(m.match_type, m.number_of_games),
     bracketRound: parseBracketRound(m.name),
-    streams: getTwitchStreams(m.streams_list, leagueName, serieName),
+    streams: getTwitchStreams(m.streams_list),
   }
 }
 

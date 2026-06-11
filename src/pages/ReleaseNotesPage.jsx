@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "June 10, 2026",
+    tag: "fix",
+    title: "VOD channel lookup now uses PandaScore exclusively",
+    desc: "Replay links are now based only on the stream channel PandaScore reports for a match. Previously, if PandaScore had no stream data, the system would guess a channel from the tournament name (e.g. mapping all \"The International\" events to dota2ti). That guess was wrong for Open Qualifiers and other unbroadcast matches, causing a silent VOD miss. Now, if PandaScore has no stream, the drawer correctly shows \"No VOD found\" instead of looking up the wrong channel.",
+  },
+  {
+    date: "June 10, 2026",
     tag: "improvement",
     title: "Reliability and security hardening (June 2026 audit)",
     desc: "Seven infrastructure improvements from the June 2026 technical audit: structured JSON logging with per-request correlation IDs across all API handlers; input validation on all query parameters to prevent malformed requests; Content Security Policy header (report-only) to detect XSS vectors; per-route service worker caching (live matches 2min, match stats/indicators cached 7 days as immutable); Twitch VOD miss TTL shortened to 5 minutes for recent matches so VODs appear faster after a series ends; X handle data moved to KV so team handles can be updated without a code deploy; JSDoc type annotations for all shared data shapes.",

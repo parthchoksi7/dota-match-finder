@@ -194,13 +194,7 @@ export default async function handler(req, res) {
             const allStreams = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)
             log.info('PS streams found', { match: `${radiantTeam} vs ${direTeam}`, streams: allStreams })
 
-            // Use getTwitchStreams — same logic as live/upcoming matches:
-            // prefers English, falls back to any-language official, then static mapping.
-            const streams = getTwitchStreams(
-              psMatch.streams_list,
-              psMatch.league?.name,
-              psMatch.serie?.full_name || psMatch.serie?.name
-            )
+            const streams = getTwitchStreams(psMatch.streams_list)
             if (streams.length > 0) {
               const channel = streams[0].url.replace('https://www.twitch.tv/', '')
               for (const id of missingIds) {

@@ -253,78 +253,26 @@ export const CHANNEL_LABELS = {
 }
 
 /**
- * Maps a PandaScore streams_list + tournament name to Twitch stream objects.
+ * Maps a PandaScore streams_list to Twitch stream objects.
  * Returns an array of { label, url } for display and channel-detection purposes.
+ * Returns [] if PandaScore has no official Twitch stream for this match.
  */
-export function getTwitchStreams(streamsList, leagueName, serieName) {
-  const lower = ((leagueName || '') + ' ' + (serieName || '')).toLowerCase()
-
-  // Use PandaScore streams_list if available — filters to official Twitch streams (any language).
-  // Language is NOT restricted to English: regional qualifiers (China, CIS) have official
-  // streams with language='zh' or 'ru' that are still the correct VOD source.
-  // Exception: for ESL One tournaments, PandaScore consistently returns only esl_dota2 (main hub)
-  // even when the actual broadcast is on a sub-channel (esl_dota2earth/storm/ember).
-  // In that case, fall through to the static mapping so all sub-channels are shown.
-
+export function getTwitchStreams(streamsList) {
   const allTwitchOfficial = (streamsList || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
-  // Prefer English streams to preserve existing behaviour for main events; fall back to any language
-  // only for regional events (CIS/Chinese qualifiers). For international events, fall through to the
-  // static mapping so Russian/Chinese streams from the bulk endpoint don't override English ones.
+  // Prefer English; fall back to any language for regional events (CIS/Chinese qualifiers).
   const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')
-  // Fall back to any official Twitch stream when no English stream exists.
-  // This preserves Russian/Chinese streams for regional qualifiers without
-  // the previous INTL_KEYWORDS check that incorrectly suppressed them.
   const official = enOfficial.length > 0 ? enOfficial : allTwitchOfficial
-  if (official.length > 0) {
-    // When multiple concurrent matches share sub-channels (e.g. ESL One, DreamLeague), PandaScore
-    // marks exactly one stream main:true per match on the individual endpoint. Narrow to it.
-    // If no stream is marked main (bulk endpoint omits the flag), pick the first one.
-    const mainStreams = official.filter(s => s.main)
-    const hasMainFlag = mainStreams.length > 0
-    const toUse = hasMainFlag ? mainStreams : official.slice(0, 1)
-    const streams = toUse.map(s => {
-      const channel = s.raw_url.replace('https://www.twitch.tv/', '')
-      return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
-    })
-    // Only fall through to the static ESL One mapping when there is no main flag at all
-    // (bulk endpoint data) and we're guessing esl_dota2. If PandaScore explicitly assigned
-    // main:true to esl_dota2, that match really is on the main hub — trust it.
-    const isEslOneMainOnly = !hasMainFlag
-      && lower.includes('esl one')
-      && streams.length === 1
-      && streams[0].url === 'https://www.twitch.tv/esl_dota2'
-    if (!isEslOneMainOnly) return streams
-    // Fall through to static mapping below
-  }
+  if (official.length === 0) return []
 
-  // Fallback: static mapping by tournament name
-  if (lower.includes('pgl')) return [
-    { label: 'PGL', url: 'https://twitch.tv/pgl_dota2' },
-    { label: 'PGL EN2', url: 'https://twitch.tv/pgl_dota2en2' },
-  ]
-  if (lower.includes('esl one')) return [
-    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
-    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
-    { label: 'ESL Storm', url: 'https://twitch.tv/esl_dota2storm' },
-    { label: 'ESL Earth', url: 'https://twitch.tv/esl_dota2earth' },
-  ]
-  if (lower.includes('dreamleague')) return [
-    { label: 'ESL', url: 'https://twitch.tv/esl_dota2' },
-    { label: 'ESL Ember', url: 'https://twitch.tv/esl_dota2ember' },
-  ]
-  if (lower.includes('beyond the summit') || lower.includes('bts')) return [
-    { label: 'BTS', url: 'https://twitch.tv/beyond_the_summit' },
-  ]
-  if (lower.includes('blast')) return [
-    { label: 'BLAST', url: 'https://twitch.tv/blast_dota2' },
-  ]
-  if (lower.includes('weplay')) return [
-    { label: 'WePlay', url: 'https://twitch.tv/weplaydota' },
-  ]
-  if (lower.includes('the international') || lower.includes(' ti ')) return [
-    { label: 'TI', url: 'https://twitch.tv/dota2ti' },
-  ]
-  return []
+  // When multiple concurrent matches share sub-channels, PandaScore marks exactly one
+  // stream main:true per match on the individual endpoint. Narrow to it.
+  // If no stream is marked main (bulk endpoint omits the flag), pick the first one.
+  const mainStreams = official.filter(s => s.main)
+  const toUse = mainStreams.length > 0 ? mainStreams : official.slice(0, 1)
+  return toUse.map(s => {
+    const channel = s.raw_url.replace('https://www.twitch.tv/', '')
+    return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
+  })
 }
 
 // Server-side tier-1 team list for entity tagging in news ingestion.

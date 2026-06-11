@@ -80,9 +80,6 @@ function mapMatch(m) {
   const opponents = m.opponents || []
   const teamA = opponents[0]?.opponent?.name || 'TBD'
   const teamB = opponents[1]?.opponent?.name || 'TBD'
-  const leagueName = m.league?.name || ''
-  const serieName = m.serie?.full_name || m.serie?.name || ''
-
   return {
     id: m.id,
     teamA,
@@ -93,7 +90,7 @@ function mapMatch(m) {
     seriesScore: getSeriesScore(m),
     currentGame: getCurrentGame(m),
     games: mapGames(m),
-    streams: getTwitchStreams(m.streams_list, leagueName, serieName),
+    streams: getTwitchStreams(m.streams_list),
     youtubeStream: getYoutubeStream(m.streams_list),
   }
 }
@@ -140,7 +137,7 @@ async function cacheRunningStreams(rawMatches) {
 
   for (const m of rawMatches) {
     const format = m.match_type // 'best_of_2', 'best_of_3', etc.
-    const streams = getTwitchStreams(m.streams_list, m.league?.name, m.serie?.full_name || m.serie?.name)
+    const streams = getTwitchStreams(m.streams_list)
 
     for (const game of m.games || []) {
       const matchId = game.external_identifier || null
