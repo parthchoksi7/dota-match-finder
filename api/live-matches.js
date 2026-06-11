@@ -177,6 +177,10 @@ async function cacheRunningStreams(rawMatches) {
       // nx: true — write-once. First recorded channel is never overwritten.
       streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
 
+      const allOfficialStreams = (m.streams_list || [])
+        .filter(s => s.official && s.raw_url)
+        .map(s => ({ raw_url: s.raw_url, language: s.language || null, official: true, main: s.main || false }))
+
       supabaseRows.push({
         od_match_id: Number(matchId),
         ps_match_id: m.id,
@@ -185,6 +189,10 @@ async function cacheRunningStreams(rawMatches) {
         team_a: m.opponents?.[0]?.opponent?.name || null,
         team_b: m.opponents?.[1]?.opponent?.name || null,
         tournament: buildTournamentName(m),
+        match_type: m.match_type || null,
+        game_position: game.position || null,
+        bracket_round: parseBracketRound(m.name) || null,
+        streams_json: allOfficialStreams.length > 0 ? allOfficialStreams : null,
       })
     }
   }

@@ -12,7 +12,7 @@
  */
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-import { getSupabaseAnon } from './_supabase.js'
+import { getSupabaseAnon, getSupabaseAdmin } from './_supabase.js'
 import { kv } from './_kv.js'
 import { todayKey, getSession, saveSession, deleteSession, getRecentTopicTitles, addRecentTopics } from './pipeline/_session.js'
 import { fetchNewsContext } from './pipeline/_news.js'
@@ -157,6 +157,7 @@ async function handleTrigger(req, res) {
   }
   await saveSession(key, session)
   await addRecentTopics(topics.map(t => t.title))
+  reconcileStreamHistory().catch(() => {})
   return res.status(200).json({ ok: true, topicsGenerated: topics.length })
 }
 
@@ -384,6 +385,64 @@ async function sendDraft(key, session, draft, version) {
   await saveSession(key, { ...session, state: 'DRAFT_SENT', drafts: [...(session.drafts || []), draft] })
 }
 
+// ── Stream history reconciliation ─────────────────────────────────────────────
+// Called fire-and-forget from handleTrigger. Compares match count and English
+// stream channels between Supabase (permanent) and KV cache (14-day TTL).
+// Logs one structured JSON line — check Vercel logs daily for channel_mismatch > 0.
+
+async function reconcileStreamHistory() {
+  try {
+    const since = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()
+    const { data, error } = await getSupabaseAdmin()
+      .from('match_stream_history')
+      .select('od_match_id, channel')
+      .gt('started_at', since)
+      .order('started_at', { ascending: false })
+
+    if (error) {
+      console.error(JSON.stringify({ level: 'warn', endpoint: '/api/pipeline', msg: 'reconcile: supabase query failed', error: error.message, ts: Date.now() }))
+      return
+    }
+    if (!data || data.length === 0) {
+      console.log(JSON.stringify({ level: 'info', endpoint: '/api/pipeline', msg: 'reconcile: no rows in db (14d window)', ts: Date.now() }))
+      return
+    }
+
+    const keys = data.map(r => `stream:match:${r.od_match_id}`)
+    const kvValues = await kv.mget(...keys)
+
+    let kvPresent = 0
+    let channelMatch = 0
+    let channelMismatch = 0
+    const mismatches = []
+
+    data.forEach((row, i) => {
+      const kvChannel = kvValues[i]
+      if (!kvChannel) return
+      kvPresent++
+      if (kvChannel === row.channel) {
+        channelMatch++
+      } else {
+        channelMismatch++
+        if (mismatches.length < 5) mismatches.push({ od_match_id: row.od_match_id, db: row.channel, kv: kvChannel })
+      }
+    })
+
+    const result = {
+      db_rows: data.length,
+      kv_present: kvPresent,
+      kv_expired_or_missing: data.length - kvPresent,
+      channel_match: channelMatch,
+      channel_mismatch: channelMismatch,
+      ...(mismatches.length > 0 && { sample_mismatches: mismatches }),
+      ran_at: new Date().toISOString(),
+    }
+    await kv.set('reconcile:stream-history:latest', result, { ex: 8 * 24 * 3600 })
+  } catch (err) {
+    console.error(JSON.stringify({ level: 'warn', endpoint: '/api/pipeline', msg: 'reconcile: error', error: err?.message, ts: Date.now() }))
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -392,6 +451,11 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET' && type === 'articles') return handleArticles(req, res)
   if (req.method === 'GET' && type === 'trigger') return handleTrigger(req, res)
+  if (req.method === 'GET' && type === 'stream-status') {
+    const result = await kv.get('reconcile:stream-history:latest').catch(() => null)
+    if (!result) return res.status(404).json({ error: 'No reconciliation run yet' })
+    return res.status(200).json(result)
+  }
   if (req.method === 'POST') return handleWebhook(req, res)
 
   return res.status(405).json({ error: 'Method not allowed' })
