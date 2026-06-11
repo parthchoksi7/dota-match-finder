@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 10, 2026",
     tag: "fix",
+    title: "Replay buttons now appear for qualifier and personal-stream matches",
+    desc: "Open Qualifier matches streamed on personal Twitch channels (e.g. TI Europe Open Qualifier) were not showing replay buttons even when the match was streamed. The issue: the channel was only cached while the game was live if PandaScore had already linked it to an OpenDota match ID — which it rarely does for qualifier streams. The channel-to-time mapping is now always recorded at stream start regardless of whether that link exists. The frontend also now uses that time-bucket record as a last-resort fallback when no direct match is found, as long as exactly one channel was live in that window.",
+  },
+  {
+    date: "June 10, 2026",
+    tag: "fix",
     title: "VOD channel lookup now uses PandaScore exclusively",
     desc: "Replay links are now based only on the stream channel PandaScore reports for a match. Previously, if PandaScore had no stream data, the system would guess a channel from the tournament name (e.g. mapping all \"The International\" events to dota2ti). That guess was wrong for Open Qualifiers and other unbroadcast matches, causing a silent VOD miss. Now, if PandaScore has no stream, the drawer correctly shows \"No VOD found\" instead of looking up the wrong channel.",
   },

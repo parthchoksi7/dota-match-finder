@@ -120,6 +120,28 @@ describe('live-matches stream cache writes', () => {
     expect(keysSet).not.toContain(`stream:ts:${game1Ts}`)
   })
 
+  it('writes stream:ts but NOT stream:match when external_identifier is null', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [makeMatch({
+        games: [
+          makeGame({ position: 1, status: 'running', matchId: null, beginAt: '2026-03-24T10:00:00Z' }),
+        ],
+      })],
+    })
+
+    const req = makeReq()
+    const res = makeRes()
+    await handler(req, res)
+
+    const keysSet = kvSetCalls.map(args => args[0])
+    // ts-bucket should be written even without an OD match ID
+    const expectedTs = Math.floor(new Date('2026-03-24T10:00:00Z').getTime() / 1000 / 300) * 300
+    expect(keysSet).toContain(`stream:ts:${expectedTs}`)
+    // stream:match must NOT be written — no OD match ID to key on
+    expect(keysSet.filter(k => k.startsWith('stream:match:'))).toHaveLength(0)
+  })
+
   it('does not write any stream entries when no game is running', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

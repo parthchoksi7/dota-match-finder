@@ -56,7 +56,13 @@ async function resolveMatchStreams(match, allMatches) {
 
   const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
   const uniqueChannels = [...new Set(resolvedChannels)]
-  const preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null
+  // Fall back to ts-bucket candidates when no definitive channel was found.
+  // Only use the candidate if exactly one channel was live in that window —
+  // multiple candidates means we can't reliably assign one to this match.
+  let preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null
+  if (!preferredChannel && Array.isArray(streamMap._candidates) && streamMap._candidates.length === 1) {
+    preferredChannel = streamMap._candidates[0]
+  }
 
   const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
   return {

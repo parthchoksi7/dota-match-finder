@@ -140,6 +140,18 @@ async function cacheRunningStreams(rawMatches) {
     const streams = getTwitchStreams(m.streams_list)
 
     for (const game of m.games || []) {
+      // Always record in the ts-bucket for running single-stream games, even when
+      // external_identifier is null (personal/qualifier streams where PS hasn't linked
+      // to OD yet). This ensures the ts fallback in match-streams.js can find the
+      // channel after the game ends, even if stream:match was never written.
+      if (streams.length === 1 && game.begin_at && game.status === 'running') {
+        const tsChannel = streams[0].url.replace('https://www.twitch.tv/', '')
+        const gameTs = Math.floor(new Date(game.begin_at).getTime() / 1000)
+        const roundedTs = Math.floor(gameTs / 300) * 300
+        if (!tsBuckets[roundedTs]) tsBuckets[roundedTs] = new Set()
+        tsBuckets[roundedTs].add(tsChannel)
+      }
+
       const matchId = game.external_identifier || null
       if (!matchId) continue
 
@@ -162,10 +174,6 @@ async function cacheRunningStreams(rawMatches) {
 
       if (streams.length !== 1 || !game.begin_at || game.status !== 'running') continue
       const channel = streams[0].url.replace('https://www.twitch.tv/', '')
-      const ts = Math.floor(new Date(game.begin_at).getTime() / 1000)
-      const roundedTs = Math.floor(ts / 300) * 300
-      if (!tsBuckets[roundedTs]) tsBuckets[roundedTs] = new Set()
-      tsBuckets[roundedTs].add(channel)
       // nx: true — write-once. First recorded channel is never overwritten.
       streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
 

@@ -264,7 +264,7 @@ These features are intentionally hidden from public documentation. They are gate
 
 ## VOD Replay System — LOCKED. DO NOT MODIFY WITHOUT EXPLICIT OWNER APPROVAL.
 
-The VOD replay chain has broken twice due to seemingly unrelated changes (Jun 8: caching refactor introduced day-bucket collision; Jun 10: static channel fallback removed). Every layer below is load-bearing. Do not change cache key formats, TTLs, lookup order, or channel resolution logic without explicit written approval from the owner.
+The VOD replay chain has broken three times due to seemingly unrelated changes (Jun 8: caching refactor introduced day-bucket collision; Jun 10: static channel fallback removed; Jun 10: ts-bucket write was gated behind external_identifier guard, so personal/qualifier streams were never recorded). Every layer below is load-bearing. Do not change cache key formats, TTLs, lookup order, or channel resolution logic without explicit written approval from the owner.
 
 ### How it works (end to end)
 
@@ -274,13 +274,16 @@ A user opens a completed match. `resolveMatchStreams()` in `src/App.jsx` runs:
 
 `api/match-streams.js` tries three sources in order, stopping at first hit:
 
-1. **KV fast path** — `stream:match:{odMatchId}` (14-day TTL). Written by `cacheRunningStreams()` in `api/live-matches.js` while the game is actively `status === 'running'` AND `game.external_identifier` is non-null AND `streams.length === 1`. Value is the raw Twitch channel login (e.g. `boris_dota`). Major broadcast channels (ESL, PGL) reliably get this entry; personal/qualifier streams often miss it because `external_identifier` is null on PandaScore while running.
+1. **KV fast path** — `stream:match:{odMatchId}` (14-day TTL). Written by `cacheRunningStreams()` in `api/live-matches.js` while the game is actively `status === 'running'` AND `game.external_identifier` is non-null AND `streams.length === 1`. Value is the raw Twitch channel login (e.g. `esl_dota2`). Major broadcast channels (ESL, PGL) reliably get this entry; personal/qualifier streams often miss it because `external_identifier` is null on PandaScore while running.
 
 2. **PandaScore fuzzy match** — queries `PANDASCORE_BASE/matches?range[begin_at]={startTime±1h}`, finds the match by `teamsMatch()` (bidirectional substring on both opponent names), then calls `getTwitchStreams(psMatch.streams_list)` to extract the channel. If a channel is resolved, writes it to `stream:match:{odMatchId}` for future fast-path hits. NOTE: PandaScore only carries `streams_list` for running matches; completed matches often have an empty list, causing this step to produce no channel.
 
-3. **Time-bucket candidates** — reads `stream:ts:{roundedTs}` (a JSON array of channels that were live in that 5-min window, written by `cacheRunningStreams()`). Returns the result as `_candidates` in the response. **Currently unused by the frontend** (`resolveMatchStreams` only reads `streamMap[id]`, never `streamMap._candidates`). This is a known gap, not a bug to "fix" unilaterally.
+3. **Time-bucket candidates** — reads `stream:ts:{roundedTs}` (a JSON array of channels that were live in that 5-min window). Written by `cacheRunningStreams()` for ALL running single-stream games regardless of whether `external_identifier` is set — this is the only path that captures personal/qualifier streams. Returns the result as `_candidates` in the response. `resolveMatchStreams` uses `_candidates[0]` as the `preferredChannel` if and only if exactly one candidate exists (ambiguous multi-stream windows produce no channel).
 
-`resolveMatchStreams` collapses the result: `preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null`. If zero or multiple channels: no VOD lookup.
+`resolveMatchStreams` collapses the result:
+- If exactly one definitive channel across all queried match IDs → use it.
+- Else if `_candidates` has exactly one entry → use it as fallback.
+- Else → `preferredChannel = null`, no VOD lookup.
 
 **Step 2 — Channel → Twitch VOD (`GET /api/match-streams?mode=twitch-vod&channel=...&ts=...`)**
 
@@ -304,7 +307,8 @@ If all three are cold: fetches token → resolves user_id → fetches last 30 ar
 - **Do not add hardcoded tournament-name-to-channel mappings** anywhere in the codebase.
 - **Do not change the TTLs** (24h hit / 5min recent miss / 30min old miss for VOD; 14-day for stream:match; 30-day for channel-uid) without owner approval.
 - **Do not change the lookup order** (KV fast path → PS fuzzy match → ts-bucket) in `match-streams.js`.
-- **Do not "fix" the `_candidates` unused-code gap** without owner approval — it requires coordinated changes to both `match-streams.js` and `resolveMatchStreams` in `src/App.jsx`.
+- **Do not move the `stream:ts` write back inside the `external_identifier` guard** in `cacheRunningStreams()`. It must execute before `if (!matchId) continue` so personal/qualifier streams are recorded even when PS hasn't linked to OD yet.
+- **Do not change the `_candidates` consumption logic** in `resolveMatchStreams` (`src/App.jsx`) — it is the final fallback for personal/qualifier streams and must only activate when exactly one candidate exists.
 - After any deploy touching this system, bust the relevant KV caches (see deployment checklist §12) and run `npm run verify-prod`.
 
 ## KV Cache Poisoning Risk
