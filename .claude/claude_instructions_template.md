@@ -262,9 +262,50 @@ These features are intentionally hidden from public documentation. They are gate
 
 `/preview` (`src/pages/PreviewPage.jsx`) and the homepage (`src/App.jsx`, `MatchCard.jsx`, `HomeFeed.jsx`, etc.) are separate design surfaces. Changes requested for `/preview` must NEVER touch homepage components, and vice versa. Shared components (`MatchDrawer.jsx`, `TournamentHub.jsx`, etc.) may only be changed in ways that are backward-compatible and do not alter homepage behaviour.
 
-## VOD Channel Resolution
+## VOD Replay System — LOCKED. DO NOT MODIFY WITHOUT EXPLICIT OWNER APPROVAL.
 
-PandaScore is the authoritative source for Twitch channel attribution. The client-side `findTwitchVod` function in `src/api.js` trusts the `preferredChannel` resolved by the server (`api/match-streams.js` via PandaScore fuzzy match) exclusively - it does NOT fall back to other channels. Do not add hardcoded channel lists or tournament-name-to-channel mappings to `src/api.js`. Channel labels for display belong in `VOD_CHANNEL_LABELS`. Channel routing logic belongs in `api/_shared.js` (`getTwitchStreams`).
+The VOD replay chain has broken twice due to seemingly unrelated changes (Jun 8: caching refactor introduced day-bucket collision; Jun 10: static channel fallback removed). Every layer below is load-bearing. Do not change cache key formats, TTLs, lookup order, or channel resolution logic without explicit written approval from the owner.
+
+### How it works (end to end)
+
+A user opens a completed match. `resolveMatchStreams()` in `src/App.jsx` runs:
+
+**Step 1 — Channel resolution (`GET /api/match-streams?ids=...&ts=...&radiantTeam=...&direTeam=...`)**
+
+`api/match-streams.js` tries three sources in order, stopping at first hit:
+
+1. **KV fast path** — `stream:match:{odMatchId}` (14-day TTL). Written by `cacheRunningStreams()` in `api/live-matches.js` while the game is actively `status === 'running'` AND `game.external_identifier` is non-null AND `streams.length === 1`. Value is the raw Twitch channel login (e.g. `boris_dota`). Major broadcast channels (ESL, PGL) reliably get this entry; personal/qualifier streams often miss it because `external_identifier` is null on PandaScore while running.
+
+2. **PandaScore fuzzy match** — queries `PANDASCORE_BASE/matches?range[begin_at]={startTime±1h}`, finds the match by `teamsMatch()` (bidirectional substring on both opponent names), then calls `getTwitchStreams(psMatch.streams_list)` to extract the channel. If a channel is resolved, writes it to `stream:match:{odMatchId}` for future fast-path hits. NOTE: PandaScore only carries `streams_list` for running matches; completed matches often have an empty list, causing this step to produce no channel.
+
+3. **Time-bucket candidates** — reads `stream:ts:{roundedTs}` (a JSON array of channels that were live in that 5-min window, written by `cacheRunningStreams()`). Returns the result as `_candidates` in the response. **Currently unused by the frontend** (`resolveMatchStreams` only reads `streamMap[id]`, never `streamMap._candidates`). This is a known gap, not a bug to "fix" unilaterally.
+
+`resolveMatchStreams` collapses the result: `preferredChannel = uniqueChannels.length === 1 ? uniqueChannels[0] : null`. If zero or multiple channels: no VOD lookup.
+
+**Step 2 — Channel → Twitch VOD (`GET /api/match-streams?mode=twitch-vod&channel=...&ts=...`)**
+
+Only called when `preferredChannel` is non-null. `findTwitchVod()` in `src/api.js` delegates entirely to the server.
+
+Server-side cache lookup order:
+1. **`twitch:vod:v2:{channel}:{matchStartTime}`** — per-match VOD cache (24h TTL on hit, 5min TTL on miss for matches within last 24h, 30min for older). Key is `v2` + exact `matchStartTime` so different games on the same channel on the same day get separate entries. `v1` used day-bucket granularity and caused cross-game cache pollution (the Jun 8 regression).
+2. **`twitch:channel-uid:v1:{channel}`** — maps Twitch login → Helix user_id (30-day TTL). Avoids a Helix `/users` call on every VOD lookup.
+3. **`twitch:token:v1`** — Twitch OAuth client-credentials token (~50-day TTL, refreshed 1h before expiry).
+
+If all three are cold: fetches token → resolves user_id → fetches last 30 archived VODs from Helix → finds the VOD whose `[created_at, created_at + duration]` window contains `matchStartTime` → computes `offset = matchStartTime - vodStart + 600` (the +600 adds 10 min of pre-game buffer) → returns and caches the timestamped URL.
+
+**What `getTwitchStreams()` does and does NOT do**
+
+`getTwitchStreams(streamsList)` in `api/_shared.js` returns what PandaScore's `streams_list` actually contains. It does NOT fall back to hardcoded channel names by tournament name. If PandaScore has no stream, it returns `[]`. Do not add static mappings back.
+
+### Rules
+
+- **Do not change any KV cache key** (`stream:match:*`, `twitch:vod:v2:*`, `twitch:channel-uid:v1:*`, `twitch:token:v1`, `stream:ts:*`) without owner approval and a version bump (e.g. `v2` → `v3`).
+- **Do not change the `twitch:vod:v2` key format** — in particular, do not revert to day-bucket or introduce any coarser granularity. The key must contain the exact `matchStartTime` so each game gets its own entry.
+- **Do not add hardcoded tournament-name-to-channel mappings** anywhere in the codebase.
+- **Do not change the TTLs** (24h hit / 5min recent miss / 30min old miss for VOD; 14-day for stream:match; 30-day for channel-uid) without owner approval.
+- **Do not change the lookup order** (KV fast path → PS fuzzy match → ts-bucket) in `match-streams.js`.
+- **Do not "fix" the `_candidates` unused-code gap** without owner approval — it requires coordinated changes to both `match-streams.js` and `resolveMatchStreams` in `src/App.jsx`.
+- After any deploy touching this system, bust the relevant KV caches (see deployment checklist §12) and run `npm run verify-prod`.
 
 ## KV Cache Poisoning Risk
 
