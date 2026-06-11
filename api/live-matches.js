@@ -208,12 +208,17 @@ async function cacheRunningStreams(rawMatches) {
   }
 
   // Permanent write-through to Supabase. ignoreDuplicates replicates nx:true — first channel wins.
+  // Wrapped in try-catch: createClient() throws synchronously when SUPABASE_URL is missing.
   if (supabaseRows.length > 0) {
-    getSupabaseAdmin()
-      .from('match_stream_history')
-      .upsert(supabaseRows, { onConflict: 'od_match_id', ignoreDuplicates: true })
-      .then(({ error }) => { if (error) console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: error.message, ts: Date.now() })) })
-      .catch(err => console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: err?.message, ts: Date.now() })))
+    try {
+      getSupabaseAdmin()
+        .from('match_stream_history')
+        .upsert(supabaseRows, { onConflict: 'od_match_id', ignoreDuplicates: true })
+        .then(({ error }) => { if (error) console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: error.message, ts: Date.now() })) })
+        .catch(err => console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: err?.message, ts: Date.now() })))
+    } catch (err) {
+      console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'match_stream_history upsert failed', error: err?.message, ts: Date.now() }))
+    }
   }
 
   return streamWrites.length
