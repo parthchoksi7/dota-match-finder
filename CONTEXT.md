@@ -215,6 +215,7 @@ The frontend (`findTwitchVod` in `src/api.js`) uses only `preferredChannel` from
 - Old hash URLs (`#match-{id}`) and numeric URLs (`/match/{id}`) still work - backwards-compatible
 - `middleware.js` injects per-match OG meta tags (title, description, og:image) for social sharing and SEO
 - `api/sitemap.js` generates a full XML sitemap with slug URLs for all recent premium-tier matches
+- **Soft 404 handling**: when a `/match/` URL fails to resolve (not in live feed, and OpenDota returns no data), `App.jsx` injects `<meta name="robots" content="noindex, nofollow">` so crawlers drop the stale URL. `TournamentDetail.jsx` does the same when the tournament-detail API returns 404 or any error.
 
 ### Live Matches (PandaScore)
 - `api/live-matches.js` calls PandaScore `/dota2/matches/running`

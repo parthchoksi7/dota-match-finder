@@ -152,6 +152,7 @@ function App() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [initialLoading, setInitialLoading] = useState(true)
+  const [matchUrlNotFound, setMatchUrlNotFound] = useState(false)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState(null)
@@ -413,7 +414,10 @@ function App() {
     fetch(`https://api.opendota.com/api/matches/${matchId}`)
       .then(r => r.json())
       .then(data => {
-        if (!data || !data.match_id) return
+        if (!data || !data.match_id) {
+          setMatchUrlNotFound(true)
+          return
+        }
         const match = {
           id: String(data.match_id),
           tournament: "Match " + data.match_id,
@@ -430,8 +434,17 @@ function App() {
         }
         handleSelectMatch(match, 'shared_url')
       })
-      .catch(() => {})
+      .catch(() => { setMatchUrlNotFound(true) })
   }, [initialLoading])
+
+  useEffect(() => {
+    if (!matchUrlNotFound) return
+    const meta = document.createElement('meta')
+    meta.setAttribute('name', 'robots')
+    meta.setAttribute('content', 'noindex, nofollow')
+    document.head.appendChild(meta)
+    return () => meta.remove()
+  }, [matchUrlNotFound])
 
   async function handleLoadMore() {
     if (loadingMore || !nextMatchId) return

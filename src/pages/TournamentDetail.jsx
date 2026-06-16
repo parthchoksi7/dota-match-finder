@@ -394,6 +394,15 @@ export default function TournamentDetail() {
   const seriesId = getSeriesIdFromPath()
 
   useEffect(() => {
+    if (!error) return
+    const meta = document.createElement('meta')
+    meta.setAttribute('name', 'robots')
+    meta.setAttribute('content', 'noindex, nofollow')
+    document.head.appendChild(meta)
+    return () => meta.remove()
+  }, [error])
+
+  useEffect(() => {
     if (!seriesId) {
       setError('Invalid tournament URL.')
       setLoading(false)

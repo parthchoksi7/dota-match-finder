@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 15, 2026",
+    tag: "fix",
+    title: "Stale match and tournament URLs no longer flagged as soft 404s",
+    desc: "When a shared match link or tournament page couldn't load its data (match too old for the API, tournament no longer available), the page rendered with no meaningful content — causing Google to flag it as a soft 404. These pages now inject a noindex directive so search engines stop indexing dead URLs and remove them from the index on the next crawl.",
+  },
+  {
     date: "June 10, 2026",
     tag: "fix",
     title: "Replay buttons now appear for qualifier and personal-stream matches",
