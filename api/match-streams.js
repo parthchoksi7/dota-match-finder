@@ -1,7 +1,8 @@
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
+import { getSupabaseAdmin } from './_supabase.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, buildTournamentName, parseBracketRound, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
@@ -172,6 +173,32 @@ export default async function handler(req, res) {
     log.warn('KV read failed', { error: err?.message })
   }
 
+  // Persist KV hits to Supabase so the permanent record exists even when the
+  // fuzzy match (Step 2) is bypassed because the channel is already cached.
+  // ignoreDuplicates makes this a no-op for rows that are already written.
+  const kvHitIds = matchIds.filter(id => result[id])
+  if (kvHitIds.length > 0 && ts && radiantTeam && direTeam) {
+    const startTime = parseInt(ts, 10)
+    if (!isNaN(startTime)) {
+      const rows = kvHitIds.map(id => ({
+        od_match_id: Number(id),
+        channel: result[id],
+        started_at: new Date(startTime * 1000).toISOString(),
+        team_a: radiantTeam || null,
+        team_b: direTeam || null,
+      }))
+      try {
+        getSupabaseAdmin()
+          .from('match_stream_history')
+          .upsert(rows, { onConflict: 'od_match_id', ignoreDuplicates: true })
+          .then(({ error }) => { if (error) log.warn('supabase kv-path upsert failed', { error: error.message }) })
+          .catch(err => log.warn('supabase kv-path upsert failed', { error: err?.message }))
+      } catch (err) {
+        log.warn('supabase kv-path upsert failed', { error: err?.message })
+      }
+    }
+  }
+
   const missingIds = matchIds.filter(id => !result[id])
 
   // Step 2: PandaScore fuzzy match for missing IDs
@@ -196,9 +223,34 @@ export default async function handler(req, res) {
             const streams = getTwitchStreams(psMatch.streams_list)
             if (streams.length > 0) {
               const channel = streams[0].url.replace('https://www.twitch.tv/', '')
+              const allOfficialStreams = (psMatch.streams_list || [])
+                .filter(s => s.official && s.raw_url)
+                .map(s => ({ raw_url: s.raw_url, language: s.language || null, official: true, main: s.main || false }))
               for (const id of missingIds) {
                 result[id] = channel
                 kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(() => {})
+                // Mirror to Supabase for permanent VOD history — all official streams, all languages.
+                // ignoreDuplicates preserves the first-written channel, consistent with KV nx: behaviour.
+                try {
+                  getSupabaseAdmin()
+                    .from('match_stream_history')
+                    .upsert({
+                      od_match_id: Number(id),
+                      ps_match_id: psMatch.id,
+                      channel,
+                      started_at: new Date(startTime * 1000).toISOString(),
+                      team_a: radiantTeam || null,
+                      team_b: direTeam || null,
+                      tournament: buildTournamentName(psMatch),
+                      match_type: psMatch.match_type || null,
+                      bracket_round: parseBracketRound(psMatch.name) || null,
+                      streams_json: allOfficialStreams.length > 0 ? allOfficialStreams : null,
+                    }, { onConflict: 'od_match_id', ignoreDuplicates: true })
+                    .then(({ error }) => { if (error) log.warn('supabase upsert failed', { error: error.message }) })
+                    .catch(err => log.warn('supabase upsert failed', { error: err?.message }))
+                } catch (err) {
+                  log.warn('supabase upsert failed', { error: err?.message })
+                }
               }
               log.info('fuzzy match resolved', { match: `${radiantTeam} vs ${direTeam}`, channel })
             }
