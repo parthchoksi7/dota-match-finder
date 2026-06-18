@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 17, 2026",
     tag: "fix",
+    title: "Search chip now shows full tournament name instead of 'The'",
+    desc: "The live tournament chip in search suggestions was showing only the first word of the tournament name — so 'The International 2026 Closed Qualifier' appeared as 'The'. The full name is now shown.",
+  },
+  {
+    date: "June 17, 2026",
+    tag: "fix",
     title: "TI Closed Qualifier highlights now pull from PGL's channel",
     desc: "Series highlights for The International Closed Qualifier tournaments were incorrectly pulling from the official @dota2 channel. PGL broadcasts these events, so highlights now source from @PGL_DOTA2.",
   },

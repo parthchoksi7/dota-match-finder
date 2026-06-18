@@ -173,7 +173,7 @@ const SearchSuggestions = forwardRef(function SearchSuggestions({ allMatches = [
   const chips = []
   if (liveTournament) {
     const source = liveTournament.leagueName || liveTournament.name || ''
-    const label = toTitleCase(source.split(/\s+/)[0] || liveTournament.name)
+    const label = toTitleCase(source || liveTournament.name)
     chips.push({ type: 'tournament', label, query: label })
   }
   const seenTeams = new Set()
