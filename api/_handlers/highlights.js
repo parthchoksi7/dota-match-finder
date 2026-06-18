@@ -11,6 +11,10 @@ const YT_CHANNEL_MAP = [
   { keywords: ['pgl', 'wallachia'],       channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
   { keywords: ['blast'],                  channelId: 'UCAvIC2XmBLLXFPdveirTrmw', handle: '@BLASTDota' },
   { keywords: ['weplay', 'omega league'], channelId: 'UCdIRwwGQY68S95bQuUVX0sA', handle: '@WePlayDota' },
+  // TI Closed Qualifiers are broadcast on PGL, not the official @dota2 channel.
+  // Must appear before the generic 'the international' entry so it wins on first-match.
+  { keywords: ['the international closed qualifier', 'ti closed qualifier'],
+                                          channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
   { keywords: ['the international', 'riyadh masters', 'beyond the summit'],
                                           channelId: 'UCTQKT5QqO3h7y32G8VzuySQ', handle: '@dota2' },
 ]

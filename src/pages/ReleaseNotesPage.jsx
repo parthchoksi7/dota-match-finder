@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 17, 2026",
+    tag: "fix",
+    title: "TI Closed Qualifier highlights now pull from PGL's channel",
+    desc: "Series highlights for The International Closed Qualifier tournaments were incorrectly pulling from the official @dota2 channel. PGL broadcasts these events, so highlights now source from @PGL_DOTA2.",
+  },
+  {
     date: "June 15, 2026",
     tag: "fix",
     title: "Stale match and tournament URLs no longer flagged as soft 404s",
