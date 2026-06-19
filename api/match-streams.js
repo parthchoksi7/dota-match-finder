@@ -228,7 +228,7 @@ export default async function handler(req, res) {
                 .map(s => ({ raw_url: s.raw_url, language: s.language || null, official: true, main: s.main || false }))
               for (const id of missingIds) {
                 result[id] = channel
-                kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(() => {})
+                await kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(err => log.warn('KV write failed', { id, error: err?.message }))
                 // Mirror to Supabase for permanent VOD history — all official streams, all languages.
                 // ignoreDuplicates preserves the first-written channel, consistent with KV nx: behaviour.
                 try {

@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 18, 2026",
+    tag: "fix",
+    title: "Qualifier stream channels now reliably cached for VOD replay",
+    desc: "When a qualifier match was resolved through PandaScore's fuzzy match (the path used when PandaScore hasn't yet linked a game to its OpenDota ID), the channel was written to Supabase but the KV fast-path cache entry was silently dropped on write failure. The write is now awaited and failures are logged, so the channel is always available for the VOD replay lookup on subsequent page loads.",
+  },
+  {
     date: "June 17, 2026",
     tag: "fix",
     title: "Search chip now shows full tournament name instead of 'The'",
