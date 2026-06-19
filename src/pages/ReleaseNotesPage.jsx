@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 19, 2026",
+    tag: "fix",
+    title: "Qualifier VOD replay now persists even when PandaScore has no stream data",
+    desc: "When a match was resolved through the time-bucket fallback (the last-resort path for qualifier and personal-stream matches), the channel was used to find the VOD but never saved to the cache or history DB. If PandaScore's stream list was already empty by the time someone visited the match page, every subsequent visit had to run the full lookup chain again. Now, when exactly one channel was live during the match window, it is written to the fast-path cache and the match history DB so future lookups are instant.",
+  },
+  {
     date: "June 18, 2026",
     tag: "fix",
     title: "Qualifier stream channels now reliably cached for VOD replay",

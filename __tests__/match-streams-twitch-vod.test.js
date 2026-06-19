@@ -30,6 +30,17 @@ vi.mock('../api/_shared.js', async (importOriginal) => {
   return { ...actual }
 })
 
+const { mockUpsert, mockFrom, mockGetSupabaseAdmin } = vi.hoisted(() => {
+  const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+  const mockFrom = vi.fn(() => ({ upsert: mockUpsert }))
+  const mockGetSupabaseAdmin = vi.fn(() => ({ from: mockFrom }))
+  return { mockUpsert, mockFrom, mockGetSupabaseAdmin }
+})
+
+vi.mock('../api/_supabase.js', () => ({
+  getSupabaseAdmin: mockGetSupabaseAdmin,
+}))
+
 import handler from '../api/match-streams.js'
 
 function makeReq(query = {}) {
@@ -219,5 +230,85 @@ describe('match-streams ?mode=twitch-vod', () => {
     await handler(req, res)
 
     expect(res._status).toBe(502)
+  })
+})
+
+const STREAM_TTL = 60 * 60 * 24 * 14
+
+describe('match-streams ts-candidate persistence', () => {
+  beforeEach(() => {
+    delete process.env.PANDASCORE_TOKEN // skip PS fuzzy match step
+    mockUpsert.mockResolvedValue({ error: null })
+  })
+
+  it('persists single candidate to KV (nx:true) and Supabase', async () => {
+    // Step 1: no stream:match hit; Step 3: one ts-bucket has a single channel
+    mockKv.mget
+      .mockResolvedValueOnce([null])
+      .mockResolvedValueOnce([null, null, ['pgl_dota2en2']])
+
+    const req = makeReq({ ids: '8856273501', ts: '1781762799', radiantTeam: 'Yakutou Brothers', direTeam: 'Team Resilience' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body._candidates).toEqual(['pgl_dota2en2'])
+
+    expect(mockKv.set).toHaveBeenCalledWith(
+      'stream:match:8856273501', 'pgl_dota2en2', { ex: STREAM_TTL, nx: true }
+    )
+    expect(mockFrom).toHaveBeenCalledWith('match_stream_history')
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ od_match_id: 8856273501, channel: 'pgl_dota2en2' })]),
+      { onConflict: 'od_match_id', ignoreDuplicates: true }
+    )
+  })
+
+  it('does not persist when multiple candidates exist', async () => {
+    mockKv.mget
+      .mockResolvedValueOnce([null])
+      .mockResolvedValueOnce([['pgl_dota2', 'esl_dota2'], null, null])
+
+    const req = makeReq({ ids: '12345', ts: '1700000000', radiantTeam: 'TeamA', direTeam: 'TeamB' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body._candidates).toEqual(['pgl_dota2', 'esl_dota2'])
+    expect(mockKv.set).not.toHaveBeenCalled()
+    expect(mockUpsert).not.toHaveBeenCalled()
+  })
+
+  it('does not persist when no ts-bucket hit', async () => {
+    mockKv.mget
+      .mockResolvedValueOnce([null])
+      .mockResolvedValueOnce([null, null, null])
+
+    const req = makeReq({ ids: '12345', ts: '1700000000', radiantTeam: 'TeamA', direTeam: 'TeamB' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body._candidates).toBeUndefined()
+    expect(mockKv.set).not.toHaveBeenCalled()
+    expect(mockUpsert).not.toHaveBeenCalled()
+  })
+
+  it('persists all stillMissing IDs when multiple match IDs share the same ts-bucket', async () => {
+    mockKv.mget
+      .mockResolvedValueOnce([null, null]) // two IDs, both missing from KV
+      .mockResolvedValueOnce([['pgl_dota2en2'], null, null])
+
+    const req = makeReq({ ids: '111,222', ts: '1700000000', radiantTeam: 'TeamA', direTeam: 'TeamB' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(mockKv.set).toHaveBeenCalledWith('stream:match:111', 'pgl_dota2en2', { ex: STREAM_TTL, nx: true })
+    expect(mockKv.set).toHaveBeenCalledWith('stream:match:222', 'pgl_dota2en2', { ex: STREAM_TTL, nx: true })
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ od_match_id: 111 }),
+        expect.objectContaining({ od_match_id: 222 }),
+      ]),
+      expect.any(Object)
+    )
   })
 })

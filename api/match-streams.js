@@ -274,7 +274,36 @@ export default async function handler(req, res) {
         const hit = tsValues.find(v => v != null)
         if (hit) {
           // New format: JSON array of channels. Legacy format: plain string.
-          result._candidates = Array.isArray(hit) ? hit : [hit]
+          const candidates = Array.isArray(hit) ? hit : [hit]
+          result._candidates = candidates
+
+          // When exactly one channel was live in the window, the match is unambiguous.
+          // Persist to KV and Supabase so future lookups hit the fast path and the
+          // match has a permanent DB record. nx:true prevents overwriting a real entry
+          // from the cron or PS fuzzy match.
+          if (candidates.length === 1) {
+            const channel = candidates[0]
+            for (const id of stillMissing) {
+              kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL, nx: true })
+                .catch(err => log.warn('KV ts-candidate write failed', { id, error: err?.message }))
+            }
+            const rows = stillMissing.map(id => ({
+              od_match_id: Number(id),
+              channel,
+              started_at: new Date(rawTs * 1000).toISOString(),
+              team_a: radiantTeam || null,
+              team_b: direTeam || null,
+            }))
+            try {
+              getSupabaseAdmin()
+                .from('match_stream_history')
+                .upsert(rows, { onConflict: 'od_match_id', ignoreDuplicates: true })
+                .then(({ error }) => { if (error) log.warn('supabase ts-candidate upsert failed', { error: error.message }) })
+                .catch(err => log.warn('supabase ts-candidate upsert failed', { error: err?.message }))
+            } catch (err) {
+              log.warn('supabase ts-candidate upsert failed', { error: err?.message })
+            }
+          }
         }
       }
     } catch (err) {
