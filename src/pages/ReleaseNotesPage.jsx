@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 20, 2026",
+    tag: "improvement",
+    title: "Replays now appear for completed series automatically, before anyone opens them",
+    desc: "Previously a completed series only got a replay link once a fan opened its match drawer, because PandaScore leaves the linking ID blank for qualifiers (like the TI Regional Qualifiers) and the background cache couldn't bind those matches on its own. A new task now runs every 30 minutes, scans recently completed tier-1 series, and resolves each one's stream channel server-side, so the Watch Replay button is ready the moment you land on the match.",
+  },
+  {
     date: "June 19, 2026",
     tag: "fix",
     title: "Qualifier VOD replay now persists even when PandaScore has no stream data",

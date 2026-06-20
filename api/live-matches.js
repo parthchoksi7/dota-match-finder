@@ -17,7 +17,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger } from './_shared.js'
 
 
 
@@ -262,6 +262,57 @@ async function sendPushNotificationsForMatches(matches) {
   if (pushOps.length > 0) await Promise.all(pushOps)
 }
 
+// warm-streams cron tuning. Lookback covers OpenDota's 30–90 min indexing lag plus
+// a full day of completed series; the cap and delay bound PandaScore/self-call load.
+const WARM_LOOKBACK_S = 24 * 3600
+const WARM_MAX_SERIES = 40
+const WARM_DELAY_MS = 150
+
+/**
+ * Selects completed tier-1 series from an OpenDota /promatches payload that are
+ * worth fuzzy-binding to a Twitch channel. Groups games by series_id (falling back
+ * to match_id for ungrouped games) and returns one entry per series with the sibling
+ * OpenDota match IDs, the earliest game start (best proxy for the PandaScore series
+ * begin_at the fuzzy match filters on), and both team names.
+ *
+ * Pure and side-effect free so it can be unit-tested without network or KV.
+ *
+ * @param {Array} odMatches - raw OpenDota promatches array
+ * @param {{ tier1Names: string[], nowSec: number, lookbackSec: number, maxSeries?: number }} opts
+ * @returns {Array<{ ids: string[], ts: number, radiantTeam: string, direTeam: string, tournament: string }>}
+ */
+export function selectSeriesToWarm(odMatches, { tier1Names, nowSec, lookbackSec, maxSeries = WARM_MAX_SERIES }) {
+  if (!Array.isArray(odMatches) || !Array.isArray(tier1Names) || tier1Names.length === 0) return []
+  const minStart = nowSec - lookbackSec
+  const seriesMap = new Map()
+
+  for (const m of odMatches) {
+    const matchId = m?.match_id
+    const startTime = m?.start_time
+    if (!matchId || !startTime || startTime < minStart) continue
+
+    const league = (m.league_name || '').toLowerCase()
+    if (!league || !tier1Names.some(n => n.length >= 3 && league.includes(n))) continue
+
+    const radiantTeam = m.radiant_name
+    const direTeam = m.dire_name
+    if (!radiantTeam || !direTeam) continue // teamsMatch() needs both names to disambiguate
+
+    const key = (m.series_id && m.series_id !== 0) ? `s:${m.series_id}` : `m:${matchId}`
+    let entry = seriesMap.get(key)
+    if (!entry) {
+      entry = { ids: new Set(), ts: startTime, radiantTeam, direTeam, tournament: m.league_name }
+      seriesMap.set(key, entry)
+    }
+    entry.ids.add(String(matchId))
+    if (startTime < entry.ts) entry.ts = startTime
+  }
+
+  return [...seriesMap.values()]
+    .map(e => ({ ids: [...e.ids], ts: e.ts, radiantTeam: e.radiantTeam, direTeam: e.direTeam, tournament: e.tournament }))
+    .slice(0, maxSeries)
+}
+
 export default async function handler(req, res) {
   const log = createLogger('/api/live-matches')
   if (setCorsHeaders(req, res, { allowAll: true })) return
@@ -362,6 +413,81 @@ export default async function handler(req, res) {
     } catch (err) {
       await trackError('/api/live-matches', 500, err?.message)
       log.error('cron error', { error: err?.message })
+      return res.status(500).json({ error: err?.message })
+    }
+  }
+
+  // warm-streams cron: autonomously fuzzy-bind completed tier-1 series to a Twitch
+  // channel without waiting for a browser to open the drawer. cacheRunningStreams()
+  // can only write stream:match when external_identifier is set (null on qualifiers),
+  // so unopened series would otherwise never get a record. This drives the existing
+  // /api/match-streams resolver (KV → PS fuzzy → ts-bucket) per series, which writes
+  // KV + Supabase. It does NOT modify any locked stream-cache write path.
+  if (req.query?.cron === 'warm-streams') {
+    if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).end()
+    }
+    try {
+      const odRes = await fetch('https://api.opendota.com/api/promatches')
+      if (!odRes.ok) {
+        log.warn('warm-streams: OpenDota fetch failed', { status: odRes.status })
+        return res.status(502).json({ error: 'OpenDota fetch failed' })
+      }
+      const odMatches = await odRes.json()
+      const kvNames = await kv.get(KV_TIER1_NAMES_KEY).catch(() => null)
+      const tier1Names = [...new Set([
+        ...(Array.isArray(kvNames) ? kvNames : []),
+        ...PERMANENT_TIER1_NAMES,
+        ...TIER1_LEAGUE_KEYWORDS,
+      ].map(n => n.toLowerCase()))]
+
+      const nowSec = Math.floor(Date.now() / 1000)
+      const series = selectSeriesToWarm(odMatches, { tier1Names, nowSec, lookbackSec: WARM_LOOKBACK_S })
+
+      // Fixed production origin — never the request Host header (untrusted, spoofable).
+      // The self-call always targets prod, which shares the same KV + Supabase, so this
+      // is correct even when invoked from a preview deployment.
+      const base = 'https://spectateesports.live'
+      let attempted = 0, bound = 0, skipped = 0
+      for (const s of series) {
+        // Skip series already fully bound in KV so we don't re-run the PS fuzzy match.
+        const keys = s.ids.map(id => `stream:match:${id}`)
+        const existing = await kv.mget(...keys).catch(() => [])
+        if (existing.length === s.ids.length && existing.every(Boolean)) { skipped++; continue }
+
+        attempted++
+        const params = new URLSearchParams({
+          ids: s.ids.join(','),
+          ts: String(s.ts),
+          radiantTeam: s.radiantTeam,
+          direTeam: s.direTeam,
+        })
+        try {
+          const r = await fetch(`${base}/api/match-streams?${params.toString()}`)
+          if (r.ok) {
+            const body = await r.json()
+            if (s.ids.some(id => body?.[id])) bound++
+          }
+        } catch (err) {
+          log.warn('warm-streams: self-call failed', { error: err?.message })
+        }
+        await new Promise(resolve => setTimeout(resolve, WARM_DELAY_MS))
+      }
+
+      const summary = {
+        scanned: Array.isArray(odMatches) ? odMatches.length : 0,
+        series: series.length,
+        attempted,
+        bound,
+        skipped,
+        ran_at: new Date().toISOString(),
+      }
+      await kv.set('warm:stream-history:latest', summary, { ex: 8 * 24 * 3600 }).catch(() => {})
+      log.info('warm-streams complete', summary)
+      return res.status(200).json(summary)
+    } catch (err) {
+      await trackError('/api/live-matches', 500, err?.message)
+      log.error('warm-streams error', { error: err?.message })
       return res.status(500).json({ error: err?.message })
     }
   }

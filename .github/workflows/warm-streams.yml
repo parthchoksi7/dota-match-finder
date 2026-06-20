@@ -1,0 +1,38 @@
+name: Warm Stream History
+
+# Autonomously binds completed tier-1 series (incl. TI qualifiers, where PandaScore
+# leaves external_identifier null) to their Twitch channel by driving the existing
+# /api/match-streams resolver server-side. Closes the gap where a series only got a
+# replay record once a user opened its drawer. Runs on GitHub Actions because the
+# Vercel Hobby plan caps crons at daily; this needs ~30-min cadence to track OpenDota
+# indexing lag. Thin trigger only — all secrets stay server-side in Vercel env; the
+# Action carries just CRON_SECRET.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # every 30 minutes
+  workflow_dispatch:         # allow manual trigger from the Actions UI
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Warm stream history (fuzzy-bind completed series)
+        run: |
+          curl -s -X GET "https://spectateesports.live/api/live-matches?cron=warm-streams" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body
+      - name: Create alert issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Alert] Cron failed: Warm Stream History — ${new Date().toISOString().slice(0, 16)} UTC`,
+              body: `The **Warm Stream History** cron failed.\n\n[View run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              labels: ['monitoring'],
+            })
