@@ -123,6 +123,7 @@ describe('warm-streams handler', () => {
   it('drives /api/match-streams for an unbound tier-1 series and counts it bound', async () => {
     global.fetch = vi.fn((url) => {
       if (url.includes('api.opendota.com/api/promatches')) {
+        if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] }) // stop paging
         return Promise.resolve({ ok: true, json: async () => [
           liveGame(8001, 77),
           liveGame(8002, 77),
@@ -152,6 +153,7 @@ describe('warm-streams handler', () => {
     mockKv.mget.mockResolvedValue(['pgl_dota2en2', 'pgl_dota2en2'])
     global.fetch = vi.fn((url) => {
       if (url.includes('api.opendota.com/api/promatches')) {
+        if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] }) // stop paging
         return Promise.resolve({ ok: true, json: async () => [
           liveGame(9001, 88),
           liveGame(9002, 88),
@@ -175,5 +177,31 @@ describe('warm-streams handler', () => {
     const res = makeRes()
     await handler(makeReq(), res)
     expect(res.statusCode).toBe(502)
+  })
+
+  it('pages /promatches with less_than_match_id and stops once the page predates the lookback', async () => {
+    let page0Url = null
+    global.fetch = vi.fn((url) => {
+      if (url.includes('api.opendota.com/api/promatches')) {
+        if (!url.includes('less_than_match_id')) {
+          page0Url = url
+          // last match on the page is older than the 24h window → loop must stop after this page
+          return Promise.resolve({ ok: true, json: async () => [
+            odGame({ matchId: 7001, seriesId: 11, start: liveNow - 3600 }),
+            odGame({ matchId: 7000, seriesId: 12, start: liveNow - 48 * 3600 }),
+          ] })
+        }
+        return Promise.resolve({ ok: true, json: async () => [] })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ 7001: 'pgl_dota2' }) })
+    })
+
+    const res = makeRes()
+    await handler(makeReq(), res)
+
+    const promatchesCalls = global.fetch.mock.calls.filter(([u]) => u.includes('/promatches'))
+    expect(promatchesCalls).toHaveLength(1)               // stopped after page 0 (oldest < lookback)
+    expect(page0Url).not.toContain('less_than_match_id')  // first page is the unparameterized feed
+    expect(res.body.series).toBe(1)                        // only the in-window series is selected
   })
 })

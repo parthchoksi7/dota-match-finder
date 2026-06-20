@@ -266,6 +266,7 @@ async function sendPushNotificationsForMatches(matches) {
 // a full day of completed series; the cap and delay bound PandaScore/self-call load.
 const WARM_LOOKBACK_S = 24 * 3600
 const WARM_MAX_SERIES = 40
+const WARM_MAX_PAGES = 6 // ~600 promatches — enough to span 24h even on busy multi-region days
 const WARM_DELAY_MS = 150
 
 /**
@@ -428,12 +429,35 @@ export default async function handler(req, res) {
       return res.status(401).end()
     }
     try {
-      const odRes = await fetch('https://api.opendota.com/api/promatches')
-      if (!odRes.ok) {
-        log.warn('warm-streams: OpenDota fetch failed', { status: odRes.status })
-        return res.status(502).json({ error: 'OpenDota fetch failed' })
+      const nowSec = Math.floor(Date.now() / 1000)
+      const minStart = nowSec - WARM_LOOKBACK_S
+
+      // /promatches returns only ~100 matches per page (all of pro Dota), which on a busy
+      // multi-region day covers just a few hours — far short of the 24h lookback. Page back
+      // with less_than_match_id until the oldest match predates the window (or the page cap).
+      const odMatches = []
+      let cursor = null
+      for (let page = 0; page < WARM_MAX_PAGES; page++) {
+        const url = cursor
+          ? `https://api.opendota.com/api/promatches?less_than_match_id=${cursor}`
+          : 'https://api.opendota.com/api/promatches'
+        const odRes = await fetch(url)
+        if (!odRes.ok) {
+          if (page === 0) {
+            log.warn('warm-streams: OpenDota fetch failed', { status: odRes.status })
+            return res.status(502).json({ error: 'OpenDota fetch failed' })
+          }
+          break // partial coverage is fine; bind what we have
+        }
+        const pageData = await odRes.json()
+        if (!Array.isArray(pageData) || pageData.length === 0) break
+        odMatches.push(...pageData)
+        const oldest = pageData[pageData.length - 1]
+        cursor = oldest?.match_id
+        if (!cursor || (oldest.start_time && oldest.start_time < minStart)) break
+        await new Promise(resolve => setTimeout(resolve, WARM_DELAY_MS))
       }
-      const odMatches = await odRes.json()
+
       const kvNames = await kv.get(KV_TIER1_NAMES_KEY).catch(() => null)
       const tier1Names = [...new Set([
         ...(Array.isArray(kvNames) ? kvNames : []),
@@ -441,7 +465,6 @@ export default async function handler(req, res) {
         ...TIER1_LEAGUE_KEYWORDS,
       ].map(n => n.toLowerCase()))]
 
-      const nowSec = Math.floor(Date.now() / 1000)
       const series = selectSeriesToWarm(odMatches, { tier1Names, nowSec, lookbackSec: WARM_LOOKBACK_S })
 
       // Fixed production origin — never the request Host header (untrusted, spoofable).
