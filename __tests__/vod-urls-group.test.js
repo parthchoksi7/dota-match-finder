@@ -94,6 +94,32 @@ describe('buildGameUrls', () => {
     expect(buildGameUrls({ channel: null, streams_json: null })).toEqual({ main: null, others: [] })
   })
 
+  it('never picks an unofficial stream as primary when an official one exists (guard-rail)', () => {
+    // null channel + no main flags + unofficial listed first → primary must still be official.
+    const { main, others } = buildGameUrls({
+      channel: null,
+      streams_json: [
+        { raw_url: 'https://www.twitch.tv/dota2_winline_ru', language: 'ru', official: false, main: false, source: 'twitch', channel: 'dota2_winline_ru' },
+        { raw_url: 'https://www.twitch.tv/pgl_dota2', language: 'en', official: true, main: false, source: 'twitch', channel: 'pgl_dota2' },
+      ],
+    })
+    expect(main).toMatchObject({ channel: 'pgl_dota2', official: true, kind: 'stream_page' })
+    // the unofficial RU restream is still available, just demoted to others.
+    expect(others.map(o => o.channel)).toEqual(['dota2_winline_ru'])
+  })
+
+  it('official main beats a non-main official stream for the primary slot', () => {
+    const { main, others } = buildGameUrls({
+      channel: null,
+      streams_json: [
+        { raw_url: 'https://www.twitch.tv/pgl_dota2en2', language: 'en', official: true, main: false, source: 'twitch', channel: 'pgl_dota2en2' },
+        { raw_url: 'https://www.twitch.tv/pgl_dota2', language: 'en', official: true, main: true, source: 'twitch', channel: 'pgl_dota2' },
+      ],
+    })
+    expect(main).toMatchObject({ channel: 'pgl_dota2', official: true })
+    expect(others.map(o => o.channel)).toEqual(['pgl_dota2en2'])
+  })
+
   it('upgrades an alt channel to a start point when vodByChannel has it (P3.3)', () => {
     const vodByChannel = { pgl_ru: { twitch_vod_id: '777', vod_offset_s: 1200 } }
     const { main, others } = buildGameUrls({ channel: 'pgl_dota2', streams_json: streams }, vodByChannel)

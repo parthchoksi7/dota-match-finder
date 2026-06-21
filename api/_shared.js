@@ -275,6 +275,37 @@ export function getTwitchStreams(streamsList) {
   })
 }
 
+// Normalize every stream PandaScore returns (all languages, official AND unofficial,
+// all sources) for persistence in match_stream_history.streams_json. Drives the internal
+// VOD-URL browser and the future multi-language stream picker. `source` classifies the
+// platform; `channel` is the twitch login when applicable (used later for per-channel
+// VOD deep-link enrichment). Shared by both Supabase write-paths (live-matches.js
+// cacheRunningStreams and match-streams.js fuzzy resolver) so the persisted shape is
+// identical regardless of which path writes the row first.
+export function normalizeAllStreams(streamsList) {
+  return (streamsList || [])
+    .filter(s => s.raw_url)
+    .map(s => {
+      const url = s.raw_url
+      let source = 'other'
+      let channel = null
+      if (url.includes('twitch.tv')) {
+        source = 'twitch'
+        channel = url.replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').replace(/\/$/, '') || null
+      } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        source = 'youtube'
+      }
+      return {
+        raw_url: url,
+        language: s.language || null,
+        official: !!s.official,
+        main: !!s.main,
+        source,
+        channel,
+      }
+    })
+}
+
 // Server-side tier-1 team list for entity tagging in news ingestion.
 // Kept separate from the frontend TIER1_TEAMS in src/pages/Calendar.jsx
 // because they run in different runtimes (Node.js vs browser).

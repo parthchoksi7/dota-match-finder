@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 import { getSupabaseAdmin } from './_supabase.js'
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, buildTournamentName, parseBracketRound, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, normalizeAllStreams, buildTournamentName, parseBracketRound, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
@@ -263,13 +263,15 @@ export default async function handler(req, res) {
             const streams = getTwitchStreams(psMatch.streams_list)
             if (streams.length > 0) {
               const channel = streams[0].url.replace('https://www.twitch.tv/', '')
-              const allOfficialStreams = (psMatch.streams_list || [])
-                .filter(s => s.official && s.raw_url)
-                .map(s => ({ raw_url: s.raw_url, language: s.language || null, official: true, main: s.main || false }))
+              // All streams (every language/source, official AND unofficial) for permanent
+              // storage — shared shape with live-matches.js so the persisted row is identical
+              // regardless of which write-path lands first. `channel` below stays the single
+              // primary OFFICIAL twitch login from getTwitchStreams (VOD anchor — unchanged).
+              const allStreams = normalizeAllStreams(psMatch.streams_list)
               for (const id of missingIds) {
                 result[id] = channel
                 await kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(err => log.warn('KV write failed', { id, error: err?.message }))
-                // Mirror to Supabase for permanent VOD history — all official streams, all languages.
+                // Mirror to Supabase for permanent VOD history — all streams, all languages.
                 // ignoreDuplicates preserves the first-written channel, consistent with KV nx: behaviour.
                 try {
                   getSupabaseAdmin()
@@ -284,7 +286,7 @@ export default async function handler(req, res) {
                       tournament: buildTournamentName(psMatch),
                       match_type: psMatch.match_type || null,
                       bracket_round: parseBracketRound(psMatch.name) || null,
-                      streams_json: allOfficialStreams.length > 0 ? allOfficialStreams : null,
+                      streams_json: allStreams.length > 0 ? allStreams : null,
                     }, { onConflict: 'od_match_id', ignoreDuplicates: true })
                     .then(({ error }) => { if (error) log.warn('supabase upsert failed', { error: error.message }) })
                     .catch(err => log.warn('supabase upsert failed', { error: err?.message }))

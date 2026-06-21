@@ -22,7 +22,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger } from './_shared.js'
 
 
 
@@ -79,34 +79,6 @@ function mapGames(m) {
 function getYoutubeStream(streamsList) {
   const s = (streamsList || []).find(s => s.language === 'en' && s.raw_url?.includes('youtube.com'))
   return s?.raw_url || null
-}
-
-// Normalize every stream PandaScore returns (all languages, official AND unofficial,
-// all sources) for persistence in match_stream_history.streams_json. Drives the internal
-// VOD-URL browser. `source` classifies the platform; `channel` is the twitch login when
-// applicable (used later for per-channel VOD deep-link enrichment).
-export function normalizeAllStreams(streamsList) {
-  return (streamsList || [])
-    .filter(s => s.raw_url)
-    .map(s => {
-      const url = s.raw_url
-      let source = 'other'
-      let channel = null
-      if (url.includes('twitch.tv')) {
-        source = 'twitch'
-        channel = url.replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').replace(/\/$/, '') || null
-      } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-        source = 'youtube'
-      }
-      return {
-        raw_url: url,
-        language: s.language || null,
-        official: !!s.official,
-        main: !!s.main,
-        source,
-        channel,
-      }
-    })
 }
 
 function mapMatch(m) {

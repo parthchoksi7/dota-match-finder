@@ -1,7 +1,8 @@
 /**
- * Tests for normalizeAllStreams() in api/live-matches.js — the helper that captures
+ * Tests for normalizeAllStreams() in api/_shared.js — the helper that captures
  * every stream URL (all languages, all sources, official AND unofficial) for storage
- * in match_stream_history.streams_json. Drives the internal VOD-URL browser.
+ * in match_stream_history.streams_json. Shared by both Supabase write-paths
+ * (live-matches.js + match-streams.js). Drives the internal VOD-URL browser.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -9,7 +10,7 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('dotenv', () => ({ config: vi.fn() }))
 vi.mock('@upstash/redis', () => ({ Redis: class {} }))
 
-import { normalizeAllStreams } from '../api/live-matches.js'
+import { normalizeAllStreams } from '../api/_shared.js'
 
 describe('normalizeAllStreams', () => {
   it('returns [] for null/empty input', () => {

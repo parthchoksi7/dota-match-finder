@@ -85,8 +85,14 @@ export function buildGameUrls(row, vodByChannel = {}) {
     return streamToUrlObj(s)
   }
 
+  // Primary = the canonical replay link. Always prefer the resolved official channel,
+  // then an official main stream, then any official stream, before falling back to a
+  // main/first stream. This keeps an unofficial restream (now persisted in streams_json)
+  // from ever becoming the default replay — it falls to `others` instead.
   const primaryStream =
     (row.channel && streams.find(s => s.channel === row.channel)) ||
+    streams.find(s => s.main && s.official) ||
+    streams.find(s => s.official) ||
     streams.find(s => s.main) ||
     streams[0] ||
     null
