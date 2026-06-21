@@ -55,7 +55,7 @@ async function resolveMatchStreams(match, allMatches) {
   // resolver below, fully unchanged.
   const stored = await fetchStoredReplay(match.id)
   if (stored?.url) {
-    return { url: stored.url, channel: stored.channel, allVods: [{ url: stored.url, channel: stored.channel }] }
+    return { url: stored.url, channel: stored.channel, allVods: [{ url: stored.url, channel: stored.channel, source: stored.source }] }
   }
 
   const siblingMatches = match.seriesId

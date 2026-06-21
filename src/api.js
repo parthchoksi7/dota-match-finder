@@ -279,7 +279,7 @@ export async function fetchStoredReplay(odMatchId) {
     const data = await res.json()
     const m = data?.main
     if (m && m.kind === 'start_point' && m.url) {
-      return { url: m.url, channel: m.channel || null }
+      return { url: m.url, channel: m.channel || null, source: m.source || null }
     }
     return null
   } catch {

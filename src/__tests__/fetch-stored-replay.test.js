@@ -22,9 +22,9 @@ afterEach(() => {
 
 describe('fetchStoredReplay', () => {
   it('returns the url+channel for a resolved start-point VOD', async () => {
-    mockFetchOnce({ json: { main: { kind: 'start_point', url: 'https://www.twitch.tv/videos/900?t=1842s', channel: 'pgl_dota2' } } })
+    mockFetchOnce({ json: { main: { kind: 'start_point', url: 'https://www.twitch.tv/videos/900?t=1842s', channel: 'pgl_dota2', source: 'twitch' } } })
     const r = await fetchStoredReplay('8123456789')
-    expect(r).toEqual({ url: 'https://www.twitch.tv/videos/900?t=1842s', channel: 'pgl_dota2' })
+    expect(r).toEqual({ url: 'https://www.twitch.tv/videos/900?t=1842s', channel: 'pgl_dota2', source: 'twitch' })
   })
 
   it('calls the replay endpoint with the encoded match id', async () => {

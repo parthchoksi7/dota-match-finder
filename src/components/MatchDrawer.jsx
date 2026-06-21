@@ -385,7 +385,11 @@ function MatchDrawer({
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-2">
                   {allVods.map((vod, i) => {
-                    const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || "Watch on Twitch"
+                    const isYouTube = vod.source === 'youtube'
+                    const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || (isYouTube ? "Watch on YouTube" : "Watch on Twitch")
+                    const btnClass = isYouTube
+                      ? "inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
+                      : "inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
                     return (
                       <a
                         key={i}
@@ -400,7 +404,7 @@ function MatchDrawer({
                           tournament: match.tournament,
                           spoilerFreeMode: spoilerFree,
                         })}
-                        className="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
+                        className={btnClass}
                       >
                         {label}
                       </a>
