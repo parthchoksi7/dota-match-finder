@@ -656,3 +656,22 @@ export async function checkServices() {
 
   return { pandascore, opendota, kv }
 }
+
+// ── IndexNow ──────────────────────────────────────────────────────────────────
+
+export async function pingIndexNow(urls) {
+  const key = process.env.INDEXNOW_KEY
+  if (!key || !urls?.length) return
+  try {
+    await fetch('https://api.indexnow.org/indexnow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        host: 'spectateesports.live',
+        key,
+        keyLocation: `https://spectateesports.live/${key}.txt`,
+        urlList: urls.slice(0, 10000),
+      }),
+    })
+  } catch (_) {}
+}

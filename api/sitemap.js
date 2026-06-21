@@ -1,4 +1,7 @@
-import { getPremiumLeagueIds } from './_shared.js'
+import { getPremiumLeagueIds, pingIndexNow } from './_shared.js'
+import { getSupabaseAdmin } from './_supabase.js'
+
+const BASE_URL = 'https://spectateesports.live'
 
 const GLOSSARY_TERM_IDS = [
   'draft', 'gpm', 'roshan', 'rampage', 'divine-rapier', 'aegis', 'mega-creeps',
@@ -21,39 +24,111 @@ function slugify(str) {
     .replace(/-+/g, '-')
 }
 
-function getMatchSlug(match) {
-  return [
-    slugify(match.radiantTeam),
+function matchUrlFromHistory(row) {
+  const slug = [
+    slugify(row.team_a),
     'vs',
-    slugify(match.direTeam),
-    slugify(match.tournament),
-    match.id,
+    slugify(row.team_b),
+    slugify(row.tournament),
+    String(row.od_match_id),
   ].filter(Boolean).join('-')
+  return `${BASE_URL}/match/${slug}`
+}
+
+function matchUrlFromOd(m) {
+  const slug = [
+    slugify(m.radiant_name || 'Radiant'),
+    'vs',
+    slugify(m.dire_name || 'Dire'),
+    slugify(m.league_name || ''),
+    String(m.match_id),
+  ].filter(Boolean).join('-')
+  return `${BASE_URL}/match/${slug}`
 }
 
 export default async function handler(req, res) {
-  const BASE_URL = 'https://spectateesports.live'
-
   try {
-    // Fetch hero slugs from OpenDota for /heroes/:slug sitemap entries.
-    let heroSlugs = []
+    const cutoff30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+
+    // ── Primary: Supabase match_stream_history ─────────────────────────────────
+    // Covers all observed live matches including qualifiers, and uses PandaScore
+    // team names (same source as the live-matches feed) so slugs don't 404.
+    let historyMatches = []
+    try {
+      const { data } = await getSupabaseAdmin()
+        .from('match_stream_history')
+        .select('od_match_id, team_a, team_b, tournament, started_at')
+        .not('od_match_id', 'is', null)
+        .not('team_a', 'is', null)
+        .gte('started_at', cutoff30d)
+        .order('started_at', { ascending: false })
+        .limit(500)
+      historyMatches = data || []
+    } catch (_) { /* fall through to OpenDota */ }
+
+    // ── Fallback: OpenDota proMatches ──────────────────────────────────────────
+    // Covers tier-1 matches that pre-date Phase 0 (before June 6 2026) or were
+    // missed by the live observer. Filtered to premium leagues only.
+    const seenIds = new Set(historyMatches.map(r => String(r.od_match_id)))
+    let odMatches = []
+    try {
+      const [page1, premiumIds] = await Promise.all([
+        fetch('https://api.opendota.com/api/proMatches').then(r => r.json()).catch(() => []),
+        getPremiumLeagueIds(),
+      ])
+      const lastId = Array.isArray(page1) && page1.length ? page1[page1.length - 1].match_id : null
+      const page2 = lastId
+        ? await fetch(`https://api.opendota.com/api/proMatches?less_than_match_id=${lastId}`).then(r => r.json()).catch(() => [])
+        : []
+      const raw = [...(Array.isArray(page1) ? page1 : []), ...(Array.isArray(page2) ? page2 : [])]
+      odMatches = raw
+        .filter(m => m?.match_id && premiumIds.has(m.leagueid) && !seenIds.has(String(m.match_id)))
+        .slice(0, 200)
+    } catch (_) {}
+
+    // ── Build match URL entries ────────────────────────────────────────────────
+    const matchUrls = []
+    for (const row of historyMatches) {
+      const url = matchUrlFromHistory(row)
+      const date = row.started_at ? row.started_at.slice(0, 10) : ''
+      const isRecent = row.started_at >= cutoff48h
+      matchUrls.push(`  <url>
+    <loc>${url}</loc>${date ? `\n    <lastmod>${date}</lastmod>` : ''}
+    <changefreq>${isRecent ? 'daily' : 'never'}</changefreq>
+    <priority>${isRecent ? '0.8' : '0.6'}</priority>
+  </url>`)
+    }
+    for (const m of odMatches) {
+      const url = matchUrlFromOd(m)
+      const date = m.start_time ? new Date(m.start_time * 1000).toISOString().slice(0, 10) : ''
+      matchUrls.push(`  <url>
+    <loc>${url}</loc>${date ? `\n    <lastmod>${date}</lastmod>` : ''}
+    <changefreq>never</changefreq>
+    <priority>0.6</priority>
+  </url>`)
+    }
+
+    // ── Hero slugs ─────────────────────────────────────────────────────────────
+    let heroUrls = []
     try {
       const heroRes = await fetch('https://api.opendota.com/api/heroes').catch(() => null)
       if (heroRes?.ok) {
         const heroData = await heroRes.json().catch(() => null)
         if (Array.isArray(heroData)) {
-          heroSlugs = heroData.map(h => h.name.replace('npc_dota_hero_', '')).filter(Boolean)
-        }
-      }
-    } catch (_) { /* skip hero URLs if OpenDota is unavailable */ }
-
-    const heroUrls = heroSlugs.map(slug => `  <url>
+          heroUrls = heroData
+            .map(h => h.name.replace('npc_dota_hero_', ''))
+            .filter(Boolean)
+            .map(slug => `  <url>
     <loc>${BASE_URL}/heroes/${slug}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>`)
+        }
+      }
+    } catch (_) {}
 
-    // Fetch article slugs/tournaments and match data in parallel.
+    // ── Article slugs ──────────────────────────────────────────────────────────
     let articleSlugs = []
     let articleTournaments = []
     try {
@@ -63,51 +138,9 @@ export default async function handler(req, res) {
         articleSlugs = artData?.slugs || []
         articleTournaments = artData?.tournaments || []
       }
-    } catch (_) { /* use empty lists if articles API is unavailable */ }
+    } catch (_) {}
 
-    // Fetch recent pro matches and premium league IDs in parallel.
-    const [page1, premiumIds] = await Promise.all([
-      fetch('https://api.opendota.com/api/proMatches').then(r => r.json()),
-      getPremiumLeagueIds(),
-    ])
-    const lastId = Array.isArray(page1) && page1.length ? page1[page1.length - 1].match_id : null
-    const page2 = lastId
-      ? await fetch(`https://api.opendota.com/api/proMatches?less_than_match_id=${lastId}`).then(r => r.json()).catch(() => [])
-      : []
-    const raw = [...(Array.isArray(page1) ? page1 : []), ...(Array.isArray(page2) ? page2 : [])].filter(Boolean)
-
-    const matches = raw
-      .filter(m => premiumIds.has(m.leagueid))
-      .slice(0, 200)
-      .map(m => ({
-        id: String(m.match_id),
-        radiantTeam: m.radiant_name || 'Radiant',
-        direTeam: m.dire_name || 'Dire',
-        tournament: m.league_name || '',
-        startTime: m.start_time,
-      }))
-
-    // Deduplicate by match ID
-    const seen = new Set()
-    const unique = matches.filter(m => {
-      if (seen.has(m.id)) return false
-      seen.add(m.id)
-      return true
-    })
-
-    const urls = unique.map(m => {
-      const slug = getMatchSlug(m)
-      const date = m.startTime
-        ? new Date(m.startTime * 1000).toISOString().slice(0, 10)
-        : ''
-      return `  <url>
-    <loc>${BASE_URL}/match/${slug}</loc>${date ? `\n    <lastmod>${date}</lastmod>` : ''}
-    <changefreq>never</changefreq>
-    <priority>0.6</priority>
-  </url>`
-    })
-
-    // Fetch tournament series for /tournament/:id URLs
+    // ── Tournament series ──────────────────────────────────────────────────────
     let tournamentUrls = []
     try {
       const seriesRes = await fetch(`${BASE_URL}/api/tournaments?mode=series`).catch(() => null)
@@ -129,10 +162,9 @@ export default async function handler(req, res) {
   </url>`
         })
       }
-    } catch (_) {
-      // silently skip — match URLs still included
-    }
+    } catch (_) {}
 
+    // ── Build XML ──────────────────────────────────────────────────────────────
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -217,15 +249,24 @@ ${TEAM_SLUGS.map(slug => `  <url>
   </url>
 ${heroUrls.join('\n')}
 ${tournamentUrls.join('\n')}
-${urls.join('\n')}
+${matchUrls.join('\n')}
 </urlset>`
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8')
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
-    return res.status(200).send(xml)
+    res.status(200).send(xml)
+
+    // Ping IndexNow for recent matches (< 48h) so Bing indexes them within minutes.
+    // Fired after the response is sent; fire-and-forget, never blocks the sitemap.
+    const recentUrls = historyMatches
+      .filter(r => r.started_at >= cutoff48h)
+      .map(matchUrlFromHistory)
+    if (recentUrls.length > 0) {
+      pingIndexNow(recentUrls).catch(() => {})
+    }
 
   } catch (err) {
     console.error('Sitemap error:', err?.message)
-    return res.status(500).send('Failed to generate sitemap')
+    res.status(500).send('Failed to generate sitemap')
   }
 }
