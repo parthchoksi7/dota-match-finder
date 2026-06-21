@@ -30,28 +30,29 @@ import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { classifyResolution, buildVodSeedRows } from './_vod-enrich-lib.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: join(__dirname, '../.env.local') })
+
+// Exit cleanly (no-op) when creds are absent so the scheduled GitHub Action doesn't
+// fail-and-alert every run before the repo secrets are configured.
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('vod-enrich: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — skipping (no-op).')
+  process.exit(0)
+}
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 const API_BASE = (process.env.VOD_ENRICH_API_BASE || 'https://spectateesports.live').replace(/\/$/, '')
 const BATCH = Number(process.env.BATCH || 20)        // rows per invocation (Twitch rate-limit headroom)
+const SEED_DAYS = Number(process.env.SEED_DAYS || 7) // recent window scanned to seed per-channel rows
 const LOOKBACK_DAYS = 60                              // Twitch archive VODs expire ~60 days
 const GRACE_HOURS = 24                                // wait this long before marking a miss unavailable
 const REQUEST_DELAY_MS = 400                          // gentle pacing between resolver calls
 const DRY_RUN = process.argv.includes('--dry-run')
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-// Parse "https://www.twitch.tv/videos/2401234567?t=1842s" → { vodId, offset }
-function parseVodUrl(url) {
-  const idMatch = url.match(/\/videos\/(\d+)/)
-  const tMatch = url.match(/[?&]t=(\d+)s/)
-  if (!idMatch) return null
-  return { vodId: idMatch[1], offset: tMatch ? Number(tMatch[1]) : 0 }
-}
 
 async function resolveVod(channel, startedAtUnix) {
   const params = new URLSearchParams({ mode: 'twitch-vod', channel, ts: String(startedAtUnix) })
@@ -60,9 +61,29 @@ async function resolveVod(channel, startedAtUnix) {
   return res.json() // { url, channel, startedAt } on hit | { url:null, channel, live } on miss
 }
 
-async function main() {
-  const cutoff = new Date(Date.now() - LOOKBACK_DAYS * 86400 * 1000).toISOString()
+// Resolve one (channel, started_at) via the LOCKED resolver and classify the outcome.
+// Returns { outcome, update?, label } — update is the DB patch to apply (table-agnostic).
+async function resolveRow(channel, started_at) {
+  const startedUnix = Math.floor(new Date(started_at).getTime() / 1000)
+  const ageHours = (Date.now() - new Date(started_at).getTime()) / 3_600_000
+  let data
+  try {
+    data = await resolveVod(channel, startedUnix)
+  } catch (err) {
+    return { outcome: 'fail', label: `fail: ${err.message}` }
+  }
+  const r = classifyResolution(data, ageHours, { graceHours: GRACE_HOURS })
+  if (r.outcome === 'resolved') return { outcome: 'resolved', update: r.update, label: `resolve → vod ${r.vodId} @ ${r.offset}s` }
+  if (r.outcome === 'pending') return { outcome: 'pending', update: r.update, label: data.live ? 'pending (channel live)' : `pending (${ageHours.toFixed(1)}h < ${GRACE_HOURS}h grace)` }
+  if (r.outcome === 'unavailable') return { outcome: 'unavailable', update: r.update, label: 'unavailable (no VOD past grace)' }
+  return { outcome: 'fail', label: `fail: ${r.error}` }
+}
 
+const emptyCounts = () => ({ resolved: 0, pending: 0, unavailable: 0, failed: 0 })
+
+// ── Pass 1: main channel (match_stream_history) ─ existing behavior, unchanged outputs.
+async function enrichMainChannels() {
+  const cutoff = new Date(Date.now() - LOOKBACK_DAYS * 86400 * 1000).toISOString()
   const { data: rows, error } = await supabase
     .from('match_stream_history')
     .select('id, od_match_id, channel, started_at')
@@ -72,73 +93,86 @@ async function main() {
     .gte('started_at', cutoff)
     .order('started_at', { ascending: false })
     .limit(BATCH)
+  if (error) { console.error('main: supabase query failed:', error.message); process.exit(1) }
 
-  if (error) {
-    console.error('Supabase query failed:', error.message)
-    process.exit(1)
-  }
-
-  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}Found ${rows.length} unresolved row(s) (last ${LOOKBACK_DAYS}d, batch ${BATCH})\n`)
-
-  let resolved = 0, pending = 0, unavailable = 0, failed = 0
-
+  console.log(`\n[main channel] ${DRY_RUN ? '[DRY RUN] ' : ''}${rows.length} unresolved row(s) (last ${LOOKBACK_DAYS}d, batch ${BATCH})`)
+  const c = emptyCounts()
   for (const row of rows) {
-    const startedUnix = Math.floor(new Date(row.started_at).getTime() / 1000)
-    const ageHours = (Date.now() - new Date(row.started_at).getTime()) / 3_600_000
     const tag = `match ${row.od_match_id} (${row.channel})`
-
-    let data
-    try {
-      data = await resolveVod(row.channel, startedUnix)
-    } catch (err) {
-      console.log(`  fail   ${tag}: ${err.message}`)
-      failed++
-      await sleep(REQUEST_DELAY_MS)
-      continue
-    }
-
-    let update
-    let outcome
-    if (data.url) {
-      const parsed = parseVodUrl(data.url)
-      if (!parsed) {
-        console.log(`  fail   ${tag}: unparseable url ${data.url}`)
-        failed++
-        await sleep(REQUEST_DELAY_MS)
-        continue
-      }
-      update = {
-        twitch_vod_id: parsed.vodId,
-        vod_offset_s: parsed.offset,
-        vod_resolved_at: new Date().toISOString(),
-        vod_checked_at: new Date().toISOString(),
-        vod_available: true,
-      }
-      outcome = `resolve → vod ${parsed.vodId} @ ${parsed.offset}s`
-      resolved++
-    } else if (data.live || ageHours < GRACE_HOURS) {
-      // VOD not published yet (broadcast live) or Twitch indexing lag — retry next run.
-      update = { vod_checked_at: new Date().toISOString() }
-      outcome = data.live ? 'pending (channel live)' : `pending (${ageHours.toFixed(1)}h < ${GRACE_HOURS}h grace)`
-      pending++
-    } else {
-      // Checked, no VOD, past grace window — stop retrying.
-      update = { vod_checked_at: new Date().toISOString(), vod_available: false }
-      outcome = 'unavailable (no VOD past grace)'
-      unavailable++
-    }
-
-    console.log(`  ${DRY_RUN ? 'would ' : ''}${outcome.padEnd(40)} ${tag}`)
-
-    if (!DRY_RUN) {
-      const { error: upErr } = await supabase.from('match_stream_history').update(update).eq('id', row.id)
+    const r = await resolveRow(row.channel, row.started_at)
+    c[r.outcome === 'fail' ? 'failed' : r.outcome]++
+    console.log(`  ${DRY_RUN ? 'would ' : ''}${r.label.padEnd(40)} ${tag}`)
+    if (!DRY_RUN && r.update) {
+      const { error: upErr } = await supabase.from('match_stream_history').update(r.update).eq('id', row.id)
       if (upErr) console.log(`         ^ update failed: ${upErr.message}`)
     }
-
     await sleep(REQUEST_DELAY_MS)
   }
+  return c
+}
 
-  console.log(`\nDone: ${resolved} resolved, ${pending} pending, ${unavailable} unavailable, ${failed} failed`)
+// Seed match_stream_vods from recently-recorded series: one row per NON-main Twitch
+// channel. Idempotent (ignoreDuplicates), so it only ever adds new (game, channel) pairs.
+async function seedAltChannels() {
+  const seedCutoff = new Date(Date.now() - SEED_DAYS * 86400 * 1000).toISOString()
+  const { data: rows, error } = await supabase
+    .from('match_stream_history')
+    .select('od_match_id, channel, started_at, streams_json')
+    .gte('started_at', seedCutoff)
+    .not('streams_json', 'is', null)
+    .order('started_at', { ascending: false })
+    .limit(1000)
+  if (error) { console.log(`  alt seed: query failed: ${error.message}`); return 0 }
+
+  const seeds = buildVodSeedRows(rows)
+  if (seeds.length && !DRY_RUN) {
+    const { error: upErr } = await supabase
+      .from('match_stream_vods')
+      .upsert(seeds, { onConflict: 'od_match_id,channel', ignoreDuplicates: true })
+    if (upErr) console.log(`  alt seed: upsert failed: ${upErr.message}`)
+  }
+  return seeds.length
+}
+
+// ── Pass 2: alternate channels (match_stream_vods) — per-channel deep-link coverage.
+async function enrichAltChannels() {
+  const seeded = await seedAltChannels()
+  const cutoff = new Date(Date.now() - LOOKBACK_DAYS * 86400 * 1000).toISOString()
+  const { data: rows, error } = await supabase
+    .from('match_stream_vods')
+    .select('od_match_id, channel, started_at')
+    .is('twitch_vod_id', null)
+    .not('vod_available', 'is', false)
+    .gte('started_at', cutoff)
+    .order('started_at', { ascending: false })
+    .limit(BATCH)
+  if (error) { console.log(`alt: supabase query failed: ${error.message}`); return emptyCounts() }
+
+  console.log(`\n[alt channels] ${DRY_RUN ? '[DRY RUN] ' : ''}seeded ${seeded} (last ${SEED_DAYS}d), ${rows.length} unresolved row(s) (last ${LOOKBACK_DAYS}d, batch ${BATCH})`)
+  const c = emptyCounts()
+  for (const row of rows) {
+    const tag = `match ${row.od_match_id} (${row.channel}) [alt]`
+    const r = await resolveRow(row.channel, row.started_at)
+    c[r.outcome === 'fail' ? 'failed' : r.outcome]++
+    console.log(`  ${DRY_RUN ? 'would ' : ''}${r.label.padEnd(40)} ${tag}`)
+    if (!DRY_RUN && r.update) {
+      const { error: upErr } = await supabase
+        .from('match_stream_vods')
+        .update(r.update)
+        .eq('od_match_id', row.od_match_id)
+        .eq('channel', row.channel)
+      if (upErr) console.log(`         ^ update failed: ${upErr.message}`)
+    }
+    await sleep(REQUEST_DELAY_MS)
+  }
+  return c
+}
+
+async function main() {
+  const main = await enrichMainChannels()
+  const alt = await enrichAltChannels()
+  console.log(`\nDone — main: ${main.resolved} resolved, ${main.pending} pending, ${main.unavailable} unavailable, ${main.failed} failed`)
+  console.log(`     — alt:  ${alt.resolved} resolved, ${alt.pending} pending, ${alt.unavailable} unavailable, ${alt.failed} failed`)
 }
 
 main().catch((err) => {

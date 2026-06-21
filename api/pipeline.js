@@ -474,7 +474,26 @@ async function handleVodUrls(req, res) {
     return res.status(500).json({ error: err?.message || 'query failed' })
   }
 
-  const series = groupSeriesFromRows(rows)
+  // Per-channel VODs (alt/language channels) so non-main URLs can deep-link too.
+  // { od_match_id: { channel: { twitch_vod_id, vod_offset_s } } }
+  const vodsByMatch = {}
+  const odIds = rows.map(r => r.od_match_id)
+  try {
+    const db = getSupabaseAdmin()
+    // Chunk the id list to keep the GET URL well under server limits.
+    for (let i = 0; i < odIds.length; i += 500) {
+      const { data: vodRows } = await db
+        .from('match_stream_vods')
+        .select('od_match_id, channel, twitch_vod_id, vod_offset_s')
+        .in('od_match_id', odIds.slice(i, i + 500))
+        .not('twitch_vod_id', 'is', null)
+      for (const v of vodRows || []) {
+        (vodsByMatch[v.od_match_id] ||= {})[v.channel] = { twitch_vod_id: v.twitch_vod_id, vod_offset_s: v.vod_offset_s }
+      }
+    }
+  } catch { /* per-channel deep-links are best-effort; fall back to main-only */ }
+
+  const series = groupSeriesFromRows(rows, vodsByMatch)
   return res.status(200).json({
     days,
     row_count: rows.length,

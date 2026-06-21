@@ -42,45 +42,55 @@ export function streamToUrlObj(s) {
   }
 }
 
-// Build the main + other URLs for one game row. The resolved Twitch VOD (Phase 1
-// enrichment) is the only link that jumps to the game's start point today; every
-// other URL opens the raw stream/channel page (Phase 3 adds per-channel deep-links).
-export function buildGameUrls(row) {
+// Construct the timestamped (or plain) Twitch VOD URL object for a resolved VOD.
+function vodUrlObj({ twitch_vod_id, vod_offset_s }, { channel, language, official }) {
+  const timestamped = vod_offset_s != null
+  return {
+    url: `https://www.twitch.tv/videos/${twitch_vod_id}${timestamped ? `?t=${vod_offset_s}s` : ''}`,
+    channel: channel ?? null,
+    language: language ?? 'en',
+    source: 'twitch',
+    official: official ?? true,
+    deep_link: timestamped, // timestamped → jumps to the game start point
+    kind: timestamped ? 'start_point' : 'replay',
+  }
+}
+
+// Build the main + other URLs for one game row. A Twitch channel with a resolved VOD
+// deep-links to the game start; everything else opens the raw stream/channel page.
+// `vodByChannel` (from match_stream_vods) supplies per-channel VODs for NON-main
+// channels; the row's own twitch_vod_id/vod_offset_s cover the main channel.
+export function buildGameUrls(row, vodByChannel = {}) {
   const streams = Array.isArray(row.streams_json)
     ? row.streams_json.map(normalizeStreamEl).filter(s => s.raw_url)
     : []
 
-  const startPoint = row.twitch_vod_id
-    ? {
-        url: `https://www.twitch.tv/videos/${row.twitch_vod_id}${row.vod_offset_s != null ? `?t=${row.vod_offset_s}s` : ''}`,
-        channel: row.channel || null,
-      }
-    : null
-
-  let main = null
-  if (startPoint) {
-    main = {
-      url: startPoint.url,
-      channel: startPoint.channel,
-      language: 'en',
-      source: 'twitch',
-      official: true,
-      deep_link: row.vod_offset_s != null, // timestamped → jumps to start point
-      kind: row.vod_offset_s != null ? 'start_point' : 'replay',
-    }
-  } else {
-    const primaryStream =
-      (row.channel && streams.find(s => s.channel === row.channel)) ||
-      streams.find(s => s.main) ||
-      streams[0] ||
-      null
-    if (primaryStream) main = streamToUrlObj(primaryStream)
+  const resolvedVodFor = (channel) => {
+    if (!channel) return null
+    const v = vodByChannel[channel]
+    if (v && v.twitch_vod_id) return { twitch_vod_id: v.twitch_vod_id, vod_offset_s: v.vod_offset_s }
+    if (channel === row.channel && row.twitch_vod_id) return { twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }
+    return null
   }
 
-  const others = streams
-    .filter(s => (startPoint ? s.channel !== row.channel : s.raw_url !== main?.url))
-    .map(streamToUrlObj)
+  const urlObjFor = (s) => {
+    const rv = s.source === 'twitch' ? resolvedVodFor(s.channel) : null
+    return rv ? vodUrlObj(rv, s) : streamToUrlObj(s)
+  }
 
+  const primaryStream =
+    (row.channel && streams.find(s => s.channel === row.channel)) ||
+    streams.find(s => s.main) ||
+    streams[0] ||
+    null
+
+  let main = primaryStream ? urlObjFor(primaryStream) : null
+  // Edge: main channel resolved but absent from streams_json (legacy / sparse rows).
+  if (!main && row.twitch_vod_id) {
+    main = vodUrlObj({ twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }, { channel: row.channel || null })
+  }
+
+  const others = streams.filter(s => s.raw_url !== primaryStream?.raw_url).map(urlObjFor)
   return { main, others }
 }
 
@@ -104,7 +114,7 @@ export function buildReplayResponse(row) {
 
 // Group match_stream_history rows into series (newest first), each with games
 // (by position) and a replay-available flag.
-export function groupSeriesFromRows(rows) {
+export function groupSeriesFromRows(rows, vodsByMatch = {}) {
   const seriesMap = new Map()
   for (const row of rows) {
     const key = row.ps_match_id != null
@@ -126,7 +136,7 @@ export function groupSeriesFromRows(rows) {
       }
       seriesMap.set(key, s)
     }
-    const { main, others } = buildGameUrls(row)
+    const { main, others } = buildGameUrls(row, vodsByMatch[row.od_match_id] || {})
     const hasReplay = !!row.twitch_vod_id || row.vod_available === true
     if (hasReplay) s.replay_available = true
     if (dayKey(row.started_at) < s.date) s.date = dayKey(row.started_at)

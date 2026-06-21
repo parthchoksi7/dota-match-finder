@@ -84,6 +84,26 @@ describe('buildGameUrls', () => {
   it('handles empty / missing streams_json', () => {
     expect(buildGameUrls({ channel: null, streams_json: null })).toEqual({ main: null, others: [] })
   })
+
+  it('upgrades an alt channel to a start point when vodByChannel has it (P3.3)', () => {
+    const vodByChannel = { pgl_ru: { twitch_vod_id: '777', vod_offset_s: 1200 } }
+    const { main, others } = buildGameUrls({ channel: 'pgl_dota2', streams_json: streams }, vodByChannel)
+    // main has no resolved VOD → stream page; the RU alt now deep-links.
+    expect(main).toMatchObject({ channel: 'pgl_dota2', kind: 'stream_page' })
+    const ru = others.find(o => o.channel === 'pgl_ru')
+    expect(ru).toMatchObject({ url: 'https://www.twitch.tv/videos/777?t=1200s', kind: 'start_point', deep_link: true })
+    const yt = others.find(o => o.source === 'youtube')
+    expect(yt).toMatchObject({ kind: 'stream_page', deep_link: false }) // youtube never deep-links
+  })
+
+  it('main + alt can both be start points simultaneously', () => {
+    const { main, others } = buildGameUrls(
+      { channel: 'pgl_dota2', twitch_vod_id: '999', vod_offset_s: 1842, streams_json: streams },
+      { pgl_ru: { twitch_vod_id: '777', vod_offset_s: 1200 } },
+    )
+    expect(main).toMatchObject({ url: 'https://www.twitch.tv/videos/999?t=1842s', kind: 'start_point' })
+    expect(others.find(o => o.channel === 'pgl_ru')).toMatchObject({ kind: 'start_point' })
+  })
 })
 
 describe('groupSeriesFromRows', () => {
