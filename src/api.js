@@ -255,6 +255,30 @@ export async function findTwitchVod(matchStartTime, _tournamentName, preferredCh
   }
 }
 
+/**
+ * P3.2 — Supabase-first replay lookup. Reads the persisted replay link for a single
+ * game from match_stream_history (via /api/pipeline?type=replay) — no KV, no Helix.
+ * Returns a stored hit ONLY when enrichment has produced a timestamped start-point
+ * VOD (kind 'start_point'), which is byte-identical to what the live resolver would
+ * compute. Anything else (no offset, stream page, 404, error) returns null so the
+ * caller falls back to the live resolver — guaranteeing no UX regression.
+ */
+export async function fetchStoredReplay(odMatchId) {
+  if (odMatchId == null) return null
+  try {
+    const res = await fetch(`/api/pipeline?type=replay&id=${encodeURIComponent(odMatchId)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    const m = data?.main
+    if (m && m.kind === 'start_point' && m.url) {
+      return { url: m.url, channel: m.channel || null }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export async function fetchMatchSummary(matchId) {
   const matchRes = await fetch(OPENDOTA_BASE + '/matches/' + matchId)
   const matchData = await matchRes.json()

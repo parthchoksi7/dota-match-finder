@@ -8,7 +8,7 @@ import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import ManageTeamsModal from "./components/ManageTeamsModal"
-import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, resolveHeroByName } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, resolveHeroByName } from "./api"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
@@ -48,6 +48,16 @@ function getMatchIdFromUrl() {
 }
 
 async function resolveMatchStreams(match, allMatches) {
+  // P3.2 — Supabase-first. A persisted start-point VOD (filled by vod-enrich.mjs)
+  // is the permanent source of truth and avoids the channel-resolution + Helix
+  // round-trips. Only a timestamped start-point counts as a hit; everything else
+  // (not yet enriched, live/recent, no record) falls through to the LOCKED live
+  // resolver below, fully unchanged.
+  const stored = await fetchStoredReplay(match.id)
+  if (stored?.url) {
+    return { url: stored.url, channel: stored.channel, allVods: [{ url: stored.url, channel: stored.channel }] }
+  }
+
   const siblingIds = match.seriesId
     ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
     : [match.id]
