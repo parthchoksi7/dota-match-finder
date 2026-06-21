@@ -10,6 +10,7 @@ import {
   normalizeStreamEl,
   buildGameUrls,
   groupSeriesFromRows,
+  buildReplayResponse,
 } from '../api/pipeline/_vod-urls.js'
 
 describe('classifyStreamSource / twitchChannelFromUrl', () => {
@@ -119,5 +120,38 @@ describe('groupSeriesFromRows', () => {
     ]
     const series = groupSeriesFromRows(rows)
     expect(series.map(s => s.ps_match_id)).toEqual([2, 1])
+  })
+})
+
+describe('buildReplayResponse (public ?type=replay shape)', () => {
+  it('serves the stored Twitch VOD as a deep-linked start point', () => {
+    const r = buildReplayResponse({
+      od_match_id: 8123, channel: 'pgl_dota2', twitch_vod_id: '900', vod_offset_s: 1842,
+      vod_available: true, vod_checked_at: '2026-06-20T00:00:00Z',
+      streams_json: [{ raw_url: 'https://www.twitch.tv/pgl_dota2', language: 'en', official: true, main: true, source: 'twitch', channel: 'pgl_dota2' }],
+    })
+    expect(r).toMatchObject({
+      od_match_id: 8123,
+      replay_available: true,
+      vod_available: true,
+      checked_at: '2026-06-20T00:00:00Z',
+    })
+    expect(r.main).toMatchObject({ url: 'https://www.twitch.tv/videos/900?t=1842s', deep_link: true, kind: 'start_point' })
+  })
+
+  it('reports replay_available=false and a stream-page main when unresolved', () => {
+    const r = buildReplayResponse({
+      od_match_id: 1, channel: 'pgl_dota2',
+      streams_json: [{ raw_url: 'https://www.twitch.tv/pgl_dota2', source: 'twitch', channel: 'pgl_dota2' }],
+    })
+    expect(r.replay_available).toBe(false)
+    expect(r.main).toMatchObject({ kind: 'stream_page', deep_link: false })
+    expect(r.vod_available).toBe(null)
+  })
+
+  it('treats vod_available=true alone (no twitch_vod_id) as replay available', () => {
+    const r = buildReplayResponse({ od_match_id: 2, channel: null, vod_available: true, streams_json: [] })
+    expect(r.replay_available).toBe(true)
+    expect(r.main).toBe(null)
   })
 })

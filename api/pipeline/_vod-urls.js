@@ -88,6 +88,20 @@ export function dayKey(iso) {
   return (iso || '').slice(0, 10) // YYYY-MM-DD (started_at is UTC ISO)
 }
 
+// Shape one match_stream_history row into the public ?type=replay response:
+// the Supabase-stored replay link for a single game (no KV, no Helix).
+export function buildReplayResponse(row) {
+  const { main, others } = buildGameUrls(row)
+  return {
+    od_match_id: row.od_match_id,
+    replay_available: !!row.twitch_vod_id || row.vod_available === true,
+    main,
+    others,
+    vod_available: row.vod_available ?? null,
+    checked_at: row.vod_checked_at || null,
+  }
+}
+
 // Group match_stream_history rows into series (newest first), each with games
 // (by position) and a replay-available flag.
 export function groupSeriesFromRows(rows) {

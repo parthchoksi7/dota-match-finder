@@ -19,7 +19,7 @@ import { fetchNewsContext } from './pipeline/_news.js'
 import { generateTopics, generateDraft, generateXPost } from './pipeline/_claude.js'
 import { sendMessage, answerCallback, topicsKeyboard, draftKeyboard, retryKeyboard, chunkText } from './pipeline/_telegram.js'
 import { publishToDb, postXTweet, updateMetadataFiles } from './pipeline/_publisher.js'
-import { groupSeriesFromRows } from './pipeline/_vod-urls.js'
+import { groupSeriesFromRows, buildReplayResponse } from './pipeline/_vod-urls.js'
 import { setCorsHeaders, createLogger } from './_shared.js'
 
 const MAX_REVISIONS = 3
@@ -483,6 +483,38 @@ async function handleVodUrls(req, res) {
   })
 }
 
+// ── Public replay link (Supabase source of truth) ───────────────────────────
+// GET /api/pipeline?type=replay&id={odMatchId}  (public, cached)
+// Serves the persisted replay link for one game straight from match_stream_history
+// — no KV, no Helix. This is the read side of moving the replay link off the
+// (24h-TTL) KV cache onto permanent Supabase storage. Returns the resolved Twitch
+// VOD (deep-linked to game start) as `main` when enrichment has run, plus every
+// other recorded stream URL. 404 when the match has no recorded row yet (callers
+// fall back to the live resolver for not-yet-enriched matches).
+async function handleReplay(req, res) {
+  const id = String(req.query.id || '').trim()
+  if (!/^\d{1,20}$/.test(id)) return res.status(400).json({ error: 'invalid_id' })
+
+  let row
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('match_stream_history')
+      .select('od_match_id, channel, started_at, team_a, team_b, tournament, streams_json, twitch_vod_id, vod_offset_s, vod_available, vod_checked_at')
+      .eq('od_match_id', Number(id))
+      .maybeSingle()
+    if (error) return res.status(500).json({ error: error.message })
+    row = data
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || 'query failed' })
+  }
+  if (!row) return res.status(404).json({ error: 'not_found' })
+
+  // VOD URLs are stable once resolved; cache hard but allow revalidation in case
+  // a pending row gets enriched.
+  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=86400')
+  return res.status(200).json(buildReplayResponse(row))
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -497,6 +529,7 @@ export default async function handler(req, res) {
     return res.status(200).json(result)
   }
   if (req.method === 'GET' && type === 'vod-urls') return handleVodUrls(req, res)
+  if (req.method === 'GET' && type === 'replay') return handleReplay(req, res)
   if (req.method === 'POST') return handleWebhook(req, res)
 
   return res.status(405).json({ error: 'Method not allowed' })
