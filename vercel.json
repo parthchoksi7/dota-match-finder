@@ -29,7 +29,8 @@
     { "source": "/heroes", "destination": "/" },
     { "source": "/heroes/:slug", "destination": "/" },
     { "source": "/admin/coverage", "destination": "/" },
-    { "source": "/admin/review/:jobId", "destination": "/" }
+    { "source": "/admin/review/:jobId", "destination": "/" },
+    { "source": "/admin/vod-urls", "destination": "/" }
   ],
   "headers": [
     {

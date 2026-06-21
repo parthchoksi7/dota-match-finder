@@ -19,6 +19,7 @@ import { fetchNewsContext } from './pipeline/_news.js'
 import { generateTopics, generateDraft, generateXPost } from './pipeline/_claude.js'
 import { sendMessage, answerCallback, topicsKeyboard, draftKeyboard, retryKeyboard, chunkText } from './pipeline/_telegram.js'
 import { publishToDb, postXTweet, updateMetadataFiles } from './pipeline/_publisher.js'
+import { groupSeriesFromRows } from './pipeline/_vod-urls.js'
 import { setCorsHeaders, createLogger } from './_shared.js'
 
 const MAX_REVISIONS = 3
@@ -443,6 +444,45 @@ async function reconcileStreamHistory() {
   }
 }
 
+// ── VOD URL browser (internal QA) ───────────────────────────────────────────
+// GET /api/pipeline?type=vod-urls&days=30   (Authorization: Bearer {CRON_SECRET})
+// Returns every stream URL recorded in match_stream_history, grouped into
+// Series → Games → main url + other urls, with a per-series replay-available flag.
+// Internal-only: token-gated, never linked, noindex on the page. Pure grouping
+// logic lives in ./pipeline/_vod-urls.js (unit-tested).
+
+async function handleVodUrls(req, res) {
+  const auth = req.headers.authorization
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 120)
+  const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString()
+
+  let rows
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('match_stream_history')
+      .select('od_match_id, ps_match_id, channel, started_at, team_a, team_b, tournament, match_type, game_position, bracket_round, streams_json, twitch_vod_id, vod_offset_s, vod_available, vod_checked_at, vod_resolved_at')
+      .gt('started_at', since)
+      .order('started_at', { ascending: false })
+      .limit(2000)
+    if (error) return res.status(500).json({ error: error.message })
+    rows = data || []
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || 'query failed' })
+  }
+
+  const series = groupSeriesFromRows(rows)
+  return res.status(200).json({
+    days,
+    row_count: rows.length,
+    series_count: series.length,
+    series,
+  })
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -456,6 +496,7 @@ export default async function handler(req, res) {
     if (!result) return res.status(404).json({ error: 'No reconciliation run yet' })
     return res.status(200).json(result)
   }
+  if (req.method === 'GET' && type === 'vod-urls') return handleVodUrls(req, res)
   if (req.method === 'POST') return handleWebhook(req, res)
 
   return res.status(405).json({ error: 'Method not allowed' })

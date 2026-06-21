@@ -89,5 +89,6 @@ Disallow: /api/
 Disallow: /analytics
 Disallow: /analytics.html
 Disallow: /preview
+Disallow: /admin
 
 Sitemap: https://spectateesports.live/sitemap.xml

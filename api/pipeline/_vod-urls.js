@@ -1,0 +1,143 @@
+// Pure helpers for the internal VOD-URL browser (api/pipeline.js?type=vod-urls).
+// No I/O — takes match_stream_history rows, returns the grouped Series → Games →
+// main/other URL structure the page renders. Unit-tested in
+// __tests__/vod-urls-group.test.js.
+
+export function classifyStreamSource(url) {
+  if (!url) return 'other'
+  if (url.includes('twitch.tv')) return 'twitch'
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
+  return 'other'
+}
+
+export function twitchChannelFromUrl(url) {
+  if (!url || !url.includes('twitch.tv')) return null
+  return url.replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').replace(/\/$/, '') || null
+}
+
+// Normalize a streams_json element to the current shape, deriving source/channel
+// for legacy rows written before those fields existed.
+export function normalizeStreamEl(s) {
+  const source = s.source || classifyStreamSource(s.raw_url)
+  const channel = s.channel || (source === 'twitch' ? twitchChannelFromUrl(s.raw_url) : null)
+  return {
+    raw_url: s.raw_url,
+    language: s.language || null,
+    official: !!s.official,
+    main: !!s.main,
+    source,
+    channel,
+  }
+}
+
+export function streamToUrlObj(s) {
+  return {
+    url: s.raw_url,
+    channel: s.channel,
+    language: s.language,
+    source: s.source,
+    official: s.official,
+    deep_link: false, // raw live/channel page — not a timestamped replay (yet)
+    kind: 'stream_page',
+  }
+}
+
+// Build the main + other URLs for one game row. The resolved Twitch VOD (Phase 1
+// enrichment) is the only link that jumps to the game's start point today; every
+// other URL opens the raw stream/channel page (Phase 3 adds per-channel deep-links).
+export function buildGameUrls(row) {
+  const streams = Array.isArray(row.streams_json)
+    ? row.streams_json.map(normalizeStreamEl).filter(s => s.raw_url)
+    : []
+
+  const startPoint = row.twitch_vod_id
+    ? {
+        url: `https://www.twitch.tv/videos/${row.twitch_vod_id}${row.vod_offset_s != null ? `?t=${row.vod_offset_s}s` : ''}`,
+        channel: row.channel || null,
+      }
+    : null
+
+  let main = null
+  if (startPoint) {
+    main = {
+      url: startPoint.url,
+      channel: startPoint.channel,
+      language: 'en',
+      source: 'twitch',
+      official: true,
+      deep_link: row.vod_offset_s != null, // timestamped → jumps to start point
+      kind: row.vod_offset_s != null ? 'start_point' : 'replay',
+    }
+  } else {
+    const primaryStream =
+      (row.channel && streams.find(s => s.channel === row.channel)) ||
+      streams.find(s => s.main) ||
+      streams[0] ||
+      null
+    if (primaryStream) main = streamToUrlObj(primaryStream)
+  }
+
+  const others = streams
+    .filter(s => (startPoint ? s.channel !== row.channel : s.raw_url !== main?.url))
+    .map(streamToUrlObj)
+
+  return { main, others }
+}
+
+export function dayKey(iso) {
+  return (iso || '').slice(0, 10) // YYYY-MM-DD (started_at is UTC ISO)
+}
+
+// Group match_stream_history rows into series (newest first), each with games
+// (by position) and a replay-available flag.
+export function groupSeriesFromRows(rows) {
+  const seriesMap = new Map()
+  for (const row of rows) {
+    const key = row.ps_match_id != null
+      ? `ps:${row.ps_match_id}`
+      : `t:${row.tournament}|${row.team_a}|${row.team_b}|${dayKey(row.started_at)}`
+    let s = seriesMap.get(key)
+    if (!s) {
+      s = {
+        series_key: key,
+        ps_match_id: row.ps_match_id ?? null,
+        date: dayKey(row.started_at),
+        tournament: row.tournament || null,
+        team_a: row.team_a || null,
+        team_b: row.team_b || null,
+        match_type: row.match_type || null,
+        bracket_round: row.bracket_round || null,
+        replay_available: false,
+        games: [],
+      }
+      seriesMap.set(key, s)
+    }
+    const { main, others } = buildGameUrls(row)
+    const hasReplay = !!row.twitch_vod_id || row.vod_available === true
+    if (hasReplay) s.replay_available = true
+    if (dayKey(row.started_at) < s.date) s.date = dayKey(row.started_at)
+    s.games.push({
+      od_match_id: row.od_match_id,
+      game_position: row.game_position ?? null,
+      started_at: row.started_at,
+      channel: row.channel || null,
+      vod_available: row.vod_available ?? null,
+      vod_checked_at: row.vod_checked_at || null,
+      replay_available: hasReplay,
+      main,
+      others,
+    })
+  }
+
+  const series = [...seriesMap.values()]
+  for (const s of series) {
+    s.games.sort((a, b) => {
+      const pa = a.game_position ?? 99
+      const pb = b.game_position ?? 99
+      if (pa !== pb) return pa - pb
+      return new Date(a.started_at) - new Date(b.started_at)
+    })
+  }
+  series.sort((a, b) => new Date(b.games.at(-1)?.started_at || 0) - new Date(a.games.at(-1)?.started_at || 0))
+  return series
+}
