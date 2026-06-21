@@ -33,3 +33,6 @@ dist-ssr
 .claude/skills/
 .claude/*.md
 .claude/*.sql
+
+# Authored article kept locally, not part of the codebase
+ARTICLE_ENTITY_RESOLUTION.md
