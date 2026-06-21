@@ -350,7 +350,7 @@ const _ROMAN = { xx:20, xix:19, xviii:18, xvii:17, xvi:16, xv:15, xiv:14, xiii:1
 const _ROMAN_RE = new RegExp('\\b(' + Object.keys(_ROMAN).join('|') + ')\\b', 'gi')
 
 export function normalizeTournamentKey(name) {
-  return (name || 'Other')
+  const base = (name || 'Other')
     .toLowerCase()
     .replace(/\bs(\d+)\b/gi, 'season $1')                           // S7 → season 7
     .replace(_ROMAN_RE, m => 'season ' + _ROMAN[m.toLowerCase()])   // VII → season 7
@@ -358,6 +358,13 @@ export function normalizeTournamentKey(name) {
     .replace(/[^a-z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+  // Canonicalize TI qualifier names so PandaScore and OpenDota surface as one card.
+  // PS: "The International REGION Closed Qualifier"
+  // OD: "The International 2026 - Regional Qualifier REGION"
+  // Both → "the international REGION qualifier"
+  return base
+    .replace(/\bthe international\s+\d+\s+(?:closed|open|regional)\s+qualifier\s+(.+)$/, 'the international $1 qualifier')
+    .replace(/\bthe international\s+(.+?)\s+(?:closed|open|regional)\s+qualifier\b/, 'the international $1 qualifier')
 }
 
 /**

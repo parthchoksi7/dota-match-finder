@@ -435,6 +435,19 @@ describe('normalizeTournamentKey', () => {
     expect(normalizeTournamentKey('')).toBe('other')
   })
 
+  it('merges PandaScore and OpenDota TI qualifier names into one key', () => {
+    // PS: "The International REGION Closed Qualifier"
+    // OD: "The International 2026 - Regional Qualifier REGION"
+    expect(normalizeTournamentKey('THE INTERNATIONAL EUROPE CLOSED QUALIFIER'))
+      .toBe('the international europe qualifier')
+    expect(normalizeTournamentKey('THE INTERNATIONAL 2026 - REGIONAL QUALIFIER EUROPE'))
+      .toBe('the international europe qualifier')
+    expect(normalizeTournamentKey('THE INTERNATIONAL SOUTHEAST ASIA CLOSED QUALIFIER'))
+      .toBe('the international southeast asia qualifier')
+    expect(normalizeTournamentKey('THE INTERNATIONAL 2026 - REGIONAL QUALIFIER SOUTHEAST ASIA'))
+      .toBe('the international southeast asia qualifier')
+  })
+
   it('enables prefix-based tournament ID lookup across Roman/Arabic naming conventions', () => {
     // OpenDota uses "BLAST Slam VII"; PandaScore uses "BLAST Slam Season 7 2026 - Group Stage".
     // The HomeFeed findTournamentId function does:

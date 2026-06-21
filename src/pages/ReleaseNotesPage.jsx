@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 21, 2026",
+    tag: "fix",
+    title: "TI qualifier regions no longer show as two separate tournament sections",
+    desc: "PandaScore calls the TI qualifiers 'The International Europe Closed Qualifier' while OpenDota uses 'The International 2026 - Regional Qualifier Europe'. The feed was treating these as different tournaments and showing two cards — one with live/upcoming matches and one with completed series. Both names now resolve to the same key so everything appears under one section.",
+  },
+  {
     date: "June 20, 2026",
     tag: "improvement",
     title: "Replays now appear for completed series automatically, before anyone opens them",
