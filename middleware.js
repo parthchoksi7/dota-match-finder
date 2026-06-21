@@ -607,6 +607,7 @@ async function handleMatch(url) {
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${imageUrl}" />
     <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(description)}" />
     <link rel="canonical" href="${escapeHtml(canonical)}" />
     <script type="application/ld+json">${JSON.stringify(jsonLd)}<\/script>
   `
