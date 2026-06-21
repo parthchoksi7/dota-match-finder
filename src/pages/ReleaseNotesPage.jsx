@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "June 21, 2026",
     tag: "fix",
+    title: "Match pages now show the correct description in search results and AI previews",
+    desc: "Every match page was carrying the homepage's generic description tag in addition to the match-specific one injected by the server. Search engines and AI systems read the first description they encounter, so they were seeing 'Find any pro Dota 2 match...' instead of 'Team Spirit defeated VP.Prodigy 2-0...' The duplicate tag is now stripped before the page-specific description is inserted.",
+  },
+  {
+    date: "June 21, 2026",
+    tag: "fix",
     title: "TI qualifier regions no longer show as two separate tournament sections",
     desc: "PandaScore calls the TI qualifiers 'The International Europe Closed Qualifier' while OpenDota uses 'The International 2026 - Regional Qualifier Europe'. The feed was treating these as different tournaments and showing two cards — one with live/upcoming matches and one with completed series. Both names now resolve to the same key so everything appears under one section.",
   },

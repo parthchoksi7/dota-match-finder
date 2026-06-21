@@ -614,6 +614,7 @@ async function handleMatch(url) {
   html = html.replace(/<title>[^<]*<\/title>/gi, '')
   html = html.replace(/<meta[^>]*property="og:[^>]*"[^>]*\/?>/gi, '')
   html = html.replace(/<meta[^>]*name="twitter:[^>]*"[^>]*\/?>/gi, '')
+  html = html.replace(/<meta[^>]*name="description"[^>]*\/?>/gi, '')
   html = html.replace('</head>', ogTags + '</head>')
   html = html.replace(
     '<div id="root"></div>',
@@ -1105,6 +1106,7 @@ async function buildResponse(url, title, description, canonical, imageUrl, jsonL
   html = html.replace(/<title>[^<]*<\/title>/gi, '')
   html = html.replace(/<meta[^>]*property="og:[^>]*"[^>]*\/?>/gi, '')
   html = html.replace(/<meta[^>]*name="twitter:[^>]*"[^>]*\/?>/gi, '')
+  html = html.replace(/<meta[^>]*name="description"[^>]*\/?>/gi, '')
   html = html.replace('</head>', injected + '</head>')
   html = html.replace('<div id="root"></div>', `<div id="root">${rootContent}</div>`)
 
