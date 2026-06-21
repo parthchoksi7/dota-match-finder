@@ -372,7 +372,7 @@ function MatchDrawer({
               </p>
               {allVods.length > 1 && (
                 <p className="text-xs text-gray-400 dark:text-gray-600">
-                  Multiple channels were live — try each one to find this match.
+                  Multiple channels were live. Try each one to find this match.
                 </p>
               )}
             </div>

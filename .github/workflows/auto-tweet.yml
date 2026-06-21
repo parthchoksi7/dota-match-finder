@@ -11,9 +11,11 @@ jobs:
     permissions:
       issues: write
     steps:
+      # Kept as a backup capture trigger alongside the dedicated stream-capture.yml (every
+      # 10 min). Harmless overlap — cron=1 writes are nx:true and push is deduped.
       - name: Cache live stream channels
         run: |
-          curl -s -X GET "https://spectateesports.live/api/live-matches?cron=1" \
+          curl -s --max-time 60 -X GET "https://spectateesports.live/api/live-matches?cron=1" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail-with-body
       - name: Trigger auto-tweet

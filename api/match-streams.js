@@ -111,7 +111,7 @@ export default async function handler(req, res) {
         const userData = await userRes.json()
         userId = userData.data?.[0]?.id
         if (!userId) {
-          const miss = { url: null, channel }
+          const miss = { url: null, channel, live: false }
           const missTtl = matchStartTime > Date.now() / 1000 - 86400 ? 300 : 1800
           kv.set(vodCacheKey, miss, { ex: missTtl }).catch(() => {})
           return res.status(200).json(miss)
@@ -141,10 +141,30 @@ export default async function handler(req, res) {
         }
       }
 
-      const miss = { url: null, channel }
+      // No archived VOD window contained matchStartTime. Twitch DOES expose the in-progress
+      // broadcast via /videos (it appears as an archive whose duration grows in near-real-time),
+      // so completed earlier moments of a live broadcast resolve in the loop above. A miss here
+      // means the requested time sits at/near the live edge (duration lag of a few minutes) or
+      // before the channel's oldest stored VOD. For recent matches, check /streams so the client
+      // can offer a "Watch Live" link instead of a dead end.
+      const isRecent = matchStartTime > Date.now() / 1000 - 86400
+      let live = false
+      if (isRecent) {
+        try {
+          const liveRes = await fetch(`https://api.twitch.tv/helix/streams?user_id=${userId}`, { headers })
+          if (liveRes.ok) {
+            const liveData = await liveRes.json()
+            live = (liveData.data?.length || 0) > 0
+          }
+        } catch (err) {
+          log.warn('twitch live-status check failed', { channel, error: err?.message })
+        }
+      }
+      const miss = { url: null, channel, live }
       // Use a shorter 5-min TTL for recent matches so a VOD that isn't indexed yet
-      // auto-retries quickly instead of staying absent for 30 minutes.
-      const missTtl = matchStartTime > Date.now() / 1000 - 86400 ? 300 : 1800
+      // (or a broadcast that just ended) auto-retries quickly instead of staying absent
+      // for 30 minutes. The cached `live` flag is bounded by the same 5-min TTL.
+      const missTtl = isRecent ? 300 : 1800
       kv.set(vodCacheKey, miss, { ex: missTtl }).catch(() => {})
       return res.status(200).json(miss)
     } catch (err) {
@@ -206,10 +226,16 @@ export default async function handler(req, res) {
     try {
       const startTime = parseInt(ts, 10)
       if (!isNaN(startTime)) {
-        const startIso = new Date((startTime - 3600) * 1000).toISOString()
-        const endIso = new Date((startTime + 3600) * 1000).toISOString()
+        // ±2h window: PandaScore range[begin_at] filters on the series-level begin_at
+        // (game 1's scheduled time), but `startTime` here is the OD start_time of a
+        // specific game. In long BO5s a late game's start can drift >1h past the series
+        // begin_at, falling outside a ±1h window and silently missing the channel.
+        // teamsMatch() still disambiguates within the window, and page[size]=50 keeps the
+        // target in range on busy multi-region days.
+        const startIso = new Date((startTime - 7200) * 1000).toISOString()
+        const endIso = new Date((startTime + 7200) * 1000).toISOString()
         const psRes = await fetch(
-          `${PANDASCORE_BASE}/matches?range[begin_at]=${startIso},${endIso}&sort=begin_at&page[size]=20`,
+          `${PANDASCORE_BASE}/matches?range[begin_at]=${startIso},${endIso}&sort=begin_at&page[size]=50`,
           { headers: { Authorization: `Bearer ${process.env.PANDASCORE_TOKEN}`, Accept: 'application/json' } }
         )
         if (psRes.ok) {

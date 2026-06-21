@@ -133,9 +133,32 @@ describe('match-streams ?mode=twitch-vod', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body).toEqual({ url: null, channel: 'esl_dota2' })
+    // Old match (>24h): no live-status check, live defaults to false.
+    expect(res._body).toEqual({ url: null, channel: 'esl_dota2', live: false })
     // VOD miss cached for 30 min, not 24h
-    expect(mockKv.set).toHaveBeenCalledWith(VOD_CACHE_KEY, { url: null, channel: 'esl_dota2' }, { ex: 1800 })
+    expect(mockKv.set).toHaveBeenCalledWith(VOD_CACHE_KEY, { url: null, channel: 'esl_dota2', live: false }, { ex: 1800 })
+  })
+
+  it('marks a recent VOD miss as live when the channel is currently streaming', async () => {
+    const recentStart = Math.floor(Date.now() / 1000) - 600 // 10 min ago → isRecent
+    const recentVodKey = `twitch:vod:v2:esl_dota2:${recentStart}`
+    mockKv.get
+      .mockResolvedValueOnce(null) // VOD cache miss
+      .mockResolvedValueOnce({ token: 'cached-tok', clientId: 'test-client-id' }) // token cache hit
+      .mockResolvedValueOnce('uid999') // UID cache hit
+
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [] }) })          // videos: no covering VOD
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: 'live1' }] }) }) // streams: live
+
+    const req = makeReq({ mode: 'twitch-vod', channel: 'esl_dota2', ts: String(recentStart) })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body).toEqual({ url: null, channel: 'esl_dota2', live: true })
+    // Recent miss cached for 5 min, with the live flag bounded by that TTL.
+    expect(mockKv.set).toHaveBeenCalledWith(recentVodKey, { url: null, channel: 'esl_dota2', live: true }, { ex: 300 })
   })
 
   it('returns 200 with url:null when channel has no Helix user record', async () => {

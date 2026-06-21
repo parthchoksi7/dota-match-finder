@@ -9,6 +9,11 @@ const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes
 const PUSH_SUB_TTL = 30 * 24 * 3600 // 30 days
 
+// Headroom above the 10s default: the cron=1 capture path fetches up to 100 running
+// matches, enriches multi-stream ones, and walks the push-subscriber loop. Hobby allows
+// up to 60s. See pending-refactors for batching the per-subscriber KV reads (mget).
+export const config = { maxDuration: 30 }
+
 if (process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:admin@spectateesports.live',
@@ -393,7 +398,7 @@ export default async function handler(req, res) {
     }
     try {
       const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-      const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers })
+      const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=100`, { headers })
       if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
       const [data, tier1NamesCron] = await Promise.all([
         response.json(),
@@ -536,7 +541,7 @@ export default async function handler(req, res) {
     log.info('fetching from PandaScore')
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
     const [response, tier1Names] = await Promise.all([
-      fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=20`, { headers }),
+      fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=100`, { headers }),
       kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
     ])
     if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)

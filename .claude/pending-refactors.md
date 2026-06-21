@@ -146,3 +146,7 @@ Small-to-medium items consolidated from UI_UX_IMPROVEMENTS.md. All low blast rad
 ### Mobile touch target audit
 - **What:** Verify button and list row heights are ≥44px on small screens. `MatchCard` rows and `SearchBar` buttons may need padding bumps below 375px.
 - **Effort:** Low
+
+### Batch push-subscriber KV reads in `sendPushNotificationsForMatches`
+- **What:** `api/live-matches.js` `sendPushNotificationsForMatches()` does sequential per-team / per-user `kv.get()` calls inside nested loops (`push:team:*`, `push:sent:*`, `push:sub:*`). This runs on the `?cron=1` capture path, now firing every 10 min. Fine at today's subscriber count, but it scales linearly with subscribers and is the most likely cause of a future `maxDuration` timeout on that path (a stopgap `maxDuration: 30` was added Jun 20). Replace the per-user gets with `kv.mget()` batches.
+- **Effort:** Medium
