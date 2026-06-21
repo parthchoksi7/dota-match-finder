@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify-prod": "node scripts/verify-prod.mjs",
-    "vod-enrich": "node scripts/vod-enrich.mjs"
+    "vod-enrich": "node scripts/vod-enrich.mjs",
+    "vod-backfill-offsets": "node scripts/backfill-vod-offsets.mjs"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",

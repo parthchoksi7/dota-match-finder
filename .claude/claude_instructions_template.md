@@ -311,6 +311,7 @@ If all three are cold: fetches token → resolves user_id → fetches last 30 ar
 - **Do not change the lookup order** (KV fast path → PS fuzzy match → ts-bucket) in `match-streams.js`.
 - **Do not move the `stream:ts` write back inside the `external_identifier` guard** in `cacheRunningStreams()`. It must execute before `if (!matchId) continue` so personal/qualifier streams are recorded even when PS hasn't linked to OD yet.
 - **Do not change the `_candidates` consumption logic** in `resolveMatchStreams` (`src/App.jsx`) — it is the final fallback for personal/qualifier streams and must only activate when exactly one candidate exists.
+- **Do not revert the per-game `started_at` persistence** (2026-06-21). The Supabase writes in `match-streams.js` use the optional `starts=id:ts,…` param (sent by `fetchMatchStreams`) so each sibling game's row stores its OWN start time. Persisting all siblings with the single shared `ts` again corrupts per-game VOD offsets (games 2/3 inherit game 1's offset). Resolution logic (PS-fuzzy window, ts-bucket) still legitimately uses the primary `ts` — only the persisted `started_at` value is per-game.
 - After any deploy touching this system, bust the relevant KV caches (see deployment checklist §12) and run `npm run verify-prod`.
 
 ## KV Cache Poisoning Risk

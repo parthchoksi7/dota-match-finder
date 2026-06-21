@@ -58,11 +58,16 @@ async function resolveMatchStreams(match, allMatches) {
     return { url: stored.url, channel: stored.channel, allVods: [{ url: stored.url, channel: stored.channel }] }
   }
 
-  const siblingIds = match.seriesId
-    ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed).map(m => m.id)
-    : [match.id]
+  const siblingMatches = match.seriesId
+    ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed)
+    : [match]
+  const siblingIds = siblingMatches.map(m => m.id)
   const idsToFetch = siblingIds.length > 0 ? siblingIds : [match.id]
-  const streamMap = await fetchMatchStreams(idsToFetch, match.startTime, match.radiantTeam, match.direTeam)
+  // Each sibling's OWN start time, so the resolver persists per-game started_at
+  // instead of stamping every sibling with this clicked game's ts.
+  const startTimes = {}
+  for (const m of siblingMatches) { if (m.startTime != null) startTimes[m.id] = m.startTime }
+  const streamMap = await fetchMatchStreams(idsToFetch, match.startTime, match.radiantTeam, match.direTeam, startTimes)
 
   const resolvedChannels = idsToFetch.map(id => streamMap[id]).filter(Boolean)
   const uniqueChannels = [...new Set(resolvedChannels)]

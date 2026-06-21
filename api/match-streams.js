@@ -182,6 +182,20 @@ export default async function handler(req, res) {
 
   const matchIds = ids.split(',').map(s => s.trim()).filter(s => /^\d{1,15}$/.test(s)).slice(0, 50)
 
+  // Optional per-game start times (unix seconds), "id1:ts1,id2:ts2". Lets sibling rows
+  // persist their OWN started_at instead of inheriting the primary game's `ts` — that
+  // shared-ts write corrupted per-game VOD offsets (game 2/3 got game 1's offset).
+  // Resolution logic (PS-fuzzy window, ts-bucket) still uses the primary `ts` unchanged;
+  // this only affects the started_at VALUE written to match_stream_history.
+  const startById = {}
+  if (typeof req.query.starts === 'string') {
+    for (const pair of req.query.starts.split(',')) {
+      const [id, t] = pair.split(':')
+      if (/^\d{1,15}$/.test(id) && /^\d{1,12}$/.test(t)) startById[id] = parseInt(t, 10)
+    }
+  }
+  const startedAtIso = (id, fallbackSec) => new Date((startById[id] ?? fallbackSec) * 1000).toISOString()
+
   // Step 1: KV lookup by match ID
   try {
     if (matchIds.length > 0) {
@@ -203,7 +217,7 @@ export default async function handler(req, res) {
       const rows = kvHitIds.map(id => ({
         od_match_id: Number(id),
         channel: result[id],
-        started_at: new Date(startTime * 1000).toISOString(),
+        started_at: startedAtIso(id, startTime),
         team_a: radiantTeam || null,
         team_b: direTeam || null,
       }))
@@ -264,7 +278,7 @@ export default async function handler(req, res) {
                       od_match_id: Number(id),
                       ps_match_id: psMatch.id,
                       channel,
-                      started_at: new Date(startTime * 1000).toISOString(),
+                      started_at: startedAtIso(id, startTime),
                       team_a: radiantTeam || null,
                       team_b: direTeam || null,
                       tournament: buildTournamentName(psMatch),
@@ -316,7 +330,7 @@ export default async function handler(req, res) {
             const rows = stillMissing.map(id => ({
               od_match_id: Number(id),
               channel,
-              started_at: new Date(rawTs * 1000).toISOString(),
+              started_at: startedAtIso(id, rawTs),
               team_a: radiantTeam || null,
               team_b: direTeam || null,
             }))

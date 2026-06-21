@@ -32,3 +32,8 @@ create index if not exists idx_msv_enrich
 
 -- Read-side join: fetch all channels for a set of games.
 create index if not exists idx_msv_match on match_stream_vods (od_match_id);
+
+-- Grant access to the service_role used by vod-enrich.mjs (writes) and the
+-- ?type=vod-urls read endpoint (getSupabaseAdmin). New tables created in the SQL
+-- editor don't always inherit default privileges, so grant explicitly.
+grant select, insert, update, delete on table match_stream_vods to service_role;

@@ -217,7 +217,7 @@ export const VOD_CHANNEL_LABELS = {
  * Look up which Twitch channel(s) streamed the given match IDs.
  * Returns a map of matchId → channel name for matches we have a definitive record for.
  */
-export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam = null, direTeam = null) {
+export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam = null, direTeam = null, startTimes = null) {
   if (!matchIds || matchIds.length === 0) return {}
   try {
     const params = new URLSearchParams()
@@ -225,6 +225,14 @@ export async function fetchMatchStreams(matchIds, startTime = null, radiantTeam 
     if (startTime) params.set('ts', String(startTime))
     if (radiantTeam) params.set('radiantTeam', radiantTeam)
     if (direTeam) params.set('direTeam', direTeam)
+    // Per-game start times so each sibling row persists its OWN started_at (correct
+    // per-game VOD offsets). Resolution still keys off the primary `ts`.
+    if (startTimes) {
+      const pairs = Object.entries(startTimes)
+        .filter(([, t]) => t != null)
+        .map(([id, t]) => `${id}:${Math.floor(Number(t))}`)
+      if (pairs.length > 0) params.set('starts', pairs.join(','))
+    }
     const res = await fetch(`/api/match-streams?${params}`)
     if (!res.ok) return {}
     return await res.json()
