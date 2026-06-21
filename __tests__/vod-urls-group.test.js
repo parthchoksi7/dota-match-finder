@@ -72,12 +72,21 @@ describe('buildGameUrls', () => {
     expect(others).toHaveLength(2) // the two non-main streams
   })
 
-  it('youtube-only series (no twitch channel) still produces a main url', () => {
+  it('youtube-only series (no twitch channel, no ?t=) still produces a stream_page main url', () => {
     const { main, others } = buildGameUrls({
       channel: null,
       streams_json: [{ raw_url: 'https://youtube.com/watch?v=z', language: 'en', official: true, main: false, source: 'youtube', channel: null }],
     })
     expect(main).toMatchObject({ source: 'youtube', deep_link: false, kind: 'stream_page' })
+    expect(others).toHaveLength(0)
+  })
+
+  it('youtube URL with ?t= is treated as a timestamped start_point', () => {
+    const { main, others } = buildGameUrls({
+      channel: null,
+      streams_json: [{ raw_url: 'https://www.youtube.com/live/abc123?t=827', language: 'en', official: true, main: true, source: 'youtube', channel: null }],
+    })
+    expect(main).toMatchObject({ url: 'https://www.youtube.com/live/abc123?t=827', source: 'youtube', deep_link: true, kind: 'start_point', channel: null })
     expect(others).toHaveLength(0)
   })
 
@@ -93,7 +102,7 @@ describe('buildGameUrls', () => {
     const ru = others.find(o => o.channel === 'pgl_ru')
     expect(ru).toMatchObject({ url: 'https://www.twitch.tv/videos/777?t=1200s', kind: 'start_point', deep_link: true })
     const yt = others.find(o => o.source === 'youtube')
-    expect(yt).toMatchObject({ kind: 'stream_page', deep_link: false }) // youtube never deep-links
+    expect(yt).toMatchObject({ kind: 'stream_page', deep_link: false }) // no ?t= → still stream_page
   })
 
   it('main + alt can both be start points simultaneously', () => {
@@ -173,5 +182,15 @@ describe('buildReplayResponse (public ?type=replay shape)', () => {
     const r = buildReplayResponse({ od_match_id: 2, channel: null, vod_available: true, streams_json: [] })
     expect(r.replay_available).toBe(true)
     expect(r.main).toBe(null)
+  })
+
+  it('YouTube URL with ?t= is a replay start_point even with no twitch_vod_id', () => {
+    const r = buildReplayResponse({
+      od_match_id: 8860067580, channel: null, twitch_vod_id: null, vod_offset_s: null, vod_available: null,
+      streams_json: [{ raw_url: 'https://www.youtube.com/live/yVPfwcQeviE?t=827', language: 'en', official: true, main: true, source: 'youtube', channel: null }],
+    })
+    expect(r.replay_available).toBe(true)
+    expect(r.main).toMatchObject({ url: 'https://www.youtube.com/live/yVPfwcQeviE?t=827', kind: 'start_point', deep_link: true, source: 'youtube' })
+    expect(r.vod_available).toBe(null)
   })
 })

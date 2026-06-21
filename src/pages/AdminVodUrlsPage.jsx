@@ -6,8 +6,8 @@ import { useState, useEffect, useCallback } from 'react'
 
 function useAdminToken() {
   const [token, setToken] = useState(() => localStorage.getItem('admin_token') || '')
-  const save = (t) => { localStorage.setItem('admin_token', t); setToken(t) }
-  const clear = () => { localStorage.removeItem('admin_token'); setToken('') }
+  const save = useCallback((t) => { localStorage.setItem('admin_token', t); setToken(t) }, [])
+  const clear = useCallback(() => { localStorage.removeItem('admin_token'); setToken('') }, [])
   return { token, save, clear }
 }
 

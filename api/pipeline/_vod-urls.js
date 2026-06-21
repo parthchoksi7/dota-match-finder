@@ -74,8 +74,15 @@ export function buildGameUrls(row, vodByChannel = {}) {
   }
 
   const urlObjFor = (s) => {
-    const rv = s.source === 'twitch' ? resolvedVodFor(s.channel) : null
-    return rv ? vodUrlObj(rv, s) : streamToUrlObj(s)
+    if (s.source === 'twitch') {
+      const rv = resolvedVodFor(s.channel)
+      if (rv) return vodUrlObj(rv, s)
+    }
+    // YouTube URL with ?t= is a manually-set timestamped replay (no Twitch VOD exists).
+    if (s.source === 'youtube' && s.raw_url?.includes('?t=')) {
+      return { url: s.raw_url, channel: null, language: s.language || null, source: 'youtube', official: !!s.official, deep_link: true, kind: 'start_point' }
+    }
+    return streamToUrlObj(s)
   }
 
   const primaryStream =
@@ -104,7 +111,7 @@ export function buildReplayResponse(row) {
   const { main, others } = buildGameUrls(row)
   return {
     od_match_id: row.od_match_id,
-    replay_available: !!row.twitch_vod_id || row.vod_available === true,
+    replay_available: !!row.twitch_vod_id || row.vod_available === true || main?.kind === 'start_point',
     main,
     others,
     vod_available: row.vod_available ?? null,
@@ -137,7 +144,7 @@ export function groupSeriesFromRows(rows, vodsByMatch = {}) {
       seriesMap.set(key, s)
     }
     const { main, others } = buildGameUrls(row, vodsByMatch[row.od_match_id] || {})
-    const hasReplay = !!row.twitch_vod_id || row.vod_available === true
+    const hasReplay = !!row.twitch_vod_id || row.vod_available === true || main?.kind === 'start_point'
     if (hasReplay) s.replay_available = true
     if (dayKey(row.started_at) < s.date) s.date = dayKey(row.started_at)
     s.games.push({
