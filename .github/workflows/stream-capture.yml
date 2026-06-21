@@ -6,7 +6,7 @@ name: Stream Capture
 # that started and finished between samples, leaving them with no channel record.
 on:
   schedule:
-    - cron: '*/10 * * * *'   # every 10 min (GitHub may delay under load; still far tighter than 30)
+    - cron: '*/15 * * * *'   # every 15 min
   workflow_dispatch:
 
 # Never let a delayed run pile on top of a still-running one — capture is idempotent
