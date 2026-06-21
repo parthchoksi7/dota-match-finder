@@ -81,6 +81,34 @@ function getYoutubeStream(streamsList) {
   return s?.raw_url || null
 }
 
+// Normalize every stream PandaScore returns (all languages, official AND unofficial,
+// all sources) for persistence in match_stream_history.streams_json. Drives the internal
+// VOD-URL browser. `source` classifies the platform; `channel` is the twitch login when
+// applicable (used later for per-channel VOD deep-link enrichment).
+export function normalizeAllStreams(streamsList) {
+  return (streamsList || [])
+    .filter(s => s.raw_url)
+    .map(s => {
+      const url = s.raw_url
+      let source = 'other'
+      let channel = null
+      if (url.includes('twitch.tv')) {
+        source = 'twitch'
+        channel = url.replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').replace(/\/$/, '') || null
+      } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        source = 'youtube'
+      }
+      return {
+        raw_url: url,
+        language: s.language || null,
+        official: !!s.official,
+        main: !!s.main,
+        source,
+        channel,
+      }
+    })
+}
+
 function mapMatch(m) {
   const opponents = m.opponents || []
   const teamA = opponents[0]?.opponent?.name || 'TBD'
@@ -143,6 +171,10 @@ async function cacheRunningStreams(rawMatches) {
   for (const m of rawMatches) {
     const format = m.match_type // 'best_of_2', 'best_of_3', etc.
     const streams = getTwitchStreams(m.streams_list)
+    // All stream URLs (every language/source, official + unofficial) for permanent storage.
+    const allStreams = normalizeAllStreams(m.streams_list)
+    // Primary twitch channel for the row's `channel` column; null for youtube-only series.
+    const primaryChannel = streams[0]?.url.replace('https://www.twitch.tv/', '') || null
 
     for (const game of m.games || []) {
       // Always record in the ts-bucket for running single-stream games, even when
@@ -177,28 +209,31 @@ async function cacheRunningStreams(rawMatches) {
         streamWrites.push(kv.set(`live:game:${m.id}:${game.position}`, String(matchId), { ex: STREAM_TTL }))
       }
 
+      // Permanent record of every stream URL for this game/series. Independent of the
+      // single-channel KV fast-path below so multi-channel and YouTube-only series are
+      // captured too. Runs while the game is running (when streams_list is populated).
+      // ignoreDuplicates on upsert keeps first-write-wins, so re-runs are idempotent.
+      if (game.begin_at && game.status === 'running' && allStreams.length > 0) {
+        supabaseRows.push({
+          od_match_id: Number(matchId),
+          ps_match_id: m.id,
+          channel: primaryChannel,
+          started_at: game.begin_at,
+          team_a: m.opponents?.[0]?.opponent?.name || null,
+          team_b: m.opponents?.[1]?.opponent?.name || null,
+          tournament: buildTournamentName(m),
+          match_type: m.match_type || null,
+          game_position: game.position || null,
+          bracket_round: parseBracketRound(m.name) || null,
+          streams_json: allStreams,
+        })
+      }
+
+      // --- LOCKED VOD Replay System: single-channel KV fast-path (unchanged) ---
       if (streams.length !== 1 || !game.begin_at || game.status !== 'running') continue
       const channel = streams[0].url.replace('https://www.twitch.tv/', '')
       // nx: true — write-once. First recorded channel is never overwritten.
       streamWrites.push(kv.set(`stream:match:${matchId}`, channel, { ex: STREAM_TTL, nx: true }))
-
-      const allOfficialStreams = (m.streams_list || [])
-        .filter(s => s.official && s.raw_url)
-        .map(s => ({ raw_url: s.raw_url, language: s.language || null, official: true, main: s.main || false }))
-
-      supabaseRows.push({
-        od_match_id: Number(matchId),
-        ps_match_id: m.id,
-        channel,
-        started_at: game.begin_at,
-        team_a: m.opponents?.[0]?.opponent?.name || null,
-        team_b: m.opponents?.[1]?.opponent?.name || null,
-        tournament: buildTournamentName(m),
-        match_type: m.match_type || null,
-        game_position: game.position || null,
-        bracket_round: parseBracketRound(m.name) || null,
-        streams_json: allOfficialStreams.length > 0 ? allOfficialStreams : null,
-      })
     }
   }
 

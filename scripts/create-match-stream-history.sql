@@ -12,7 +12,7 @@ create table if not exists match_stream_history (
   ps_match_id     bigint,              -- PandaScore series match ID
 
   -- Stream
-  channel         text not null,       -- Twitch channel login (e.g. 'esl_dota2')
+  channel         text,                -- Primary Twitch channel login (e.g. 'esl_dota2'); null for YouTube-only series
 
   -- Timing
   started_at      timestamptz not null, -- game begin_at from PandaScore
@@ -27,9 +27,11 @@ create table if not exists match_stream_history (
   game_position   smallint,            -- 1, 2, 3 within the series
   bracket_round   text,                -- 'Grand Final', 'Upper Bracket Final', etc.
 
-  -- All official streams PandaScore provides (all languages + YouTube)
-  -- Each element: { raw_url, language, official, main }
-  streams_json    jsonb,               -- e.g. [{"raw_url":"...","language":"ru","official":true}]
+  -- Every stream URL PandaScore provides: all languages, all sources, official AND unofficial.
+  -- Each element: { raw_url, language, official, main, source, channel }
+  --   source  = 'twitch' | 'youtube' | 'other'
+  --   channel = twitch login when source='twitch', else null
+  streams_json    jsonb,               -- e.g. [{"raw_url":"...","language":"ru","official":true,"main":false,"source":"twitch","channel":"dota2_winline_ru"}]
 
   -- VOD enrichment (Phase 1 — all null at initial write)
   twitch_vod_id   text,                -- Twitch VOD ID once resolved
@@ -51,3 +53,11 @@ create index if not exists idx_msh_enrich
 -- Channel-level lookups (enrichment fetches VODs per channel)
 create index if not exists idx_msh_channel_started
   on match_stream_history (channel, started_at desc);
+
+-- ---------------------------------------------------------------------------
+-- Migration 2026-06-20 (all-stream-urls): existing tables only.
+-- Run these once if the table predates the all-streams change. Idempotent.
+-- ---------------------------------------------------------------------------
+alter table match_stream_history alter column channel drop not null;
+-- Group games into series for the internal VOD-URL browser.
+create index if not exists idx_msh_series on match_stream_history (ps_match_id, game_position);
