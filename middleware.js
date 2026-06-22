@@ -478,6 +478,27 @@ async function handleCalendar(url) {
 
 // ─── /match/:id ──────────────────────────────────────────────────────────────
 
+function slugifyMw(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-')
+}
+
+async function fetchMatchHistoryRow(matchId) {
+  const sbUrl = process.env.SUPABASE_URL
+  const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!sbUrl || !sbKey) return null
+  try {
+    const res = await fetch(
+      `${sbUrl}/rest/v1/match_stream_history?od_match_id=eq.${matchId}&select=team_a,team_b,tournament&limit=1`,
+      { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } }
+    )
+    if (!res.ok) return null
+    const rows = await res.json()
+    return Array.isArray(rows) && rows[0]?.team_a ? rows[0] : null
+  } catch (_) {
+    return null
+  }
+}
+
 async function handleMatch(url) {
   const pathPart = url.pathname.replace('/match/', '').split('/')[0]
   const matchIdMatch = pathPart.match(/(\d+)$/)
@@ -487,7 +508,26 @@ async function handleMatch(url) {
     return new Response(null, { status: 302, headers: { Location: '/' } })
   }
 
-  const canonical = `${url.origin}${url.pathname}`
+  // Fire Supabase + OpenDota in parallel — Supabase gives us the authoritative
+  // slug (same source as the sitemap) so canonical is deterministic regardless
+  // of which URL variation the crawler arrived on.
+  const [odResult, sbResult] = await Promise.allSettled([
+    fetch(`https://api.opendota.com/api/matches/${matchId}`).then(r => r.json()),
+    fetchMatchHistoryRow(matchId),
+  ])
+  const odData = odResult.status === 'fulfilled' ? odResult.value : null
+  const sbRow = sbResult.status === 'fulfilled' ? sbResult.value : null
+
+  let canonical
+  if (sbRow?.team_a) {
+    const slug = [slugifyMw(sbRow.team_a), 'vs', slugifyMw(sbRow.team_b), slugifyMw(sbRow.tournament), matchId].filter(Boolean).join('-')
+    canonical = `${url.origin}/match/${slug}`
+  } else if (odData?.match_id) {
+    const slug = [slugifyMw(odData.radiant_name || 'Radiant'), 'vs', slugifyMw(odData.dire_name || 'Dire'), slugifyMw(odData.league?.name || ''), matchId].filter(Boolean).join('-')
+    canonical = `${url.origin}/match/${slug}`
+  } else {
+    canonical = `${url.origin}${url.pathname}`
+  }
 
   let title = `Pro Dota 2 Match — ${SITE_NAME}`
   let description = 'Watch pro Dota 2 matches with direct Twitch VOD links, draft analysis, and AI summaries.'
@@ -495,8 +535,7 @@ async function handleMatch(url) {
   let jsonLd = null
 
   try {
-    const res = await fetch(`https://api.opendota.com/api/matches/${matchId}`)
-    const data = await res.json()
+    const data = odData
 
     if (data?.match_id) {
       const radiantTeam = data.radiant_name || 'Radiant'

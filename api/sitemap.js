@@ -15,7 +15,7 @@ const TEAM_SLUGS = [
   'evil-geniuses', 'nigma-galaxy', 'betboom-team', 'virtus-pro', 'xtreme-gaming',
 ]
 
-function slugify(str) {
+export function slugify(str) {
   return (str || '')
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
@@ -24,7 +24,7 @@ function slugify(str) {
     .replace(/-+/g, '-')
 }
 
-function matchUrlFromHistory(row) {
+export function matchUrlFromHistory(row) {
   const slug = [
     slugify(row.team_a),
     'vs',
@@ -35,7 +35,7 @@ function matchUrlFromHistory(row) {
   return `${BASE_URL}/match/${slug}`
 }
 
-function matchUrlFromOd(m) {
+export function matchUrlFromOd(m) {
   const slug = [
     slugify(m.radiant_name || 'Radiant'),
     'vs',
