@@ -28,6 +28,9 @@
     { "source": "/articles/:slug", "destination": "/" },
     { "source": "/heroes", "destination": "/" },
     { "source": "/heroes/:slug", "destination": "/" },
+    { "source": "/players", "destination": "/" },
+    { "source": "/players/:slug", "destination": "/" },
+    { "source": "/tournaments/the-international", "destination": "/" },
     { "source": "/admin/coverage", "destination": "/" },
     { "source": "/admin/review/:jobId", "destination": "/" },
     { "source": "/admin/vod-urls", "destination": "/" }

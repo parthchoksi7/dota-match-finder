@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "June 22, 2026",
+    tag: "new",
+    title: "Pro player profiles and TI history hub",
+    desc: "Career profiles for 28 elite Tier 1 Dota 2 players are now at /players — TI champions and legends spanning every era of professional Dota. Each page covers TI championship wins, role, nationality, and career highlights. The history of The International is now at /tournaments/the-international — all 14 editions from TI1 (2011) through TI14 (2025), with champions, runners-up, prize pools, and host cities. Both new sections include full schema.org structured data (Person and SportsEvent), sitemap coverage, and semantic HTML for AI crawlers.",
+    items: [
+      "28 player profiles at /players/{slug} with TI win history and career highlights",
+      "TI1–TI14 results hub at /tournaments/the-international",
+      "Person schema.org on every player page, SportsEvent schema on TI hub",
+      "All player URLs added to sitemap and llms.txt",
+    ],
+  },
+  {
+    date: "June 22, 2026",
     tag: "fix",
     title: "Game 2 and 3 VOD replays now jump to the correct start point",
     desc: "In a best-of-3 or best-of-5, the Watch Replay button for games 2 and 3 was jumping to game 1's start point in the VOD instead of the correct game. The background cron that pre-resolves replay links was stamping every game in a series with game 1's start time. It now tracks each game's individual start time, so the deep-link offset is accurate for every game.",
