@@ -232,6 +232,53 @@ async function handleTournaments(url) {
   const title = 'Dota 2 Esports Tournaments — Standings, Brackets & Rosters | Spectate Esports'
   const description = 'Browse all active and upcoming Tier 1 Dota 2 tournaments. View standings, playoffs brackets, team rosters, hero statistics, and live match schedules.'
   const canonical = `${BASE_URL}/tournaments`
+
+  // Fetch live series data for SSR content
+  let ongoing = [], upcoming = [], completed = []
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 3000)
+    const res = await fetch(`${BASE_URL}/api/tournaments?mode=series`, { signal: controller.signal }).catch(() => null)
+    clearTimeout(timer)
+    if (res?.ok) {
+      const data = await res.json().catch(() => null)
+      ongoing = data?.ongoing || []
+      upcoming = data?.upcoming || []
+      completed = data?.completed || []
+    }
+  } catch (_) { /* fall through to static content */ }
+
+  function fmtDate(iso) {
+    if (!iso) return ''
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  }
+
+  function seriesListHtml(series, heading) {
+    if (!series.length) return ''
+    const items = series.map(s => {
+      const dates = s.beginAt ? `${fmtDate(s.beginAt)}${s.endAt ? ' – ' + fmtDate(s.endAt) : ''}` : ''
+      const prize = s.prizePool ? ` · ${escapeHtml(s.prizePool)}` : ''
+      return `<li style="margin-bottom:8px"><strong>${escapeHtml(s.name)}</strong>${dates ? ` <span style="color:#888">(${escapeHtml(dates)})</span>` : ''}${prize ? `<span style="color:#888">${prize}</span>` : ''}</li>`
+    }).join('')
+    return `<h2>${heading}</h2><ul>${items}</ul>`
+  }
+
+  const liveHtml = seriesListHtml(ongoing, 'Live Now')
+  const upcomingHtml = seriesListHtml(upcoming, 'Upcoming')
+  const completedHtml = seriesListHtml(completed, 'Recently Completed')
+  const hasDynamic = ongoing.length || upcoming.length || completed.length
+
+  // JSON-LD: inject live SportsEvent nodes for ongoing tournaments
+  const sportsEvents = ongoing.map(s => ({
+    '@type': 'SportsEvent',
+    'name': s.name,
+    'sport': 'Dota 2',
+    'startDate': s.beginAt || undefined,
+    'endDate': s.endAt || undefined,
+    'url': `${BASE_URL}/tournaments`,
+    'organizer': { '@type': 'Organization', 'name': s.leagueName || 'Spectate Esports' },
+  }))
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -249,14 +296,16 @@ async function handleTournaments(url) {
         },
         'breadcrumb': breadcrumb([{ name: 'Tournaments', url: canonical }]),
       },
+      ...sportsEvents,
     ],
   }
+
   const rootContent = `
     <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
       <nav><a href="${BASE_URL}">Spectate Esports</a> › Tournaments</nav>
       <h1>Dota 2 Esports Tournaments</h1>
       <p>Active and upcoming Tier 1 professional Dota 2 tournaments. Includes group stage standings, double-elimination playoff brackets, team rosters with player details, hero pick/ban statistics, and full match schedules.</p>
-      <h2>Tier 1 Tournaments Covered</h2>
+      ${hasDynamic ? liveHtml + upcomingHtml + completedHtml : `<h2>Tier 1 Tournaments Covered</h2>
       <ul>
         <li>DreamLeague — ESL Gaming's premier European LAN circuit</li>
         <li>ESL One — International LAN events (Birmingham, Kuala Lumpur)</li>
@@ -266,7 +315,7 @@ async function handleTournaments(url) {
         <li>The International (TI) — Valve's annual world championship, largest prize pool in esports</li>
         <li>Riyadh Masters — Saudi Arabia super tournament by Gamers8</li>
         <li>Beyond The Summit (BTS) — Boutique production events</li>
-      </ul>
+      </ul>`}
     </main>`
 
   return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
@@ -1119,11 +1168,15 @@ async function handleArticleDetail(url) {
       }).join('\n      ') : ''}
     </main>`
 
+  const dateLabel = article.publishedAt
+    ? new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : ''
+  const ogImageUrl = `${BASE_URL}/api/og?mode=article&title=${encodeURIComponent(article.title)}&category=${encodeURIComponent(article.category || '')}&date=${encodeURIComponent(dateLabel)}`
   const articleMetaTags = `
     <meta property="article:published_time" content="${publishedDate}" />
     <meta property="article:author" content="Spectate Esports" />
     <meta property="article:section" content="${escapeHtml(article.category)}" />`
-  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent, articleMetaTags, 'article')
+  return buildResponse(url, title, description, canonical, ogImageUrl, jsonLd, rootContent, articleMetaTags, 'article')
 }
 
 // ─── /heroes ─────────────────────────────────────────────────────────────────

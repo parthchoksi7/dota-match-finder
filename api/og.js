@@ -15,12 +15,12 @@ const SATORI_OPTS = {
   fonts: [{ name: 'Inter', data: fontData, weight: 700, style: 'normal' }],
 }
 
-function renderPng(res, svgPromise) {
+function renderPng(res, svgPromise, cacheControl = 'public, max-age=3600, s-maxage=3600') {
   return svgPromise.then(svg => {
     const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } })
     const png = resvg.render().asPng()
     res.setHeader("Content-Type", "image/png")
-    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600')
+    res.setHeader('Cache-Control', cacheControl)
     res.end(png)
   })
 }
@@ -212,9 +212,77 @@ async function handleMatch(req, res) {
   return renderPng(res, Promise.resolve(svg))
 }
 
+// ── Mode: article ─────────────────────────────────────────────────────────────
+async function handleArticle(req, res) {
+  const url = new URL(req.url, 'http://localhost')
+  const title = url.searchParams.get('title') || 'Spectate Esports'
+  const category = url.searchParams.get('category') || 'ARTICLE'
+  const date = url.searchParams.get('date') || ''
+
+  const titleFontSize = title.length > 80 ? 34 : title.length > 55 ? 40 : title.length > 35 ? 46 : 52
+
+  const svg = await satori(
+    {
+      type: 'div',
+      props: {
+        style: {
+          width: '1200px', height: '630px',
+          background: '#080c14',
+          display: 'flex', flexDirection: 'column',
+          position: 'relative', overflow: 'hidden',
+          fontFamily: 'Inter',
+        },
+        children: [
+          { type: 'div', props: { style: { position: 'absolute', top: '-100px', right: '-60px', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%)', display: 'flex' } } },
+          { type: 'div', props: { style: { position: 'absolute', bottom: '0', left: '0', right: '0', height: '3px', background: 'linear-gradient(90deg, #ef4444 0%, rgba(239,68,68,0.2) 60%, transparent 100%)', display: 'flex' } } },
+          {
+            type: 'div',
+            props: {
+              style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '28px 52px 0' },
+              children: [
+                { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: '10px' }, children: [{ type: 'div', props: { style: { width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' } } }, { type: 'div', props: { style: { display: 'flex', gap: '6px', fontSize: '15px', fontWeight: 900, letterSpacing: '0.25em', textTransform: 'uppercase' }, children: [{ type: 'span', props: { style: { color: '#ffffff' }, children: 'SPECTATE' } }, { type: 'span', props: { style: { color: '#ef4444' }, children: 'ESPORTS' } }] } }] } },
+                { type: 'div', props: { style: { display: 'flex', gap: '8px', alignItems: 'center' }, children: [{ type: 'span', props: { style: { fontSize: '11px', color: '#0ea5e9', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700, border: '1px solid rgba(14,165,233,0.4)', padding: '2px 8px', borderRadius: '3px' }, children: (category || '').toUpperCase() } }] } },
+              ]
+            }
+          },
+          {
+            type: 'div',
+            props: {
+              style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '24px 52px 0' },
+              children: [
+                {
+                  type: 'div',
+                  props: {
+                    style: { fontSize: `${titleFontSize}px`, fontWeight: 900, color: '#ffffff', lineHeight: 1.15, maxHeight: '320px', overflow: 'hidden' },
+                    children: title,
+                  }
+                },
+              ]
+            }
+          },
+          {
+            type: 'div',
+            props: {
+              style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 52px 32px' },
+              children: [
+                date ? { type: 'span', props: { style: { fontSize: '13px', color: '#6b7280', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600 }, children: date } } : { type: 'span', props: { style: { fontSize: '12px', color: '#374151' }, children: '' } },
+                { type: 'span', props: { style: { fontSize: '12px', color: '#374151', letterSpacing: '0.2em', textTransform: 'uppercase' }, children: 'spectateesports.live' } },
+              ].filter(Boolean)
+            }
+          },
+        ]
+      }
+    },
+    SATORI_OPTS
+  )
+
+  return renderPng(res, Promise.resolve(svg), 'public, max-age=86400, s-maxage=86400')
+}
+
 // ── Router ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   const mode = new URL(req.url, 'http://localhost').searchParams.get('mode')
   if (mode === 'series') return handleSeries(req, res)
+  if (mode === 'article') return handleArticle(req, res)
   return handleMatch(req, res)
 }
