@@ -4,6 +4,7 @@ export const config = {
     '/match/:matchId*',
     '/news',
     '/tournaments',
+    '/tournaments/the-international',
     '/tournament/:seriesId*',
     '/about',
     '/release-notes',
@@ -16,6 +17,8 @@ export const config = {
     '/articles/:slug*',
     '/heroes',
     '/heroes/:slug*',
+    '/players',
+    '/players/:slug*',
   ],
 }
 
@@ -37,6 +40,60 @@ const TIER1_TEAMS_SSR = [
   { id: 'xtreme-gaming', name: 'Xtreme Gaming', region: 'CN', basedIn: 'China', tiWins: [], shortDesc: 'Chinese Dota 2 organization and The International 2025 runners-up.', liquipedia: 'https://liquipedia.net/dota2/Xtreme_Gaming' },
 ]
 const TIER1_TEAMS_MAP_SSR = Object.fromEntries(TIER1_TEAMS_SSR.map(t => [t.id, t]))
+
+// Tier 1 player data (kept inline — edge middleware cannot import from src/)
+// Source of truth: src/data/players.js — keep in sync manually.
+// DO NOT add current team affiliation. tiWins: immutable historical record only.
+const TIER1_PLAYERS_SSR = [
+  { id: 'dendi', name: 'Dendi', nationality: 'UA', role: 'Mid', tiWins: [2011], knownFor: "Dota 2's first global superstar. Won The International 2011 with Natus Vincere. Celebrated for his Pudge hook artistry and mid-lane dominance.", liquipedia: 'https://liquipedia.net/dota2/Dendi' },
+  { id: 'puppey', name: 'Puppey', nationality: 'EE', role: 'Support', tiWins: [2011], knownFor: 'One of the most decorated captains in Dota 2 history. Won The International 2011 with Natus Vincere. Competed at every single TI since TI1.', liquipedia: 'https://liquipedia.net/dota2/Puppey' },
+  { id: 's4', name: 's4', nationality: 'SE', role: 'Offlane', tiWins: [2013], knownFor: 'Won The International 2013 with Alliance. Regarded as one of the best offlaners in Dota 2 history, known for his Puck and Storm Spirit play.', liquipedia: 'https://liquipedia.net/dota2/S4' },
+  { id: 'admiral-bulldog', name: 'AdmiralBulldog', nationality: 'SE', role: 'Carry', tiWins: [2013], knownFor: 'Won The International 2013 with Alliance. Famous for his Lone Druid and Nature\'s Prophet play as part of the iconic Alliance "rat Dota" strategy.', liquipedia: 'https://liquipedia.net/dota2/AdmiralBulldog' },
+  { id: 'sumail', name: 'SumaiL', nationality: 'PK', role: 'Mid', tiWins: [2015], knownFor: 'Won The International 2015 with Evil Geniuses at age 15 — the youngest TI champion in history. Known for aggressive Storm Spirit and Queen of Pain play.', liquipedia: 'https://liquipedia.net/dota2/SumaiL' },
+  { id: 'ppd', name: 'ppd', nationality: 'US', role: 'Support', tiWins: [2015], knownFor: 'Won The International 2015 as captain of Evil Geniuses. Regarded as one of the sharpest strategic minds in North American Dota 2.', liquipedia: 'https://liquipedia.net/dota2/PPD' },
+  { id: 'fear', name: 'Fear', nationality: 'US', role: 'Carry', tiWins: [2015], knownFor: 'Won The International 2015 with Evil Geniuses. The first North American TI champion. Known for consistent, calm carry performance.', liquipedia: 'https://liquipedia.net/dota2/Fear' },
+  { id: 'kuroky', name: 'KuroKy', nationality: 'DE', role: 'Support', tiWins: [2017], knownFor: 'Won The International 2017 as captain of Team Liquid. One of the longest-serving and most decorated support players in Dota 2, competing at the top level since Warcraft III DotA.', liquipedia: 'https://liquipedia.net/dota2/KuroKy' },
+  { id: 'miracle', name: 'Miracle-', nationality: 'JO', role: 'Mid', tiWins: [2017], knownFor: 'Won The International 2017 with Team Liquid. Regarded as one of the most mechanically gifted players in Dota 2 history. Was the first player to reach 9,000 MMR.', liquipedia: 'https://liquipedia.net/dota2/Miracle-' },
+  { id: 'matumbaman', name: 'MATUMBAMAN', nationality: 'FI', role: 'Carry', tiWins: [2017], knownFor: 'Won The International 2017 with Team Liquid. Finnish carry known for consistent high-level performance and flexible hero pool.', liquipedia: 'https://liquipedia.net/dota2/MATUMBAMAN' },
+  { id: 'gh', name: 'GH', nationality: 'JO', role: 'Support', tiWins: [2017], knownFor: 'Won The International 2017 with Team Liquid. Known for his creative Earth Spirit and Io play. Widely regarded as one of the best support players of his generation.', liquipedia: 'https://liquipedia.net/dota2/GH' },
+  { id: 'mind-control', name: 'MinD_ContRoL', nationality: 'BG', role: 'Offlane', tiWins: [2017], knownFor: 'Won The International 2017 with Team Liquid. Bulgarian offlaner known for aggressive, tempo-setting play. Part of one of the most cohesive lineups in TI history.', liquipedia: 'https://liquipedia.net/dota2/MinD_ContRoL' },
+  { id: 'n0tail', name: 'N0tail', nationality: 'DK', role: 'Support', tiWins: [2018, 2019], knownFor: 'Two-time TI champion (2018, 2019) and co-founder of OG. Led OG from the open qualifiers to win TI8 — one of the most improbable championship runs in esports history.', liquipedia: 'https://liquipedia.net/dota2/N0tail' },
+  { id: 'fly', name: 'Fly', nationality: 'IL', role: 'Support', tiWins: [2018], knownFor: 'Won The International 2018 with OG. Israeli support player and co-founder of OG. Known for his Earth Spirit and Earthshaker play.', liquipedia: 'https://liquipedia.net/dota2/Fly' },
+  { id: 'ana', name: 'ana', nationality: 'AU', role: 'Carry', tiWins: [2018, 2019], knownFor: 'Two-time TI champion (2018, 2019) with OG. Known for his Io carry at TI8 grand finals — a hero never before successfully run in that role at the highest level.', liquipedia: 'https://liquipedia.net/dota2/Ana' },
+  { id: 'topson', name: 'Topson', nationality: 'FI', role: 'Mid', tiWins: [2018, 2019], knownFor: 'Two-time TI champion (2018, 2019) with OG. Had no prior tier-1 tournament experience before winning TI8. Known for unconventional hero choices and mechanical brilliance.', liquipedia: 'https://liquipedia.net/dota2/Topson' },
+  { id: 'ceb', name: 'Ceb', nationality: 'FR', role: 'Offlane', tiWins: [2018, 2019], knownFor: 'Two-time TI champion (2018, 2019) and co-founder of OG. French offlaner known for ultra-aggressive, decisive teamfight style.', liquipedia: 'https://liquipedia.net/dota2/Ceb' },
+  { id: 'yatoro', name: 'Yatoro', nationality: 'UA', role: 'Carry', tiWins: [2021, 2023], knownFor: 'Two-time TI champion (2021, 2023) with Team Spirit. Regarded as one of the most dominant carry players of the 2020s, known for clinical farming efficiency and game sense.', liquipedia: 'https://liquipedia.net/dota2/Yatoro' },
+  { id: 'collapse', name: 'Collapse', nationality: 'RU', role: 'Offlane', tiWins: [2021, 2023], knownFor: 'Two-time TI champion (2021, 2023) with Team Spirit. Famous for his Magnus Skewer initiations, considered some of the most precise plays in TI history.', liquipedia: 'https://liquipedia.net/dota2/Collapse' },
+  { id: 'torontotokyo', name: 'TORONTOTOKYO', nationality: 'RU', role: 'Mid', tiWins: [2021, 2023], knownFor: 'Two-time TI champion (2021, 2023) with Team Spirit. Known for aggressive tempo and unconventional hero pool. Part of the dominant Team Spirit core.', liquipedia: 'https://liquipedia.net/dota2/TORONTOTOKYO' },
+  { id: 'miposhka', name: 'Miposhka', nationality: 'RU', role: 'Support', tiWins: [2021, 2023], knownFor: 'Two-time TI champion (2021, 2023) and captain of Team Spirit. Leadership transformed a young Team Spirit into back-to-back TI champions.', liquipedia: 'https://liquipedia.net/dota2/Miposhka' },
+  { id: 'mira', name: 'Mira', nationality: 'RU', role: 'Support', tiWins: [2021, 2023], knownFor: 'Two-time TI champion (2021, 2023) with Team Spirit. Hard support known for vision control and utility play.', liquipedia: 'https://liquipedia.net/dota2/Mira' },
+  { id: 'skiter', name: 'Skiter', nationality: 'DK', role: 'Carry', tiWins: [2022], knownFor: 'Won The International 2022 with Tundra Esports, who did not drop a single series in the main event — the most dominant TI performance in history.', liquipedia: 'https://liquipedia.net/dota2/Skiter' },
+  { id: 'nine', name: 'Nine', nationality: 'AT', role: 'Mid', tiWins: [2022], knownFor: 'Won The International 2022 with Tundra Esports. Austrian mid-lane player known for Storm Spirit and Invoker mastery.', liquipedia: 'https://liquipedia.net/dota2/Nine' },
+  { id: '33', name: '33', nationality: 'CA', role: 'Offlane', tiWins: [2022], knownFor: 'Won The International 2022 with Tundra Esports. Known for innovative itemization and unconventional playstyle, particularly on Timbersaw.', liquipedia: 'https://liquipedia.net/dota2/33' },
+  { id: 'saksa', name: 'Saksa', nationality: 'MK', role: 'Support', tiWins: [2022], knownFor: 'Won The International 2022 with Tundra Esports. North Macedonian support known for Earthshaker and disruptive initiation heroes.', liquipedia: 'https://liquipedia.net/dota2/Saksa' },
+  { id: 'sneyking', name: 'Sneyking', nationality: 'CA', role: 'Support', tiWins: [2022], knownFor: 'Won The International 2022 with Tundra Esports. Canadian support and veteran of the North American Dota 2 scene.', liquipedia: 'https://liquipedia.net/dota2/Sneyking' },
+  { id: 'arteezy', name: 'Arteezy', nationality: 'US', role: 'Carry', tiWins: [], knownFor: 'Widely considered one of the greatest carry players in Dota 2 history. Known for clinical Terrorblade and Anti-Mage farming. A long-time fixture of Evil Geniuses and a fan favorite in North American Dota 2.', liquipedia: 'https://liquipedia.net/dota2/Arteezy' },
+  { id: 'iceiceice', name: 'iceiceice', nationality: 'SG', role: 'Offlane', tiWins: [], knownFor: 'One of the longest-serving Tier 1 players in Dota 2 history. Singaporean offlaner known for his Centaur and Underlord play and his longevity in a sport dominated by younger players.', liquipedia: 'https://liquipedia.net/dota2/Iceiceice' },
+]
+const TIER1_PLAYERS_MAP_SSR = Object.fromEntries(TIER1_PLAYERS_SSR.map(p => [p.id, p]))
+
+// TI editions — immutable historical record. Source: Liquipedia.
+const TI_EDITIONS_SSR = [
+  { edition: 1, year: 2011, location: 'Cologne, Germany', champion: 'Natus Vincere', runnerUp: 'EHOME', prizePool: '$1.6M' },
+  { edition: 2, year: 2012, location: 'Seattle, USA', champion: 'Invictus Gaming', runnerUp: 'Natus Vincere', prizePool: '$1.6M' },
+  { edition: 3, year: 2013, location: 'Seattle, USA', champion: 'Alliance', runnerUp: 'Natus Vincere', prizePool: '$2.87M' },
+  { edition: 4, year: 2014, location: 'Seattle, USA', champion: 'Newbee', runnerUp: 'Vici Gaming', prizePool: '$10.93M' },
+  { edition: 5, year: 2015, location: 'Seattle, USA', champion: 'Evil Geniuses', runnerUp: 'CDEC Gaming', prizePool: '$18.43M' },
+  { edition: 6, year: 2016, location: 'Seattle, USA', champion: 'Wings Gaming', runnerUp: 'Digital Chaos', prizePool: '$20.77M' },
+  { edition: 7, year: 2017, location: 'Seattle, USA', champion: 'Team Liquid', runnerUp: 'Newbee', prizePool: '$24.79M' },
+  { edition: 8, year: 2018, location: 'Vancouver, Canada', champion: 'OG', runnerUp: 'PSG.LGD', prizePool: '$25.53M' },
+  { edition: 9, year: 2019, location: 'Shanghai, China', champion: 'OG', runnerUp: 'Team Liquid', prizePool: '$34.33M' },
+  { edition: 10, year: 2021, location: 'Bucharest, Romania', champion: 'Team Spirit', runnerUp: 'PSG.LGD', prizePool: '$40.02M' },
+  { edition: 11, year: 2022, location: 'Singapore', champion: 'Tundra Esports', runnerUp: 'Team Secret', prizePool: '$18.86M' },
+  { edition: 12, year: 2023, location: 'Seattle, USA', champion: 'Team Spirit', runnerUp: 'Gaimin Gladiators', prizePool: '$3.32M' },
+  { edition: 13, year: 2024, location: 'Copenhagen, Denmark', champion: 'Team Liquid', runnerUp: null, prizePool: null },
+  { edition: 14, year: 2025, location: null, champion: 'Team Falcons', runnerUp: 'Xtreme Gaming', prizePool: null },
+]
 
 // Glossary term definitions (kept inline — edge middleware cannot import from src/)
 const GLOSSARY_TERMS_SSR = [
@@ -121,6 +178,9 @@ export default async function middleware(req) {
   if (pathname.startsWith('/articles/')) return handleArticleDetail(url)
   if (pathname === '/heroes') return handleHeroes(url)
   if (pathname.startsWith('/heroes/')) return handleHeroDetail(url)
+  if (pathname === '/players') return handlePlayers(url)
+  if (pathname.startsWith('/players/')) return handlePlayerDetail(url)
+  if (pathname === '/tournaments/the-international') return handleTIHub(url)
 
   return new Response(null, { status: 302, headers: { Location: '/' } })
 }
@@ -1286,6 +1346,169 @@ async function handleHeroDetail(url) {
       <p>Recent Tier 1 professional Dota 2 matches where <strong>${escapeHtml(displayName)}</strong> was picked. Each match includes a direct Twitch VOD link timestamped to game start, the full hero pick-and-ban draft, and match results. Data sourced from OpenDota and covers DreamLeague, ESL One, PGL, BLAST, WePlay, The International, and Riyadh Masters events.</p>
       ${heroMatchListHtml}
       <p><a href="${BASE_URL}">Back to Spectate Esports</a> · <a href="${BASE_URL}/heroes">All Heroes</a></p>
+    </main>`
+
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+// ─── /players ────────────────────────────────────────────────────────────────
+
+async function handlePlayers(url) {
+  const canonical = `${BASE_URL}/players`
+  const title = 'Tier 1 Dota 2 Pro Players — TI Champions & Legends | Spectate Esports'
+  const description = 'Career profiles of 28 elite professional Dota 2 players. TI champions, iconic legends, and top-tier talent. Includes TI win history, role, nationality, and career highlights.'
+
+  const playerItems = TIER1_PLAYERS_SSR.map(p => {
+    const tiLabel = p.tiWins.length ? ` · ${p.tiWins.length === 1 ? `TI ${p.tiWins[0]} champion` : `${p.tiWins.length}× TI champion`}` : ''
+    return `<li style="margin-bottom:8px"><a href="${BASE_URL}/players/${p.id}"><strong>${escapeHtml(p.name)}</strong></a> — ${escapeHtml(p.role)} · ${escapeHtml(p.nationality)}${tiLabel}</li>`
+  }).join('')
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'breadcrumb': breadcrumb([{ name: 'Players', url: canonical }]),
+      },
+    ],
+  }
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › Players</nav>
+      <h1>Tier 1 Dota 2 Pro Players</h1>
+      <p>Career profiles of elite professional Dota 2 players covering TI champions, iconic legends, and top-tier talent. All information covers immutable career history — current team affiliations change frequently and are not included. For current rosters, see Liquipedia.</p>
+      <ul>${playerItems}</ul>
+    </main>`
+
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+async function handlePlayerDetail(url) {
+  const slug = url.pathname.replace('/players/', '').split('/')[0]
+  if (!slug) return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/players` } })
+
+  const player = TIER1_PLAYERS_MAP_SSR[slug]
+  if (!player) return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/players` } })
+
+  const canonical = `${BASE_URL}/players/${slug}`
+  const tiDesc = player.tiWins.length
+    ? `${player.tiWins.length === 1 ? 'TI champion' : `${player.tiWins.length}× TI champion`} (${player.tiWins.join(', ')}). `
+    : ''
+  const title = `${player.name} — Pro Dota 2 Player Profile | Spectate Esports`
+  const description = `${tiDesc}${player.role} player. ${player.knownFor}`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Person',
+        '@id': `${canonical}#player`,
+        'name': player.name,
+        'alternateName': player.name,
+        'nationality': player.nationality,
+        'description': player.knownFor,
+        'url': canonical,
+        'sameAs': [player.liquipedia],
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'about': { '@id': `${canonical}#player` },
+        'breadcrumb': breadcrumb([
+          { name: 'Players', url: `${BASE_URL}/players` },
+          { name: player.name, url: canonical },
+        ]),
+      },
+    ],
+  }
+
+  const tiHtml = player.tiWins.length
+    ? `<p><strong>TI Championships:</strong> ${player.tiWins.map(y => `TI${y - 2010} (${y})`).join(', ')}</p>`
+    : ''
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/players">Players</a> › ${escapeHtml(player.name)}</nav>
+      <h1>${escapeHtml(player.name)} — Pro Dota 2 Player</h1>
+      <p><strong>Role:</strong> ${escapeHtml(player.role)} · <strong>Nationality:</strong> ${escapeHtml(player.nationality)}</p>
+      ${tiHtml}
+      <p>${escapeHtml(player.knownFor)}</p>
+      <p>For current team and roster information: <a href="${escapeHtml(player.liquipedia)}" rel="noopener">Liquipedia profile</a></p>
+      <p><a href="${BASE_URL}/players">Back to all players</a></p>
+    </main>`
+
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+}
+
+// ─── /tournaments/the-international ─────────────────────────────────────────
+
+async function handleTIHub(url) {
+  const canonical = `${BASE_URL}/tournaments/the-international`
+  const title = 'The International — Complete Dota 2 TI History (TI1–TI14) | Spectate Esports'
+  const description = 'Complete history of The International (TI1–TI14, 2011–2025). Champions, runners-up, prize pools, and host cities for every edition of Valve\'s annual Dota 2 world championship.'
+
+  const editionRows = [...TI_EDITIONS_SSR].reverse().map(ti => {
+    const prize = ti.prizePool ? ` · ${escapeHtml(ti.prizePool)}` : ''
+    const location = ti.location ? ` — ${escapeHtml(ti.location)}` : ''
+    const runnerUp = ti.runnerUp ? ` (runner-up: ${escapeHtml(ti.runnerUp)})` : ''
+    return `<li style="margin-bottom:6px"><strong>TI${ti.edition} ${ti.year}${location}:</strong> ${escapeHtml(ti.champion)}${runnerUp}${prize}</li>`
+  }).join('')
+
+  // SportsEvent JSON-LD for each TI edition
+  const tiEvents = TI_EDITIONS_SSR.map(ti => ({
+    '@type': 'SportsEvent',
+    'name': `The International ${ti.year} (TI${ti.edition})`,
+    'sport': 'Dota 2',
+    'startDate': `${ti.year}`,
+    'location': ti.location ? { '@type': 'Place', 'name': ti.location } : undefined,
+    'winner': { '@type': 'SportsTeam', 'name': ti.champion, 'sport': 'Dota 2' },
+    'url': canonical,
+    'organizer': { '@type': 'Organization', 'name': 'Valve Corporation' },
+  }))
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `${canonical}#webpage`,
+        'name': title,
+        'description': description,
+        'url': canonical,
+        'isPartOf': { '@id': `${BASE_URL}/#website` },
+        'breadcrumb': breadcrumb([
+          { name: 'Tournaments', url: `${BASE_URL}/tournaments` },
+          { name: 'The International', url: canonical },
+        ]),
+      },
+      ...tiEvents,
+    ],
+  }
+
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/tournaments">Tournaments</a> › The International</nav>
+      <h1>The International — Dota 2 World Championship History</h1>
+      <p>The International (TI) is Valve's annual Dota 2 world championship and the largest prize pool tournament in esports history. First held in 2011 at Gamescom in Cologne, Germany. From TI4 onwards, prize pools are crowd-funded, reaching a peak of $40.02M at TI10 in 2021. No TI was held in 2020 due to COVID-19; TI10 was held in 2021.</p>
+      <h2>All TI Champions (TI1–TI14)</h2>
+      <ul>${editionRows}</ul>
+      <h2>Multi-Year Champions</h2>
+      <ul>
+        <li><strong>OG</strong> — 2× TI champion (TI8 2018, TI9 2019). First back-to-back TI winners in history.</li>
+        <li><strong>Team Spirit</strong> — 2× TI champion (TI10 2021, TI12 2023). Second team after OG to win multiple Internationals.</li>
+        <li><strong>Team Liquid</strong> — 2× TI champion (TI7 2017, TI13 2024). First organization to win TI with two different rosters.</li>
+        <li><strong>Natus Vincere</strong> — TI1 2011 champions. Runner-up at TI2, TI3. The most dominant team of the early TI era.</li>
+      </ul>
     </main>`
 
   return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)

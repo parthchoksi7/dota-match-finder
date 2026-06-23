@@ -81,6 +81,8 @@ Allow: /teams
 Allow: /teams/
 Allow: /heroes
 Allow: /heroes/
+Allow: /players
+Allow: /players/
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /api/og

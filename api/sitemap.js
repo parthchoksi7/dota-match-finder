@@ -17,6 +17,17 @@ const TEAM_SLUGS = [
   '1win',
 ]
 
+// Keep in sync with TIER1_PLAYERS_SSR in middleware.js
+const PLAYER_SLUGS = [
+  'dendi', 'puppey', 's4', 'admiral-bulldog',
+  'sumail', 'ppd', 'fear',
+  'kuroky', 'miracle', 'matumbaman', 'gh', 'mind-control',
+  'n0tail', 'fly', 'ana', 'topson', 'ceb',
+  'yatoro', 'collapse', 'torontotokyo', 'miposhka', 'mira',
+  'skiter', 'nine', '33', 'saksa', 'sneyking',
+  'arteezy', 'iceiceice',
+]
+
 export function slugify(str) {
   return (str || '')
     .toLowerCase()
@@ -250,6 +261,21 @@ ${TEAM_SLUGS.map(slug => `  <url>
     <priority>0.7</priority>
   </url>
 ${heroUrls.join('\n')}
+  <url>
+    <loc>${BASE_URL}/players</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+${PLAYER_SLUGS.map(slug => `  <url>
+    <loc>${BASE_URL}/players/${slug}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`).join('\n')}
+  <url>
+    <loc>${BASE_URL}/tournaments/the-international</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
 ${tournamentUrls.join('\n')}
 ${matchUrls.join('\n')}
 </urlset>`
@@ -265,6 +291,17 @@ ${matchUrls.join('\n')}
       .map(matchUrlFromHistory)
     if (recentUrls.length > 0) {
       pingIndexNow(recentUrls).catch(() => {})
+    }
+
+    // One-time bulk IndexNow ping for player pages and TI hub.
+    // Trigger by visiting /api/sitemap?indexnow=players
+    if (req.query?.indexnow === 'players') {
+      const playerUrls = [
+        `${BASE_URL}/players`,
+        `${BASE_URL}/tournaments/the-international`,
+        ...PLAYER_SLUGS.map(s => `${BASE_URL}/players/${s}`),
+      ]
+      pingIndexNow(playerUrls).catch(() => {})
     }
 
   } catch (err) {

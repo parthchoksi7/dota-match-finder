@@ -13,6 +13,10 @@ Spectate Esports (https://spectateesports.live) is a Dota 2 esports intelligence
 - [About](https://spectateesports.live/about): Site description, data sources, methodology, and contact information.
 - [Release Notes](https://spectateesports.live/release-notes): Feature changelog and version history.
 
+## TI History Hub
+
+- [The International History](https://spectateesports.live/tournaments/the-international): Complete history of all 14 TI editions (TI1 2011 – TI14 2025). Champions, runners-up, prize pools, and host cities. Includes multi-year champion breakdown (OG 2×, Team Spirit 2×, Team Liquid 2×). Includes SportsEvent schema for each edition.
+
 ## Tournament Pages
 
 Each tournament at /tournament/{id} includes:
@@ -136,6 +140,15 @@ Dedicated pages for each Dota 2 term at /glossary/{term-id}. Each page includes 
 - [Bounty Rune](https://spectateesports.live/glossary/bounty-rune): Gold-granting map rune spawning every 3 minutes
 - [True Sight](https://spectateesports.live/glossary/true-sight): Invisibility detection mechanic
 
+## Player Pages
+
+Dedicated career profile pages for 28 elite Tier 1 professional Dota 2 players at /players/{slug}. Each page covers TI championship history, role, nationality, and immutable career highlights. No current team affiliations (change frequently). All pages include Person schema.org structured data.
+
+- [Players Index](https://spectateesports.live/players): All 28 players
+- TI champions covered: Dendi (TI1), Puppey (TI1), s4 (TI3), AdmiralBulldog (TI3), SumaiL (TI5), ppd (TI5), Fear (TI5), KuroKy (TI7), Miracle- (TI7), MATUMBAMAN (TI7), GH (TI7), MinD_ContRoL (TI7), N0tail (TI8+TI9), Fly (TI8), ana (TI8+TI9), Topson (TI8+TI9), Ceb (TI8+TI9), Yatoro (TI10+TI12), Collapse (TI10+TI12), TORONTOTOKYO (TI10+TI12), Miposhka (TI10+TI12), Mira (TI10+TI12), Skiter (TI11), Nine (TI11), 33 (TI11), Saksa (TI11), Sneyking (TI11)
+- Legends without TI wins: Arteezy, iceiceice
+- URL pattern: spectateesports.live/players/{id} where id is the lowercase in-game handle slug
+
 ## Hero Pages
 
 Dedicated pages for each Dota 2 hero at /heroes/{slug}. Each page shows all tier-1 professional matches in which that hero was picked, with series context (teams, league, date, winner) and links to individual match replays. Includes Thing + WebPage schema.org structured data with BreadcrumbList.
@@ -192,7 +205,8 @@ Spectate Esports publishes original editorial coverage of Tier 1 Dota 2 tourname
 - News feed (RSS 2.0): https://spectateesports.live/api/news?format=rss
 - All-tournament calendar (.ics): https://spectateesports.live/api/tournaments?mode=calendar-all
 - AI entity data (JSON): https://spectateesports.live/api/tournaments?mode=llms-data — Structured entity graph for AI systems: live/upcoming/completed tournaments, Tier 1 organizers, data sources, all 25 glossary terms with definitions, and all machine-readable endpoint URLs. Cached 1 hour.
-- Hero match history (JSON): https://spectateesports.live/api/tournaments?mode=hero-matches&hero_id={id} — Tier-1 professional matches where the given hero was picked, sorted newest first, 100 per page. Optional `cursor` param (Unix timestamp) for pagination. Response: `{ rows: [{match_id, start_time, radiant_win, league_name, radiant_name, dire_name}], exhausted: bool, cursor: number }`. Cached 15 minutes.
+- Hero match history (JSON): https://spectateesports.live/api/tournaments?mode=hero-matches&hero_id={id}
+- Articles RSS feed (RSS 2.0): https://spectateesports.live/api/pipeline?type=articles&mode=rss — Tier-1 professional matches where the given hero was picked, sorted newest first, 100 per page. Optional `cursor` param (Unix timestamp) for pagination. Response: `{ rows: [{match_id, start_time, radiant_win, league_name, radiant_name, dire_name}], exhausted: bool, cursor: number }`. Cached 15 minutes.
 
 ## Optional
 

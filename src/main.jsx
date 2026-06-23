@@ -19,6 +19,8 @@ import AdminVodUrlsPage from './pages/AdminVodUrlsPage.jsx'
 import ArticlesPage from './pages/ArticlesPage.jsx'
 import ArticlePage from './pages/ArticlePage.jsx'
 import HeroPage from './pages/HeroPage.jsx'
+import PlayersPage from './pages/PlayersPage.jsx'
+import TIHistoryPage from './pages/TIHistoryPage.jsx'
 import FeedbackWidget from './components/FeedbackWidget.jsx'
 
 const path = window.location.pathname
@@ -39,6 +41,8 @@ function Root() {
   if (path === '/articles') return <ArticlesPage />
   if (path.startsWith('/articles/')) return <ArticlePage />
   if (path === '/heroes' || path.startsWith('/heroes/')) return <HeroPage />
+  if (path === '/players' || path.startsWith('/players/')) return <PlayersPage />
+  if (path === '/tournaments/the-international') return <TIHistoryPage />
   return <App />
 }
 
