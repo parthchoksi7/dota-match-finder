@@ -289,7 +289,7 @@ async function handleNews(url) {
 // ─── /tournaments ─────────────────────────────────────────────────────────────
 
 async function handleTournaments(url) {
-  const title = 'Dota 2 Esports Tournaments — Standings, Brackets & Rosters | Spectate Esports'
+  const title = 'Dota 2 Tournaments — Brackets & Standings | Spectate Esports'
   const description = 'Browse all active and upcoming Tier 1 Dota 2 tournaments. View standings, playoffs brackets, team rosters, hero statistics, and live match schedules.'
   const canonical = `${BASE_URL}/tournaments`
 
@@ -966,7 +966,7 @@ async function handleGlossaryTerm(url) {
 // ─── /teams ───────────────────────────────────────────────────────────────────
 
 async function handleTeams(url) {
-  const title = 'Dota 2 Pro Teams — Tier 1 Organizations & TI History | Spectate Esports'
+  const title = 'Tier 1 Dota 2 Pro Teams — TI Champions | Spectate Esports'
   const description = 'Tier 1 professional Dota 2 organizations. OG, Team Liquid, Team Spirit (each 2× TI champion), Team Falcons, Tundra Esports, Evil Geniuses, and more. Championship history and iconic players.'
   const canonical = `${BASE_URL}/teams`
 
@@ -1454,7 +1454,7 @@ async function handlePlayerDetail(url) {
 
 async function handleTIHub(url) {
   const canonical = `${BASE_URL}/tournaments/the-international`
-  const title = 'The International — Complete Dota 2 TI History (TI1–TI14) | Spectate Esports'
+  const title = 'The International History (TI1–TI14) | Spectate Esports'
   const description = 'Complete history of The International (TI1–TI14, 2011–2025). Champions, runners-up, prize pools, and host cities for every edition of Valve\'s annual Dota 2 world championship.'
 
   const editionRows = [...TI_EDITIONS_SSR].reverse().map(ti => {
