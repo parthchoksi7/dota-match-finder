@@ -69,6 +69,11 @@ const GLOSSARY_TERMS_SSR = [
 
 const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.id, t]))
 
+// Hero slug → OpenDota hero ID map (source: GET /api/heroes, ~1x per year when new hero ships)
+const HERO_ID_MAP = {"antimage":1,"axe":2,"bane":3,"bloodseeker":4,"crystal_maiden":5,"drow_ranger":6,"earthshaker":7,"juggernaut":8,"mirana":9,"morphling":10,"nevermore":11,"phantom_lancer":12,"puck":13,"pudge":14,"razor":15,"sand_king":16,"storm_spirit":17,"sven":18,"tiny":19,"vengefulspirit":20,"windrunner":21,"zuus":22,"kunkka":23,"lina":25,"lion":26,"shadow_shaman":27,"slardar":28,"tidehunter":29,"witch_doctor":30,"lich":31,"riki":32,"enigma":33,"tinker":34,"sniper":35,"necrolyte":36,"warlock":37,"beastmaster":38,"queenofpain":39,"venomancer":40,"faceless_void":41,"skeleton_king":42,"death_prophet":43,"phantom_assassin":44,"pugna":45,"templar_assassin":46,"viper":47,"luna":48,"dragon_knight":49,"dazzle":50,"rattletrap":51,"leshrac":52,"furion":53,"life_stealer":54,"dark_seer":55,"clinkz":56,"omniknight":57,"enchantress":58,"huskar":59,"night_stalker":60,"broodmother":61,"bounty_hunter":62,"weaver":63,"jakiro":64,"batrider":65,"chen":66,"spectre":67,"ancient_apparition":68,"doom_bringer":69,"ursa":70,"spirit_breaker":71,"gyrocopter":72,"alchemist":73,"invoker":74,"silencer":75,"obsidian_destroyer":76,"lycan":77,"brewmaster":78,"shadow_demon":79,"lone_druid":80,"chaos_knight":81,"meepo":82,"treant":83,"ogre_magi":84,"undying":85,"rubick":86,"disruptor":87,"nyx_assassin":88,"naga_siren":89,"keeper_of_the_light":90,"wisp":91,"visage":92,"slark":93,"medusa":94,"troll_warlord":95,"centaur":96,"magnataur":97,"shredder":98,"bristleback":99,"tusk":100,"skywrath_mage":101,"abaddon":102,"elder_titan":103,"legion_commander":104,"techies":105,"ember_spirit":106,"earth_spirit":107,"abyssal_underlord":108,"terrorblade":109,"phoenix":110,"oracle":111,"winter_wyvern":112,"arc_warden":113,"monkey_king":114,"dark_willow":119,"pangolier":120,"grimstroke":121,"hoodwink":123,"void_spirit":126,"snapfire":128,"mars":129,"ringmaster":131,"dawnbreaker":135,"marci":136,"primal_beast":137,"muerta":138,"kez":145,"largo":155}
+// Inverted map: OpenDota hero ID → slug (for picks_bans hero_id lookups on match pages)
+const HERO_SLUG_BY_ID = Object.fromEntries(Object.entries(HERO_ID_MAP).map(([slug, id]) => [id, slug]))
+
 // Article metadata is now served dynamically from /api/pipeline?type=articles (Supabase).
 // The functions below fetch from that endpoint with a short timeout.
 
@@ -640,6 +645,11 @@ async function handleMatch(url) {
               'url': canonical,
               ...(data.start_time ? { 'validFrom': new Date(data.start_time * 1000).toISOString() } : {}),
             },
+            'potentialAction': {
+              '@type': 'WatchAction',
+              'target': canonical,
+              'actionStatus': 'https://schema.org/PotentialActionStatus',
+            },
           },
           {
             '@type': 'WebPage',
@@ -697,9 +707,42 @@ async function handleMatch(url) {
   html = html.replace(/<meta[^>]*name="twitter:[^>]*"[^>]*\/?>/gi, '')
   html = html.replace(/<meta[^>]*name="description"[^>]*\/?>/gi, '')
   html = html.replace('</head>', ogTags + '</head>')
+  // Build rich SSR content: draft picks + player stats (all from already-fetched odData)
+  let draftHtml = ''
+  let playerHtml = ''
+  try {
+    const od = odData
+    if (od?.picks_bans?.length) {
+      const picks = od.picks_bans.filter(pb => pb.is_pick).sort((a, b) => a.order - b.order)
+      const radiantPicks = picks.filter(pb => pb.team === 0).map(pb => heroSlugToDisplayName(HERO_SLUG_BY_ID[pb.hero_id] || '')).filter(Boolean)
+      const direPicks = picks.filter(pb => pb.team === 1).map(pb => heroSlugToDisplayName(HERO_SLUG_BY_ID[pb.hero_id] || '')).filter(Boolean)
+      const radiantName = od.radiant_name || 'Radiant'
+      const direName = od.dire_name || 'Dire'
+      if (radiantPicks.length || direPicks.length) {
+        draftHtml = `<h2>Hero Draft</h2>
+<table style="border-collapse:collapse;width:100%">
+<thead><tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">${escapeHtml(radiantName)}</th><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">${escapeHtml(direName)}</th></tr></thead>
+<tbody>${Array.from({length: Math.max(radiantPicks.length, direPicks.length)}, (_, i) =>
+  `<tr><td style="padding:3px 8px">${escapeHtml(radiantPicks[i] || '')}</td><td style="padding:3px 8px">${escapeHtml(direPicks[i] || '')}</td></tr>`
+).join('')}</tbody></table>`
+      }
+    }
+    if (od?.players?.length) {
+      const rows = od.players.map(p => {
+        const heroName = heroSlugToDisplayName(HERO_SLUG_BY_ID[p.hero_id] || '')
+        const name = escapeHtml(p.personaname || p.name || 'Unknown')
+        return `<tr><td style="padding:3px 8px">${name}</td><td style="padding:3px 8px">${escapeHtml(heroName)}</td><td style="padding:3px 8px">${p.kills}/${p.deaths}/${p.assists}</td><td style="padding:3px 8px">${p.gold_per_min ?? '—'}</td></tr>`
+      }).join('')
+      playerHtml = `<h2>Player Stats</h2>
+<table style="border-collapse:collapse;width:100%">
+<thead><tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">Player</th><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">Hero</th><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">K/D/A</th><th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">GPM</th></tr></thead>
+<tbody>${rows}</tbody></table>`
+    }
+  } catch (_) { /* graceful omission — never block the response */ }
+
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root"><div style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p></div></div>`
+    `<div id="root"><main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${draftHtml}${playerHtml}</main></div>`
   )
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
@@ -770,6 +813,22 @@ async function handleGlossaryTerm(url) {
         'url': canonical,
         'inLanguage': 'en',
         'inDefinedTermSet': { '@id': `${BASE_URL}/glossary#termset` },
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${canonical}#faq`,
+        'mainEntity': [
+          {
+            '@type': 'Question',
+            'name': `What is ${term.term} in Dota 2?`,
+            'acceptedAnswer': { '@type': 'Answer', 'text': term.definition },
+          },
+          {
+            '@type': 'Question',
+            'name': `What does ${term.term} mean in professional Dota 2?`,
+            'acceptedAnswer': { '@type': 'Answer', 'text': term.shortDef + ' ' + term.definition },
+          },
+        ],
       },
       {
         '@type': 'WebPage',
@@ -969,7 +1028,8 @@ async function handleArticles(url) {
       ${articles.length > 0 ? `<ul>${articleItems}</ul>` : '<p>No articles published yet.</p>'}
     </main>`
 
-  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
+  const articlesRssLink = `<link rel="alternate" type="application/rss+xml" title="Spectate Esports — Dota 2 Articles" href="${BASE_URL}/api/pipeline?type=articles&amp;mode=rss" />`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent, articlesRssLink)
 }
 
 // ─── /articles/:slug ──────────────────────────────────────────────────────────
@@ -981,7 +1041,7 @@ async function handleArticleDetail(url) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 3000)
     const res = await fetch(
-      `${BASE_URL}/api/pipeline?type=articles&slug=${encodeURIComponent(slug)}&mode=meta`,
+      `${BASE_URL}/api/pipeline?type=articles&slug=${encodeURIComponent(slug)}`,
       { signal: controller.signal }
     ).catch(() => null)
     clearTimeout(timer)
@@ -1052,6 +1112,11 @@ async function handleArticleDetail(url) {
       <h1>${escapeHtml(article.title)}</h1>
       ${article.subtitle ? `<p><em>${escapeHtml(article.subtitle)}</em></p>` : ''}
       <p>${escapeHtml(article.excerpt)}</p>
+      ${Array.isArray(article.sections) ? article.sections.map(s => {
+        if (s.type === 'heading') return `<h2>${escapeHtml(s.text)}</h2>`
+        if (s.type === 'subheading') return `<h3>${escapeHtml(s.text)}</h3>`
+        return `<p>${escapeHtml(s.text)}</p>`
+      }).join('\n      ') : ''}
     </main>`
 
   const articleMetaTags = `
@@ -1106,6 +1171,35 @@ async function handleHeroDetail(url) {
   const title = `${displayName} Pro Matches — Tier 1 VODs & Drafts | Spectate Esports`
   const description = `Recent Tier 1 professional Dota 2 matches where ${displayName} was picked. Includes Twitch VOD links timestamped to game start, full hero draft, and match results.`
 
+  // Fetch top-10 recent tier-1 matches for this hero
+  let heroMatchListHtml = ''
+  try {
+    const heroId = HERO_ID_MAP[slug]
+    if (heroId) {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 3000)
+      const res = await fetch(
+        `${BASE_URL}/api/tournaments?mode=hero-matches&hero_id=${heroId}&limit=10`,
+        { signal: controller.signal }
+      ).catch(() => null)
+      clearTimeout(timer)
+      if (res?.ok) {
+        const data = await res.json().catch(() => null)
+        const rows = data?.rows || []
+        if (rows.length > 0) {
+          const items = rows.map(r => {
+            const date = r.start_time ? new Date(r.start_time * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+            const winner = r.radiant_win ? r.radiant_name : r.dire_name
+            const loser = r.radiant_win ? r.dire_name : r.radiant_name
+            const league = r.league_name ? ` — ${escapeHtml(r.league_name)}` : ''
+            return `<li style="margin-bottom:6px"><a href="${BASE_URL}/match/${slugifyMw(r.radiant_name || 'Radiant')}-vs-${slugifyMw(r.dire_name || 'Dire')}-${slugifyMw(r.league_name || '')}-${r.match_id}">${escapeHtml(winner)} def. ${escapeHtml(loser)}${league}</a>${date ? ` <span style="color:#888">(${escapeHtml(date)})</span>` : ''}</li>`
+          }).join('')
+          heroMatchListHtml = `<h2>Recent Tier 1 Matches</h2><ul>${items}</ul>`
+        }
+      }
+    }
+  } catch (_) { /* graceful omission */ }
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -1137,6 +1231,7 @@ async function handleHeroDetail(url) {
       <nav><a href="${BASE_URL}">Spectate Esports</a> › <a href="${BASE_URL}/heroes">Heroes</a> › ${escapeHtml(displayName)}</nav>
       <h1>${escapeHtml(displayName)} — Pro Match History</h1>
       <p>Recent Tier 1 professional Dota 2 matches where <strong>${escapeHtml(displayName)}</strong> was picked. Each match includes a direct Twitch VOD link timestamped to game start, the full hero pick-and-ban draft, and match results. Data sourced from OpenDota and covers DreamLeague, ESL One, PGL, BLAST, WePlay, The International, and Riyadh Masters events.</p>
+      ${heroMatchListHtml}
       <p><a href="${BASE_URL}">Back to Spectate Esports</a> · <a href="${BASE_URL}/heroes">All Heroes</a></p>
     </main>`
 
@@ -1165,6 +1260,7 @@ async function buildResponse(url, title, description, canonical, imageUrl, jsonL
   let html = await indexRes.text()
 
   const injected = `
+    <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="${ogType}" />
     <meta property="og:site_name" content="${SITE_NAME}" />
     <meta property="og:title" content="${escapeHtml(title)}" />

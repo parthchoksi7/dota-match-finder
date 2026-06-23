@@ -10,9 +10,11 @@ const GLOSSARY_TERM_IDS = [
   'last-hit', 'deny', 'teamfight', 'bounty-rune', 'true-sight',
 ]
 
+// Keep in sync with TIER1_TEAMS_SSR in middleware.js — only include slugs that return 200
 const TEAM_SLUGS = [
   'og', 'team-liquid', 'team-spirit', 'tundra-esports', 'team-falcons',
   'evil-geniuses', 'nigma-galaxy', 'betboom-team', 'virtus-pro', 'xtreme-gaming',
+  '1win',
 ]
 
 export function slugify(str) {

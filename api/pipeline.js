@@ -98,6 +98,41 @@ async function handleArticles(req, res) {
       return res.status(200).json({ articles: (data || []).map(mapMetaRow) })
     }
 
+    if (mode === 'rss') {
+      const { data, error } = await db
+        .from('articles').select('slug,title,subtitle,published_at,tournament_label,category,excerpt')
+        .eq('status', 'published').or(notExpired).order('published_at', { ascending: false }).limit(50)
+      if (error) throw error
+      const escXml = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+      const items = (data || []).map(r => {
+        const link = `https://spectateesports.live/articles/${r.slug}`
+        const pubDate = r.published_at ? new Date(r.published_at).toUTCString() : ''
+        return `    <item>
+      <title>${escXml(r.title)}</title>
+      <link>${escXml(link)}</link>
+      <description>${escXml(r.excerpt || '')}</description>
+      <category>${escXml(r.category)}</category>
+      <guid isPermaLink="true">${escXml(link)}</guid>
+      ${pubDate ? `<pubDate>${pubDate}</pubDate>` : ''}
+    </item>`
+      }).join('\n')
+      const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Spectate Esports — Dota 2 Articles</title>
+    <link>https://spectateesports.live/articles</link>
+    <description>Original editorial coverage of Tier 1 Dota 2 tournaments. Daily analysis, team narratives, match previews, and storyline breakdowns.</description>
+    <language>en-us</language>
+    <atom:link href="https://spectateesports.live/api/pipeline?type=articles&amp;mode=rss" rel="self" type="application/rss+xml" />
+    <ttl>60</ttl>
+${items}
+  </channel>
+</rss>`
+      res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
+      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
+      return res.status(200).send(feed)
+    }
+
     let q = db.from('articles').select('*')
       .eq('status', 'published').or(notExpired).order('published_at', { ascending: false }).limit(100)
     if (tournament) q = q.eq('tournament', tournament)
