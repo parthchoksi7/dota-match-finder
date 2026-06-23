@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 22, 2026",
+    tag: "fix",
+    title: "Game 2 and 3 VOD replays now jump to the correct start point",
+    desc: "In a best-of-3 or best-of-5, the Watch Replay button for games 2 and 3 was jumping to game 1's start point in the VOD instead of the correct game. The background cron that pre-resolves replay links was stamping every game in a series with game 1's start time. It now tracks each game's individual start time, so the deep-link offset is accurate for every game.",
+  },
+  {
     date: "June 21, 2026",
     tag: "improvement",
     title: "Match pages now discoverable by Bing and ChatGPT within minutes of a match ending",
