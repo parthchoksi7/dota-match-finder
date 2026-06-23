@@ -1,5 +1,6 @@
 export const config = {
   matcher: [
+    '/',
     '/match/:matchId*',
     '/news',
     '/tournaments',
@@ -99,6 +100,7 @@ export default async function middleware(req) {
     console.log(JSON.stringify({ event: 'llm_bot_visit', bot: matchedBot, ua, path: pathname, ts: new Date().toISOString() }))
   }
 
+  if (pathname === '/') return handleHome(url)
   if (pathname === '/news') return handleNews(url)
   if (pathname === '/tournaments') return handleTournaments(url)
   if (pathname.startsWith('/tournament/')) return handleTournamentDetail(url)
@@ -116,6 +118,45 @@ export default async function middleware(req) {
   if (pathname.startsWith('/heroes/')) return handleHeroDetail(url)
 
   return new Response(null, { status: 302, headers: { Location: '/' } })
+}
+
+// ─── / (homepage) ────────────────────────────────────────────────────────────
+
+async function handleHome(url) {
+  const title = 'Spectate Esports — Watch Pro Dota 2 Match VODs Instantly'
+  const description = 'Find any pro Dota 2 match and jump straight to the Twitch VOD at the exact timestamp. Includes draft, picks, bans and AI match summaries. Tier 1 tournaments only.'
+  const canonical = BASE_URL + '/'
+  // index.html already has WebSite + SportsOrganization JSON-LD; add WebPage on top.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${canonical}#webpage`,
+    'name': title,
+    'description': description,
+    'url': canonical,
+    'isPartOf': { '@id': `${BASE_URL}/#website` },
+  }
+  const rootContent = `
+    <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
+      <h1>Watch Pro Dota 2 Match VODs Instantly</h1>
+      <p>Find any Tier 1 professional Dota 2 match and jump straight to the Twitch VOD at the exact timestamp. Covers DreamLeague, ESL One, PGL, BLAST, WePlay, and The International qualifiers.</p>
+      <ul>
+        <li>Live match scores and tournament brackets</li>
+        <li>Timestamped Twitch VOD replay links</li>
+        <li>Hero draft analysis — picks, bans, and counters</li>
+        <li>Gold advantage graphs and player statistics</li>
+        <li>AI match summaries</li>
+        <li>Tournament calendars and team profiles</li>
+      </ul>
+      <nav>
+        <a href="${BASE_URL}/tournaments">Tournaments</a> ·
+        <a href="${BASE_URL}/teams">Teams</a> ·
+        <a href="${BASE_URL}/heroes">Heroes</a> ·
+        <a href="${BASE_URL}/glossary">Dota 2 Glossary</a> ·
+        <a href="${BASE_URL}/news">News</a>
+      </nav>
+    </main>`
+  return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
 }
 
 // ─── /news ───────────────────────────────────────────────────────────────────
