@@ -83,11 +83,15 @@ async function main() {
     for (const g of games) if (counts[g.started_at] > 1) suspects.push(g)
   }
 
-  // Group no-ps rows by (team_a, team_b, date) — same pair on the same UTC day = same series
+  // Group no-ps rows by (team-pair, date) — same pair on the same UTC day = same series.
+  // The pair is order-normalized because Dota teams swap sides between games, so a
+  // series' rows alternate team_a/team_b; an order-sensitive key would split siblings
+  // into singletons and miss the corrupted (shared-started_at) games entirely.
   const byteam = {}
   for (const r of noPs) {
     const day = (r.started_at || '').slice(0, 10)
-    const key = `${r.team_a?.toLowerCase()}|${r.team_b?.toLowerCase()}|${day}`
+    const pair = [r.team_a?.toLowerCase() || '', r.team_b?.toLowerCase() || ''].sort().join('|')
+    const key = `${pair}|${day}`
     ;(byteam[key] ||= []).push(r)
   }
   for (const games of Object.values(byteam)) {
