@@ -483,6 +483,10 @@ export default async function handler(req, res) {
       // The self-call always targets prod, which shares the same KV + Supabase, so this
       // is correct even when invoked from a preview deployment.
       const base = 'https://spectateesports.live'
+      // Per-game start times so each sibling row gets its OWN started_at in Supabase
+      // rather than inheriting the series-minimum ts. Built once from the already-fetched
+      // odMatches array; the lookup is O(1) per game via Map.
+      const odStartById = new Map(odMatches.map(m => [String(m.match_id), m.start_time]))
       let attempted = 0, bound = 0, skipped = 0
       for (const s of series) {
         // Skip series already fully bound in KV so we don't re-run the PS fuzzy match.
@@ -491,11 +495,15 @@ export default async function handler(req, res) {
         if (existing.length === s.ids.length && existing.every(Boolean)) { skipped++; continue }
 
         attempted++
+        const startPairs = s.ids
+          .map(id => { const t = odStartById.get(id); return t ? `${id}:${t}` : null })
+          .filter(Boolean)
         const params = new URLSearchParams({
           ids: s.ids.join(','),
           ts: String(s.ts),
           radiantTeam: s.radiantTeam,
           direTeam: s.direTeam,
+          ...(startPairs.length > 0 ? { starts: startPairs.join(',') } : {}),
         })
         try {
           const r = await fetch(`${base}/api/match-streams?${params.toString()}`)

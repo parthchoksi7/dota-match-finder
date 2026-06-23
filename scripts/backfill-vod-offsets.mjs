@@ -47,20 +47,35 @@ async function fetchOdStartTime(odMatchId) {
 
 async function main() {
   const cutoff = new Date(Date.now() - LOOKBACK_DAYS * 86400 * 1000).toISOString()
-  const { data: rows, error } = await supabase
+
+  // Pass 1: rows with a known PS series — group by ps_match_id.
+  const { data: psRows, error: psErr } = await supabase
     .from('match_stream_history')
-    .select('od_match_id, ps_match_id, started_at, channel')
+    .select('od_match_id, ps_match_id, team_a, team_b, started_at, channel')
     .not('ps_match_id', 'is', null)
     .gte('started_at', cutoff)
     .order('ps_match_id', { ascending: false })
     .limit(5000)
-  if (error) { console.error('query failed:', error.message); process.exit(1) }
+  if (psErr) { console.error('query failed (ps rows):', psErr.message); process.exit(1) }
 
-  // Group by series; a series is suspect when 2+ games share an identical started_at.
-  const byseries = {}
-  for (const r of rows) (byseries[r.ps_match_id] ||= []).push(r)
+  // Pass 2: rows with no PS match (ts-fallback path) — group by (team_a, team_b, day).
+  // These are produced by the warm-streams cron when PandaScore has no record of the series.
+  const { data: noPs, error: noPsErr } = await supabase
+    .from('match_stream_history')
+    .select('od_match_id, ps_match_id, team_a, team_b, started_at, channel')
+    .is('ps_match_id', null)
+    .not('team_a', 'is', null)
+    .not('team_b', 'is', null)
+    .gte('started_at', cutoff)
+    .order('started_at', { ascending: false })
+    .limit(5000)
+  if (noPsErr) { console.error('query failed (no-ps rows):', noPsErr.message); process.exit(1) }
 
   const suspects = []
+
+  // Group ps rows by series id
+  const byseries = {}
+  for (const r of psRows) (byseries[r.ps_match_id] ||= []).push(r)
   for (const games of Object.values(byseries)) {
     if (games.length < 2) continue
     const counts = {}
@@ -68,7 +83,22 @@ async function main() {
     for (const g of games) if (counts[g.started_at] > 1) suspects.push(g)
   }
 
-  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}${rows.length} rows scanned, ${suspects.length} suspect game row(s) (shared started_at within a series)\n`)
+  // Group no-ps rows by (team_a, team_b, date) — same pair on the same UTC day = same series
+  const byteam = {}
+  for (const r of noPs) {
+    const day = (r.started_at || '').slice(0, 10)
+    const key = `${r.team_a?.toLowerCase()}|${r.team_b?.toLowerCase()}|${day}`
+    ;(byteam[key] ||= []).push(r)
+  }
+  for (const games of Object.values(byteam)) {
+    if (games.length < 2) continue
+    const counts = {}
+    for (const g of games) counts[g.started_at] = (counts[g.started_at] || 0) + 1
+    for (const g of games) if (counts[g.started_at] > 1) suspects.push(g)
+  }
+
+  const totalScanned = psRows.length + noPs.length
+  console.log(`${DRY_RUN ? '[DRY RUN] ' : ''}${totalScanned} rows scanned (${psRows.length} with PS, ${noPs.length} without), ${suspects.length} suspect game row(s) (shared started_at within a series)\n`)
 
   let fixed = 0, unchanged = 0, failed = 0
   for (const g of suspects) {

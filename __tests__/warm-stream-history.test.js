@@ -149,6 +149,32 @@ describe('warm-streams handler', () => {
     expect(matchStreamsCall[0]).toMatch(/direTeam=TEAM\+GRIND/)
   })
 
+  it('passes per-game starts param so each sibling gets its own started_at in Supabase', async () => {
+    const game1Start = liveNow - 7200
+    const game2Start = liveNow - 3600
+    global.fetch = vi.fn((url) => {
+      if (url.includes('api.opendota.com/api/promatches')) {
+        if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] })
+        return Promise.resolve({ ok: true, json: async () => [
+          { ...liveGame(8003, 99), start_time: game1Start },
+          { ...liveGame(8004, 99), start_time: game2Start },
+        ] })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ 8003: 'pgl_dota2', 8004: 'pgl_dota2' }) })
+    })
+
+    const res = makeRes()
+    await handler(makeReq(), res)
+
+    const call = global.fetch.mock.calls.find(([u]) => u.includes('/api/match-streams'))
+    expect(call).toBeTruthy()
+    // Parse starts param to verify each game ID maps to its own timestamp (not game 1's)
+    const starts = new URL(call[0]).searchParams.get('starts')
+    const pairs = (starts || '').split(',')
+    expect(pairs).toContain(`8003:${game1Start}`)
+    expect(pairs).toContain(`8004:${game2Start}`)
+  })
+
   it('skips a series already fully bound in KV without calling the resolver', async () => {
     mockKv.mget.mockResolvedValue(['pgl_dota2en2', 'pgl_dota2en2'])
     global.fetch = vi.fn((url) => {
