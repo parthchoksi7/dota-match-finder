@@ -25,6 +25,15 @@ const PS_TOKEN = process.env.PANDASCORE_TOKEN
 const PS_BASE = 'https://api.pandascore.co/dota2'
 const PS_HEADERS = { Authorization: `Bearer ${PS_TOKEN}`, Accept: 'application/json' }
 
+// Only enrich recent rows by default. Older null rows are either already past PandaScore's
+// indexing window or series PS will never list, so re-querying them every run wastes PS
+// calls. Set ENRICH_LOOKBACK_HOURS=0 to scan the entire table (one-off full backfill).
+// Any invalid value falls back to 48 so a typo can't trigger an unbounded full scan.
+const rawLookback = (process.env.ENRICH_LOOKBACK_HOURS ?? '').trim()
+const LOOKBACK_HOURS = rawLookback !== '' && Number.isFinite(Number(rawLookback)) && Number(rawLookback) >= 0
+  ? Number(rawLookback)
+  : 48
+
 function teamsMatch(psOpponents, teamA, teamB) {
   if (!psOpponents || psOpponents.length < 2) return false
   const names = psOpponents.map(o => o.opponent?.name?.toLowerCase() || '')
@@ -72,15 +81,20 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 async function main() {
   if (!PS_TOKEN) { console.error('PANDASCORE_TOKEN not set'); process.exit(1) }
 
-  // Fetch all rows that still need PS enrichment
-  const { data: rows, error } = await supabase
+  // Fetch rows that still need PS enrichment, limited to the lookback window.
+  let query = supabase
     .from('match_stream_history')
     .select('id, od_match_id, started_at, team_a, team_b, channel')
     .is('tournament', null)
     .order('started_at', { ascending: true })
+  if (LOOKBACK_HOURS > 0) {
+    const cutoff = new Date(Date.now() - LOOKBACK_HOURS * 3600 * 1000).toISOString()
+    query = query.gte('started_at', cutoff)
+  }
+  const { data: rows, error } = await query
 
   if (error) { console.error('Supabase fetch failed:', error.message); process.exit(1) }
-  console.log(`${rows.length} rows need PS enrichment`)
+  console.log(`${rows.length} rows need PS enrichment` + (LOOKBACK_HOURS > 0 ? ` (last ${LOOKBACK_HOURS}h)` : ' (full table)'))
 
   let updated = 0
   let skipped = 0

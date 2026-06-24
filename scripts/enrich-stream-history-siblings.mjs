@@ -25,17 +25,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// Match enrich-stream-history.mjs: only backfill recent null rows. The fetch reaches back an
+// extra SIBLING_WINDOW_H so a row at the edge of the window can still see an enriched sibling.
+// Set ENRICH_LOOKBACK_HOURS=0 to scan the entire table (one-off full backfill).
+// Any invalid value falls back to 48 so a typo can't trigger an unbounded full scan.
+const rawLookback = (process.env.ENRICH_LOOKBACK_HOURS ?? '').trim()
+const LOOKBACK_HOURS = rawLookback !== '' && Number.isFinite(Number(rawLookback)) && Number(rawLookback) >= 0
+  ? Number(rawLookback)
+  : 48
+const SIBLING_WINDOW_H = 12
+
 async function main() {
-  // Fetch all rows so we can cross-reference in memory
-  const { data: all, error } = await supabase
+  // Fetch rows so we can cross-reference in memory, limited to the lookback window
+  // (+ the sibling search window so edge rows still find their already-enriched sibling).
+  let query = supabase
     .from('match_stream_history')
     .select('id, od_match_id, started_at, team_a, team_b, tournament, ps_match_id, match_type, bracket_round, streams_json')
     .order('started_at', { ascending: true })
+  if (LOOKBACK_HOURS > 0) {
+    const fetchCutoff = new Date(Date.now() - (LOOKBACK_HOURS + SIBLING_WINDOW_H) * 3600 * 1000).toISOString()
+    query = query.gte('started_at', fetchCutoff)
+  }
+  const { data: all, error } = await query
 
   if (error) { console.error('Supabase fetch failed:', error.message); process.exit(1) }
 
+  // Only process unenriched rows inside the lookback window; enriched rows from the wider
+  // fetch are kept solely as sibling candidates.
+  const processCutoff = LOOKBACK_HOURS > 0 ? Date.now() - LOOKBACK_HOURS * 3600 * 1000 : -Infinity
   const enriched  = all.filter(r => r.tournament !== null)
-  const unenriched = all.filter(r => r.tournament === null)
+  const unenriched = all.filter(r => r.tournament === null && new Date(r.started_at).getTime() >= processCutoff)
 
   console.log(`${enriched.length} enriched, ${unenriched.length} still need sibling match`)
 
@@ -54,7 +73,7 @@ async function main() {
       const eb = e.team_b?.toLowerCase()
       if (!ea || !eb) return false
       const sameTeams = (ea === a && eb === b) || (ea === b && eb === a)
-      const withinWindow = Math.abs(new Date(e.started_at).getTime() - rowTime) < 12 * 3600 * 1000
+      const withinWindow = Math.abs(new Date(e.started_at).getTime() - rowTime) < SIBLING_WINDOW_H * 3600 * 1000
       return sameTeams && withinWindow
     })
 

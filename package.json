@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "verify-prod": "node scripts/verify-prod.mjs",
     "vod-enrich": "node scripts/vod-enrich.mjs",
+    "enrich-history": "node scripts/enrich-stream-history.mjs",
+    "enrich-history-siblings": "node scripts/enrich-stream-history-siblings.mjs",
     "vod-backfill-offsets": "node scripts/backfill-vod-offsets.mjs",
     "backfill-streams-json": "node scripts/backfill-streams-json.mjs"
   },
