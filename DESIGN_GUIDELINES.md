@@ -119,6 +119,7 @@ Compact tournament grouping card in the date feed. Replaces the old TournamentHu
 - Border: `border border-gray-200 dark:border-gray-800 rounded`
 - Header is a `<button>` covering the full row; single click expands/collapses TournamentHub inline
 - Header contains: org eyebrow (red, tracking-[4px]) + tournament name (display font, bold) / live pulse + LIVE label / row count / chevron (right-aligned)
+- **Tournament name is the stage label, not the raw name.** It is rendered via `tournamentStageLabel(card.tournament, card.org)`, which strips the redundant league prefix and an optional following year (the org eyebrow above already shows the league). This surfaces the distinguishing token (e.g. `Regional Qualifier — EU`) that would otherwise be lost to truncation, so two parallel events under the same league no longer read identically. It uses `line-clamp-2 leading-snug` (never `truncate`) so a long stage label wraps to two lines instead of clipping. The button's `aria-label` keeps the full unstripped name for screen readers. Falls back to the full name when no org is known or stripping would leave nothing.
 - Chevron rotates 180deg when TournamentHub is expanded (`rotate-180`)
 - TournamentHub expands **above** match rows (between header and first match row), not below
 - No collapse/expand of match rows - all rows are always visible

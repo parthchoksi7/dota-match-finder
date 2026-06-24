@@ -5,6 +5,17 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "June 23, 2026",
+    tag: "fix",
+    title: "Full tournament names now readable on mobile",
+    desc: "On phones, long tournament names in the home feed were cut off with an ellipsis, so two events under the same league (like separate regional qualifiers of The International) looked identical and you couldn't tell them apart. The card now drops the repeated league name, which already shows in the red label above, and leads with the part that actually differs, wrapping to a second line instead of clipping.",
+    items: [
+      "Card names lead with the distinguishing stage or region, not the repeated league name",
+      "Long names wrap to two lines instead of being cut off with an ellipsis",
+      "Parallel events under one league are now easy to tell apart at a glance",
+    ],
+  },
+  {
+    date: "June 23, 2026",
     tag: "improvement",
     title: "Spoiler-free is now on by default for new visitors",
     desc: "Scores and winners are now hidden by default the first time you visit, so you can browse VODs and catch up on a tournament without a result spoiling the match before you watch it. A one-time prompt explains the new behavior and lets you switch to showing all scores with a single tap, and we remember your choice from then on.",

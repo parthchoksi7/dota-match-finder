@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, hasPriorFootprint, STORAGE_KEYS } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, STORAGE_KEYS } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -532,6 +532,46 @@ describe('buildTournamentName', () => {
 
   it('returns empty string when both are empty', () => {
     expect(buildTournamentName('', '')).toBe('')
+  })
+})
+
+describe('tournamentStageLabel', () => {
+  it('strips the league prefix and year, leaving the distinguishing stage', () => {
+    expect(tournamentStageLabel('The International 2026 - Regional Qualifier - Europe', 'The International'))
+      .toBe('Regional Qualifier - Europe')
+  })
+
+  it('disambiguates two parallel events that share a prefix', () => {
+    const org = 'The International'
+    const a = tournamentStageLabel('The International 2026 - Regional Qualifier - Europe', org)
+    const b = tournamentStageLabel('The International 2026 - Regional Qualifier - South America', org)
+    expect(a).not.toBe(b)
+  })
+
+  it('strips the prefix when no year is present', () => {
+    expect(tournamentStageLabel('DreamLeague Season 29', 'DreamLeague')).toBe('Season 29')
+  })
+
+  it('is case-insensitive against the org', () => {
+    expect(tournamentStageLabel('the international 2026 - Grand Final', 'The International')).toBe('Grand Final')
+  })
+
+  it('falls back to the full name when stripping would leave nothing', () => {
+    expect(tournamentStageLabel('The International 2026', 'The International')).toBe('The International 2026')
+  })
+
+  it('returns the full name when no org is known', () => {
+    expect(tournamentStageLabel('Some Unknown Cup 2026', null)).toBe('Some Unknown Cup 2026')
+  })
+
+  it('does not strip a mid-string occurrence of the org', () => {
+    // org only stripped as a leading prefix, never elsewhere
+    expect(tournamentStageLabel('Qualifier for The International', 'The International'))
+      .toBe('Qualifier for The International')
+  })
+
+  it('returns empty string for empty name', () => {
+    expect(tournamentStageLabel('', 'The International')).toBe('')
   })
 })
 

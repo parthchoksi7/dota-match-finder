@@ -356,6 +356,27 @@ export function getLeagueLabel(name) {
   return null
 }
 
+/**
+ * Strips the redundant league/org prefix (and an optional following 4-digit year)
+ * from a tournament name so the distinguishing stage/region leads.
+ *
+ * The org eyebrow already shows the league, so repeating it in the name below wastes
+ * the scan and pushes the unique token (e.g. "Regional Qualifier — EU") into the
+ * truncated tail — which is exactly what makes two parallel events read identically.
+ *
+ * Returns the stripped remainder, or the full name when no prefix matches or stripping
+ * would leave nothing — never an empty string.
+ */
+export function tournamentStageLabel(name, org) {
+  if (!name) return ''
+  if (!org) return name
+  const escaped = org.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const stripped = name
+    .replace(new RegExp(`^\\s*${escaped}\\b(?:\\s+\\d{4})?\\s*[-–—:|/]*\\s*`, 'i'), '')
+    .trim()
+  return stripped || name
+}
+
 // Combines a PandaScore league name and serie name into a full display name.
 // PandaScore sometimes omits the org prefix from serie.full_name (e.g. "Season 29 2026"
 // instead of "DreamLeague Season 29 2026"), so we prepend league when it's missing.

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -369,8 +369,8 @@ function HomeFeed({
                       {card.org}
                     </span>
                   )}
-                  <span className="font-display font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
-                    {card.tournament}
+                  <span className="font-display font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white line-clamp-2 leading-snug">
+                    {tournamentStageLabel(card.tournament, card.org)}
                   </span>
                 </div>
 
