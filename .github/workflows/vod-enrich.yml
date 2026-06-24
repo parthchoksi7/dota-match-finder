@@ -29,6 +29,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PANDASCORE_TOKEN: ${{ secrets.PANDASCORE_TOKEN }}
       BATCH: '40'              # rows per pass (main + alt); generous headroom under Twitch limits
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +40,26 @@ jobs:
       - run: npm ci
       - name: Run VOD enrichment
         run: npm run vod-enrich
+      # Backfill ps_match_id / tournament / streams_json for rows that were born from a
+      # PandaScore-blind write path (ts/KV fallback) and never enriched. enrich-history
+      # queries PandaScore directly (fixes all-null series); enrich-history-siblings then
+      # copies onto remaining null rows from an already-enriched sibling game. Both scripts
+      # are idempotent (only touch rows with null tournament). This workflow fires 4x/hour;
+      # the gate restricts enrichment to ~every 3h (the :02 run of hours divisible by 3) so
+      # we don't re-hammer PandaScore for series it will never index.
+      - name: Backfill PS enrichment (every ~3h)
+        run: |
+          if [ -z "$PANDASCORE_TOKEN" ]; then
+            echo "Skipping PS enrichment — PANDASCORE_TOKEN secret not set"
+            exit 0
+          fi
+          HOUR=$(date -u +%H); MIN=$(date -u +%M)
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && { [ $((10#$HOUR % 3)) -ne 0 ] || [ $((10#$MIN)) -ge 15 ]; }; then
+            echo "Skipping PS enrichment — runs ~every 3h (now ${HOUR}:${MIN} UTC, dispatch to force)"
+            exit 0
+          fi
+          npm run enrich-history
+          npm run enrich-history-siblings
       - name: Create alert issue on failure
         if: failure()
         uses: actions/github-script@v7
