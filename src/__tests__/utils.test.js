@@ -9,9 +9,45 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, hasPriorFootprint, STORAGE_KEYS } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
+
+// ── hasPriorFootprint (spoiler-free default migration guard) ─────────────────
+
+describe('hasPriorFootprint', () => {
+  beforeEach(() => { localStorage.clear() })
+  afterEach(() => { localStorage.clear() })
+
+  it('returns false for a brand-new visitor with empty storage', () => {
+    expect(hasPriorFootprint()).toBe(false)
+  })
+
+  const footprintKeys = [
+    STORAGE_KEYS.THEME,
+    STORAGE_KEYS.FOLLOWED_TEAMS,
+    STORAGE_KEYS.MY_TEAMS,
+    STORAGE_KEYS.SUMMARY_CACHE,
+    STORAGE_KEYS.NEWS_LAST_VISITED,
+    STORAGE_KEYS.CALENDAR_NUDGE_DISMISSED,
+    STORAGE_KEYS.RECENT_SEARCHES,
+    STORAGE_KEYS.OWNER,
+  ]
+
+  for (const key of footprintKeys) {
+    it(`returns true when a returning visitor has ${key} set`, () => {
+      localStorage.setItem(key, 'x')
+      expect(hasPriorFootprint()).toBe(true)
+    })
+  }
+
+  it('does not count HAS_VISITED or the spoiler keys as a footprint', () => {
+    localStorage.setItem(STORAGE_KEYS.HAS_VISITED, 'true')
+    localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, 'true')
+    localStorage.setItem(STORAGE_KEYS.SPOILER_NUDGE_DISMISSED, '1')
+    expect(hasPriorFootprint()).toBe(false)
+  })
+})
 
 // ── formatDuration ──────────────────────────────────────────────────────────
 

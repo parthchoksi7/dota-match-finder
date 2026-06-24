@@ -82,7 +82,7 @@ export default function SiteHeader({ spoilerFree, onSpoilerToggle, onSearchOpen 
           {showSpoiler && (
             <button
               type="button"
-              onClick={onSpoilerToggle}
+              onClick={() => onSpoilerToggle("header")}
               className={"focus-ring p-2 rounded border transition-colors " + (
                 spoilerFree
                   ? "bg-red-600 border-red-600 text-white"

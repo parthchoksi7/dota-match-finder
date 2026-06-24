@@ -65,6 +65,8 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                 {scoreB}
               </span>
             </>
+          ) : hasScore && spoilerFree ? (
+            <span className="font-display font-black text-xl text-gray-300 dark:text-gray-700 tabular-nums select-none">?·?</span>
           ) : (
             <span className="font-display font-black text-base text-gray-400 dark:text-gray-600 select-none">vs</span>
           )}

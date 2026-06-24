@@ -231,7 +231,7 @@ The frontend (`findTwitchVod` in `src/api.js`) uses only `preferredChannel` from
 - `youtubeStream` - first English YouTube URL from `streams_list` (rendering-layer only; `getTwitchStreams()` in `_shared.js` is not modified)
 - Cached in Upstash Redis for 2 minutes; bust cache via `?bust=1`
 - **Mid-series click behavior (REQ-2)**: clicking a live match row with at least one finished game opens `LiveSeriesSheet` (not `MatchDrawer` directly). `handleSelectLiveMatch` in App.jsx reads `liveMatches` state, finds the PS match, and calls `setSelectedLiveSeries(match)`. The replay button in `LiveSeriesSheet` calls `handleLiveSeriesReplay(odMatchId)` which closes the sheet then opens the full OD `MatchDrawer` via `handleSelectMatchId`. **Data routing (REQ-3)**: PS data is used ONLY while `match.status === 'running'`; once PS marks a series `finished` it no longer appears in `/dota2/matches/running` and OD is the sole data source.
-- Spoiler-free mode: hides series score (shows "vs"), hides winner names in chips and LiveSeriesSheet rows, disables team dimming
+- Spoiler-free mode: hides series score behind the intentional `?·?` curtain marker when a score exists (`vs` is shown only when there is genuinely no series score yet), hides winner names in chips and LiveSeriesSheet rows, disables team dimming
 
 ### Upcoming Matches (PandaScore)
 - `api/upcoming-matches.js` fetches next 72h of scheduled matches; tier-filters using same `isTier1(m) || isTier1ByName(m, names)` pattern as live-matches (same fallback for newly-created series with no tier assigned); deduplicates by `(sorted opponent IDs | scheduled_at)` fingerprint to suppress PandaScore duplicate entries. Maps each match to `{id, scheduledAt, teamA, teamB, tournament, seriesLabel, bracketRound, streams}`. `bracketRound` strips after `:` from `m.name` and applies title case; shown in `UpcomingMatchRow` below teams, above time. KV key: `dota2:upcoming_matches_v6`
@@ -369,6 +369,17 @@ The frontend (`findTwitchVod` in `src/api.js`) uses only `preferredChannel` from
 
 ### Spoiler-Free Mode
 - Toggle in `App.jsx` - passed as `spoilerFree` prop to `UpcomingMatches`, `MatchCard`, `DraftDisplay`, and `MatchDrawer`
+- **Default is spoiler-free ON for brand-new visitors** (changed June 2026). The `spoilerFree` initializer in `App.jsx` resolves in this order:
+  1. `?spoilers=off` URL param → force ON + persist `"true"` (used by the Reddit/X share-link builders in `App.jsx`).
+  2. `?spoilers=on` URL param → force OFF + persist `"false"` (symmetric "show scores" share link).
+  3. Explicit `localStorage["spoilerFree"]` present → honor it (the user's remembered choice).
+  4. No key but `hasPriorFootprint()` true (returning user — any of `theme`, `followedTeams`, `my-teams`, summaries, news-last-visited, calendar-nudge-dismissed, recent-searches, owner present) → OFF (legacy scores-shown), **no nudge**.
+  5. Brand-new (no key, no footprint) → ON + first-run nudge eligible.
+- `hasPriorFootprint()` lives in `utils.js`; it is the migration guard that prevents silently hiding scores from established users. `HAS_VISITED` (`spectate-has-visited`) is stamped on every mount for future use.
+- **First-run nudge** (`App.jsx`, blue inline-nudge pattern, rendered above the calendar nudge inside the `!initialLoading` block): "Spoiler-free is on" with "Show all scores" / "Keep hidden" actions + X dismiss. Shown **once ever** — dismissal persists to `localStorage["spoiler-nudge-dismissed"]="1"`. Suppressed for url-forced, explicit-pref, and returning-with-footprint users. "Show all scores" sets `spoilerFree=false` + persists.
+- **Multi-tab sync**: a `storage` event listener in `App.jsx` updates `spoilerFree` when `localStorage["spoilerFree"]` changes in another tab.
+- **Crawler invariant**: spoiler-free is a client-only display preference. `middleware.js` SSR HTML and JSON-LD always contain real scores/winners — spoiler-free must never reach the crawler layer.
+- **Analytics**: `spoiler_default_applied {variant: url|explicit|legacy_returning|first_run}`, `spoiler_nudge_shown`, `spoiler_nudge_action {action: show_scores|keep_hidden|dismiss}`, `spoiler_free_toggle {enabled, source: header|settings}`, `spoiler_reveal` (per-match drawer reveal).
 - In live section: hides series score, winner names in game chips, disables team dimming
 - In latest results (`MatchCard`):
   - Hides series score (shows "? - ?")

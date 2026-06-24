@@ -13,6 +13,32 @@ export const STORAGE_KEYS = {
   MY_TEAMS:                 "my-teams",
   RECENT_SEARCHES:          "dota-recent-searches",
   HEROES:                   "spectate-heroes-v1",
+  HAS_VISITED:              "spectate-has-visited",
+  SPOILER_NUDGE_DISMISSED:  "spoiler-nudge-dismissed",
+}
+
+/**
+ * Returns true if the user has ANY pre-existing localStorage footprint —
+ * used to detect established (pre-launch) users who never explicitly chose
+ * a spoiler-free preference. Returns false if window is undefined or on any throw.
+ */
+export function hasPriorFootprint() {
+  if (typeof window === "undefined") return false
+  try {
+    const keys = [
+      STORAGE_KEYS.THEME,
+      STORAGE_KEYS.FOLLOWED_TEAMS,
+      STORAGE_KEYS.MY_TEAMS,
+      STORAGE_KEYS.SUMMARY_CACHE,
+      STORAGE_KEYS.NEWS_LAST_VISITED,
+      STORAGE_KEYS.CALENDAR_NUDGE_DISMISSED,
+      STORAGE_KEYS.RECENT_SEARCHES,
+      STORAGE_KEYS.OWNER,
+    ]
+    return keys.some(k => localStorage.getItem(k) !== null)
+  } catch {
+    return false
+  }
 }
 
 export function toTitleCase(str) {

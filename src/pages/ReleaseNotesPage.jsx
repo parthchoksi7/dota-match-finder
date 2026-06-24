@@ -4,6 +4,19 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "June 23, 2026",
+    tag: "improvement",
+    title: "Spoiler-free is now on by default for new visitors",
+    desc: "Scores and winners are now hidden by default the first time you visit, so you can browse VODs and catch up on a tournament without a result spoiling the match before you watch it. A one-time prompt explains the new behavior and lets you switch to showing all scores with a single tap, and we remember your choice from then on.",
+    items: [
+      "Hidden scores show an intentional placeholder, never a blank, so your eye is never spoiled mid-scan",
+      "Reveal any single match's score from its details panel without turning off spoiler-free everywhere",
+      "Toggle scores on or off anytime from the header or Settings; your preference is remembered across visits and synced between open tabs",
+      "Returning visitors keep whatever they had before; this change only affects brand-new visitors",
+      "Share a spoiler-free link with ?spoilers=off, or a show-scores link with ?spoilers=on",
+    ],
+  },
+  {
     date: "June 22, 2026",
     tag: "new",
     title: "Pro player profiles and TI history hub",

@@ -184,7 +184,7 @@ function MatchCard({
           {/* Score */}
           <div className="flex items-center gap-2 shrink-0 px-1">
             {spoilerFree ? (
-              <span className="font-display text-2xl sm:text-3xl font-black text-gray-300 dark:text-gray-700 select-none whitespace-nowrap">
+              <span className="font-display text-2xl sm:text-3xl font-black text-gray-300 dark:text-gray-700 tabular-nums select-none whitespace-nowrap">
                 ? - ?
               </span>
             ) : (

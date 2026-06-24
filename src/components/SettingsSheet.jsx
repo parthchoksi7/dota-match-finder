@@ -75,7 +75,7 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   }
 
   function handleSpoiler() {
-    if (typeof onSpoilerToggle === "function") onSpoilerToggle()
+    if (typeof onSpoilerToggle === "function") onSpoilerToggle("settings")
   }
 
   const showSpoilerRow = typeof onSpoilerToggle === "function"

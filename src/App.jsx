@@ -12,7 +12,7 @@ import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, f
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, isSeriesComplete } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, isSeriesComplete, hasPriorFootprint } from "./utils"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const JUST_ENDED_ENABLED = true
@@ -216,14 +216,35 @@ function App() {
   const [redditPostsLoading, setRedditPostsLoading] = useState(false)
   const [redditPostsError, setRedditPostsError] = useState(null)
 
+  // Captures which branch the spoiler-free initializer took, for analytics.
+  const spoilerVariantRef = useRef("first_run")
   const [spoilerFree, setSpoilerFree] = useState(() => {
     if (typeof window === "undefined") return false
+    const set = v => { try { localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, String(v)) } catch {} }
     const params = new URLSearchParams(window.location.search)
-    if (params.get('spoilers') === 'off') {
-      try { localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, 'true') } catch {}
+    if (params.get('spoilers') === 'off') { spoilerVariantRef.current = "url"; set(true);  return true }   // existing behavior — keep
+    if (params.get('spoilers') === 'on')  { spoilerVariantRef.current = "url"; set(false); return false }  // NEW symmetric force-show
+    let stored = null
+    try { stored = localStorage.getItem(STORAGE_KEYS.SPOILER_FREE) } catch {}  // localStorage can throw in private-browsing modes
+    if (stored !== null) { spoilerVariantRef.current = "explicit"; return stored === "true" }          // explicit choice → honor
+    if (hasPriorFootprint()) { spoilerVariantRef.current = "legacy_returning"; return false }           // returning user, never chose → legacy scores-shown
+    spoilerVariantRef.current = "first_run"
+    return true                                             // brand-new → spoiler-free ON
+  })
+
+  // First-run spoiler nudge: only for the brand-new path, and only once ever.
+  const [showSpoilerNudge, setShowSpoilerNudge] = useState(() => {
+    if (typeof window === "undefined") return false
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('spoilers') === 'off' || params.get('spoilers') === 'on') return false
+      if (localStorage.getItem(STORAGE_KEYS.SPOILER_FREE) !== null) return false
+      if (hasPriorFootprint()) return false
+      if (localStorage.getItem(STORAGE_KEYS.SPOILER_NUDGE_DISMISSED) === "1") return false
       return true
+    } catch {
+      return false
     }
-    return localStorage.getItem(STORAGE_KEYS.SPOILER_FREE) === "true"
   })
 
   const [followedTeams, setFollowedTeamsState] = useState(() => getFollowedTeams())
@@ -259,6 +280,29 @@ function App() {
     setShowCalendarNudge(false)
     try { localStorage.setItem(STORAGE_KEYS.CALENDAR_NUDGE_DISMISSED, '1') } catch {}
   }
+
+  function dismissSpoilerNudge() {
+    setShowSpoilerNudge(false)
+    try { localStorage.setItem(STORAGE_KEYS.SPOILER_NUDGE_DISMISSED, '1') } catch {}
+  }
+
+  // Spoiler default analytics + visit stamp + multi-tab sync (runs once on mount).
+  useEffect(() => {
+    trackEvent("spoiler_default_applied", { variant: spoilerVariantRef.current })
+    try { localStorage.setItem(STORAGE_KEYS.HAS_VISITED, "true") } catch {}
+    const onStorage = e => {
+      if (e.key === STORAGE_KEYS.SPOILER_FREE) {
+        setSpoilerFree(e.newValue === "true")
+      }
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [])
+
+  // Fire shown event once when the first-run nudge first renders.
+  useEffect(() => {
+    if (showSpoilerNudge) trackEvent("spoiler_nudge_shown")
+  }, [showSpoilerNudge])
   const searchInputRef = useRef(null)
   const suggestionsRef = useRef(null)
   const [liveQuery, setLiveQuery] = useState('')
@@ -923,13 +967,13 @@ function App() {
       <SiteHeader
         onSearchOpen={() => setSearchOpen(true)}
         spoilerFree={spoilerFree}
-        onSpoilerToggle={() => {
+        onSpoilerToggle={(source = "header") => {
           const next = !spoilerFree
           setSpoilerFree(next)
           if (typeof window !== "undefined" && window.localStorage) {
-            localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, String(next))
+            try { localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, String(next)) } catch {}
           }
-          trackEvent("spoiler_free_toggle", { enabled: next })
+          trackEvent("spoiler_free_toggle", { enabled: next, source })
         }}
       />
 
@@ -950,6 +994,66 @@ function App() {
 
         {!initialLoading && (
           <div className="flex flex-col gap-6">
+            {/* First-run spoiler-free nudge */}
+            {showSpoilerNudge && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-start justify-between gap-3 px-4 py-3 bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-900 rounded"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" aria-hidden="true">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white leading-snug">
+                      Spoiler-free is on
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                      Scores and winners are hidden so VODs stay unspoiled, including live scores. Reveal any match from its card.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSpoilerFree(false)
+                          try { localStorage.setItem(STORAGE_KEYS.SPOILER_FREE, "false") } catch {}
+                          dismissSpoilerNudge()
+                          trackEvent("spoiler_nudge_action", { action: "show_scores" })
+                        }}
+                        className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold text-xs rounded px-3 py-1.5"
+                      >
+                        Show all scores
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dismissSpoilerNudge()
+                          trackEvent("spoiler_nudge_action", { action: "keep_hidden" })
+                        }}
+                        className="border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold text-xs rounded px-3 py-1.5"
+                      >
+                        Keep hidden
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissSpoilerNudge()
+                    trackEvent("spoiler_nudge_action", { action: "dismiss" })
+                  }}
+                  aria-label="Dismiss"
+                  className="flex-shrink-0 p-2 -m-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors mt-0.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
             {/* Calendar nudge */}
             {showCalendarNudge && (
               <div
