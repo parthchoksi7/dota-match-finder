@@ -388,8 +388,31 @@ export function buildTournamentName(m) {
     .trim()
 }
 
+// Normalize a team name for fuzzy PS↔OD matching: lowercase, then strip every
+// separator/punctuation char (spaces, dots, hyphens, apostrophes) while keeping
+// Unicode letters/digits. This lets cosmetically different spellings of the same
+// team match — e.g. OD "ggboom" vs PS "GG Boom", or "Virtus.pro" vs "Virtuspro".
+// Returns '' for empty/missing input (callers must guard so '' never matches all).
+export function normalizeTeamName(name) {
+  return (name || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+// True when a PS opponent pair fuzzy-matches an OD team pair, order-independent,
+// using bidirectional substring on NORMALIZED names. The single source of truth for
+// PS↔OD team matching — shared by match-streams.js teamsMatch() and findOdMatchByTime().
+// Returns false if any name normalizes to '' so a missing/TBD name never matches all.
+export function teamPairMatch(psNameA, psNameB, odNameR, odNameD) {
+  const a = normalizeTeamName(psNameA)
+  const b = normalizeTeamName(psNameB)
+  const r = normalizeTeamName(odNameR)
+  const d = normalizeTeamName(odNameD)
+  if (!a || !b || !r || !d) return false
+  const sub = (x, y) => x.includes(y) || y.includes(x)
+  return (sub(a, r) || sub(a, d)) && (sub(b, r) || sub(b, d))
+}
+
 // Match a PS game (by begin_at Unix seconds + opponents array) against a list of OD promatches.
-// Uses the same bidirectional substring logic as teamsMatch() in match-streams.js.
+// Uses teamPairMatch() — the canonical bidirectional substring logic shared with match-streams.js.
 // Timestamp is the primary key (±15 min window); team names break ties when multiple candidates.
 // Window is 900s (not 300s) — PS begin_at is the scheduled series time; OD start_time is the
 // actual in-engine start after drafting, which empirically diverges by 7–10 minutes.
@@ -398,15 +421,11 @@ export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
   const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < 900)
   if (candidates.length === 0) return null
   if (candidates.length === 1) return candidates[0]
-  const names = (psOpponents || []).map(o => (o.opponent?.name || '').toLowerCase())
+  const names = (psOpponents || []).map(o => o.opponent?.name || '')
   if (names.length >= 2) {
-    const sub = (x, y) => x.includes(y) || y.includes(x)
-    const exact = candidates.find(c => {
-      const r = (c.radiant_name || c.radiant_team?.name || '').toLowerCase()
-      const d = (c.dire_name || c.dire_team?.name || '').toLowerCase()
-      if (!r || !d) return false  // skip OD matches with missing team names — empty string matches everything
-      return (sub(names[0], r) || sub(names[0], d)) && (sub(names[1], r) || sub(names[1], d))
-    })
+    const exact = candidates.find(c =>
+      teamPairMatch(names[0], names[1], c.radiant_name || c.radiant_team?.name, c.dire_name || c.dire_team?.name)
+    )
     if (exact) return exact
   }
   // Prefer candidates where both team names are known; fall back to all candidates

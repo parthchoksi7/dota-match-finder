@@ -2,22 +2,17 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 import { getSupabaseAdmin } from './_supabase.js'
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, normalizeAllStreams, buildTournamentName, parseBracketRound, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, normalizeAllStreams, buildTournamentName, parseBracketRound, teamPairMatch, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
 
 /**
  * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
- * Uses substring matching in both directions to handle name truncation on either side
- * (e.g. "BetBoom Team" vs "BetBoom", "Yakult Brothers" vs "Yakult S Brothers").
+ * Delegates to the shared teamPairMatch() so both substring direction (name truncation,
+ * e.g. "BetBoom Team" vs "BetBoom") and separator normalization (e.g. OD "ggboom" vs
+ * PS "GG Boom", "Virtus.pro" vs "Virtuspro") stay identical to findOdMatchByTime().
  */
 function teamsMatch(psOpponents, radiantTeam, direTeam) {
   if (!psOpponents || psOpponents.length < 2) return false
-  const names = psOpponents.map(o => o.opponent?.name?.toLowerCase() || '')
-  const r = radiantTeam?.toLowerCase() || ''
-  const d = direTeam?.toLowerCase() || ''
-  if (!r || !d) return false
-  const matchesOne = (psName, odName) => psName.includes(odName) || odName.includes(psName)
-  return (matchesOne(names[0], r) || matchesOne(names[0], d)) &&
-         (matchesOne(names[1], r) || matchesOne(names[1], d))
+  return teamPairMatch(psOpponents[0]?.opponent?.name, psOpponents[1]?.opponent?.name, radiantTeam, direTeam)
 }
 
 async function getOrFetchTwitchToken() {

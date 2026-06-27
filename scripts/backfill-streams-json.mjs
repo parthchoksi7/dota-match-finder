@@ -26,7 +26,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { dirname, join } from 'path'
-import { normalizeAllStreams } from '../api/_shared.js'
+import { normalizeAllStreams, teamPairMatch } from '../api/_shared.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: join(__dirname, '../.env.local') })
@@ -42,12 +42,7 @@ const PS_HEADERS = { Authorization: `Bearer ${PS_TOKEN}`, Accept: 'application/j
 
 function teamsMatch(psOpponents, teamA, teamB) {
   if (!psOpponents || psOpponents.length < 2) return false
-  const names = psOpponents.map(o => o.opponent?.name?.toLowerCase() || '')
-  const a = teamA?.toLowerCase() || ''
-  const b = teamB?.toLowerCase() || ''
-  if (!a || !b) return false
-  const sub = (ps, od) => ps.includes(od) || od.includes(ps)
-  return (sub(names[0], a) || sub(names[0], b)) && (sub(names[1], a) || sub(names[1], b))
+  return teamPairMatch(psOpponents[0]?.opponent?.name, psOpponents[1]?.opponent?.name, teamA, teamB)
 }
 
 async function fetchPsMatch(startedAt, teamA, teamB) {

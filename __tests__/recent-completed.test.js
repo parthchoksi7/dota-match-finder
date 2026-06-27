@@ -88,6 +88,18 @@ describe('findOdMatchByTime', () => {
     expect(result?.match_id).toBe(2)
   })
 
+  it('with multiple candidates, normalizes separator differences (ggboom vs GG Boom)', () => {
+    // Regression: OD "ggboom" vs PS "GG Boom" — the space broke the old substring test.
+    const T = 25000
+    const odMatches = [
+      makeOdMatch(1, T, 'Shifters', 'Virtus.pro'),
+      makeOdMatch(2, T + 100, 'ggboom', 'The Bug'),
+    ]
+    const opponents = [makeOpp('The Bug'), makeOpp('GG Boom')]
+    const result = findOdMatchByTime(odMatches, T + 50, opponents)
+    expect(result?.match_id).toBe(2)
+  })
+
   it('with multiple candidates, team name substring match handles truncated names', () => {
     const T = 20000
     const odMatches = [
