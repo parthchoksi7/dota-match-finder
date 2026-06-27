@@ -2,11 +2,14 @@ name: Stream Capture
 
 # Captures running-match → Twitch channel bindings (stream:match / stream:ts KV) so a
 # completed series resolves its replay DURING the broadcast, not only after it ends.
-# Runs every 10 min: a Dota game is ~35 min, so a 30-min cadence aliased past whole games
-# that started and finished between samples, leaving them with no channel record.
+#
+# SCHEDULE MOVED TO QSTASH (2026-06-26): GitHub Actions throttling fired this `*/15` cron
+# only every ~1.5-4h in practice. The 15-min trigger now lives in a QStash schedule
+# (`npm run setup-qstash`, see scripts/setup-qstash-schedules.mjs) which hits the same
+# `/api/live-matches?cron=1` endpoint reliably. This workflow is kept as a manual fallback
+# only (run from the Actions UI). auto-tweet.yml still pings cron=1 every 30 min as backup.
 on:
-  schedule:
-    - cron: '*/15 * * * *'   # every 15 min
+  # schedule: disabled — replaced by QStash schedule (more reliable than GHA cron)
   workflow_dispatch:
 
 # Never let a delayed run pile on top of a still-running one — capture is idempotent

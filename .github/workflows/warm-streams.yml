@@ -3,14 +3,18 @@ name: Warm Stream History
 # Autonomously binds completed tier-1 series (incl. TI qualifiers, where PandaScore
 # leaves external_identifier null) to their Twitch channel by driving the existing
 # /api/match-streams resolver server-side. Closes the gap where a series only got a
-# replay record once a user opened its drawer. Runs on GitHub Actions because the
-# Vercel Hobby plan caps crons at daily; this needs ~30-min cadence to track OpenDota
-# indexing lag. Thin trigger only — all secrets stay server-side in Vercel env; the
-# Action carries just CRON_SECRET.
+# replay record once a user opened its drawer. Thin trigger only — all secrets stay
+# server-side in Vercel env; the trigger carries just CRON_SECRET.
+#
+# SCHEDULE MOVED TO QSTASH (2026-06-26): the Vercel Hobby plan caps crons at daily, so this
+# used GitHub Actions — but GHA throttling fired the `*/15` cron only every ~1.5-4h in
+# practice, leaving completed series un-bound for hours. The 15-min trigger now lives in a
+# QStash schedule (`npm run setup-qstash`, see scripts/setup-qstash-schedules.mjs) hitting
+# the same `/api/live-matches?cron=warm-streams` endpoint reliably. This workflow is kept
+# as a manual fallback only (run from the Actions UI).
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes
+  # schedule: disabled — replaced by QStash schedule (more reliable than GHA cron)
   workflow_dispatch:         # allow manual trigger from the Actions UI
 
 jobs:

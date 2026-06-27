@@ -15,7 +15,8 @@
     "enrich-history": "node scripts/enrich-stream-history.mjs",
     "enrich-history-siblings": "node scripts/enrich-stream-history-siblings.mjs",
     "vod-backfill-offsets": "node scripts/backfill-vod-offsets.mjs",
-    "backfill-streams-json": "node scripts/backfill-streams-json.mjs"
+    "backfill-streams-json": "node scripts/backfill-streams-json.mjs",
+    "setup-qstash": "node scripts/setup-qstash-schedules.mjs"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",

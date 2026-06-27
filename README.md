@@ -64,6 +64,7 @@ Requires `.env.local` with:
 - `PANDASCORE_TOKEN`
 - `KV_REST_API_URL`
 - `KV_REST_API_TOKEN`
+- `QSTASH_TOKEN` (only to run `npm run setup-qstash` — provisions the QStash schedules that trigger the stream-capture / warm-streams crons)
 
 ## Deployment
 
