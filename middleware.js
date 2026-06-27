@@ -188,7 +188,7 @@ export default async function middleware(req) {
 // ─── / (homepage) ────────────────────────────────────────────────────────────
 
 async function handleHome(url) {
-  const title = 'Spectate Esports — Watch Pro Dota 2 Match VODs Instantly'
+  const title = 'Spectate Esports — Pro Dota 2 Replays, Timestamped to the Draft'
   const description = 'Find any pro Dota 2 match and jump straight to the Twitch VOD at the exact timestamp. Includes draft, picks, bans and AI match summaries. Tier 1 tournaments only.'
   const canonical = BASE_URL + '/'
   // index.html already has WebSite + SportsOrganization JSON-LD; add WebPage on top.
@@ -203,7 +203,7 @@ async function handleHome(url) {
   }
   const rootContent = `
     <main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px">
-      <h1>Watch Pro Dota 2 Match VODs Instantly</h1>
+      <h1>Pro Dota 2 Replays, Timestamped to the Draft</h1>
       <p>Find any Tier 1 professional Dota 2 match and jump straight to the Twitch VOD at the exact timestamp. Covers DreamLeague, ESL One, PGL, BLAST, WePlay, and The International qualifiers.</p>
       <ul>
         <li>Live match scores and tournament brackets</li>
