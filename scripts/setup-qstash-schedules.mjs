@@ -33,9 +33,12 @@ const CRON_SECRET = process.env.CRON_SECRET
 const SITE_URL = (process.env.QSTASH_TARGET_URL || 'https://spectateesports.live').replace(/\/$/, '')
 
 // Both were declared `*/15 * * * *` on GHA; keep the same intended cadence on QStash.
+// vod-enrich also runs every 15 min (was GHA-scheduled but throttled to ~1.5-4h in practice).
+// Free plan allows 1,000 msgs/day + 10 schedules; 3 × 4/hr × 24h = 288/day — well within limits.
 const SCHEDULES = [
   { name: 'stream-capture', path: '/api/live-matches?cron=1',            cron: '*/15 * * * *' },
   { name: 'warm-streams',   path: '/api/live-matches?cron=warm-streams', cron: '*/15 * * * *' },
+  { name: 'vod-enrich',     path: '/api/pipeline?type=vod-enrich',        cron: '*/15 * * * *' },
 ]
 
 if (!QSTASH_TOKEN) { console.error('Missing QSTASH_TOKEN — set it in .env.local (console.upstash.com -> QStash).'); process.exit(1) }

@@ -8,6 +8,7 @@
  * GET  /api/pipeline?type=articles&mode=meta     → metadata only (no sections)
  * GET  /api/pipeline?type=articles&mode=slugs    → slugs + tournaments for sitemap
  * GET  /api/pipeline?type=trigger                → cron: generate topics + send to Telegram
+ * GET  /api/pipeline?type=vod-enrich             → cron: resolve twitch_vod_id/vod_offset_s for unresolved rows
  * POST /api/pipeline                             → Telegram webhook handler
  */
 import * as dotenv from 'dotenv'
@@ -20,7 +21,10 @@ import { generateTopics, generateDraft, generateXPost } from './pipeline/_claude
 import { sendMessage, answerCallback, topicsKeyboard, draftKeyboard, retryKeyboard, chunkText } from './pipeline/_telegram.js'
 import { publishToDb, postXTweet, updateMetadataFiles } from './pipeline/_publisher.js'
 import { groupSeriesFromRows, buildReplayResponse } from './pipeline/_vod-urls.js'
+import { classifyResolution, buildVodSeedRows } from '../scripts/_vod-enrich-lib.mjs'
 import { setCorsHeaders, createLogger } from './_shared.js'
+
+export const config = { maxDuration: 60 }
 
 const MAX_REVISIONS = 3
 
@@ -569,6 +573,103 @@ async function handleReplay(req, res) {
   return res.status(200).json(buildReplayResponse(row))
 }
 
+// ── VOD enrichment cron ───────────────────────────────────────────────────────
+// GET /api/pipeline?type=vod-enrich  (Authorization: Bearer {CRON_SECRET})
+// Resolves twitch_vod_id / vod_offset_s for unresolved match_stream_history rows
+// (Pass 1: main channel) and match_stream_vods rows (Pass 2: alt channels).
+// Mirrors scripts/vod-enrich.mjs but runs as an HTTP handler so QStash can trigger
+// it on a reliable 15-min cadence (GHA throttles declared schedules to ~1.5-4h).
+
+const VOD_ENRICH_BATCH = 10
+const VOD_ENRICH_LOOKBACK_DAYS = 60
+const VOD_ENRICH_SEED_DAYS = 7
+const VOD_ENRICH_GRACE_HOURS = 24
+const VOD_ENRICH_DELAY_MS = 400
+const VOD_ENRICH_API_BASE = (process.env.VOD_ENRICH_API_BASE || 'https://spectateesports.live').replace(/\/$/, '')
+
+async function resolveVodRow(channel, started_at) {
+  const startedUnix = Math.floor(new Date(started_at).getTime() / 1000)
+  const ageHours = (Date.now() - new Date(started_at).getTime()) / 3_600_000
+  let data
+  try {
+    const params = new URLSearchParams({ mode: 'twitch-vod', channel, ts: String(startedUnix) })
+    const r = await fetch(`${VOD_ENRICH_API_BASE}/api/match-streams?${params}`)
+    if (!r.ok) throw new Error(`resolver ${r.status}`)
+    data = await r.json()
+  } catch {
+    return { outcome: 'failed', update: null }
+  }
+  const result = classifyResolution(data, ageHours, { graceHours: VOD_ENRICH_GRACE_HOURS })
+  return { outcome: result.outcome === 'fail' ? 'failed' : result.outcome, update: result.update ?? null }
+}
+
+async function handleVodEnrich(req, res) {
+  if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  const db = getSupabaseAdmin()
+  const cutoff = new Date(Date.now() - VOD_ENRICH_LOOKBACK_DAYS * 86400 * 1000).toISOString()
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+  const main = { resolved: 0, pending: 0, unavailable: 0, failed: 0 }
+  const alt  = { resolved: 0, pending: 0, unavailable: 0, failed: 0 }
+
+  // Pass 1: main channel (match_stream_history)
+  const { data: mainRows, error: mainErr } = await db
+    .from('match_stream_history')
+    .select('id, od_match_id, channel, started_at')
+    .is('twitch_vod_id', null)
+    .not('vod_available', 'is', false)
+    .not('channel', 'is', null)
+    .gte('started_at', cutoff)
+    .order('started_at', { ascending: false })
+    .limit(VOD_ENRICH_BATCH)
+  if (mainErr) return res.status(500).json({ error: mainErr.message })
+
+  for (const row of mainRows) {
+    const r = await resolveVodRow(row.channel, row.started_at)
+    main[r.outcome]++
+    if (r.update) await db.from('match_stream_history').update(r.update).eq('id', row.id)
+    await sleep(VOD_ENRICH_DELAY_MS)
+  }
+
+  // Pass 2: alt channels (match_stream_vods) — seed new rows then enrich
+  const seedCutoff = new Date(Date.now() - VOD_ENRICH_SEED_DAYS * 86400 * 1000).toISOString()
+  const { data: seedRows } = await db
+    .from('match_stream_history')
+    .select('od_match_id, channel, started_at, streams_json')
+    .gte('started_at', seedCutoff)
+    .not('streams_json', 'is', null)
+    .order('started_at', { ascending: false })
+    .limit(1000)
+  const seeds = buildVodSeedRows(seedRows || [])
+  if (seeds.length) {
+    await db.from('match_stream_vods').upsert(seeds, { onConflict: 'od_match_id,channel', ignoreDuplicates: true })
+  }
+
+  const { data: altRows, error: altErr } = await db
+    .from('match_stream_vods')
+    .select('od_match_id, channel, started_at')
+    .is('twitch_vod_id', null)
+    .not('vod_available', 'is', false)
+    .gte('started_at', cutoff)
+    .order('started_at', { ascending: false })
+    .limit(VOD_ENRICH_BATCH)
+  if (!altErr) {
+    for (const row of altRows) {
+      const r = await resolveVodRow(row.channel, row.started_at)
+      alt[r.outcome]++
+      if (r.update) {
+        await db.from('match_stream_vods').update(r.update)
+          .eq('od_match_id', row.od_match_id).eq('channel', row.channel)
+      }
+      await sleep(VOD_ENRICH_DELAY_MS)
+    }
+  }
+
+  return res.status(200).json({ main, alt, seeded: seeds.length })
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -584,6 +685,7 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && type === 'vod-urls') return handleVodUrls(req, res)
   if (req.method === 'GET' && type === 'replay') return handleReplay(req, res)
+  if (req.method === 'GET' && type === 'vod-enrich') return handleVodEnrich(req, res)
   if (req.method === 'POST') return handleWebhook(req, res)
 
   return res.status(405).json({ error: 'Method not allowed' })
