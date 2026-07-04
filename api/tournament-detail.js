@@ -634,7 +634,7 @@ export default async function handler(req, res) {
     const teamCount = tournament.teams?.length || 0
 
     // Normalize standings
-    const standings = Array.isArray(standingsRaw)
+    let standings = Array.isArray(standingsRaw)
       ? standingsRaw
           .sort((a, b) => (a.rank - b.rank) || (b.wins - a.wins))
           .map(s => ({
@@ -644,6 +644,26 @@ export default async function handler(req, res) {
             losses: s.losses ?? 0,
           }))
       : []
+
+    // PandaScore seeds pre-event standings for some stages of an event but not
+    // others (EWC 2026: Group A had rows, B/C/D returned []). Synthesize
+    // zero-record rows from the stage's team list — or bracket opponents as a
+    // fallback — so every group tab renders the same table before play starts.
+    if (!standings.length) {
+      const teamNames = (tournament.teams || []).map(t => t?.name).filter(Boolean)
+      if (!teamNames.length) {
+        for (const round of bracket) {
+          for (const m of round.matches) {
+            for (const n of [m.teamA, m.teamB]) {
+              if (n && n !== 'TBD' && !teamNames.includes(n)) teamNames.push(n)
+            }
+          }
+        }
+      }
+      standings = teamNames
+        .sort((a, b) => a.localeCompare(b))
+        .map(name => ({ rank: null, team: name, wins: 0, losses: 0 }))
+    }
 
     const payload = {
       format,          // e.g. 'Swiss', 'Double Elimination', 'Group Stage'

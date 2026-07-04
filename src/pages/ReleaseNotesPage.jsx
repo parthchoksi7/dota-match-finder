@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 4, 2026",
+    tag: "fix",
+    title: "Tournament Hub title and standings now consistent across group tabs",
+    desc: "Events with multiple groups (like Esports World Cup 2026) name each group as its own tournament stage behind the scenes, which meant the hub header showed the stage name of whichever group loaded first (e.g. \"Group A\") instead of the event name, and it didn't update when you switched tabs. Groups B/C/D also silently lacked a standings table before any games had been played. Both are fixed.",
+    items: [
+      "Hub header always shows the event name (e.g. \"Esports World Cup 2026\"), not a single group's stage name",
+      "Header date range now spans the whole event, not just the first-loaded stage",
+      "Every group tab shows a standings table with the full team list before games start, not just some of them",
+      "Pre-tournament standings show a dash for rank instead of a misleading provisional rank or advancement coloring",
+    ],
+  },
+  {
     date: "June 23, 2026",
     tag: "fix",
     title: "Full tournament names now readable on mobile",

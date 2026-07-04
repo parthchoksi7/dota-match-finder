@@ -124,7 +124,10 @@ function StandingsTable({ standings, advancement }) {
   )
 
   const midpoint = Math.ceil(standings.length / 2)
-  const showZones = standings.length >= 4
+  // Before any game finishes, PandaScore ranks are meaningless (or absent for
+  // synthesized rows) — show a dash rank and no advancement zone bars.
+  const notStarted = standings.every(s => !s.wins && !s.losses)
+  const showZones = standings.length >= 4 && !notStarted
 
   return (
     <div className="overflow-x-auto">
@@ -140,7 +143,7 @@ function StandingsTable({ standings, advancement }) {
         <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
           {standings.map((s, i) => {
             const rank = s.rank ?? i + 1
-            const advType = getAdvancementType(advancement, rank)
+            const advType = notStarted ? null : getAdvancementType(advancement, rank)
             const isEliminated = advType
               ? advType === 'out'
               : (showZones && i >= midpoint && s.losses > s.wins)
@@ -150,7 +153,7 @@ function StandingsTable({ standings, advancement }) {
               : isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'
             return (
               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{rank}</td>
+                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{notStarted ? '–' : rank}</td>
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     {showZones && (
@@ -372,11 +375,20 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
 
   if (!tournament) return null
 
-  const startDate = tournament.startdate
-    ? new Date(tournament.startdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  // The anchor entry covers a single stage, so the header (event-level) date
+  // range spans all stages when the event structure is known. ISO strings
+  // compare lexicographically.
+  const beginRaw = (detail?.eventStages || []).reduce(
+    (min, s) => (s.beginAt && (!min || s.beginAt < min) ? s.beginAt : min), null
+  ) || tournament.startdate
+  const endRaw = (detail?.eventStages || []).reduce(
+    (max, s) => (s.endAt && (!max || s.endAt > max) ? s.endAt : max), null
+  ) || tournament.enddate
+  const startDate = beginRaw
+    ? new Date(beginRaw).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null
-  const endDate = tournament.enddate
-    ? new Date(tournament.enddate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const endDate = endRaw
+    ? new Date(endRaw).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
   const dateRange = startDate && endDate ? `${startDate} – ${endDate}` : endDate || startDate || null
 
@@ -506,7 +518,10 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
           </p>
         )}
         <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-wide text-gray-900 dark:text-white leading-tight">
-          {cleanTournamentName(tournament.name)}
+          {/* Event-level name (league + serie), not tournament.name — the anchor
+              entry is a single stage ("… - Group A") and the header must not
+              change with the stage picker */}
+          {cleanTournamentName(buildTournamentName(tournament.league || '', tournament.serie || '') || tournament.name)}
         </p>
         {dateRange && (
           <p className="text-xs text-gray-400 dark:text-gray-600 tabular-nums mt-0.5">{dateRange}</p>
