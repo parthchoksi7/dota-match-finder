@@ -252,42 +252,52 @@ export default async function handler(req, res) {
           const psMatch = (psMatches || []).find(m => teamsMatch(m.opponents, radiantTeam, direTeam))
           if (psMatch) {
             // Log all streams PandaScore returned so we can debug VOD misses
-            const allStreams = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)
-            log.info('PS streams found', { match: `${radiantTeam} vs ${direTeam}`, streams: allStreams })
+            const streamsLog = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)
+            log.info('PS streams found', { match: `${radiantTeam} vs ${direTeam}`, streams: streamsLog })
 
             const streams = getTwitchStreams(psMatch.streams_list)
-            if (streams.length > 0) {
-              const channel = streams[0].url.replace('https://www.twitch.tv/', '')
-              // All streams (every language/source, official AND unofficial) for permanent
-              // storage — shared shape with live-matches.js so the persisted row is identical
-              // regardless of which write-path lands first. `channel` below stays the single
-              // primary OFFICIAL twitch login from getTwitchStreams (VOD anchor — unchanged).
-              const allStreams = normalizeAllStreams(psMatch.streams_list)
+            // All streams (every language/source, official AND unofficial) for permanent
+            // storage — shared shape with live-matches.js so the persisted row is identical
+            // regardless of which write-path lands first.
+            const allStreams = normalizeAllStreams(psMatch.streams_list)
+            // Single primary OFFICIAL twitch login from getTwitchStreams (VOD anchor —
+            // unchanged resolution logic). Null when PandaScore has no official Twitch
+            // stream (e.g. YouTube-only broadcasts) — the archival row below is written
+            // regardless; only the KV fast-path + `result[id]` require a resolved channel.
+            const channel = streams.length > 0 ? streams[0].url.replace('https://www.twitch.tv/', '') : null
+
+            // Permanent record once PandaScore confirms the match exists — independent of
+            // whether an official Twitch channel resolved. Mirrors the write condition in
+            // cacheRunningStreams() (allStreams.length > 0) so a YouTube-only series still
+            // gets archived instead of being silently dropped from match_stream_history.
+            if (allStreams.length > 0) {
+              const rows = missingIds.map(id => ({
+                od_match_id: Number(id),
+                ps_match_id: psMatch.id,
+                channel,
+                started_at: startedAtIso(id, startTime),
+                team_a: radiantTeam || null,
+                team_b: direTeam || null,
+                tournament: buildTournamentName(psMatch),
+                match_type: psMatch.match_type || null,
+                bracket_round: parseBracketRound(psMatch.name) || null,
+                streams_json: allStreams,
+              }))
+              try {
+                getSupabaseAdmin()
+                  .from('match_stream_history')
+                  .upsert(rows, { onConflict: 'od_match_id', ignoreDuplicates: true })
+                  .then(({ error }) => { if (error) log.warn('supabase upsert failed', { error: error.message }) })
+                  .catch(err => log.warn('supabase upsert failed', { error: err?.message }))
+              } catch (err) {
+                log.warn('supabase upsert failed', { error: err?.message })
+              }
+            }
+
+            if (channel) {
               for (const id of missingIds) {
                 result[id] = channel
                 await kv.set(`stream:match:${id}`, channel, { ex: STREAM_TTL }).catch(err => log.warn('KV write failed', { id, error: err?.message }))
-                // Mirror to Supabase for permanent VOD history — all streams, all languages.
-                // ignoreDuplicates preserves the first-written channel, consistent with KV nx: behaviour.
-                try {
-                  getSupabaseAdmin()
-                    .from('match_stream_history')
-                    .upsert({
-                      od_match_id: Number(id),
-                      ps_match_id: psMatch.id,
-                      channel,
-                      started_at: startedAtIso(id, startTime),
-                      team_a: radiantTeam || null,
-                      team_b: direTeam || null,
-                      tournament: buildTournamentName(psMatch),
-                      match_type: psMatch.match_type || null,
-                      bracket_round: parseBracketRound(psMatch.name) || null,
-                      streams_json: allStreams.length > 0 ? allStreams : null,
-                    }, { onConflict: 'od_match_id', ignoreDuplicates: true })
-                    .then(({ error }) => { if (error) log.warn('supabase upsert failed', { error: error.message }) })
-                    .catch(err => log.warn('supabase upsert failed', { error: err?.message }))
-                } catch (err) {
-                  log.warn('supabase upsert failed', { error: err?.message })
-                }
               }
               log.info('fuzzy match resolved', { match: `${radiantTeam} vs ${direTeam}`, channel })
             }

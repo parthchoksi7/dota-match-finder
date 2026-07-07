@@ -335,3 +335,109 @@ describe('match-streams ts-candidate persistence', () => {
     )
   })
 })
+
+describe('match-streams PS-fuzzy archival', () => {
+  beforeEach(() => {
+    process.env.PANDASCORE_TOKEN = 'test-ps-token'
+    mockUpsert.mockResolvedValue({ error: null })
+  })
+
+  const psMatchBase = {
+    id: 555,
+    match_type: 'best_of_3',
+    name: 'Grand Final',
+    league: { name: 'Esports World Cup 2026' },
+    serie: { full_name: 'Esports World Cup 2026' },
+    opponents: [
+      { opponent: { name: 'Team Liquid' } },
+      { opponent: { name: 'PlayTime' } },
+    ],
+  }
+
+  it('archives the match with channel:null when PandaScore has no official Twitch stream (YouTube-only broadcast)', async () => {
+    mockKv.mget
+      .mockResolvedValueOnce([null]) // Step 1: no KV hit
+      .mockResolvedValueOnce([null, null, null]) // Step 3: no ts-bucket candidates
+
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{
+        ...psMatchBase,
+        streams_list: [
+          { main: true, language: 'en', official: true, raw_url: 'https://www.youtube.com/watch?v=abc' },
+        ],
+      }],
+    })
+
+    const req = makeReq({ ids: '999', ts: '1700000000', radiantTeam: 'Team Liquid', direTeam: 'PlayTime' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body).toEqual({})
+    // No channel resolved → no KV write, no result entry
+    expect(mockKv.set).not.toHaveBeenCalled()
+    // But the match is still archived, with a null channel
+    expect(mockFrom).toHaveBeenCalledWith('match_stream_history')
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({
+        od_match_id: 999,
+        ps_match_id: 555,
+        channel: null,
+        streams_json: expect.arrayContaining([expect.objectContaining({ raw_url: 'https://www.youtube.com/watch?v=abc' })]),
+      })]),
+      { onConflict: 'od_match_id', ignoreDuplicates: true }
+    )
+  })
+
+  it('still resolves and caches an official Twitch channel when PandaScore provides one', async () => {
+    mockKv.mget.mockResolvedValueOnce([null]) // Step 1: no KV hit
+
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{
+        ...psMatchBase,
+        streams_list: [
+          { main: true, language: 'en', official: true, raw_url: 'https://www.twitch.tv/teamliquid' },
+        ],
+      }],
+    })
+
+    const req = makeReq({ ids: '999', ts: '1700000000', radiantTeam: 'Team Liquid', direTeam: 'PlayTime' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body['999']).toBe('teamliquid')
+    expect(mockKv.set).toHaveBeenCalledWith('stream:match:999', 'teamliquid', { ex: STREAM_TTL })
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ od_match_id: 999, channel: 'teamliquid' })]),
+      { onConflict: 'od_match_id', ignoreDuplicates: true }
+    )
+  })
+
+  it('does not archive anything when no PandaScore match fuzzy-matches the team names', async () => {
+    mockKv.mget
+      .mockResolvedValueOnce([null]) // Step 1: no KV hit
+      .mockResolvedValueOnce([null, null, null]) // Step 3: no ts-bucket candidates
+
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{
+        ...psMatchBase,
+        opponents: [
+          { opponent: { name: 'Some Other Team' } },
+          { opponent: { name: 'Unrelated Org' } },
+        ],
+        streams_list: [
+          { main: true, language: 'en', official: true, raw_url: 'https://www.twitch.tv/teamliquid' },
+        ],
+      }],
+    })
+
+    const req = makeReq({ ids: '999', ts: '1700000000', radiantTeam: 'Team Liquid', direTeam: 'PlayTime' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body).toEqual({})
+    expect(mockUpsert).not.toHaveBeenCalled()
+  })
+})
