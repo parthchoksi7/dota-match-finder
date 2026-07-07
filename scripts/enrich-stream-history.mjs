@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { teamPairMatch } from '../api/_shared.js'
+import { findBestPsMatch } from '../api/_shared.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: join(__dirname, '../.env.local') })
@@ -34,11 +34,6 @@ const rawLookback = (process.env.ENRICH_LOOKBACK_HOURS ?? '').trim()
 const LOOKBACK_HOURS = rawLookback !== '' && Number.isFinite(Number(rawLookback)) && Number(rawLookback) >= 0
   ? Number(rawLookback)
   : 48
-
-function teamsMatch(psOpponents, teamA, teamB) {
-  if (!psOpponents || psOpponents.length < 2) return false
-  return teamPairMatch(psOpponents[0]?.opponent?.name, psOpponents[1]?.opponent?.name, teamA, teamB)
-}
 
 function buildTournamentName(m) {
   const parts = [m.league?.name, m.serie?.full_name || m.serie?.name, m.tournament?.name].filter(Boolean)
@@ -69,7 +64,7 @@ async function fetchPsMatch(startedAt, teamA, teamB) {
   const res = await fetch(url, { headers: PS_HEADERS })
   if (!res.ok) return null
   const matches = await res.json()
-  return (matches || []).find(m => teamsMatch(m.opponents, teamA, teamB)) || null
+  return findBestPsMatch(matches, teamA, teamB)
 }
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }

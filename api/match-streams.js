@@ -2,18 +2,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 import { getSupabaseAdmin } from './_supabase.js'
-import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, normalizeAllStreams, buildTournamentName, parseBracketRound, teamPairMatch, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
-
-/**
- * Returns true if the PandaScore opponents fuzzy-match the two OpenDota team names.
- * Delegates to the shared teamPairMatch() so both substring direction (name truncation,
- * e.g. "BetBoom Team" vs "BetBoom") and separator normalization (e.g. OD "ggboom" vs
- * PS "GG Boom", "Virtus.pro" vs "Virtuspro") stay identical to findOdMatchByTime().
- */
-function teamsMatch(psOpponents, radiantTeam, direTeam) {
-  if (!psOpponents || psOpponents.length < 2) return false
-  return teamPairMatch(psOpponents[0]?.opponent?.name, psOpponents[1]?.opponent?.name, radiantTeam, direTeam)
-}
+import { PANDASCORE_BASE, STREAM_TTL, getTwitchStreams, normalizeAllStreams, buildTournamentName, parseBracketRound, findBestPsMatch, trackError, setCorsHeaders, createLogger, validateId } from './_shared.js'
 
 async function getOrFetchTwitchToken() {
   const clientId = process.env.TWITCH_CLIENT_ID
@@ -239,8 +228,8 @@ export default async function handler(req, res) {
         // (game 1's scheduled time), but `startTime` here is the OD start_time of a
         // specific game. In long BO5s a late game's start can drift >1h past the series
         // begin_at, falling outside a ±1h window and silently missing the channel.
-        // teamsMatch() still disambiguates within the window, and page[size]=50 keeps the
-        // target in range on busy multi-region days.
+        // findBestPsMatch() still disambiguates within the window, and page[size]=50 keeps
+        // the target in range on busy multi-region days.
         const startIso = new Date((startTime - 7200) * 1000).toISOString()
         const endIso = new Date((startTime + 7200) * 1000).toISOString()
         const psRes = await fetch(
@@ -249,7 +238,7 @@ export default async function handler(req, res) {
         )
         if (psRes.ok) {
           const psMatches = await psRes.json()
-          const psMatch = (psMatches || []).find(m => teamsMatch(m.opponents, radiantTeam, direTeam))
+          const psMatch = findBestPsMatch(psMatches, radiantTeam, direTeam)
           if (psMatch) {
             // Log all streams PandaScore returned so we can debug VOD misses
             const streamsLog = (psMatch.streams_list || []).map(s => `${s.language}|official=${s.official}|main=${s.main}|${s.raw_url}`)

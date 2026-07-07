@@ -26,7 +26,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { dirname, join } from 'path'
-import { normalizeAllStreams, teamPairMatch } from '../api/_shared.js'
+import { normalizeAllStreams, findBestPsMatch } from '../api/_shared.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: join(__dirname, '../.env.local') })
@@ -40,11 +40,6 @@ const PS_TOKEN = process.env.PANDASCORE_TOKEN
 const PS_BASE = 'https://api.pandascore.co/dota2'
 const PS_HEADERS = { Authorization: `Bearer ${PS_TOKEN}`, Accept: 'application/json' }
 
-function teamsMatch(psOpponents, teamA, teamB) {
-  if (!psOpponents || psOpponents.length < 2) return false
-  return teamPairMatch(psOpponents[0]?.opponent?.name, psOpponents[1]?.opponent?.name, teamA, teamB)
-}
-
 async function fetchPsMatch(startedAt, teamA, teamB) {
   // ±2h window mirrors the locked match-streams.js resolver (widened Jun 19) so late
   // games of long BO5s — whose OD start_time drifts past the series begin_at — still match.
@@ -55,7 +50,7 @@ async function fetchPsMatch(startedAt, teamA, teamB) {
   const res = await fetch(url, { headers: PS_HEADERS })
   if (!res.ok) return null
   const matches = await res.json()
-  return (matches || []).find(m => teamsMatch(m.opponents, teamA, teamB)) || null
+  return findBestPsMatch(matches, teamA, teamB)
 }
 
 function existingUrls(streamsJson) {

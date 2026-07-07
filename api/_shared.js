@@ -407,6 +407,33 @@ export function buildTournamentName(m) {
     .trim()
 }
 
+// Known PS↔OD team-name divergences that survive normalizeTeamName's punctuation-only
+// stripping — the two providers use a genuinely different name/abbreviation for the same
+// org, not just a cosmetic spelling difference (e.g. a future case like PandaScore "Foo
+// Esports" vs OpenDota "FooE"). findBestPsMatch()'s score-based fallback (below) resolves
+// most cases like this automatically as long as only one side of a matchup diverges and no
+// other time-window candidate is an equally plausible partial match — add a group here only
+// for a case that fallback can't disambiguate alone (a genuine score tie, or both sides of a
+// pairing diverging at once). Each entry is a group of normalizeTeamName() outputs known to
+// refer to the same org; membership is checked ADDITIVELY alongside substring matching in
+// namesEquivalent() below — it never replaces or rewrites a name's own normalized form, so a
+// name's ordinary substring relationship with every OTHER team is untouched. (An earlier
+// version of this rewrote normalizeTeamName's output directly; that broke "BetBoom Team"
+// matching any OD row that legitimately calls them "BetBoom" — caught by
+// __tests__/team-name-match.test.js before it shipped.)
+const TEAM_NAME_ALIAS_GROUPS = [
+  // Tier-1 scrub, 2026-07-07: OpenDota's persistent team registry (team_id 8255888, 667
+  // recorded wins) still carries "BoomBoys" — PandaScore's own team search returns zero
+  // hits for that name, only "BetBoom Team" (id 130768) — confirming it's a legacy/OD-side
+  // name for the same org, not a different team. Confirmed live in an EWC 2026 match
+  // (PS opponent "BetBoom Team" vs OD radiant_name "BoomBoys", same game, same time window).
+  ['betboomteam', 'boomboys'],
+]
+
+function namesAlias(x, y) {
+  return TEAM_NAME_ALIAS_GROUPS.some(g => g.includes(x) && g.includes(y))
+}
+
 // Normalize a team name for fuzzy PS↔OD matching: lowercase, then strip every
 // separator/punctuation char (spaces, dots, hyphens, apostrophes) while keeping
 // Unicode letters/digits. This lets cosmetically different spellings of the same
@@ -414,6 +441,13 @@ export function buildTournamentName(m) {
 // Returns '' for empty/missing input (callers must guard so '' never matches all).
 export function normalizeTeamName(name) {
   return (name || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+// True when two normalized names refer to the same team: either a substring relationship
+// (truncation/abbreviation, e.g. "betboomteam" ⊃ "betboom") or a known alias pair
+// (TEAM_NAME_ALIAS_GROUPS, for names with no substring relationship at all).
+function namesEquivalent(x, y) {
+  return x.includes(y) || y.includes(x) || namesAlias(x, y)
 }
 
 // True when a PS opponent pair fuzzy-matches an OD team pair, order-independent,
@@ -426,8 +460,57 @@ export function teamPairMatch(psNameA, psNameB, odNameR, odNameD) {
   const r = normalizeTeamName(odNameR)
   const d = normalizeTeamName(odNameD)
   if (!a || !b || !r || !d) return false
-  const sub = (x, y) => x.includes(y) || y.includes(x)
-  return (sub(a, r) || sub(a, d)) && (sub(b, r) || sub(b, d))
+  return (namesEquivalent(a, r) || namesEquivalent(a, d)) && (namesEquivalent(b, r) || namesEquivalent(b, d))
+}
+
+// Counts how many of the two OD team names a PS opponent pair partially matches (0-2),
+// using the same normalize + bidirectional-substring/alias rule as teamPairMatch. A lower-
+// confidence signal than teamPairMatch (only needs ONE side to overlap, not both) — used
+// exclusively by findBestPsMatch() below as a same-time-window tiebreaker, never as a
+// standalone pass/fail check, since a score of 1 alone can't rule out a false positive.
+export function teamPairScore(psNameA, psNameB, odNameA, odNameB) {
+  const a = normalizeTeamName(psNameA)
+  const b = normalizeTeamName(psNameB)
+  const r = normalizeTeamName(odNameA)
+  const d = normalizeTeamName(odNameB)
+  if (!a || !b || !r || !d) return 0
+  return (namesEquivalent(a, r) || namesEquivalent(a, d) ? 1 : 0) + (namesEquivalent(b, r) || namesEquivalent(b, d) ? 1 : 0)
+}
+
+// Finds the best-matching PandaScore match from a list of same-time-window candidates for
+// a given OD team pair. Two passes:
+//  1. Strict — teamPairMatch() on both names (existing behavior, zero ambiguity, always
+//     preferred when it finds a hit).
+//  2. Score fallback — only when no candidate strict-matches: scores every candidate with
+//     teamPairScore() and returns the one with a UNIQUE highest score >= 1. Note this does
+//     NOT bridge a divergent name pair by itself (a score-1 side that doesn't match still
+//     contributes 0, same as no match at all) — it resolves the match because the OTHER,
+//     unaffected side matches exactly and no other candidate in the window shares that name
+//     too. Confirmed on EWC 2026 group-stage matches 2026-07-07: PS "PlayTime" never matches
+//     OD "PTime" on its own, but "Team Liquid" on the other side does, and uniquely so.
+//     Returns null (no guess) on a tie or all-zero scores — an unresolved match stays
+//     unresolved rather than risking a wrong bind. If BOTH sides of a pairing diverge at
+//     once (score 0 either way), this can't help — that needs a TEAM_NAME_ALIAS_GROUPS entry.
+export function findBestPsMatch(psMatches, odNameA, odNameB) {
+  if (!Array.isArray(psMatches) || psMatches.length === 0) return null
+
+  const strict = psMatches.find(m =>
+    teamPairMatch(m.opponents?.[0]?.opponent?.name, m.opponents?.[1]?.opponent?.name, odNameA, odNameB)
+  )
+  if (strict) return strict
+
+  let best = null
+  let bestScore = 0
+  let tied = false
+  for (const m of psMatches) {
+    const score = teamPairScore(m.opponents?.[0]?.opponent?.name, m.opponents?.[1]?.opponent?.name, odNameA, odNameB)
+    if (score > bestScore) { best = m; bestScore = score; tied = false }
+    // A same-score candidate only counts as a tie if it's a DIFFERENT match — a duplicate
+    // of the same PS match (same id) in the candidate list isn't real ambiguity. Fall back
+    // to object identity when ids are absent so duplicate-object dedup still holds.
+    else if (score > 0 && score === bestScore && (m.id ?? m) !== (best?.id ?? best)) { tied = true }
+  }
+  return (bestScore >= 1 && !tied) ? best : null
 }
 
 // Match a PS game (by begin_at Unix seconds + opponents array) against a list of OD promatches.
