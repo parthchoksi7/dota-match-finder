@@ -4,6 +4,16 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 7, 2026",
+    tag: "fix",
+    title: "Esports World Cup 2026 replays now available",
+    desc: "The official English Twitch broadcasts of the Esports World Cup were not being picked up, so completed EWC matches showed no replay. We now recognize the event's official Twitch channels and capture their VODs, so you can watch EWC games back with the replay jumping to the start of the match.",
+    items: [
+      "Completed EWC matches carried on the event's official English Twitch broadcast now link to a timestamped replay",
+      "Matches carried only on other platforms for a given game are unaffected",
+    ],
+  },
+  {
     date: "July 4, 2026",
     tag: "fix",
     title: "Tournament Hub title and standings now consistent across group tabs",

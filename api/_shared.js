@@ -252,13 +252,30 @@ export const CHANNEL_LABELS = {
   weplaydota: 'WePlay',
 }
 
+// TEMPORARY — Esports World Cup 2026. PandaScore marks the event's YouTube stream
+// official:true but the official EWC Twitch broadcasts official:false, so getTwitchStreams
+// would skip them and no VOD is ever cached. These logins are treated as official when PS
+// lists them (even unofficially) for a match. Remove after EWC 2026 ends — see
+// .claude/pending-refactors.md.
+const OFFICIAL_TWITCH_ALLOWLIST = new Set([
+  'ewc_legiongauntlet_en',
+  'ewc_legiongauntlet_en2',
+  'ewc_legiongauntlet_en3',
+])
+
+function twitchLoginFromUrl(rawUrl) {
+  return (rawUrl || '').replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').replace(/\/$/, '').toLowerCase()
+}
+
 /**
  * Maps a PandaScore streams_list to Twitch stream objects.
  * Returns an array of { label, url } for display and channel-detection purposes.
  * Returns [] if PandaScore has no official Twitch stream for this match.
  */
 export function getTwitchStreams(streamsList) {
-  const allTwitchOfficial = (streamsList || []).filter(s => s.official && s.raw_url?.includes('twitch.tv'))
+  const allTwitchOfficial = (streamsList || []).filter(s =>
+    s.raw_url?.includes('twitch.tv') &&
+    (s.official || OFFICIAL_TWITCH_ALLOWLIST.has(twitchLoginFromUrl(s.raw_url))))
   // Prefer English; fall back to any language for regional events (CIS/Chinese qualifiers).
   const enOfficial = allTwitchOfficial.filter(s => s.language === 'en')
   const official = enOfficial.length > 0 ? enOfficial : allTwitchOfficial
@@ -270,8 +287,10 @@ export function getTwitchStreams(streamsList) {
   const mainStreams = official.filter(s => s.main)
   const toUse = mainStreams.length > 0 ? mainStreams : official.slice(0, 1)
   return toUse.map(s => {
-    const channel = s.raw_url.replace('https://www.twitch.tv/', '')
-    return { label: CHANNEL_LABELS[channel] || channel, url: s.raw_url }
+    // Normalize to the www form so downstream `.replace('https://www.twitch.tv/', '')`
+    // channel extraction works even when PandaScore returns a no-www URL (EWC does).
+    const channel = twitchLoginFromUrl(s.raw_url)
+    return { label: CHANNEL_LABELS[channel] || channel, url: `https://www.twitch.tv/${channel}` }
   })
 }
 
