@@ -270,6 +270,10 @@ export default async function handler(req, res) {
             // whether an official Twitch channel resolved. Mirrors the write condition in
             // cacheRunningStreams() (allStreams.length > 0) so a YouTube-only series still
             // gets archived instead of being silently dropped from match_stream_history.
+            // Awaited (not fire-and-forget): when `channel` is null there is no further
+            // await in this request, so an un-awaited upsert here would race the function's
+            // return and, on Vercel, frequently lose — verified in production, the row never
+            // persisted for a YouTube-only match despite the upsert call executing every time.
             if (allStreams.length > 0) {
               const rows = missingIds.map(id => ({
                 od_match_id: Number(id),
@@ -284,11 +288,10 @@ export default async function handler(req, res) {
                 streams_json: allStreams,
               }))
               try {
-                getSupabaseAdmin()
+                const { error } = await getSupabaseAdmin()
                   .from('match_stream_history')
                   .upsert(rows, { onConflict: 'od_match_id', ignoreDuplicates: true })
-                  .then(({ error }) => { if (error) log.warn('supabase upsert failed', { error: error.message }) })
-                  .catch(err => log.warn('supabase upsert failed', { error: err?.message }))
+                if (error) log.warn('supabase upsert failed', { error: error.message })
               } catch (err) {
                 log.warn('supabase upsert failed', { error: err?.message })
               }
