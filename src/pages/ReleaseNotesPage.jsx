@@ -4,6 +4,17 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 8, 2026",
+    tag: "fix",
+    title: "Series game tabs (Game 1 / Game 2) now in the right order",
+    desc: "On multi-game series, the Game 1 / Game 2 tabs and the draft, scoreline, and stats shown under each could be swapped, so a game's picks were attributed to the wrong game. The tabs are now always ordered by when each game actually started, so Game 1 is the earliest game and every tab shows that game's own lineup.",
+    items: [
+      "Series game tabs are ordered by kickoff time, not by the order games arrived in the data feed",
+      "The \"Game N of M\" label in the match view matches the correct game",
+      "Fixes swapped drafts on same-day series such as Esports World Cup 2026 matches",
+    ],
+  },
+  {
     date: "July 7, 2026",
     tag: "fix",
     title: "Esports World Cup 2026 replays now available",

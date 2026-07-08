@@ -12,7 +12,7 @@ import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, f
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, isSeriesComplete, hasPriorFootprint } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const JUST_ENDED_ENABLED = true
@@ -893,19 +893,16 @@ function App() {
     if (!seriesMatchMap[m.seriesId]) seriesMatchMap[m.seriesId] = []
     seriesMatchMap[m.seriesId].push(m.id)
   })
-  Object.entries(seriesMatchMap).forEach(([seriesId, ids]) => {
-    ids
-      .slice()
-      .reverse()
-      .forEach((id, i) => {
-        matchGameNumbers[id] = i + 1
-      })
+  Object.values(seriesMatchMap).forEach(ids => {
+    orderSeriesGames(ids, allMatches).forEach((m, i) => {
+      matchGameNumbers[m.id] = i + 1
+    })
   })
 
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
   const seriesGames = selectedMatch?.seriesId
-    ? (seriesMatchMap[selectedMatch.seriesId] || []).slice().reverse().map(id => allMatches.find(m => m.id === id)).filter(Boolean)
+    ? orderSeriesGames(seriesMatchMap[selectedMatch.seriesId], allMatches)
     : []
 
   const gameSwitcher = seriesGames.length > 1 ? (

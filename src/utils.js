@@ -228,6 +228,19 @@ export function groupIntoSeries(matches) {
   return series
 }
 
+/**
+ * Resolve a list of match ids to their match objects and order them by kickoff
+ * (ascending startTime), so Game 1 is the earliest game. Feed/insertion order is
+ * NOT chronological for same-day games, so this must sort by startTime, matching
+ * the per-series ordering in groupIntoSeries.
+ */
+export function orderSeriesGames(ids, matches) {
+  return (ids || [])
+    .map((id) => matches.find((m) => m.id === id))
+    .filter(Boolean)
+    .sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
+}
+
 /** Wins required to win the series (BO1=1, BO2=2, BO3=2, BO5=3) */
 export function winsRequiredForSeries(seriesType) {
   if (seriesType === 0) return 1

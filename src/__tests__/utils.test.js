@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, STORAGE_KEYS } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -150,6 +150,42 @@ describe('getSeriesLabel', () => {
   it('returns empty string for unknown seriesType', () => {
     expect(getSeriesLabel(99)).toBe('')
     expect(getSeriesLabel(undefined)).toBe('')
+  })
+})
+
+// ── orderSeriesGames (match-drawer game switcher ordering) ───────────────────
+
+describe('orderSeriesGames', () => {
+  const g1 = { id: 'a', startTime: 1_741_900_000 } // earliest = Game 1
+  const g2 = { id: 'b', startTime: 1_741_905_000 } // latest = Game 2
+
+  it('orders games by ascending startTime regardless of id/feed order', () => {
+    // ids given newest-first (feed order); match_id is NOT chronological for same-day games
+    const result = orderSeriesGames(['b', 'a'], [g2, g1])
+    expect(result.map(m => m.id)).toEqual(['a', 'b'])
+  })
+
+  it('produces game numbers where the earliest game is Game 1', () => {
+    const ordered = orderSeriesGames(['b', 'a'], [g1, g2])
+    const gameNumbers = {}
+    ordered.forEach((m, i) => { gameNumbers[m.id] = i + 1 })
+    expect(gameNumbers).toEqual({ a: 1, b: 2 })
+  })
+
+  it('drops ids that have no matching object', () => {
+    const result = orderSeriesGames(['a', 'missing', 'b'], [g1, g2])
+    expect(result.map(m => m.id)).toEqual(['a', 'b'])
+  })
+
+  it('returns [] for empty/undefined id lists', () => {
+    expect(orderSeriesGames([], [g1, g2])).toEqual([])
+    expect(orderSeriesGames(undefined, [g1, g2])).toEqual([])
+  })
+
+  it('treats missing startTime as 0 without throwing', () => {
+    const noTime = { id: 'c' }
+    const result = orderSeriesGames(['a', 'c'], [g1, noTime])
+    expect(result.map(m => m.id)).toEqual(['c', 'a'])
   })
 })
 
