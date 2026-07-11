@@ -11,7 +11,8 @@ import { trackEvent, formatDateRange, buildTournamentName, getTournamentFormatKe
 
 function getSeriesIdFromPath() {
   if (typeof window === 'undefined') return null
-  const match = window.location.pathname.match(/^\/tournament\/(\d+)/)
+  // Supports /tournament/{id} and /tournament/{keyword-slug}-{id} — id is always trailing
+  const match = window.location.pathname.match(/^\/tournament\/.*?(\d+)\/?$/)
   return match ? match[1] : null
 }
 

@@ -138,6 +138,20 @@ const BASE_URL = 'https://spectateesports.live'
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`
 const SITE_NAME = 'Spectate Esports'
 
+// Tier-1 organizer names for the match-page index/noindex gate.
+// Keep in sync with PERMANENT_TIER1_NAMES in api/_shared.js (edge middleware
+// cannot import from api/). A match page is indexable when its OpenDota league
+// tier is 'premium' OR its league/tournament name contains one of these.
+const TIER1_NAME_PATTERNS_SSR = [
+  'DreamLeague', 'ESL One', 'PGL', 'PGL Wallachia', 'BLAST', 'The International',
+  'Beyond The Summit', 'WePlay', 'Riyadh Masters', '1win Essence', 'Esports World Cup',
+]
+function isTier1LeagueNameSSR(name) {
+  if (!name) return false
+  const lower = name.toLowerCase()
+  return TIER1_NAME_PATTERNS_SSR.some(n => lower.includes(n.toLowerCase()))
+}
+
 const LLM_BOTS = [
   'GPTBot', 'ChatGPT-User', 'OAI-SearchBot',
   'ClaudeBot', 'claude-web', 'anthropic-ai',
@@ -302,7 +316,8 @@ async function handleTournaments(url) {
     clearTimeout(timer)
     if (res?.ok) {
       const data = await res.json().catch(() => null)
-      ongoing = data?.ongoing || []
+      // /api/tournaments?mode=series returns { live, upcoming, completed }
+      ongoing = data?.live || []
       upcoming = data?.upcoming || []
       completed = data?.completed || []
     }
@@ -318,7 +333,8 @@ async function handleTournaments(url) {
     const items = series.map(s => {
       const dates = s.beginAt ? `${fmtDate(s.beginAt)}${s.endAt ? ' – ' + fmtDate(s.endAt) : ''}` : ''
       const prize = s.prizePool ? ` · ${escapeHtml(s.prizePool)}` : ''
-      return `<li style="margin-bottom:8px"><strong>${escapeHtml(s.name)}</strong>${dates ? ` <span style="color:#888">(${escapeHtml(dates)})</span>` : ''}${prize ? `<span style="color:#888">${prize}</span>` : ''}</li>`
+      const name = s.seoName || s.name
+      return `<li style="margin-bottom:8px"><a href="${tournamentPathMw(s)}"><strong>${escapeHtml(name)}</strong></a>${dates ? ` <span style="color:#888">(${escapeHtml(dates)})</span>` : ''}${prize ? `<span style="color:#888">${prize}</span>` : ''}</li>`
     }).join('')
     return `<h2>${heading}</h2><ul>${items}</ul>`
   }
@@ -331,11 +347,11 @@ async function handleTournaments(url) {
   // JSON-LD: inject live SportsEvent nodes for ongoing tournaments
   const sportsEvents = ongoing.map(s => ({
     '@type': 'SportsEvent',
-    'name': s.name,
+    'name': s.seoName || s.name,
     'sport': 'Dota 2',
     'startDate': s.beginAt || undefined,
     'endDate': s.endAt || undefined,
-    'url': `${BASE_URL}/tournaments`,
+    'url': tournamentPathMw(s),
     'organizer': { '@type': 'Organization', 'name': s.leagueName || 'Spectate Esports' },
   }))
 
@@ -384,14 +400,16 @@ async function handleTournaments(url) {
 // ─── /tournament/:id ─────────────────────────────────────────────────────────
 
 async function handleTournamentDetail(url) {
+  // URL format: /tournament/{keyword-slug}-{seriesId} (old bare-numeric URLs 301 below)
   const pathPart = url.pathname.replace('/tournament/', '').split('/')[0]
-  const seriesId = pathPart || null
+  const seriesIdMatch = pathPart.match(/(\d+)$/)
+  const seriesId = seriesIdMatch ? seriesIdMatch[1] : null
 
   if (!seriesId) {
     return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/tournaments` } })
   }
 
-  const canonical = `${BASE_URL}/tournament/${seriesId}`
+  let canonical = `${BASE_URL}/tournament/${seriesId}`
 
   // Default fallback values
   let title = `Dota 2 Tournament — ${SITE_NAME}`
@@ -410,14 +428,24 @@ async function handleTournamentDetail(url) {
     if (apiRes?.ok) {
       const data = await apiRes.json().catch(() => null)
       if (data?.name) {
-        const tName = data.name
         const league = data.leagueName || ''
-        const prizeStr = data.prizePool ? ` — $${(data.prizePool / 1000).toFixed(0)}K prize pool` : ''
-        const statusStr = data.status === 'running' ? ' (Live)' : data.status === 'upcoming' ? ' (Upcoming)' : ''
+        // Prefer API seoName ("Esports World Cup 2026", not "2026"); compose
+        // inline as a fallback for cached payloads that pre-date the field.
+        const tName = data.seoName ||
+          (league && !data.name.toLowerCase().includes(league.toLowerCase()) ? `${league} ${data.name}` : data.name)
+        const slugPart = slugifyMw(tName)
+        const canonicalPath = `${slugPart ? `${slugPart}-` : ''}${seriesId}`
+        canonical = `${BASE_URL}/tournament/${canonicalPath}`
+        // 301 bare-numeric and stale-slug URLs to the canonical keyword slug.
+        if (pathPart !== canonicalPath) {
+          return new Response(null, { status: 301, headers: { Location: canonical } })
+        }
+        const prizeStr = data.prizePool ? ` — ${data.prizePool} prize pool` : ''
+        const statusStr = data.status === 'live' || data.status === 'running' ? ' (Live)' : data.status === 'upcoming' ? ' (Upcoming)' : ''
         const teamCount = data.teams?.length ?? 0
 
-        title = `${tName}${statusStr} — Standings, Bracket & Rosters | ${SITE_NAME}`
-        description = `${tName}: full tournament standings, playoff bracket, team rosters${prizeStr}. ${teamCount > 0 ? `${teamCount} teams competing.` : ''} Hero pick/ban stats and AI summary on Spectate Esports.`
+        title = `${tName}${statusStr} — Schedule, Bracket, Results & Standings | ${SITE_NAME}`
+        description = `${tName}: full match schedule, live results, playoff bracket, standings, and team rosters${prizeStr}. ${teamCount > 0 ? `${teamCount} teams competing.` : ''} Timestamped VOD replays and AI summaries on Spectate Esports.`
 
         const contestants = (data.teams || []).map(t => ({
           '@type': 'SportsTeam',
@@ -431,15 +459,15 @@ async function handleTournamentDetail(url) {
           'name': tName,
           'url': canonical,
           'sport': 'Dota 2',
-          'eventStatus': data.status === 'running' || data.status === 'upcoming'
+          'eventStatus': data.status === 'live' || data.status === 'running' || data.status === 'upcoming'
             ? 'https://schema.org/EventScheduled'
             : 'https://schema.org/EventCompleted',
           'startDate': data.beginAt,
           ...(data.endAt ? { 'endDate': data.endAt } : {}),
           'eventAttendanceMode': 'https://schema.org/OnlineEventAttendanceMode',
-          'location': { '@type': 'VirtualLocation', 'url': `${BASE_URL}/tournament/${seriesId}` },
+          'location': { '@type': 'VirtualLocation', 'url': canonical },
           'image': data.imageUrl || DEFAULT_OG_IMAGE,
-          ...(data.prizePool ? { 'description': `${tName}. Prize pool: $${data.prizePool.toLocaleString()} USD.` } : {}),
+          ...(data.prizePool ? { 'description': `${tName}. Prize pool: ${data.prizePool}.` } : {}),
           'organizer': {
             '@type': 'SportsOrganization',
             'name': league || SITE_NAME,
@@ -458,6 +486,44 @@ async function handleTournamentDetail(url) {
           },
         } : null
 
+        // FAQ: answer-shaped facts for search snippets and LLM extraction.
+        // Only include questions we can answer from real data.
+        const fmtFaqDate = iso => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        const isLive = data.status === 'live' || data.status === 'running'
+        const faqs = []
+        if (data.beginAt) {
+          faqs.push({
+            q: `When is ${tName}?`,
+            a: `${tName} runs from ${fmtFaqDate(data.beginAt)}${data.endAt ? ` to ${fmtFaqDate(data.endAt)}` : ''}.${isLive ? ' The tournament is live now.' : ''}`,
+          })
+        }
+        if (teamCount > 0) {
+          const topTeams = (data.teams || []).slice(0, 8).map(t => t.name).join(', ')
+          faqs.push({
+            q: `Which teams are playing at ${tName}?`,
+            a: `${teamCount} teams are competing at ${tName}, including ${topTeams}.`,
+          })
+        }
+        if (data.prizePool) {
+          faqs.push({ q: `What is the prize pool of ${tName}?`, a: `The prize pool of ${tName} is ${data.prizePool}.` })
+        }
+        if (data.status === 'completed' && data.winner?.name) {
+          faqs.push({ q: `Who won ${tName}?`, a: `${data.winner.name} won ${tName}.` })
+        }
+        faqs.push({
+          q: `Where can I watch ${tName}?`,
+          a: `${data.streamUrl ? `Live matches stream at ${data.streamUrl}. ` : ''}Live scores, the full bracket, and timestamped VOD replays of every ${tName} match are available free on Spectate Esports.`,
+        })
+        const faqNode = {
+          '@type': 'FAQPage',
+          '@id': `${canonical}#faq`,
+          'mainEntity': faqs.map(f => ({
+            '@type': 'Question',
+            'name': f.q,
+            'acceptedAnswer': { '@type': 'Answer', 'text': f.a },
+          })),
+        }
+
         jsonLd = {
           '@context': 'https://schema.org',
           '@graph': [
@@ -474,6 +540,7 @@ async function handleTournamentDetail(url) {
                 { name: tName, url: canonical },
               ]),
             },
+            faqNode,
           ],
         }
 
@@ -493,6 +560,7 @@ async function handleTournamentDetail(url) {
             <p>${escapeHtml(description)}</p>
             ${data.standings?.length > 0 ? `<h2>Standings</h2><table><thead><tr><th>Rank</th><th>Team</th><th>W-L</th></tr></thead><tbody>${standingRows}</tbody></table>` : ''}
             ${data.teams?.length > 0 ? `<h2>Teams (${teamCount})</h2><ul>${teamListItems}</ul>` : ''}
+            ${faqs.length > 0 ? `<h2>Frequently Asked Questions</h2>${faqs.map(f => `<h3>${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`).join('')}` : ''}
           </main>`
       }
     }
@@ -637,6 +705,13 @@ function slugifyMw(str) {
   return (str || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-')
 }
 
+// Keyword-slug tournament URL — keep in sync with tournamentUrlFromSeries in
+// api/sitemap.js and tournamentPath in src/utils.js.
+function tournamentPathMw(s) {
+  const slug = slugifyMw(s.seoName || s.name || '')
+  return `${BASE_URL}/tournament/${slug ? `${slug}-` : ''}${s.id}`
+}
+
 async function fetchMatchHistoryRow(matchId) {
   const sbUrl = process.env.SUPABASE_URL
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -686,8 +761,10 @@ async function handleMatch(url) {
 
   let title = `Pro Dota 2 Match — ${SITE_NAME}`
   let description = 'Watch pro Dota 2 matches with direct Twitch VOD links, draft analysis, and AI summaries.'
+  let h1Text = 'Pro Dota 2 Match'
   let imageUrl = `${url.origin}/api/og`
   let jsonLd = null
+  let noindex = false
 
   try {
     const data = odData
@@ -702,15 +779,27 @@ async function handleMatch(url) {
       const winnerScore = data.radiant_win ? radiantScore : direScore
       const loserScore = data.radiant_win ? direScore : radiantScore
       const league = data.league?.name || ''
+      // Prefer the PandaScore tournament name (matches the live feed and slugs)
+      // over the OpenDota league name for display.
+      const leagueDisplay = sbRow?.tournament || league
 
       const hasScore = winnerScore != null && loserScore != null
-      const scoreStr = hasScore ? `${winnerScore}-${loserScore}` : 'WIN'
+      const dateStr = data.start_time
+        ? new Date(data.start_time * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        : ''
 
-      title = `${winner} ${scoreStr} ${loser} — ${SITE_NAME}`
-      description = `${winner} defeated ${loser} ${scoreStr}. Watch the VOD, see the draft, and get an AI match summary on Spectate Esports.`
-      if (league) {
-        description += ` ${league}.`
-      }
+      // Index only Tier 1 matches: OpenDota premium leagues, or a league /
+      // tournament name matching a Tier 1 organizer. Everything else is
+      // noindexed so regional/amateur leagues never dilute search quality.
+      noindex = !(
+        data.league?.tier === 'premium' ||
+        isTier1LeagueNameSSR(league) ||
+        isTier1LeagueNameSSR(sbRow?.tournament)
+      )
+
+      title = `${radiantTeam} vs ${direTeam} — ${leagueDisplay || 'Pro Dota 2'} | VOD, Draft & Stats`
+      h1Text = `${radiantTeam} vs ${direTeam}${leagueDisplay ? ` — ${leagueDisplay}` : ''}`
+      description = `${winner} defeated ${loser}${hasScore ? ` ${winnerScore}–${loserScore} in kills` : ''}${leagueDisplay ? ` at ${leagueDisplay}` : ''}${dateStr ? ` on ${dateStr}` : ''}. Watch the timestamped Twitch VOD, full hero draft, and player stats on Spectate Esports.`
       imageUrl = `${url.origin}/api/og?matchId=${matchId}`
 
       const matchCompetitors = [
@@ -807,7 +896,7 @@ async function handleMatch(url) {
     <meta name="twitter:image" content="${imageUrl}" />
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(description)}" />
-    <link rel="canonical" href="${escapeHtml(canonical)}" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />${noindex ? '\n    <meta name="robots" content="noindex, follow" />' : ''}
     <script type="application/ld+json">${JSON.stringify(jsonLd)}<\/script>
   `
 
@@ -851,7 +940,7 @@ async function handleMatch(url) {
 
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root"><main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${draftHtml}${playerHtml}</main></div>`
+    `<div id="root"><main style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:16px"><h1>${escapeHtml(h1Text)}</h1><p>${escapeHtml(description)}</p>${draftHtml}${playerHtml}</main></div>`
   )
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })

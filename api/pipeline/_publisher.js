@@ -8,6 +8,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { getSupabaseAdmin } from '../_supabase.js'
 import { postTweet } from '../_x-post.js'
+import { pingIndexNow } from '../_shared.js'
 
 const GITHUB_API = 'https://api.github.com'
 const BASE_URL = 'https://spectateesports.live'
@@ -120,7 +121,11 @@ export async function publishToDb(article) {
     }, { onConflict: 'slug' })
 
   if (error) throw new Error(`Supabase insert failed: ${error.message}`)
-  return `${BASE_URL}/articles/${article.slug}`
+  const articleUrl = `${BASE_URL}/articles/${article.slug}`
+  // Notify Bing (powers ChatGPT search retrieval) the moment an article goes
+  // live. Fire-and-forget — publishing never fails on an IndexNow hiccup.
+  pingIndexNow([articleUrl, `${BASE_URL}/articles`]).catch(() => {})
+  return articleUrl
 }
 
 export async function postXTweet(xPostText) {

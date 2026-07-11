@@ -1,4 +1,4 @@
-import { trackEvent, formatDateRange } from '../utils'
+import { trackEvent, formatDateRange, tournamentPath } from '../utils'
 import StatusBadge from './StatusBadge'
 
 function formatCountdown(beginAt) {
@@ -20,7 +20,7 @@ export default function TournamentCard({ tournament }) {
 
   return (
     <a
-      href={`/tournament/${tournament.id}`}
+      href={tournamentPath(tournament)}
       className={[
         'block border rounded p-4 transition-colors',
         isCompleted

@@ -90,3 +90,62 @@ describe('matchUrlFromOd (OpenDota fallback rows)', () => {
     expect(matchUrlFromOd(m)).toBe(`${BASE}/match/a-vs-b-99`)
   })
 })
+
+describe('isTier1TournamentName (sitemap match gate)', () => {
+  it('accepts Tier 1 organizer tournaments', async () => {
+    const { isTier1TournamentName } = await import('../api/sitemap.js')
+    expect(isTier1TournamentName('Esports World Cup 2026')).toBe(true)
+    expect(isTier1TournamentName('The International Europe Closed Qualifier 2026')).toBe(true)
+    expect(isTier1TournamentName('DreamLeague Season 29')).toBe(true)
+    expect(isTier1TournamentName('PGL Wallachia 2026 Season 7')).toBe(true)
+    expect(isTier1TournamentName('BLAST Slam VII')).toBe(true)
+  })
+
+  it('rejects regional and amateur leagues', async () => {
+    const { isTier1TournamentName } = await import('../api/sitemap.js')
+    expect(isTier1TournamentName('Ultras Dota Pro League 2025-26')).toBe(false)
+    expect(isTier1TournamentName('Dota 2 Space League')).toBe(false)
+    expect(isTier1TournamentName('European Pro League Season 39')).toBe(false)
+  })
+
+  it('rejects null, undefined, and empty names', async () => {
+    const { isTier1TournamentName } = await import('../api/sitemap.js')
+    expect(isTier1TournamentName(null)).toBe(false)
+    expect(isTier1TournamentName(undefined)).toBe(false)
+    expect(isTier1TournamentName('')).toBe(false)
+  })
+
+  it('matches case-insensitively', async () => {
+    const { isTier1TournamentName } = await import('../api/sitemap.js')
+    expect(isTier1TournamentName('ESPORTS WORLD CUP 2026')).toBe(true)
+    expect(isTier1TournamentName('dreamleague s29')).toBe(true)
+  })
+})
+
+describe('tournamentUrlFromSeries', () => {
+  it('builds keyword-slug URLs from seoName', async () => {
+    const { tournamentUrlFromSeries } = await import('../api/sitemap.js')
+    expect(tournamentUrlFromSeries({ id: 10728, seoName: 'Esports World Cup 2026', name: '2026' }))
+      .toBe('https://spectateesports.live/tournament/esports-world-cup-2026-10728')
+  })
+
+  it('falls back to name when seoName is missing', async () => {
+    const { tournamentUrlFromSeries } = await import('../api/sitemap.js')
+    expect(tournamentUrlFromSeries({ id: 10719, name: 'Europe Closed Qualifier 2026' }))
+      .toBe('https://spectateesports.live/tournament/europe-closed-qualifier-2026-10719')
+  })
+
+  it('falls back to bare id when no name resolves to a slug', async () => {
+    const { tournamentUrlFromSeries } = await import('../api/sitemap.js')
+    expect(tournamentUrlFromSeries({ id: 99 })).toBe('https://spectateesports.live/tournament/99')
+    expect(tournamentUrlFromSeries({ id: 99, name: '***' })).toBe('https://spectateesports.live/tournament/99')
+  })
+
+  it('trailing id always survives slug extraction round-trip', async () => {
+    const { tournamentUrlFromSeries } = await import('../api/sitemap.js')
+    const url = tournamentUrlFromSeries({ id: 10728, seoName: 'Esports World Cup 2026' })
+    const path = new URL(url).pathname
+    const extracted = path.match(/^\/tournament\/.*?(\d+)\/?$/)
+    expect(extracted[1]).toBe('10728')
+  })
+})

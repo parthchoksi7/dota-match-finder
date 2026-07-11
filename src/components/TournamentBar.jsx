@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { toTitleCase, trackEvent } from '../utils'
+import { toTitleCase, trackEvent, tournamentPath } from '../utils'
 
 function formatCountdown(dateStr) {
   if (!dateStr) return null
@@ -68,7 +68,7 @@ export default function TournamentBar() {
           {liveExpanded && allLive.map(t => (
             <a
               key={t.id}
-              href={`/tournament/${t.id}`}
+              href={tournamentPath(t)}
               className="flex items-center gap-1.5 group"
               onClick={() => trackEvent('tournament_bar_click', { tournament_name: t.name })}
             >
@@ -83,7 +83,7 @@ export default function TournamentBar() {
         allLive.map(t => (
           <a
             key={t.id}
-            href={`/tournament/${t.id}`}
+            href={tournamentPath(t)}
             className="flex items-center gap-1.5 group"
             onClick={() => trackEvent('tournament_bar_click', { tournament_name: t.name })}
           >
@@ -100,7 +100,7 @@ export default function TournamentBar() {
         return (
           <a
             key={t.id}
-            href={`/tournament/${t.id}`}
+            href={tournamentPath(t)}
             className="flex items-center gap-1.5 group"
             onClick={() => trackEvent('tournament_bar_click', { tournament_name: t.name })}
           >

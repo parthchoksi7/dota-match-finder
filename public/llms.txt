@@ -19,7 +19,7 @@ Spectate Esports (https://spectateesports.live) is a Dota 2 esports intelligence
 
 ## Tournament Pages
 
-Each tournament at /tournament/{id} includes:
+Each tournament at /tournament/{keyword-slug}-{id} (e.g. /tournament/esports-world-cup-2026-10728; old /tournament/{id} URLs 301-redirect to the slug form) includes:
 - Team rosters with player names, nationalities, and regional affiliations (WEU/EEU/CN/SEA/NA/SA)
 - Group stage standings (W-L records, seedings)
 - Playoff bracket (upper/lower bracket, round labels: Grand Final, Semifinal, Quarterfinal)

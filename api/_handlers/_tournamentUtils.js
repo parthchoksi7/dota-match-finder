@@ -169,7 +169,7 @@ export async function fetchTournamentStatuses(token) {
 
 // ── Series list ──────────────────────────────────────────────────────────────
 
-export const KV_SERIES_KEY = 'tournaments:dota2:series_list_v8'
+export const KV_SERIES_KEY = 'tournaments:dota2:series_list_v9'
 export const SERIES_TTL = 60 * 60 // 1 hour
 
 export function formatPrizePool(prize) {
@@ -182,6 +182,16 @@ export function formatPrizePool(prize) {
   return `$${num}`
 }
 
+// PandaScore serie names often omit the league ("2026" for Esports World Cup 2026).
+// seoName is the citation-grade display name used in page titles, slugs, and SSR content.
+export function composeSeoName(name, leagueName) {
+  const n = (name || '').trim()
+  const l = (leagueName || '').trim()
+  if (!l) return n
+  if (!n) return l
+  return n.toLowerCase().includes(l.toLowerCase()) ? n : `${l} ${n}`
+}
+
 export function mapSeries(serie, status) {
   const leagueName = serie.league?.name || ''
   const fullName = serie.full_name || serie.name || leagueName
@@ -189,6 +199,7 @@ export function mapSeries(serie, status) {
     id: serie.id,
     slug: serie.slug || String(serie.id),
     name: fullName,
+    seoName: composeSeoName(fullName, leagueName),
     leagueName,
     leagueSlug: serie.league?.slug || '',
     status,
@@ -286,10 +297,12 @@ export async function fetchSeriesList(token) {
     const sid = t.serie_id || t.serie?.id
     if (!sid || tier1RunningSerieIds.has(sid) || seenSerieIds.has(sid)) continue
     seenSerieIds.add(sid)
+    const synthName = t.serie?.full_name || t.serie?.name || t.league?.name || t.name || 'Upcoming Tournament'
     syntheticUpcoming.push({
       id: sid,
       slug: t.serie?.slug || String(sid),
-      name: t.serie?.full_name || t.serie?.name || t.league?.name || t.name || 'Upcoming Tournament',
+      name: synthName,
+      seoName: composeSeoName(synthName, t.league?.name || ''),
       leagueName: t.league?.name || '',
       leagueSlug: t.league?.slug || '',
       status: 'upcoming',

@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 import { trackError, findLeague, createLogger, validateId } from './_shared.js'
+import { composeSeoName } from './_handlers/_tournamentUtils.js'
 
 const BASE = 'https://api.pandascore.co'
 const TTL = 60 * 3 // 3 minutes — bracket/standings change during live matches
@@ -350,7 +351,7 @@ function parseRawBracket(bracketsRaw) {
 
 async function handleSeriesDetail(req, res, token) {
   const seriesId = req.query?.id
-  const cacheKey = `tournament:detail:series:v8:${seriesId}`
+  const cacheKey = `tournament:detail:series:v9:${seriesId}`
 
   if (req.query?.bust === '1') {
     await kv.del(cacheKey).catch(() => {})
@@ -456,6 +457,7 @@ async function handleSeriesDetail(req, res, token) {
     id: serie.id,
     slug: serie.slug || String(serie.id),
     name: serie.full_name || serie.name || leagueName,
+    seoName: composeSeoName(serie.full_name || serie.name || leagueName, leagueName),
     leagueName,
     leagueSlug: serie.league?.slug || '',
     status,

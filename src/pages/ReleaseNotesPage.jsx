@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 10, 2026",
+    tag: "improvement",
+    title: "Readable tournament links and clearer match pages in search",
+    desc: "Tournament pages now live at readable web addresses like /tournament/esports-world-cup-2026-10728 instead of a bare number, and old numeric links redirect automatically. Match pages seen from search engines now lead with the teams and the tournament instead of a kill score, and each tournament page answers common questions (dates, teams, prize pool, where to watch) directly on the page.",
+    items: [
+      "Tournament links include the event name; old numeric links keep working via redirect",
+      "Events named only by year in our data feed (like the Esports World Cup) now display their full name in links and previews",
+      "Match page previews in search results name both teams and the tournament, and no longer spoil the winner in the title",
+      "Tournament pages include a quick FAQ: dates, competing teams, prize pool, winner, and where to watch",
+    ],
+  },
+  {
     date: "July 8, 2026",
     tag: "fix",
     title: "Series game tabs (Game 1 / Game 2) now in the right order",

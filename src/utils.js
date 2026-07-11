@@ -400,6 +400,15 @@ export function buildTournamentName(league, serie) {
   return league || serie || ''
 }
 
+// Keyword-slug tournament URL: /tournament/{slug}-{id}. The trailing id is the
+// routing key; the slug exists for SEO. Slug logic mirrors slugifyMw in
+// middleware.js and tournamentUrlFromSeries in api/sitemap.js — keep in sync.
+export function tournamentPath(t) {
+  const base = t.seoName || buildTournamentName(t.leagueName, t.name)
+  const slug = (base || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-')
+  return slug ? `/tournament/${slug}-${t.id}` : `/tournament/${t.id}`
+}
+
 /**
  * Normalizes a tournament name to a grouping key so PandaScore and OpenDota names
  * for the same event collapse to one card (e.g. "DreamLeague S29" == "DreamLeague Season 29").

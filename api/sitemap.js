@@ -1,4 +1,4 @@
-import { getPremiumLeagueIds, pingIndexNow } from './_shared.js'
+import { getPremiumLeagueIds, pingIndexNow, PERMANENT_TIER1_NAMES } from './_shared.js'
 import { getSupabaseAdmin } from './_supabase.js'
 
 const BASE_URL = 'https://spectateesports.live'
@@ -35,6 +35,20 @@ export function slugify(str) {
     .trim()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
+}
+
+// Tier-1 gate for match_stream_history rows (they carry only a tournament name,
+// no league id). Rows that fail here can still be rescued by the OpenDota
+// premium fallback below. Keeps regional/amateur leagues out of the sitemap.
+export function isTier1TournamentName(name) {
+  if (!name) return false
+  const lower = name.toLowerCase()
+  return PERMANENT_TIER1_NAMES.some(n => lower.includes(n.toLowerCase()))
+}
+
+export function tournamentUrlFromSeries(s) {
+  const slug = slugify(s.seoName || s.name || '')
+  return `${BASE_URL}/tournament/${slug ? `${slug}-` : ''}${s.id}`
 }
 
 export function matchUrlFromHistory(row) {
@@ -77,12 +91,13 @@ export default async function handler(req, res) {
         .gte('started_at', cutoff30d)
         .order('started_at', { ascending: false })
         .limit(500)
-      historyMatches = data || []
+      historyMatches = (data || []).filter(r => isTier1TournamentName(r.tournament))
     } catch (_) { /* fall through to OpenDota */ }
 
     // ── Fallback: OpenDota proMatches ──────────────────────────────────────────
-    // Covers tier-1 matches that pre-date Phase 0 (before June 6 2026) or were
-    // missed by the live observer. Filtered to premium leagues only.
+    // Covers tier-1 matches that pre-date Phase 0 (before June 6 2026), were
+    // missed by the live observer, or whose history row failed the tier-1 name
+    // gate but belongs to an OpenDota premium league. Premium leagues only.
     const seenIds = new Set(historyMatches.map(r => String(r.od_match_id)))
     let odMatches = []
     try {
@@ -154,26 +169,31 @@ export default async function handler(req, res) {
     } catch (_) {}
 
     // ── Tournament series ──────────────────────────────────────────────────────
+    // NOTE: /api/tournaments?mode=series returns { live, upcoming, completed }.
     let tournamentUrls = []
+    let liveTournamentLocs = []
     try {
       const seriesRes = await fetch(`${BASE_URL}/api/tournaments?mode=series`).catch(() => null)
       if (seriesRes?.ok) {
         const seriesData = await seriesRes.json().catch(() => null)
         const allSeries = [
-          ...(seriesData?.running || []),
+          ...(seriesData?.live || []),
           ...(seriesData?.upcoming || []),
           ...(Array.isArray(seriesData?.completed) ? seriesData.completed.slice(0, 10) : []),
         ]
+        const today = new Date().toISOString().slice(0, 10)
         tournamentUrls = allSeries.map(s => {
-          const date = s.beginAt ? new Date(s.beginAt).toISOString().slice(0, 10) : ''
-          const changefreq = s.status === 'running' ? 'hourly' : s.status === 'upcoming' ? 'daily' : 'never'
-          const priority = s.status === 'running' ? '0.9' : s.status === 'upcoming' ? '0.8' : '0.6'
+          const isLive = s.status === 'live'
+          const date = isLive ? today : (s.beginAt ? new Date(s.beginAt).toISOString().slice(0, 10) : '')
+          const changefreq = isLive ? 'hourly' : s.status === 'upcoming' ? 'daily' : 'never'
+          const priority = isLive ? '0.9' : s.status === 'upcoming' ? '0.8' : '0.6'
           return `  <url>
-    <loc>${BASE_URL}/tournament/${s.id}</loc>${date ? `\n    <lastmod>${date}</lastmod>` : ''}
+    <loc>${tournamentUrlFromSeries(s)}</loc>${date ? `\n    <lastmod>${date}</lastmod>` : ''}
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`
         })
+        liveTournamentLocs = (seriesData?.live || []).map(tournamentUrlFromSeries)
       }
     } catch (_) {}
 
@@ -217,11 +237,6 @@ export default async function handler(req, res) {
   </url>
 ${articleTournaments.map(t => `  <url>
     <loc>${BASE_URL}/articles?tournament=${t}</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>${BASE_URL}/articles?tournament=blast-slam-vii</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>`).join('\n')}
@@ -284,11 +299,13 @@ ${matchUrls.join('\n')}
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
     res.status(200).send(xml)
 
-    // Ping IndexNow for recent matches (< 48h) so Bing indexes them within minutes.
+    // Ping IndexNow for recent matches (< 48h) and live tournament hubs so Bing
+    // (which powers ChatGPT search retrieval) indexes them within minutes.
     // Fired after the response is sent; fire-and-forget, never blocks the sitemap.
-    const recentUrls = historyMatches
-      .filter(r => r.started_at >= cutoff48h)
-      .map(matchUrlFromHistory)
+    const recentUrls = [
+      ...historyMatches.filter(r => r.started_at >= cutoff48h).map(matchUrlFromHistory),
+      ...liveTournamentLocs,
+    ]
     if (recentUrls.length > 0) {
       pingIndexNow(recentUrls).catch(() => {})
     }
