@@ -5,6 +5,15 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 11, 2026",
+    tag: "fix",
+    title: "Multi-game series no longer missing a game in match details",
+    desc: "For a small number of series, our data source occasionally records each game under a different internal ID instead of grouping them together. This was already handled everywhere except the match details view, where it could cause a completed 2-0 or 2-1 series to show only its first game, with no way to switch to the others. All surfaces now agree on how games are grouped into a series.",
+    items: [
+      "Fixes missing Game 2 / Game 3 tabs and draft/replay info on affected series",
+    ],
+  },
+  {
+    date: "July 11, 2026",
     tag: "new",
     title: "Watch replays in your language",
     desc: "Match replays are no longer English-only. Below the main replay button, every other broadcast we recorded for that game is now listed by language — official regional streams and community co-streams alike. Streams with a resolved replay jump straight to the game start; the rest open from the stream start and are labeled so you know before clicking.",
