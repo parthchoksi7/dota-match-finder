@@ -6,11 +6,14 @@ function DateStrip({ dates, activeDate, onChange, onLoadEarlier, loadingEarlier 
 
   const activeRef = useRef(null)
 
+  // Center the active pill on mount and whenever the selected date changes (e.g.
+  // via swipe navigation). Keyed on activeDate — not on `dates` — so background
+  // pill inserts don't yank the strip, preserving the windowed no-jump behavior.
   useEffect(() => {
     if (activeRef.current) {
       activeRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' })
     }
-  }, [])
+  }, [activeDate])
 
   return (
     <div

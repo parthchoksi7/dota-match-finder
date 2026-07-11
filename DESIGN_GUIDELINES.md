@@ -157,9 +157,15 @@ Scrollable horizontal row of date pills inside a gray pill-shaped track. Active 
 - Active pill: `bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white rounded-full px-3 py-1.5`
 - Inactive pill: `text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-full px-3 py-1.5`
 - Both pills: `flex-shrink-0 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-150`
-- Auto-scrolls active pill into center view on mount via `scrollIntoView({ behavior: 'instant', inline: 'center' })`
+- Auto-scrolls active pill into center view on mount **and on every `activeDate` change** via `scrollIntoView({ behavior: 'instant', inline: 'center' })` — so a swipe-driven change recenters the strip
 - Hidden when `dates` is empty. Shown even with 1 date (label is informative).
 - Fires `date_strip_click` GA event per pill.
+
+**Swipe-to-change-day (mobile):** the date strip is not the only way to change days — a horizontal swipe on the feed body does the same thing, matching Sofascore/FlashScore. **Swipe left → previous day (Yesterday); swipe right → next day (Tomorrow).** This is an intent-direction mapping (flick toward the date you want), which is the direction the strip reads left-to-right, not a content-drag pager. Handlers live on HomeFeed's outer `<div>`, not DateStrip, because the gesture must cover the whole day's content. Rules for any swipe-nav gesture:
+- Instant switch, no slide animation — identical to tapping a pill (respects the "no layout animation / one signature motion" rule)
+- Ignore gestures that begin inside a `.overflow-x-auto` region (date strip track, stage tabs, standings/bracket tables) — those own the horizontal axis
+- Require ≥55px horizontal travel and horizontal dominance (`|dx| > |dy| * 1.4`) so vertical scrolling is never hijacked; never call `preventDefault` (keep native scroll passive)
+- Swipe remains an enhancement — the pills stay the primary, keyboard/AT-accessible control
 
 ### Inline TournamentHub (hideStatusLabel mode)
 
@@ -372,6 +378,26 @@ Used when a flex-wrap toolbar (e.g. TournamentBar) needs to represent a collapse
 - Chevron: `w-3 h-3`, path `M19 9l-7 7-7-7`, `rotate-180` when expanded, `transition-transform duration-150`
 - Expanded items render inline after the pill in the same flex-wrap row — no layout container change needed
 - Track expand/collapse events: `trackEvent('*_toggle', { action: 'expand' | 'collapse', count })`
+
+### Stream picker (multi-language replay list)
+
+Used in the match drawer's "Watch Full Match Replay" section to surface every recorded stream for a game (all languages, official + co-streams) below the primary official VOD button. Component: `src/components/StreamPicker.jsx`; data arrives as `match.otherStreams` (already sorted server-side: official → resolved start points → EN → language A-Z).
+
+**Structure:**
+- The primary official stream stays in the existing purple VOD button — the picker never contains it, and `allVods[0]` (GoldGraph anchor, Copy VOD link) is never a picker entry
+- 0 other streams → no picker chrome at all
+- Exactly 1 other stream → rendered directly as one inline row, no pill (count-pill rule above)
+- ≥2 → collapsed inline count pill (`{n} more streams` + chevron, `aria-expanded`), expanding a vertical `space-y-1.5` list in place; collapsed by default, state resets per game
+
+**Row anatomy** (full-row `<a>`, `min-h-[44px] px-3 py-2 rounded`, ghost border):
+- Language chip: 2-letter uppercase code (`EN`, `RU`, `ES`) in entity-chip style — `px-1 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-[10px] font-bold text-gray-500`. Omitted when language is null. **Never use flag icons — flags ≠ languages** (RU serves all of CIS, ES serves LATAM + Spain)
+- Play glyph (purple, `w-3 h-3`) only when `deep_link: true` — signals the link jumps to the game start
+- Channel label: `text-xs font-semibold text-purple-700 dark:text-purple-400 truncate` (purple = watch action)
+- "Co-stream" badge (`text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-600`) only when `official === false` — official is the default state, not a feature
+- "From stream start" marker (right-aligned, same tertiary style) whenever `deep_link` is false — never let a user expect a timestamp jump that won't happen
+- The primary button shows a language chip (`bg-white/20`) when the primary broadcast is non-English, and a Co-stream badge in the rare case no official stream exists
+
+**Analytics:** `stream_picker_expand { matchId, count }` on expand only; row clicks fire `vod_click` with `language`, `official`, `kind`, `from_picker: true`.
 
 ### Scrollable tournament chip picker
 

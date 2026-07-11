@@ -562,28 +562,33 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
       {/* Stage picker — shown when the event has multiple stages (Group Stage, Playoffs, etc.) */}
       {detail?.eventStages?.length > 1 && activeTab === 'Stage' && (
         <div className="flex items-center gap-1 px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-gray-900">
-          <span className="text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
-          {detail.eventStages.map(stage => {
-            const isActive = stage.id === activeStageId
-            const isCurrent = stage.status === 'running'
-            return (
-              <button
-                key={stage.id}
-                type="button"
-                onClick={() => setActiveStageId(stage.id)}
-                className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-colors ${
-                  isActive
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                {stageShortName(stage.name)}
-                {isCurrent && !isActive && (
-                  <span className="ml-1 inline-block w-1 h-1 rounded-full bg-red-500 align-middle" />
-                )}
-              </button>
-            )
-          })}
+          <span className="flex-shrink-0 text-xs text-gray-400 dark:text-gray-600 mr-1 uppercase tracking-widest">Stage</span>
+          <div
+            className="flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none' }}
+          >
+            {detail.eventStages.map(stage => {
+              const isActive = stage.id === activeStageId
+              const isCurrent = stage.status === 'running'
+              return (
+                <button
+                  key={stage.id}
+                  type="button"
+                  onClick={() => setActiveStageId(stage.id)}
+                  className={`flex-shrink-0 whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-semibold transition-colors ${
+                    isActive
+                      ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                      : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {stageShortName(stage.name)}
+                  {isCurrent && !isActive && (
+                    <span className="ml-1 inline-block w-1 h-1 rounded-full bg-red-500 align-middle" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 

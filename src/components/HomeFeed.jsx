@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
@@ -165,6 +165,51 @@ function HomeFeed({
 
   const isToday = resolvedDate === todayKey
 
+  // Horizontal swipe → change day, mirroring a tap on the adjacent date pill.
+  // Product spec: swipe LEFT (finger →left) goes to the PREVIOUS day (Yesterday);
+  // swipe RIGHT goes to the NEXT day (Tomorrow). availableDates is chronological
+  // ascending, so previous = index-1, next = index+1.
+  const swipeStartRef = useRef(null)
+
+  function goToAdjacentDate(step) {
+    const idx = availableDates.findIndex(d => d.key === resolvedDate)
+    if (idx === -1) return
+    const target = availableDates[idx + step]
+    if (target) {
+      trackEvent('date_swipe', { direction: step < 0 ? 'prev' : 'next', date: target.label })
+      setActiveDate(target.key)
+      setExpandedTournamentName(null)
+    } else if (step < 0 && hasMore && !loadingMore && onLoadMore) {
+      // At the earliest loaded day and no previous pill yet — fetch earlier data
+      // so a Yesterday becomes reachable on the next swipe.
+      trackEvent('date_swipe_load_more', {})
+      onLoadMore()
+    }
+  }
+
+  function handleTouchStart(e) {
+    const t = e.touches[0]
+    // Ignore gestures that begin inside a horizontal scroller (date strip, stage
+    // tabs, standings/bracket tables) — those own the horizontal axis.
+    if (e.target.closest?.('.overflow-x-auto')) {
+      swipeStartRef.current = null
+      return
+    }
+    swipeStartRef.current = { x: t.clientX, y: t.clientY }
+  }
+
+  function handleTouchEnd(e) {
+    const start = swipeStartRef.current
+    swipeStartRef.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < 55) return                 // too short to be a deliberate swipe
+    if (Math.abs(dx) < Math.abs(dy) * 1.4) return // predominantly vertical — let the page scroll
+    goToAdjacentDate(dx < 0 ? -1 : 1)             // swipe-left → prev (yesterday); swipe-right → next
+  }
+
   const activeLiveMatches = isToday ? liveMatches : []
 
   const activeUpcomingMatches = useMemo(
@@ -217,7 +262,7 @@ function HomeFeed({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Date nav */}
       <div className="border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-950 overflow-hidden mb-3">
         <DateStrip
