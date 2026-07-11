@@ -4,6 +4,19 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 11, 2026",
+    tag: "new",
+    title: "Watch replays in your language",
+    desc: "Match replays are no longer English-only. Below the main replay button, every other broadcast we recorded for that game is now listed by language — official regional streams and community co-streams alike. Streams with a resolved replay jump straight to the game start; the rest open from the stream start and are labeled so you know before clicking.",
+    items: [
+      "Language-labeled stream list (EN, RU, ES, ...) under the main replay button, collapsed behind a count when there are several",
+      "Community co-streams are marked so you always know official from unofficial",
+      "Links that cannot jump to the game start say \"From stream start\" instead of pretending",
+      "Replay links now come from our own permanent match archive first, with the previous lookup kept as an automatic fallback",
+      "Matches older than Twitch's ~60-day VOD window no longer show replay links that lead to deleted videos",
+    ],
+  },
+  {
     date: "July 10, 2026",
     tag: "improvement",
     title: "Readable tournament links and clearer match pages in search",

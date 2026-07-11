@@ -130,9 +130,15 @@ export function formatRelativeTime(unixSeconds) {
 }
 
 /**
- * Group flat match list into series (same teams + tournament + date). Drops the oldest incomplete series.
+ * Runs the null-series_id and split-series_id merge passes and returns the raw
+ * seriesMap (keyed by seriesId, or a team+tournament+date fallback key) with no
+ * sorting and no "drop the oldest incomplete series" trim. Exported separately
+ * from groupIntoSeries so callers that need every match's full sibling-game list
+ * (e.g. the match drawer's game switcher, keyed by each game's own raw seriesId)
+ * see split-series_id merges too, without losing the pagination-boundary series
+ * that groupIntoSeries deliberately drops.
  */
-export function groupIntoSeries(matches) {
+export function buildSeriesGroups(matches) {
   const seriesMap = {}
   for (const match of matches) {
     const teams = [match.radiantTeam, match.direTeam].sort().join("|")
@@ -215,6 +221,14 @@ export function groupIntoSeries(matches) {
     }
   }
 
+  return seriesMap
+}
+
+/**
+ * Group flat match list into series (same teams + tournament + date). Drops the oldest incomplete series.
+ */
+export function groupIntoSeries(matches) {
+  const seriesMap = buildSeriesGroups(matches)
   let series = Object.values(seriesMap)
   series.forEach((s) => s.games.sort((a, b) => a.startTime - b.startTime))
   series.sort((a, b) => b.startTime - a.startTime)

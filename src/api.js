@@ -263,27 +263,38 @@ export async function findTwitchVod(matchStartTime, _tournamentName, preferredCh
   }
 }
 
+const STORED_REPLAY_TIMEOUT_MS = 2500
+
 /**
- * P3.2 — Supabase-first replay lookup. Reads the persisted replay link for a single
- * game from match_stream_history (via /api/pipeline?type=replay) — no KV, no Helix.
- * Returns a stored hit ONLY when enrichment has produced a timestamped start-point
- * VOD (kind 'start_point'), which is byte-identical to what the live resolver would
- * compute. Anything else (no offset, stream page, 404, error) returns null so the
- * caller falls back to the live resolver — guaranteeing no UX regression.
+ * Supabase-first replay lookup. Reads the persisted replay data for a single game
+ * from match_stream_history + match_stream_vods (via /api/pipeline?type=replay) —
+ * no KV, no Helix. Returns the full stored shape whenever a row exists:
+ *   { hasRow: true, main, others }
+ * where main/others entries carry { url, channel, language, source, official,
+ * deep_link, kind }. The caller (resolveMatchStreams) decides how to use it: a
+ * timestamped start-point main is a complete hit; anything else still runs the
+ * LOCKED live resolver for the primary slot, keeping the multi-language others.
+ * Returns null on 404/error/timeout so the caller falls back entirely — the abort
+ * timer guarantees a slow Supabase degrades to the KV backup fast.
  */
 export async function fetchStoredReplay(odMatchId) {
   if (odMatchId == null) return null
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), STORED_REPLAY_TIMEOUT_MS)
   try {
-    const res = await fetch(`/api/pipeline?type=replay&id=${encodeURIComponent(odMatchId)}`)
+    const res = await fetch(`/api/pipeline?type=replay&id=${encodeURIComponent(odMatchId)}`, { signal: controller.signal })
     if (!res.ok) return null
     const data = await res.json()
-    const m = data?.main
-    if (m && m.kind === 'start_point' && m.url) {
-      return { url: m.url, channel: m.channel || null, source: m.source || null }
+    if (!data || typeof data !== 'object') return null
+    return {
+      hasRow: true,
+      main: data.main?.url ? data.main : null,
+      others: Array.isArray(data.others) ? data.others.filter(o => o?.url) : [],
     }
-    return null
   } catch {
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 

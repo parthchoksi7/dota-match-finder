@@ -56,8 +56,9 @@ describe('buildGameUrls', () => {
       deep_link: true, kind: 'start_point', channel: 'pgl_dota2',
     })
     // primary channel is represented by the VOD, so it's excluded from others;
-    // the RU + YouTube streams remain.
-    expect(others.map(o => o.channel ?? o.source)).toEqual(['pgl_ru', 'youtube'])
+    // the RU + YouTube streams remain. Official (YouTube) sorts before the
+    // unofficial RU restream.
+    expect(others.map(o => o.channel ?? o.source)).toEqual(['youtube', 'pgl_ru'])
     expect(others.every(o => o.deep_link === false)).toBe(true)
   })
 
@@ -139,6 +140,64 @@ describe('buildGameUrls', () => {
     expect(main).toMatchObject({ url: 'https://www.twitch.tv/videos/999?t=1842s', kind: 'start_point' })
     expect(others.find(o => o.channel === 'pgl_ru')).toMatchObject({ kind: 'start_point' })
   })
+
+  it('clamps negative VOD offsets to 0 (clock skew must not emit ?t=-Ns)', () => {
+    const { main } = buildGameUrls({ channel: 'pgl_dota2', streams_json: streams, twitch_vod_id: '999', vod_offset_s: -42 })
+    expect(main.url).toBe('https://www.twitch.tv/videos/999?t=0s')
+    const { others } = buildGameUrls(
+      { channel: 'pgl_dota2', streams_json: streams },
+      { pgl_ru: { twitch_vod_id: '777', vod_offset_s: -5 } },
+    )
+    expect(others.find(o => o.channel === 'pgl_ru').url).toBe('https://www.twitch.tv/videos/777?t=0s')
+  })
+
+  it('matches channels case-insensitively between streams_json, row.channel, and vodByChannel', () => {
+    const upperStreams = [
+      { raw_url: 'https://www.twitch.tv/PGL_Dota2', language: 'en', official: true, main: true },
+      { raw_url: 'https://www.twitch.tv/PGL_RU', language: 'ru', official: false, main: false },
+    ]
+    const { main, others } = buildGameUrls(
+      { channel: 'pgl_dota2', twitch_vod_id: '999', vod_offset_s: 100, streams_json: upperStreams },
+      { pgl_ru: { twitch_vod_id: '777', vod_offset_s: 200 } },
+    )
+    // Uppercase raw_url channel still binds to the lowercase row.channel VOD…
+    expect(main).toMatchObject({ url: 'https://www.twitch.tv/videos/999?t=100s', kind: 'start_point' })
+    // …and to the lowercase match_stream_vods key.
+    expect(others[0]).toMatchObject({ url: 'https://www.twitch.tv/videos/777?t=200s', kind: 'start_point' })
+  })
+
+  it('dedups duplicate raw_urls and URL-form variants of the same channel', () => {
+    const { main, others } = buildGameUrls({
+      channel: null,
+      streams_json: [
+        { raw_url: 'https://www.twitch.tv/pgl_dota2', language: 'en', official: true, main: true },
+        { raw_url: 'https://www.twitch.tv/pgl_dota2', language: 'ru', official: true, main: false }, // dual-language duplicate
+        { raw_url: 'https://twitch.tv/pgl_dota2/', language: 'en', official: true, main: false },   // URL-form variant
+        { raw_url: 'https://www.twitch.tv/pgl_ru', language: 'ru', official: false, main: false },
+      ],
+    })
+    expect(main).toMatchObject({ channel: 'pgl_dota2', language: 'en' })
+    expect(others).toHaveLength(1)
+    expect(others[0].channel).toBe('pgl_ru')
+  })
+
+  it('sorts others: official first, then start points, then EN, then language A-Z', () => {
+    const { others } = buildGameUrls(
+      {
+        channel: 'main_ch',
+        streams_json: [
+          { raw_url: 'https://www.twitch.tv/main_ch', language: 'en', official: true, main: true },
+          { raw_url: 'https://www.twitch.tv/caster_es', language: 'es', official: false, main: false },
+          { raw_url: 'https://www.twitch.tv/official_ru', language: 'ru', official: true, main: false },
+          { raw_url: 'https://www.twitch.tv/official_en2', language: 'en', official: true, main: false },
+          { raw_url: 'https://www.twitch.tv/caster_en', language: 'en', official: false, main: false },
+        ],
+      },
+      { official_ru: { twitch_vod_id: '55', vod_offset_s: 10 } },
+    )
+    // official+start_point > official (en before others) > unofficial (en before es)
+    expect(others.map(o => o.channel)).toEqual(['official_ru', 'official_en2', 'caster_en', 'caster_es'])
+  })
 })
 
 describe('groupSeriesFromRows', () => {
@@ -218,5 +277,30 @@ describe('buildReplayResponse (public ?type=replay shape)', () => {
     expect(r.replay_available).toBe(true)
     expect(r.main).toMatchObject({ url: 'https://www.youtube.com/live/yVPfwcQeviE?t=827', kind: 'start_point', deep_link: true, source: 'youtube' })
     expect(r.vod_available).toBe(null)
+  })
+
+  it('passes vodByChannel through so others[] deep-link in the public response', () => {
+    const r = buildReplayResponse(
+      {
+        od_match_id: 1, channel: 'pgl_dota2', twitch_vod_id: '900', vod_offset_s: 100,
+        streams_json: [
+          { raw_url: 'https://www.twitch.tv/pgl_dota2', language: 'en', official: true, main: true },
+          { raw_url: 'https://www.twitch.tv/pgl_ru', language: 'ru', official: false, main: false },
+        ],
+      },
+      { pgl_ru: { twitch_vod_id: '777', vod_offset_s: 50 } },
+    )
+    expect(r.main).toMatchObject({ kind: 'start_point' })
+    expect(r.others[0]).toMatchObject({ url: 'https://www.twitch.tv/videos/777?t=50s', kind: 'start_point', language: 'ru' })
+  })
+
+  it('sparse resolver-written rows (no streams_json) still serve the main VOD with empty others', () => {
+    const r = buildReplayResponse({
+      od_match_id: 2, channel: 'esl_dota2', started_at: '2026-07-01T10:00:00Z',
+      twitch_vod_id: '111', vod_offset_s: 900, streams_json: null,
+    })
+    expect(r.main).toMatchObject({ url: 'https://www.twitch.tv/videos/111?t=900s', kind: 'start_point' })
+    expect(r.others).toEqual([])
+    expect(r.replay_available).toBe(true)
   })
 })

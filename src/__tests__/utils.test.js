@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -853,5 +853,44 @@ describe('groupIntoSeries — third pass merges stubs with split series_ids', ()
     expect(result).toHaveLength(1)
     expect(result[0].games).toHaveLength(3)
     expect(result[0].id).toBe('99')
+  })
+})
+
+// ── buildSeriesGroups — drawer's game-switcher must see split series_ids ─────
+//
+// Regression for the PTime vs Nigma Galaxy (EWC 2026) bug: OpenDota gave game 1 and
+// game 2 of the same real BO2 different series_id values. HomeFeed (via groupIntoSeries)
+// correctly merged them into one 2-0 row, but the match drawer built its own sibling-game
+// map by grouping allMatches on the raw (unmerged) seriesId, so opening the drawer only
+// ever showed game 1 with no game switcher. buildSeriesGroups is what App.jsx's
+// seriesMatchMap is now built from — assert every raw seriesId among a merged group's
+// games resolves to the FULL sibling list, matching how App.jsx keys the map.
+describe('buildSeriesGroups — feeds App.jsx seriesMatchMap for the drawer game switcher', () => {
+  it('both raw series_ids of a split BO2 resolve to the full 2-game sibling list', () => {
+    const g1 = makeGame({ id: 'm1', seriesId: 1119304, seriesType: 3, startTime: BASE,           radiantWin: false })
+    const g2 = makeGame({ id: 'm2', seriesId: 1119374, seriesType: 3, startTime: BASE + 103 * 60, radiantWin: true  })
+    const groups = Object.values(buildSeriesGroups([g1, g2]))
+    expect(groups).toHaveLength(1)
+
+    const seriesMatchMap = {}
+    groups.forEach(group => {
+      const ids = group.games.map(g => g.id)
+      group.games.forEach(g => { seriesMatchMap[g.seriesId] = ids })
+    })
+
+    expect(seriesMatchMap[1119304]).toEqual(expect.arrayContaining(['m1', 'm2']))
+    expect(seriesMatchMap[1119374]).toEqual(expect.arrayContaining(['m1', 'm2']))
+    expect(seriesMatchMap[1119304]).toHaveLength(2)
+  })
+
+  it('unlike groupIntoSeries, does not drop the oldest incomplete series', () => {
+    // A single lone incomplete game with no siblings at all — groupIntoSeries would
+    // drop this entirely (pagination-boundary trim); the drawer still needs to resolve
+    // its own single-game lookup so seriesMatchMap[selectedMatch.seriesId] isn't undefined.
+    const g1 = makeGame({ id: 'lonely', seriesId: 555, seriesType: 1, startTime: BASE, radiantWin: true })
+    expect(groupIntoSeries([g1])).toHaveLength(0)
+    const groups = Object.values(buildSeriesGroups([g1]))
+    expect(groups).toHaveLength(1)
+    expect(groups[0].games.map(g => g.id)).toEqual(['lonely'])
   })
 })

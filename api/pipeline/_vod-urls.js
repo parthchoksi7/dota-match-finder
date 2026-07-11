@@ -43,10 +43,12 @@ export function streamToUrlObj(s) {
 }
 
 // Construct the timestamped (or plain) Twitch VOD URL object for a resolved VOD.
+// Offsets are clamped to 0: clock skew between OD start_time and Twitch created_at
+// can produce a small negative value, and `?t=-42s` is a malformed Twitch param.
 function vodUrlObj({ twitch_vod_id, vod_offset_s }, { channel, language, official }) {
   const timestamped = vod_offset_s != null
   return {
-    url: `https://www.twitch.tv/videos/${twitch_vod_id}${timestamped ? `?t=${vod_offset_s}s` : ''}`,
+    url: `https://www.twitch.tv/videos/${twitch_vod_id}${timestamped ? `?t=${Math.max(0, vod_offset_s)}s` : ''}`,
     channel: channel ?? null,
     language: language ?? 'en',
     source: 'twitch',
@@ -56,20 +58,60 @@ function vodUrlObj({ twitch_vod_id, vod_offset_s }, { channel, language, officia
   }
 }
 
+const lc = (s) => (s || '').toLowerCase()
+
+// PandaScore occasionally lists the same broadcast twice (dual-language entries with
+// one raw_url, or the same channel under twitch.tv/x and www.twitch.tv/x). Keep the
+// first occurrence; a channel-level key catches URL-form variants.
+function dedupStreams(streams) {
+  const seen = new Set()
+  return streams.filter(s => {
+    const urlKey = s.raw_url.replace(/\/+$/, '')
+    const chanKey = s.channel ? `${s.source}:${lc(s.channel)}` : null
+    if (seen.has(urlKey) || (chanKey && seen.has(chanKey))) return false
+    seen.add(urlKey)
+    if (chanKey) seen.add(chanKey)
+    return true
+  })
+}
+
+// Order for others[]: official broadcasts first, then resolved start points,
+// then English before other languages. Channel name is the deterministic tiebreak.
+function compareOthers(a, b) {
+  if (!!a.official !== !!b.official) return a.official ? -1 : 1
+  if (!!a.deep_link !== !!b.deep_link) return a.deep_link ? -1 : 1
+  const la = a.language || 'zz'
+  const lb = b.language || 'zz'
+  if (la !== lb) {
+    if (la === 'en') return -1
+    if (lb === 'en') return 1
+    return la < lb ? -1 : 1
+  }
+  const ka = a.channel || a.url || ''
+  const kb = b.channel || b.url || ''
+  if (ka === kb) return 0
+  return ka < kb ? -1 : 1
+}
+
 // Build the main + other URLs for one game row. A Twitch channel with a resolved VOD
 // deep-links to the game start; everything else opens the raw stream/channel page.
 // `vodByChannel` (from match_stream_vods) supplies per-channel VODs for NON-main
 // channels; the row's own twitch_vod_id/vod_offset_s cover the main channel.
+// Channel matching is case-insensitive: twitchChannelFromUrl preserves the raw_url's
+// casing while match_stream_vods stores lowercase logins.
 export function buildGameUrls(row, vodByChannel = {}) {
-  const streams = Array.isArray(row.streams_json)
+  const vodsLower = {}
+  for (const [ch, v] of Object.entries(vodByChannel)) vodsLower[lc(ch)] = v
+
+  const streams = dedupStreams(Array.isArray(row.streams_json)
     ? row.streams_json.map(normalizeStreamEl).filter(s => s.raw_url)
-    : []
+    : [])
 
   const resolvedVodFor = (channel) => {
     if (!channel) return null
-    const v = vodByChannel[channel]
+    const v = vodsLower[lc(channel)]
     if (v && v.twitch_vod_id) return { twitch_vod_id: v.twitch_vod_id, vod_offset_s: v.vod_offset_s }
-    if (channel === row.channel && row.twitch_vod_id) return { twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }
+    if (row.channel && lc(channel) === lc(row.channel) && row.twitch_vod_id) return { twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }
     return null
   }
 
@@ -90,7 +132,7 @@ export function buildGameUrls(row, vodByChannel = {}) {
   // main/first stream. This keeps an unofficial restream (now persisted in streams_json)
   // from ever becoming the default replay — it falls to `others` instead.
   const primaryStream =
-    (row.channel && streams.find(s => s.channel === row.channel)) ||
+    (row.channel && streams.find(s => lc(s.channel) === lc(row.channel) && s.channel)) ||
     streams.find(s => s.main && s.official) ||
     streams.find(s => s.official) ||
     streams.find(s => s.main) ||
@@ -103,7 +145,10 @@ export function buildGameUrls(row, vodByChannel = {}) {
     main = vodUrlObj({ twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }, { channel: row.channel || null })
   }
 
-  const others = streams.filter(s => s.raw_url !== primaryStream?.raw_url).map(urlObjFor)
+  const others = streams
+    .filter(s => s.raw_url !== primaryStream?.raw_url)
+    .map(urlObjFor)
+    .sort(compareOthers)
   return { main, others }
 }
 
@@ -113,8 +158,9 @@ export function dayKey(iso) {
 
 // Shape one match_stream_history row into the public ?type=replay response:
 // the Supabase-stored replay link for a single game (no KV, no Helix).
-export function buildReplayResponse(row) {
-  const { main, others } = buildGameUrls(row)
+// `vodByChannel` upgrades alt-channel entries in others[] to deep-linked start points.
+export function buildReplayResponse(row, vodByChannel = {}) {
+  const { main, others } = buildGameUrls(row, vodByChannel)
   return {
     od_match_id: row.od_match_id,
     replay_available: !!row.twitch_vod_id || row.vod_available === true || main?.kind === 'start_point',

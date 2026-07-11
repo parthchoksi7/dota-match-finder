@@ -567,10 +567,24 @@ async function handleReplay(req, res) {
   }
   if (!row) return res.status(404).json({ error: 'not_found' })
 
+  // Alt-channel VODs (other languages / co-streams) so others[] can deep-link too.
+  // Best-effort: a failure here degrades to stream-page links, never a 500.
+  const vodByChannel = {}
+  try {
+    const { data: vods } = await getSupabaseAdmin()
+      .from('match_stream_vods')
+      .select('channel, twitch_vod_id, vod_offset_s')
+      .eq('od_match_id', Number(id))
+      .not('twitch_vod_id', 'is', null)
+    for (const v of vods || []) {
+      vodByChannel[v.channel] = { twitch_vod_id: v.twitch_vod_id, vod_offset_s: v.vod_offset_s }
+    }
+  } catch { /* best-effort */ }
+
   // VOD URLs are stable once resolved; cache hard but allow revalidation in case
   // a pending row gets enriched.
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=86400')
-  return res.status(200).json(buildReplayResponse(row))
+  return res.status(200).json(buildReplayResponse(row, vodByChannel))
 }
 
 // ── VOD enrichment cron ───────────────────────────────────────────────────────

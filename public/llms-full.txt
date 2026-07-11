@@ -476,6 +476,27 @@ Returns structured entity data about the full site, designed for RAG pipelines, 
 }
 ```
 
+### GET /api/pipeline?type=replay&id={openDotaMatchId}
+Permanent replay links for one professional game, served from SpectateEsports' own stream archive (recorded live while the game ran, enriched with Twitch VOD timestamps afterwards). `main` is the official broadcast; `others[]` lists every additional recorded stream in every language — official regional broadcasts and community co-streams — sorted official-first, then resolved start points, then English before other languages. `kind: "start_point"` links jump directly to the game's start on the Twitch VOD; `"replay"`/`"stream_page"` links open from the stream start. 404 `{"error": "not_found"}` when the match has no recorded row. Cached 10 minutes.
+```json
+{
+  "od_match_id": "number (OpenDota match ID)",
+  "replay_available": "boolean",
+  "main": {
+    "url": "string (Twitch VOD URL with ?t= offset, or stream page URL)",
+    "channel": "string | null (Twitch login)",
+    "language": "string | null (ISO 639-1, e.g. 'en', 'ru', 'es')",
+    "source": "string ('twitch' | 'youtube' | 'other')",
+    "official": "boolean (false = community co-stream)",
+    "deep_link": "boolean (true = jumps to game start)",
+    "kind": "string ('start_point' | 'replay' | 'stream_page')"
+  },
+  "others": ["same shape as main — one entry per additional recorded stream/language"],
+  "vod_available": "boolean | null (null = not yet checked)",
+  "checked_at": "string (ISO 8601) | null"
+}
+```
+
 ---
 
 ## Match URL Structure

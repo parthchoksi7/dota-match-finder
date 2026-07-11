@@ -1,6 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
 import GoldGraph from "./GoldGraph"
 import PlayerStatsSection from "./PlayerStatsSection"
+import StreamPicker from "./StreamPicker"
 import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -184,6 +185,7 @@ function MatchDrawer({
   const displaySummary = summary || cachedSummary
   const twitchHref = twitchSearchHref || "https://www.twitch.tv/search?term=dota%202"
   const allVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])
+  const otherStreams = match.otherStreams || []
   const gameLabel = gameNumber && seriesMatches > 1 ? (spoilerFree ? "Game " + gameNumber : "Game " + gameNumber + " of " + seriesMatches) : null
   const hideScore = spoilerFree && !scoreRevealed
 
@@ -399,6 +401,10 @@ function MatchDrawer({
                         onClick={() => trackEvent("vod_click", {
                           matchId: match.id,
                           channel: vod.channel,
+                          language: vod.language,
+                          official: vod.official,
+                          kind: vod.kind,
+                          from_picker: false,
                           radiantTeam: match.radiantTeam,
                           direTeam: match.direTeam,
                           tournament: match.tournament,
@@ -406,11 +412,22 @@ function MatchDrawer({
                         })}
                         className={btnClass}
                       >
+                        {vod.language && vod.language !== 'en' && (
+                          <span className="px-1 py-0.5 rounded bg-white/20 text-[10px] font-bold uppercase leading-none">
+                            {vod.language.toUpperCase()}
+                          </span>
+                        )}
                         {label}
+                        {vod.official === false && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-purple-200">
+                            Co-stream
+                          </span>
+                        )}
                       </a>
                     )
                   })}
                 </div>
+                <StreamPicker streams={otherStreams} matchId={match.id} />
                 <div className="flex gap-4 pt-1">
                   <button
                     type="button"
@@ -438,6 +455,11 @@ function MatchDrawer({
                 <p className="text-xs text-gray-400 dark:text-gray-600">
                   May not be published yet or was not on a tracked channel.
                 </p>
+                {otherStreams.length > 0 && (
+                  <div className="pt-2">
+                    <StreamPicker streams={otherStreams} matchId={match.id} />
+                  </div>
+                )}
                 <div className="flex gap-4 pt-1">
                   <a
                     href={twitchHref}

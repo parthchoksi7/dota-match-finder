@@ -9,10 +9,11 @@ import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import ManageTeamsModal from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, resolveHeroByName } from "./api"
+import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary } from "./vodStreams"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const JUST_ENDED_ENABLED = true
@@ -48,14 +49,30 @@ function getMatchIdFromUrl() {
 }
 
 async function resolveMatchStreams(match, allMatches) {
-  // P3.2 — Supabase-first. A persisted start-point VOD (filled by vod-enrich.mjs)
-  // is the permanent source of truth and avoids the channel-resolution + Helix
-  // round-trips. Only a timestamped start-point counts as a hit; everything else
-  // (not yet enriched, live/recent, no record) falls through to the LOCKED live
-  // resolver below, fully unchanged.
+  // Supabase-first. A persisted start-point VOD (filled by vod-enrich) is the
+  // permanent source of truth and avoids the channel-resolution + Helix
+  // round-trips; the stored row also carries every other recorded stream (all
+  // languages, official + co-streams), returned as the separate otherStreams
+  // field in every outcome — never merged into allVods (allVods[0] anchors
+  // GoldGraph event links and Copy VOD link, and must stay the primary slot).
+  // Only a timestamped start-point main counts as a complete hit; everything
+  // else (not yet enriched, live/recent, no record, Supabase down/timeout)
+  // falls through to the LOCKED live resolver below, fully unchanged.
+  // Stored start points older than the Twitch archive window (~55d) are
+  // probable dead links: the main is ignored and others degrade to channel
+  // pages rather than advertising a jump that 404s.
   const stored = await fetchStoredReplay(match.id)
-  if (stored?.url) {
-    return { url: stored.url, channel: stored.channel, allVods: [{ url: stored.url, channel: stored.channel, source: stored.source }] }
+  const expired = isVodExpired(match.startTime)
+  const storedOthers = expired ? degradeExpiredOthers(stored?.others) : (stored?.others || [])
+
+  if (!expired && stored?.main?.kind === 'start_point' && stored.main.url) {
+    trackEvent('replay_source', { source: 'supabase', matchId: match.id })
+    return {
+      url: stored.main.url,
+      channel: stored.main.channel,
+      allVods: [stored.main],
+      otherStreams: dedupOthersAgainstPrimary([stored.main], storedOthers),
+    }
   }
 
   const siblingMatches = match.seriesId
@@ -80,10 +97,14 @@ async function resolveMatchStreams(match, allMatches) {
   }
 
   const vod = await findTwitchVod(match.startTime, match.tournament, preferredChannel)
+  trackEvent('replay_source', { source: vod?.url ? 'kv_fallback' : 'none', matchId: match.id })
+  // The chain's result keeps the primary slot untouched; stored others travel
+  // separately so a co-stream can never become allVods[0] (GoldGraph anchor).
   return {
     url: vod?.url || null,
     channel: vod?.channel || null,
     allVods: vod?.allVods || [],
+    otherStreams: dedupOthersAgainstPrimary(vod?.allVods || [], storedOthers),
   }
 }
 
@@ -635,8 +656,8 @@ function App() {
     if (match.seriesId && !match._skipExpand) setExpandedSeriesId(String(match.seriesId))
     setSelectedMatch({ ...match, loadingVod: true })
 
-    const { url, channel, allVods } = await resolveMatchStreams(match, allMatches)
-    setSelectedMatch({ ...match, loadingVod: false, url, channel, allVods })
+    const { url, channel, allVods, otherStreams } = await resolveMatchStreams(match, allMatches)
+    setSelectedMatch({ ...match, loadingVod: false, url, channel, allVods, otherStreams })
   }
 
   function handleOpenSeries(series) {
@@ -888,10 +909,15 @@ function App() {
       : searchResults.filter(m => String(m.seriesType) === seriesFilter)
 
   const matchGameNumbers = {}
+  // Built from buildSeriesGroups (not a naive raw-seriesId groupBy) so that games OD
+  // splits across different series_ids (same teams + tournament + within 4h — see
+  // groupIntoSeries) still resolve to the same sibling-game list here. Keyed by each
+  // game's own raw seriesId (not the merged group's id) so the selectedMatch.seriesId
+  // lookup below still hits.
   const seriesMatchMap = {}
-  allMatches.forEach(m => {
-    if (!seriesMatchMap[m.seriesId]) seriesMatchMap[m.seriesId] = []
-    seriesMatchMap[m.seriesId].push(m.id)
+  Object.values(buildSeriesGroups(allMatches)).forEach(group => {
+    const ids = group.games.map(g => g.id)
+    group.games.forEach(g => { seriesMatchMap[g.seriesId] = ids })
   })
   Object.values(seriesMatchMap).forEach(ids => {
     orderSeriesGames(ids, allMatches).forEach((m, i) => {
