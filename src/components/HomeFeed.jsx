@@ -166,8 +166,9 @@ function HomeFeed({
   const isToday = resolvedDate === todayKey
 
   // Horizontal swipe → change day, mirroring a tap on the adjacent date pill.
-  // Product spec: swipe LEFT (finger →left) goes to the PREVIOUS day (Yesterday);
-  // swipe RIGHT goes to the NEXT day (Tomorrow). availableDates is chronological
+  // Matches the calendar-app convention (iOS/Google Calendar, Sofascore): drag
+  // left→right (swipe right) goes to the PREVIOUS day (Yesterday); drag right→left
+  // (swipe left) goes to the NEXT day (Tomorrow). availableDates is chronological
   // ascending, so previous = index-1, next = index+1.
   const swipeStartRef = useRef(null)
 
@@ -207,7 +208,7 @@ function HomeFeed({
     const dy = t.clientY - start.y
     if (Math.abs(dx) < 55) return                 // too short to be a deliberate swipe
     if (Math.abs(dx) < Math.abs(dy) * 1.4) return // predominantly vertical — let the page scroll
-    goToAdjacentDate(dx < 0 ? -1 : 1)             // swipe-left → prev (yesterday); swipe-right → next
+    goToAdjacentDate(dx < 0 ? 1 : -1)             // drag right→left → next; drag left→right → prev (yesterday)
   }
 
   const activeLiveMatches = isToday ? liveMatches : []
