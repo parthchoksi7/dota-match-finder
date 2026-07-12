@@ -132,6 +132,23 @@ describe('buildGameUrls', () => {
     expect(yt).toMatchObject({ kind: 'stream_page', deep_link: false }) // no ?t= → still stream_page
   })
 
+  it('regression: a duplicate match_stream_vods entry for the MAIN channel never overrides the authoritative match_stream_history offset', () => {
+    // Reproduces the EWC bug: buildVodSeedRows' main-channel exclusion is case-sensitive,
+    // so a mixed-case broadcast login (row.channel lowercased by getTwitchStreams, but
+    // streams_json keeping PandaScore's original case) could slip past it and get an
+    // independently (and wrongly) resolved offset written to match_stream_vods under its
+    // original-case key. Even if such a stale duplicate exists, the row's own offset must win.
+    const mixedCaseStreams = [
+      { raw_url: 'https://www.twitch.tv/EWC_LegionGauntlet_EN2', language: 'en', official: true, main: true, source: 'twitch', channel: 'EWC_LegionGauntlet_EN2' },
+    ]
+    const staleVodByChannel = { EWC_LegionGauntlet_EN2: { twitch_vod_id: '999', vod_offset_s: 60 } } // stale/wrong, much earlier
+    const { main } = buildGameUrls(
+      { channel: 'ewc_legiongauntlet_en2', twitch_vod_id: '2817307592', vod_offset_s: 20973, streams_json: mixedCaseStreams },
+      staleVodByChannel,
+    )
+    expect(main).toMatchObject({ url: 'https://www.twitch.tv/videos/2817307592?t=20973s', kind: 'start_point' })
+  })
+
   it('main + alt can both be start points simultaneously', () => {
     const { main, others } = buildGameUrls(
       { channel: 'pgl_dota2', twitch_vod_id: '999', vod_offset_s: 1842, streams_json: streams },

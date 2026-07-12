@@ -85,4 +85,23 @@ describe('buildVodSeedRows', () => {
     expect(buildVodSeedRows([{ od_match_id: 1, channel: 'c', started_at: 't', streams_json: null }])).toEqual([])
     expect(buildVodSeedRows(null)).toEqual([])
   })
+
+  it('regression: excludes the main channel case-insensitively (EWC mixed-case bug)', () => {
+    // row.channel is lowercased by getTwitchStreams(); the streams_json entry for the same
+    // broadcast keeps PandaScore's original mixed case. Without a case-insensitive compare,
+    // this main channel would be seeded as a duplicate "alt" row and get its own,
+    // independently (and possibly wrongly) resolved offset — overriding the correct one.
+    const seeds = buildVodSeedRows([
+      {
+        od_match_id: 1, channel: 'ewc_legiongauntlet_en2', started_at: '2026-07-11T10:00:00Z',
+        streams_json: [
+          { raw_url: 'https://www.twitch.tv/EWC_LegionGauntlet_EN2', source: 'twitch', channel: 'EWC_LegionGauntlet_EN2', language: 'en' },
+          { raw_url: 'https://www.twitch.tv/betboom_dota_ru', source: 'twitch', channel: 'betboom_dota_ru', language: 'ru' },
+        ],
+      },
+    ])
+    expect(seeds).toEqual([
+      { od_match_id: 1, channel: 'betboom_dota_ru', language: 'ru', started_at: '2026-07-11T10:00:00Z' },
+    ])
+  })
 })

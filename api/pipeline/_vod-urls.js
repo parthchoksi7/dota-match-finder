@@ -109,9 +109,19 @@ export function buildGameUrls(row, vodByChannel = {}) {
 
   const resolvedVodFor = (channel) => {
     if (!channel) return null
+    // The row's own channel is authoritative for its own VOD offset — match_stream_history
+    // is the single source of truth for the main channel (match_stream_vods is documented as
+    // "non-main channels only"). Check it FIRST: buildVodSeedRows' main-channel exclusion is
+    // case-sensitive, so a mixed-case broadcast login (e.g. EWC_LegionGauntlet_EN2, where the
+    // row's own channel is lowercased by getTwitchStreams but streams_json keeps PandaScore's
+    // original case) can slip past that guard and get seeded as a duplicate "alt" row with an
+    // independently-resolved, possibly stale/earlier offset. If that table entry were checked
+    // first it would silently override the correct offset and send viewers to the wrong point.
+    if (row.channel && lc(channel) === lc(row.channel) && row.twitch_vod_id) {
+      return { twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }
+    }
     const v = vodsLower[lc(channel)]
     if (v && v.twitch_vod_id) return { twitch_vod_id: v.twitch_vod_id, vod_offset_s: v.vod_offset_s }
-    if (row.channel && lc(channel) === lc(row.channel) && row.twitch_vod_id) return { twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }
     return null
   }
 
