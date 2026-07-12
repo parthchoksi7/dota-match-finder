@@ -216,6 +216,12 @@ function App() {
   // Mid-series side sheet (PS data while series is running)
   const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
 
+  // Push-notification landing (WS4): ?m=<psSeriesId> from a tapped starting-soon/now-live
+  // notification. pushTargetId holds the target until live data arrives; highlightMatchId
+  // drives the transient amber pulse on the My Teams feed row.
+  const [pushTargetId, setPushTargetId] = useState(null)
+  const [highlightMatchId, setHighlightMatchId] = useState(null)
+
   // Tournament name → PandaScore ID map (for inline TournamentHub expand)
   const [tournamentIdMap, setTournamentIdMap] = useState(new Map())
 
@@ -476,6 +482,61 @@ function App() {
     // Only run once after initial load completes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLoading])
+
+  // Refresh the push subscription once per visit. All push:* KV keys carry a 90-day TTL;
+  // without this, a subscriber who visits often but never touches follows/settings would
+  // silently expire. Same guards as the follow-toggle re-subscribe (granted + not disabled).
+  useEffect(() => {
+    if (getPushPermission() !== 'granted') return
+    try {
+      if (localStorage.getItem(STORAGE_KEYS.PUSH_DISABLED) === '1') return
+    } catch { return } // localStorage unavailable: can't verify the disabled flag, so don't re-enable
+    subscribeToPush(getFollowedTeams()).catch(() => {})
+  }, [])
+
+  // Push-open attribution + landing target (WS4/WS6). Notifications deep-link with
+  // ?m=<psSeriesId>&from=push&pt=<type> (see buildPushPayload in api/live-matches.js).
+  // Track the open, capture the target, then strip the params so a refresh or share of
+  // the landed URL doesn't re-fire the event (spoilers= and q= are preserved).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fromPush = params.get('from') === 'push'
+    const m = params.get('m')
+    if (!fromPush && !m) return
+    if (fromPush) {
+      trackEvent('push_opened', { type: params.get('pt') || 'unknown', matchId: m || getMatchIdFromUrl() || null })
+    }
+    if (m) setPushTargetId(m)
+    params.delete('m'); params.delete('from'); params.delete('pt')
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash)
+  }, [])
+
+  // Land the push target once live/upcoming data arrives: open the mid-series sheet when
+  // the series has a finished game (stream + catch-up VODs in one tap), else pulse the
+  // My Teams feed row. Consumed exactly once — a match that's in neither list (ended,
+  // canceled, tier drift) degrades to the plain homepage.
+  useEffect(() => {
+    if (!pushTargetId || liveLoading) return
+    const live = liveMatches.find(mm => String(mm.id) === pushTargetId)
+    const upcoming = upcomingMatches.find(mm => String(mm.id) === pushTargetId)
+    setPushTargetId(null)
+    if (live && (live.games || []).some(g => g.status === 'finished')) {
+      handleSelectLiveMatch(live.id)
+    } else if (live || upcoming) {
+      setHighlightMatchId(pushTargetId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pushTargetId, liveLoading, liveMatches, upcomingMatches])
+
+  // Fade the highlight ring after 4s. Separate effect: the consumption effect above
+  // nulls pushTargetId (its own dep), so a timer owned there would be torn down by its
+  // cleanup on the very next render and the ring would never clear.
+  useEffect(() => {
+    if (!highlightMatchId) return
+    const t = setTimeout(() => setHighlightMatchId(null), 4000)
+    return () => clearTimeout(t)
+  }, [highlightMatchId])
 
   // Handle share URL on load — supports both /match/:id and legacy #match-:id
   useEffect(() => {
@@ -1144,6 +1205,7 @@ function App() {
               loadingMore={loadingMore}
               hasMore={!!nextMatchId}
               onManageTeams={() => setManageTeamsOpen(true)}
+              highlightMatchId={highlightMatchId}
             />
           </div>
         )}

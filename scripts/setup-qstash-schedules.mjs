@@ -32,13 +32,16 @@ const QSTASH_TOKEN = process.env.QSTASH_TOKEN
 const CRON_SECRET = process.env.CRON_SECRET
 const SITE_URL = (process.env.QSTASH_TARGET_URL || 'https://spectateesports.live').replace(/\/$/, '')
 
-// Both were declared `*/15 * * * *` on GHA; keep the same intended cadence on QStash.
-// vod-enrich also runs every 15 min (was GHA-scheduled but throttled to ~1.5-4h in practice).
-// Free plan allows 1,000 msgs/day + 10 schedules; 3 × 4/hr × 24h = 288/day — well within limits.
+// stream-capture / warm-streams / vod-enrich were declared `*/15 * * * *` on GHA; keep that
+// cadence on QStash. push-scan is the "starting soon" trigger — it must run finer than 15 min
+// so a T-5 alert actually lands ~2-5 min before kickoff (a */5 scan can slip to a 0-min lead),
+// hence */3. Free plan allows 1,000 msgs/day + 10 schedules; 3 × 4/hr + 1 × 20/hr = 768/day
+// across 4 schedules — within limits.
 const SCHEDULES = [
   { name: 'stream-capture', path: '/api/live-matches?cron=1',            cron: '*/15 * * * *' },
   { name: 'warm-streams',   path: '/api/live-matches?cron=warm-streams', cron: '*/15 * * * *' },
   { name: 'vod-enrich',     path: '/api/pipeline?type=vod-enrich',        cron: '*/15 * * * *' },
+  { name: 'push-scan',      path: '/api/live-matches?cron=push-scan',     cron: '*/3 * * * *'  },
 ]
 
 if (!QSTASH_TOKEN) { console.error('Missing QSTASH_TOKEN — set it in .env.local (console.upstash.com -> QStash).'); process.exit(1) }

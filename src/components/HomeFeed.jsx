@@ -75,6 +75,7 @@ function HomeFeed({
   loadingMore,
   hasMore,
   onManageTeams,
+  highlightMatchId = null,
 }) {
   const todayKey = useMemo(() => new Date().toDateString(), [])
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86400000).toDateString(), [])
@@ -345,11 +346,14 @@ function HomeFeed({
             </div>
             {/* My Teams match rows */}
             <div role="rowgroup">
+              {/* isHighlighted only here (not the tournament-card copies of these rows):
+                  push targets are always followed teams, so the My Teams card is the
+                  canonical landing — one scroll target, no double-pulse. */}
               {myLive.map(m => (
-                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} onSelectLiveMatch={onSelectLiveMatch} spoilerFree={spoilerFree} isFollowedMatch />
+                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} onSelectLiveMatch={onSelectLiveMatch} spoilerFree={spoilerFree} isFollowedMatch isHighlighted={String(m.id) === highlightMatchId} />
               ))}
               {myUpcoming.map(m => (
-                <UpcomingMatchRow key={m.id} match={m} isFollowedMatch spoilerFree={spoilerFree} />
+                <UpcomingMatchRow key={m.id} match={m} isFollowedMatch spoilerFree={spoilerFree} isHighlighted={String(m.id) === highlightMatchId} />
               ))}
               {myCompleted.map(s => (
                 <CompactSeriesRow

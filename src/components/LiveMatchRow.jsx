@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { trackEvent } from '../utils'
 
 function TwitchIcon() {
@@ -16,9 +17,18 @@ function YouTubeIcon() {
   )
 }
 
-function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch }) {
+function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch, isHighlighted = false }) {
   const hasScore = match.seriesScore && match.seriesScore !== '0-0'
   const [scoreA, scoreB] = hasScore ? match.seriesScore.split('-').map(Number) : [0, 0]
+
+  // Push-notification landing: scroll the targeted row into view. The ring below fades
+  // out via transition-shadow when App clears the highlight after a few seconds.
+  const rootRef = useRef(null)
+  useEffect(() => {
+    if (isHighlighted && rootRef.current) {
+      rootRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [isHighlighted])
 
   const watchUrl = match.streams?.[0]?.url || null
   const watchLabel = match.streams?.[0]?.label || null
@@ -32,10 +42,11 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
 
   return (
     <div
+      ref={rootRef}
       onClick={() => { if (isClickable) onSelectLiveMatch(match.id) }}
-      className={`border-b border-gray-100 dark:border-gray-900 last:border-b-0 ${
+      className={`border-b border-gray-100 dark:border-gray-900 last:border-b-0 transition-shadow duration-700 ${
         isFollowedMatch ? amberStyle : redStyle
-      } ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
+      } ${isHighlighted ? 'ring-2 ring-inset ring-amber-400 dark:ring-amber-500' : ''} ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
     >
       {/* Main row: Team A · Score · Team B */}
       <div

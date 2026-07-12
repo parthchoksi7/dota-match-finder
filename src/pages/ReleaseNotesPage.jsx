@@ -4,6 +4,16 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 12, 2026",
+    tag: "improvement",
+    title: "Push alerts now warn you before the draft, and tap through to the match",
+    desc: "Live match alerts were arriving after the draft was already over and dropping you on the homepage with no way to find the match. You'll now get a heads-up a few minutes before a followed team's match starts, and tapping any alert (starting-soon or live) takes you straight to that match in the feed instead of a blank homepage.",
+    items: [
+      "New \"starting soon\" alert fires a few minutes before kickoff so you can catch the draft",
+      "Tapping a notification scrolls to and highlights the match, or opens it directly if it's already underway",
+    ],
+  },
+  {
     date: "July 11, 2026",
     tag: "fix",
     title: "Multi-game series no longer missing a game in match details",

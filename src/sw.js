@@ -76,6 +76,8 @@ self.addEventListener('push', event => {
       body: data.body ?? 'A match you follow is now live',
       icon: '/pwa-192.jpg',
       badge: '/favicon.png',
+      // tag collapses a repeat of the same (type, series) into one entry instead of stacking.
+      ...(data.tag ? { tag: data.tag } : {}),
       data: { url: data.url ?? '/' },
     })
   )

@@ -32,10 +32,16 @@ export async function subscribeToPush(teamNames) {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     })
 
+    // Send the browser's IANA timezone so the server can evaluate quiet hours. Full prefs
+    // (type toggles, quiet-hours window) are added by the Settings UI; the server merges
+    // this partial payload over any stored prefs, so tz-only calls never clobber them.
+    let tz = null
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null } catch { /* unsupported */ }
+
     const res = await fetch('/api/live-matches?mode=push-subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON(), teamNames }),
+      body: JSON.stringify({ subscription: sub.toJSON(), teamNames, prefs: { tz } }),
     })
 
     return res.ok ? { ok: true } : { ok: false, reason: 'server_error' }

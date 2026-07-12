@@ -1,14 +1,24 @@
+import { useEffect, useRef } from 'react'
 import { formatMatchTime, trackEvent } from '../utils'
 
-function UpcomingMatchRow({ match, isFollowedMatch, spoilerFree }) {
+function UpcomingMatchRow({ match, isFollowedMatch, spoilerFree, isHighlighted = false }) {
   const timeStr = formatMatchTime(match.scheduledAt)
   const watchUrl = match.streams?.[0]?.url || null
   const watchLabel = match.streams?.[0]?.label || null
 
   const amberStyle = 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10'
 
+  // Push-notification landing: scroll the targeted row into view; ring fades out via
+  // transition-shadow when App clears the highlight after a few seconds.
+  const rootRef = useRef(null)
+  useEffect(() => {
+    if (isHighlighted && rootRef.current) {
+      rootRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [isHighlighted])
+
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-900 last:border-b-0 ${isFollowedMatch ? amberStyle : ''}`}>
+    <div ref={rootRef} className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-900 last:border-b-0 transition-shadow duration-700 ${isFollowedMatch ? amberStyle : ''} ${isHighlighted ? 'ring-2 ring-inset ring-amber-400 dark:ring-amber-500' : ''}`}>
       {/* Teams + time stacked */}
       <div className="flex-1 min-w-0">
         <p className="font-display text-sm font-black tracking-wide uppercase text-gray-900 dark:text-white truncate leading-tight">

@@ -7,7 +7,10 @@ import { getSupabaseAdmin } from './_supabase.js'
 
 const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes
-const PUSH_SUB_TTL = 30 * 24 * 3600 // 30 days
+const PUSH_SUB_TTL = 90 * 24 * 3600 // 90 days — refreshed on every visit (App.jsx re-subscribe).
+// Longer than the old 30d so a fan who follows a team but doesn't return for a few weeks
+// isn't silently dropped from notifications. The reliable fix is the Supabase migration
+// (pending-refactors #92); this is the interim KV mitigation.
 
 // Headroom above the 10s default: the cron=1 capture path fetches up to 100 running
 // matches, enriches multi-stream ones, and walks the push-subscriber loop. Hobby allows
@@ -236,42 +239,122 @@ async function cacheRunningStreams(rawMatches) {
   return streamWrites.length
 }
 
-async function sendPushNotificationsForMatches(matches) {
-  if (!process.env.VAPID_PRIVATE_KEY) return
-  const pushOps = []
-  for (const match of matches) {
-    const teams = [match.teamA, match.teamB].filter(Boolean)
-    const userIds = new Set()
-    for (const team of teams) {
-      const key = `push:team:${team.toLowerCase()}`
-      const ids = await kv.get(key).catch(() => null)
-      if (Array.isArray(ids)) ids.forEach(id => userIds.add(id))
-    }
-    for (const userId of userIds) {
-      const sentKey = `push:sent:${match.id}:${userId}`
-      const alreadySent = await kv.get(sentKey).catch(() => null)
-      if (alreadySent) continue
-      const subRaw = await kv.get(`push:sub:${userId}`).catch(() => null)
-      if (!subRaw) continue
-      const sub = typeof subRaw === 'string' ? JSON.parse(subRaw) : subRaw
-      const teamNames = teams.join(' vs ')
-      pushOps.push(
-        webpush.sendNotification(sub, JSON.stringify({
-          title: `${teamNames} is live`,
-          body: `${match.tournament || 'Pro match'} - Watch on Spectate Esports`,
-          url: '/',
-        }))
-          .then(() => kv.set(sentKey, '1', { ex: 24 * 3600 }))
-          .catch(err => {
-            if (err.statusCode === 410) {
-              // Subscription expired - remove it
-              kv.del(`push:sub:${userId}`, `push:teams:${userId}`).catch(() => {})
-            }
-          })
-      )
-    }
+/**
+ * Builds the notification payload for a given type. Pure + exported for unit tests.
+ * SPOILER-SAFE: never include a series score or winner in the title/body — the outcome
+ * must live behind the tap. `match` is a mapMatch() result.
+ *   - soon/live → homepage feed with ?m=<seriesId> highlight (no dedicated live-match page)
+ *   - replay    → the completed-match page (?spoilers=off). opts.matchId is the OpenDota
+ *                 match id supplied by the warm-streams replay hook (WS3); falls back to
+ *                 the PandaScore id only as a placeholder.
+ */
+export function buildPushPayload(type, match, opts = {}) {
+  const teams = `${match.teamA} vs ${match.teamB}`
+  const stakes = match.bracketRound || match.tournament || 'Pro match'
+  // from=push&pt=<type> is the open-attribution signal: the client tracks push_opened on
+  // load and strips the params. This is how CTR is measured — a SW has no window.gtag.
+  switch (type) {
+    case 'soon':
+      return { title: `${teams} starts soon`, body: `${stakes} • catch the draft`, url: `/?m=${match.id}&from=push&pt=soon`, tag: `soon-${match.id}` }
+    case 'live':
+      return { title: `${teams} is live`, body: `${stakes} • watch now`, url: `/?m=${match.id}&from=push&pt=live`, tag: `live-${match.id}` }
+    case 'replay':
+      return { title: `${teams} — replay is up`, body: `Watch the full series on Spectate`, url: `/match/${opts.matchId ?? match.id}?spoilers=off&from=push&pt=replay`, tag: `replay-${match.id}` }
+    default:
+      return { title: teams, body: stakes, url: '/', tag: `push-${match.id}` }
   }
-  if (pushOps.length > 0) await Promise.all(pushOps)
+}
+
+/**
+ * Normalizes a stored (or incoming) prefs object into a canonical shape.
+ * Defaults are permissive: all notification types ON, no quiet hours — so existing
+ * subscribers (who predate the prefs key) and tz-less clients keep receiving alerts.
+ */
+export function normalizePrefs(raw) {
+  let p = raw
+  if (typeof raw === 'string') { try { p = JSON.parse(raw) } catch { p = null } }
+  p = p && typeof p === 'object' ? p : {}
+  const t = p.types && typeof p.types === 'object' ? p.types : {}
+  return {
+    tz: typeof p.tz === 'string' ? p.tz : null,
+    types: { soon: t.soon !== false, live: t.live !== false, replay: t.replay !== false },
+    quietStart: Number.isInteger(p.quietStart) ? p.quietStart : null,
+    quietEnd: Number.isInteger(p.quietEnd) ? p.quietEnd : null,
+  }
+}
+
+/** Local hour (0–23) at `nowMs` in the given IANA tz, or null if the tz is unusable. */
+function getHourInTz(nowMs, tz) {
+  try {
+    const h = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(nowMs), 10)
+    return Number.isFinite(h) ? (h % 24) : null
+  } catch { return null }
+}
+
+/** True when `nowMs` falls inside the user's quiet-hours window (wraps midnight). */
+export function inQuietHours(prefs, nowMs) {
+  const { quietStart: s, quietEnd: e, tz } = prefs
+  if (s == null || e == null || s === e || !tz) return false
+  const hour = getHourInTz(nowMs, tz)
+  if (hour == null) return false
+  return s < e ? (hour >= s && hour < e) : (hour >= s || hour < e)
+}
+
+/**
+ * Sends `type` notifications for one match to every subscriber of either team, honoring
+ * per-user prefs (type toggle + quiet hours) and per-(type,series,user) dedup. Uses
+ * batched kv.mget instead of per-user gets (pending-refactors #161). Returns count sent.
+ */
+async function dispatchPush(match, { type, dedupPrefix, dedupTtl }) {
+  if (!process.env.VAPID_PRIVATE_KEY) return 0
+  const teams = [match.teamA, match.teamB].filter(t => t && t !== 'TBD')
+  if (teams.length === 0) return 0
+
+  const teamLists = await kv.mget(...teams.map(t => `push:team:${t.toLowerCase()}`)).catch(() => [])
+  const userIds = new Set()
+  teamLists.forEach(ids => { if (Array.isArray(ids)) ids.forEach(id => userIds.add(id)) })
+  if (userIds.size === 0) return 0
+
+  const ids = [...userIds]
+  const [sentVals, subVals, prefVals] = await Promise.all([
+    kv.mget(...ids.map(id => `${dedupPrefix}:${match.id}:${id}`)).catch(() => []),
+    kv.mget(...ids.map(id => `push:sub:${id}`)).catch(() => []),
+    kv.mget(...ids.map(id => `push:prefs:${id}`)).catch(() => []),
+  ])
+
+  const payload = JSON.stringify(buildPushPayload(type, match))
+  const now = Date.now()
+  const ops = []
+  ids.forEach((userId, i) => {
+    if (sentVals[i]) return                       // already notified for this series
+    const subRaw = subVals[i]
+    if (!subRaw) return
+    const prefs = normalizePrefs(prefVals[i])
+    if (prefs.types[type] === false) return       // user disabled this type
+    if (inQuietHours(prefs, now)) return          // suppressed during quiet hours
+    const sub = typeof subRaw === 'string' ? JSON.parse(subRaw) : subRaw
+    const sentKey = `${dedupPrefix}:${match.id}:${userId}`
+    ops.push(
+      webpush.sendNotification(sub, payload)
+        .then(() => kv.set(sentKey, '1', { ex: dedupTtl }))
+        .catch(err => {
+          // 410 Gone / 404 Not Found → subscription is dead; prune it.
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            kv.del(`push:sub:${userId}`, `push:teams:${userId}`, `push:prefs:${userId}`).catch(() => {})
+          }
+        })
+    )
+  })
+  if (ops.length > 0) await Promise.all(ops)
+  return ops.length
+}
+
+/** Fan `dispatchPush` across a list of matches; returns total notifications sent. */
+async function sendPushForMatches(matches, opts) {
+  if (!process.env.VAPID_PRIVATE_KEY) return 0
+  let sent = 0
+  for (const match of matches) sent += await dispatchPush(match, opts).catch(() => 0)
+  return sent
 }
 
 // warm-streams cron tuning. Lookback covers OpenDota's 30–90 min indexing lag plus
@@ -358,6 +441,23 @@ export default async function handler(req, res) {
         try { prevTeams = JSON.parse(prevTeamsRaw) } catch { prevTeams = [] }
       }
 
+      // Merge incoming prefs over stored prefs. The auto re-subscribe on follow-change
+      // (App.jsx) sends only { tz }, so a naive overwrite would wipe the user's type
+      // toggles / quiet hours set in Settings — merge preserves them.
+      const prevPrefs = normalizePrefs(await kv.get(`push:prefs:${userId}`).catch(() => null))
+      const incoming = (req.body?.prefs && typeof req.body.prefs === 'object') ? req.body.prefs : {}
+      const inTypes = (incoming.types && typeof incoming.types === 'object') ? incoming.types : {}
+      const storedPrefs = normalizePrefs({
+        tz: typeof incoming.tz === 'string' ? incoming.tz : prevPrefs.tz,
+        types: {
+          soon: inTypes.soon ?? prevPrefs.types.soon,
+          live: inTypes.live ?? prevPrefs.types.live,
+          replay: inTypes.replay ?? prevPrefs.types.replay,
+        },
+        quietStart: incoming.quietStart !== undefined ? incoming.quietStart : prevPrefs.quietStart,
+        quietEnd: incoming.quietEnd !== undefined ? incoming.quietEnd : prevPrefs.quietEnd,
+      })
+
       const removedTeams = prevTeams.filter(t => !teams.includes(t))
       const addedTeams = teams.filter(t => !prevTeams.includes(t))
 
@@ -386,6 +486,7 @@ export default async function handler(req, res) {
       await Promise.all([
         kv.set(`push:sub:${userId}`, JSON.stringify(subscription), { ex: PUSH_SUB_TTL }),
         kv.set(`push:teams:${userId}`, teams, { ex: PUSH_SUB_TTL }),  // store as direct array going forward
+        kv.set(`push:prefs:${userId}`, storedPrefs, { ex: PUSH_SUB_TTL }),  // refreshed on every visit
         ...removeOps,
         ...addOps,
       ])
@@ -420,12 +521,61 @@ export default async function handler(req, res) {
       await enrichMultiStreamMatches(tier1, headers)
       const written = await cacheRunningStreams(tier1)
       const mappedForPush = tier1.map(mapMatch)
-      await sendPushNotificationsForMatches(mappedForPush).catch(err => log.warn('push error', { error: err?.message }))
+      // Now-live stays on this 15-min capture cron (decision D3). Same series-level dedup
+      // key as before (push:sent:{id}); buildPushPayload now deep-links to /?m=<id>.
+      await sendPushForMatches(mappedForPush, { type: 'live', dedupPrefix: 'push:sent', dedupTtl: 24 * 3600 })
+        .catch(err => log.warn('push error', { error: err?.message }))
       log.info('cron complete', { written })
       return res.status(200).json({ written })
     } catch (err) {
       await trackError('/api/live-matches', 500, err?.message)
       log.error('cron error', { error: err?.message })
+      return res.status(500).json({ error: err?.message })
+    }
+  }
+
+  // push-scan cron: the reliable QStash trigger (*/3) for the "starting soon" alert.
+  // Decoupled from the stream-capture cron so timing tracks match kickoff, not stream
+  // sampling. Fetches ONLY upcoming matches (now-live stays on cron=1 per decision D3) and
+  // fires ~5 min before start (T-5). Does not touch any stream-cache write path.
+  if (req.query?.cron === 'push-scan') {
+    if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).end()
+    }
+    if (!process.env.VAPID_PRIVATE_KEY) return res.status(200).json({ sent: 0, reason: 'push not configured' })
+    try {
+      const now = Date.now()
+      const LEAD_MS = 5 * 60 * 1000   // fire when a match starts within the next 5 min (T-5)
+      const GRACE_MS = 5 * 60 * 1000  // tolerate slightly-late feed entries; dedup prevents repeats
+      const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      // Narrow window: matches scheduled from GRACE_MS ago to ~15 min out (covers */3 jitter).
+      // The lower bound must reach into the past so the GRACE_MS fire condition below can
+      // catch a match whose start time just slipped but hasn't gone live yet.
+      const from = new Date(now - GRACE_MS).toISOString()
+      const to = new Date(now + 15 * 60 * 1000).toISOString()
+      const [response, tier1NamesRaw] = await Promise.all([
+        fetch(`${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=50&range[scheduled_at]=${from},${to}`, { headers }),
+        kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
+      ])
+      if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+      const names = [...new Set([
+        ...(Array.isArray(tier1NamesRaw) ? tier1NamesRaw.map(n => n.toLowerCase()) : []),
+        ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
+      ])]
+      const data = await response.json()
+      const soon = (data || [])
+        .filter(m => (isTier1(m) || isTier1ByName(m, names)) && m.opponents?.length === 2)
+        .filter(m => {
+          const t = Date.parse(m.scheduled_at || m.begin_at || '')
+          return Number.isFinite(t) && t <= now + LEAD_MS && t >= now - GRACE_MS
+        })
+        .map(mapMatch)
+      const sent = await sendPushForMatches(soon, { type: 'soon', dedupPrefix: 'push:sent:soon', dedupTtl: 24 * 3600 })
+      log.info('push-scan complete', { candidates: soon.length, sent })
+      return res.status(200).json({ candidates: soon.length, sent })
+    } catch (err) {
+      await trackError('/api/live-matches', 500, err?.message)
+      log.error('push-scan error', { error: err?.message })
       return res.status(500).json({ error: err?.message })
     }
   }
