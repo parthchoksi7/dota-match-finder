@@ -5,6 +5,16 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 12, 2026",
+    tag: "fix",
+    title: "Switching games in match details now shows the right draft",
+    desc: "In a multi-game series, switching between the Game 1 and Game 2 tabs could show the previous game's hero picks and stats under the new game's teams, so the draft was always one game behind. Each tab now shows its own game's draft, scoreline, and stats immediately.",
+    items: [
+      "Hero picks, KDA, gold graph, and first-blood facts always match the selected game",
+      "Rapid tab switching no longer leaves stale stats from a slower-loading game on screen",
+    ],
+  },
+  {
+    date: "July 12, 2026",
     tag: "improvement",
     title: "Push alerts now warn you before the draft, and tap through to the match",
     desc: "Live match alerts were arriving after the draft was already over and dropping you on the homepage with no way to find the match. You'll now get a heads-up a few minutes before a followed team's match starts, and tapping any alert (starting-soon or live) takes you straight to that match in the feed instead of a blank homepage.",

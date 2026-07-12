@@ -54,6 +54,11 @@ function MatchDrawer({
   const [gameIndicators, setGameIndicators] = useState(null)
   const [draftExpanded, setDraftExpanded] = useState(true)
   const [matchStats, setMatchStats] = useState(null)
+  // The match id `matchStats` belongs to. Guards against a switched-game race:
+  // on tab switch the `match` prop changes synchronously but `matchStats` state
+  // still holds the previous game until its effect reruns, so consumers must only
+  // trust `matchStats` when this id matches the current match.
+  const [statsMatchId, setStatsMatchId] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [seriesHighlight, setSeriesHighlight] = useState(null)
 
@@ -79,16 +84,23 @@ function MatchDrawer({
 
   useEffect(() => {
     setMatchStats(null)
+    setStatsMatchId(null)
     setStatsLoading(false)
     if (!match?.id || match._fromPandaScore || spoilerFree) return
+    const id = match.id
+    let cancelled = false
     setStatsLoading(true)
-    fetchMatchStats(match.id).then(s => {
+    fetchMatchStats(id).then(s => {
+      if (cancelled) return
       setMatchStats(s)
+      setStatsMatchId(id)
       setStatsLoading(false)
-      if (s) trackEvent('match_stats_view', { match_id: match.id, tournament: match.tournament })
+      if (s) trackEvent('match_stats_view', { match_id: id, tournament: match.tournament })
     }).catch(() => {
+      if (cancelled) return
       setStatsLoading(false)
     })
+    return () => { cancelled = true }
   }, [match?.id, match?._fromPandaScore, spoilerFree])
 
   useEffect(() => {
@@ -126,11 +138,17 @@ function MatchDrawer({
     return { rapier, goldSwing, megaComeback, rampage }
   }, [gameIndicators, match, spoilerFree])
 
+  // Only trust stats once they belong to the currently-selected game. During a
+  // game-tab switch `matchStats` briefly holds the previous game's data, which
+  // would otherwise render under the new game's team labels (and, worse, latch a
+  // remounting DraftDisplay onto the wrong draft).
+  const currentStats = statsMatchId === match?.id ? matchStats : null
+
   // Player-level rampage set — drives the per-card badge in DraftDisplay
   const rampagePlayers = useMemo(() => {
-    if (!matchStats?.events || spoilerFree) return new Set()
-    return new Set(matchStats.events.filter(e => e.type === 'rampage').map(e => e.player))
-  }, [matchStats, spoilerFree])
+    if (!currentStats?.events || spoilerFree) return new Set()
+    return new Set(currentStats.events.filter(e => e.type === 'rampage').map(e => e.player))
+  }, [currentStats, spoilerFree])
 
   if (!match) return null
 
@@ -348,19 +366,19 @@ function MatchDrawer({
             </div>
 
             {/* Game facts: first blood time + Roshan kill count */}
-            {!spoilerFree && !match._fromPandaScore && matchStats && (matchStats.firstBloodTime != null || matchStats.roshanKills > 0) && (
+            {!spoilerFree && !match._fromPandaScore && currentStats && (currentStats.firstBloodTime != null || currentStats.roshanKills > 0) && (
               <div className="flex items-center justify-center gap-2 mt-1.5">
-                {matchStats.firstBloodTime != null && (
+                {currentStats.firstBloodTime != null && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 tabular-nums">
-                    First blood {formatGameTime(matchStats.firstBloodTime)}
+                    First blood {formatGameTime(currentStats.firstBloodTime)}
                   </span>
                 )}
-                {matchStats.firstBloodTime != null && matchStats.roshanKills > 0 && (
+                {currentStats.firstBloodTime != null && currentStats.roshanKills > 0 && (
                   <span className="text-[10px] text-gray-300 dark:text-gray-700 select-none" aria-hidden="true">·</span>
                 )}
-                {matchStats.roshanKills > 0 && (
+                {currentStats.roshanKills > 0 && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 tabular-nums">
-                    {matchStats.roshanKills} {matchStats.roshanKills === 1 ? 'Roshan' : 'Roshans'}
+                    {currentStats.roshanKills} {currentStats.roshanKills === 1 ? 'Roshan' : 'Roshans'}
                   </span>
                 )}
               </div>
@@ -545,7 +563,7 @@ function MatchDrawer({
                 autoLoad={true}
                 spoilerFree={spoilerFree}
                 rampagePlayers={rampagePlayers}
-                matchStats={matchStats}
+                matchStats={currentStats}
               />
             )}
           </div>
@@ -559,11 +577,11 @@ function MatchDrawer({
                 </h3>
                 <div className="-ml-5">
                   <GoldGraph
-                    radiantGoldAdv={matchStats?.radiantGoldAdv}
+                    radiantGoldAdv={currentStats?.radiantGoldAdv}
                     radiantName={match.radiantTeam}
                     direName={match.direTeam}
                     loading={statsLoading}
-                    events={matchStats?.events}
+                    events={currentStats?.events}
                     vodUrl={allVods[0]?.url}
                   />
                 </div>
@@ -574,8 +592,8 @@ function MatchDrawer({
                   Player Stats
                 </h3>
                 <PlayerStatsSection
-                  players={matchStats?.players}
-                  itemNames={matchStats?.itemNames}
+                  players={currentStats?.players}
+                  itemNames={currentStats?.itemNames}
                   radiantName={match.radiantTeam}
                   direName={match.direTeam}
                   loading={statsLoading}
