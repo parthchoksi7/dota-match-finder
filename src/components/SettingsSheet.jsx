@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { trackEvent, STORAGE_KEYS } from "../utils"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
 import { isPushSupported, getPushPermission, subscribeToPush } from "../utils/push"
+import { MANAGE_TEAMS_OPEN_EVENT } from "./ManageTeamsModal"
 
 export const SETTINGS_OPEN_EVENT = "settings:open"
 
@@ -78,6 +79,18 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
     if (typeof onSpoilerToggle === "function") onSpoilerToggle("settings")
   }
 
+  function handleManageTeams() {
+    trackEvent("manage_teams_open", { source: "settings_sheet" })
+    onClose()
+    // The modal lives in App.jsx (homepage only). Dispatch when already there;
+    // navigate with the param from any other page.
+    if (window.location.pathname === "/") {
+      window.dispatchEvent(new Event(MANAGE_TEAMS_OPEN_EVENT))
+    } else {
+      window.location.href = "/?manage-teams=1"
+    }
+  }
+
   const showSpoilerRow = typeof onSpoilerToggle === "function"
   const isInstalled = typeof window !== "undefined" &&
     (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true)
@@ -136,6 +149,9 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           </div>
 
           <SettingsGroupLabel>Stay updated</SettingsGroupLabel>
+          <SettingsRow onClick={handleManageTeams} label="My teams" sublabel="Follow teams, manage alerts">
+            <Arrow />
+          </SettingsRow>
           <SettingsRow as="a" href="/calendar" label="Add to Google / Apple Calendar" sublabel="Google, Apple, Outlook" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>
             <Arrow />
           </SettingsRow>

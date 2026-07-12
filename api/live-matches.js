@@ -25,7 +25,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp } from './_shared.js'
 
 
 
@@ -494,6 +494,33 @@ export default async function handler(req, res) {
     } catch (err) {
       log.error('push-subscribe error', { error: err?.message })
       return res.status(500).json({ error: 'Failed to store subscription' })
+    }
+  }
+
+  // Test notification: sends one push to the requesting device so a user can verify
+  // the full pipeline (server -> APNs/FCM -> device) right after enabling alerts.
+  // Delivery targets only the posted subscription, which only that browser holds, so
+  // no auth needed beyond an IP rate limit against send spam.
+  if (req.method === 'POST' && req.query?.mode === 'push-test') {
+    if (!process.env.VAPID_PRIVATE_KEY) return res.status(503).json({ error: 'Push not configured' })
+    const { subscription } = req.body || {}
+    if (!subscription?.endpoint) return res.status(400).json({ error: 'Missing subscription endpoint' })
+    const allowed = await rateLimitByIp(req, kv, 'push-test', 3)
+    if (!allowed) return res.status(429).json({ error: 'Too many test notifications. Try again in a minute.' })
+    try {
+      await webpush.sendNotification(subscription, JSON.stringify({
+        title: 'Notifications are on',
+        body: "You'll get an alert before your teams play",
+        url: '/',
+        tag: 'push-test',
+      }))
+      return res.status(200).json({ ok: true })
+    } catch (err) {
+      log.warn('push-test send failed', { status: err?.statusCode, error: err?.message })
+      if (err?.statusCode === 410 || err?.statusCode === 404) {
+        return res.status(410).json({ error: 'Subscription expired. Re-enable alerts and try again.' })
+      }
+      return res.status(502).json({ error: 'Push service rejected the send' })
     }
   }
 

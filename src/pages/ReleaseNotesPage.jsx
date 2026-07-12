@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 12, 2026",
+    tag: "new",
+    title: "My Teams is now one tap away, always",
+    desc: "Following a team no longer requires hunting for one of their match rows in the feed. My Teams now opens from Settings on every page, the card at the top of your feed stays visible even on days your teams aren't playing, and you can confirm match alerts actually reach your device with a test notification.",
+    items: [
+      "New My teams entry in Settings: follow teams and manage alerts from anywhere",
+      "My Teams card now shows your teams' next scheduled match instead of disappearing on quiet days",
+      "New to the site? A one-time Follow your teams prompt appears at the top of the feed",
+      "Send test notification button verifies alerts reach your phone, right after you enable them",
+    ],
+  },
+  {
+    date: "July 12, 2026",
     tag: "fix",
     title: "Switching games in match details now shows the right draft",
     desc: "In a multi-game series, switching between the Game 1 and Game 2 tabs could show the previous game's hero picks and stats under the new game's teams, so the draft was always one game behind. Each tab now shows its own game's draft, scoreline, and stats immediately.",

@@ -104,13 +104,14 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 
 ### My Teams feed card
 
-Amber-bordered card shown at the top of the date feed when the user follows at least one team that has a match on the active date. Aggregates all followed-team matches (live + upcoming + completed) across all tournaments into one place.
+Amber-bordered card shown at the top of the date feed whenever the user follows at least one team. Aggregates all followed-team matches (live + upcoming + completed) across all tournaments into one place.
 
 - Card border: `border border-amber-400/60 dark:border-amber-500/40` — visible on both light and dark backgrounds
 - Header background: `bg-amber-50/80 dark:bg-amber-400/10`, bottom border: `border-amber-200 dark:border-amber-500/20`
 - Header content: filled star SVG (`text-amber-500`) + "MY TEAMS" label in `text-xs font-bold uppercase tracking-[4px] text-amber-600 dark:text-amber-500`
 - Match rows inside use the same components (LiveMatchRow, UpcomingMatchRow, CompactSeriesRow) with `isFollowedMatch` always true
-- Hidden when 0 followed teams OR when no followed-team matches exist on the active date
+- **No-match fallback state**: when no followed team has a match on the active date, the card persists with the same header and a body showing the next scheduled followed-team match within 72h — "NEXT MATCH" tertiary label, team names in display font (same treatment as UpcomingMatchRow), time in `text-[11px] font-semibold tabular-nums text-blue-500 dark:text-blue-400` via `formatMatchTime` — or the empty-state line "No matches in the next 3 days". The card never disappears for a follower; it is the persistent anchor for the follow feature.
+- Hidden only when 0 teams are followed. In that case a dismissible "Follow your teams" prompt using the inline feature callout card pattern (below) renders in the same slot, with a "Choose teams" primary action that opens ManageTeamsModal and an × dismiss persisted to `localStorage['spectate-follow-card-dismissed']`
 
 ### Tournament feed card (HomeFeed)
 

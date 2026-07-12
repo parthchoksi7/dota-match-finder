@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -89,6 +89,9 @@ function HomeFeed({
   const [expandedTournamentName, setExpandedTournamentName] = useState(null)
   const [calNudgeDismissed, setCalNudgeDismissed] = useState(
     () => !!localStorage.getItem('spectate-cal-nudge-dismissed')
+  )
+  const [followCardDismissed, setFollowCardDismissed] = useState(
+    () => !!localStorage.getItem('spectate-follow-card-dismissed')
   )
 
   // Build chronological date list: past days → today → tomorrow → future days
@@ -320,12 +323,95 @@ function HomeFeed({
         </div>
       )}
 
-      {/* My Teams card — shown when followed teams have matches on the active date */}
+      {/* Follow prompt — the only entry point to Manage Teams for a 0-team user.
+          Without it the modal is unreachable until a followed team happens to play. */}
+      {followedTeams?.length === 0 && !followCardDismissed && onManageTeams && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400 dark:text-gray-600 flex-shrink-0" aria-hidden="true">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug">Follow your teams</p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 leading-snug">Personalized feed, match alerts, calendar</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => { trackEvent('manage_teams_open', { source: 'follow_callout' }); onManageTeams() }}
+              className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 px-3 py-1.5 text-xs font-semibold rounded whitespace-nowrap transition-colors"
+            >
+              Choose teams
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try { localStorage.setItem('spectate-follow-card-dismissed', '1') } catch {}
+                setFollowCardDismissed(true)
+                trackEvent('follow_card_dismissed')
+              }}
+              aria-label="Dismiss"
+              className="text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 p-1 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* My Teams card — persists for followers even with no matches on the active date,
+          showing the next scheduled followed-team match so the feature never vanishes */}
       {followedTeams?.length > 0 && (() => {
         const myLive = activeLiveMatches.filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
         const myUpcoming = activeUpcomingMatches.filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
         const myCompleted = activeCompletedSeries.filter(s => followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
-        if (myLive.length + myUpcoming.length + myCompleted.length === 0) return null
+        if (myLive.length + myUpcoming.length + myCompleted.length === 0) {
+          // upcomingMatches spans the next 72h across all dates (unfiltered by activeDate)
+          const next = upcomingMatches
+            .filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+            .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))[0]
+          return (
+            <div className="border border-amber-400/60 dark:border-amber-500/40 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950">
+              <div className="flex items-center gap-2 px-3 py-2 min-h-[44px] bg-amber-50/80 dark:bg-amber-400/10 border-b border-amber-200 dark:border-amber-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" aria-hidden="true">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <span className="flex-1 text-xs font-bold uppercase tracking-[4px] text-amber-600 dark:text-amber-500">My Teams</span>
+                {onManageTeams && (
+                  <button
+                    type="button"
+                    onClick={() => { trackEvent('manage_teams_open', { source: 'my_teams_card' }); onManageTeams() }}
+                    className="text-[10px] font-semibold uppercase tracking-widest text-amber-600/70 dark:text-amber-500/60 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
+                  >
+                    Manage
+                  </button>
+                )}
+              </div>
+              <div className="px-4 py-3">
+                {next ? (
+                  <>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 leading-tight">Next match</p>
+                    <p className="font-display text-sm font-black tracking-wide uppercase text-gray-900 dark:text-white truncate leading-tight mt-1">
+                      {next.teamA}
+                      <span className="font-normal text-gray-400 dark:text-gray-600 text-xs mx-1.5">vs</span>
+                      {next.teamB}
+                    </p>
+                    <p className="text-[11px] font-semibold tabular-nums text-blue-500 dark:text-blue-400 mt-0.5 leading-tight">
+                      {formatMatchTime(next.scheduledAt)}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                    No matches in the next 3 days
+                  </p>
+                )}
+              </div>
+            </div>
+          )
+        }
         return (
           <div className="border border-amber-400/60 dark:border-amber-500/40 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950">
             {/* My Teams header */}
@@ -337,7 +423,7 @@ function HomeFeed({
               {onManageTeams && (
                 <button
                   type="button"
-                  onClick={onManageTeams}
+                  onClick={() => { trackEvent('manage_teams_open', { source: 'my_teams_card' }); onManageTeams() }}
                   className="text-[10px] font-semibold uppercase tracking-widest text-amber-600/70 dark:text-amber-500/60 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
                 >
                   Manage

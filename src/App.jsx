@@ -7,7 +7,7 @@ import LiveSeriesSheet from "./components/LiveSeriesSheet"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
-import ManageTeamsModal from "./components/ManageTeamsModal"
+import ManageTeamsModal, { MANAGE_TEAMS_OPEN_EVENT } from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, resolveHeroByName } from "./api"
 import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary } from "./vodStreams"
 import SiteHeader from "./components/SiteHeader"
@@ -482,6 +482,24 @@ function App() {
     // Only run once after initial load completes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLoading])
+
+  // Open Manage Teams from anywhere: the window event covers same-page opens
+  // (SettingsSheet, follow callout); the ?manage-teams=1 param covers cross-page
+  // navigation (e.g. Settings on /news links to /?manage-teams=1).
+  useEffect(() => {
+    const onOpen = () => setManageTeamsOpen(true)
+    window.addEventListener(MANAGE_TEAMS_OPEN_EVENT, onOpen)
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('manage-teams') === '1') {
+        setManageTeamsOpen(true)
+        params.delete('manage-teams')
+        const qs = params.toString()
+        window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash)
+      }
+    } catch {}
+    return () => window.removeEventListener(MANAGE_TEAMS_OPEN_EVENT, onOpen)
+  }, [])
 
   // Refresh the push subscription once per visit. All push:* KV keys carry a 90-day TTL;
   // without this, a subscriber who visits often but never touches follows/settings would

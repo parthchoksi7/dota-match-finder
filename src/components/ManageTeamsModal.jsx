@@ -12,6 +12,10 @@ const TIER1_TEAMS = [
 
 const PUSH_DISABLED_KEY = 'spectate-push-disabled'
 
+// Dispatch on window to open this modal from anywhere (SettingsSheet, follow callout).
+// Same pattern as SETTINGS_OPEN_EVENT in SettingsSheet.
+export const MANAGE_TEAMS_OPEN_EVENT = 'manage-teams:open'
+
 function BellIcon() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -57,6 +61,13 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
     try { return localStorage.getItem(PUSH_DISABLED_KEY) === '1' } catch { return false }
   })
   const [pushLoading, setPushLoading] = useState(false)
+  const [testState, setTestState] = useState('idle') // idle | sending | sent | failed
+
+  useEffect(() => {
+    if (testState !== 'sent' && testState !== 'failed') return
+    const t = setTimeout(() => setTestState('idle'), 5000)
+    return () => clearTimeout(t)
+  }, [testState])
 
   useEffect(() => {
     if (!open) return
@@ -119,6 +130,26 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
       } finally {
         setPushLoading(false)
       }
+    }
+  }
+
+  async function handleTestPush() {
+    setTestState('sending')
+    trackEvent('push_test_click', { source: 'manage_teams_modal' })
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (!sub) { setTestState('failed'); trackEvent('push_test_failed', { reason: 'no_subscription' }); return }
+      const res = await fetch('/api/live-matches?mode=push-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      })
+      setTestState(res.ok ? 'sent' : 'failed')
+      trackEvent(res.ok ? 'push_test_sent' : 'push_test_failed', { status: res.status })
+    } catch {
+      setTestState('failed')
+      trackEvent('push_test_failed', { reason: 'network' })
     }
   }
 
@@ -265,6 +296,28 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
                 <p className="px-3 pb-3 text-[11px] text-gray-400 dark:text-gray-600 border-t border-gray-100 dark:border-gray-800 pt-2">
                   Follow at least one team first.
                 </p>
+              )}
+              {pushOn && (
+                <div className="px-3 py-2.5 border-t border-gray-100 dark:border-gray-800">
+                  {testState === 'sent' ? (
+                    <p className="text-[11px] font-semibold text-green-600 dark:text-green-500">
+                      Sent. Check your notifications
+                    </p>
+                  ) : testState === 'failed' ? (
+                    <p className="text-[11px] font-semibold text-red-500">
+                      Couldn't send. Re-enable alerts or try again
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleTestPush}
+                      disabled={testState === 'sending'}
+                      className="focus-ring text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 transition-colors"
+                    >
+                      {testState === 'sending' ? 'Sending...' : 'Send test notification'}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
