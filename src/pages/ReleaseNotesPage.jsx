@@ -6,6 +6,17 @@ const RELEASES = [
   {
     date: "July 12, 2026",
     tag: "new",
+    title: "Get notified when a replay is ready",
+    desc: "Miss your team play live? When a followed team's series finishes and the replay becomes available, you'll get a notification that takes you straight to it, spoiler-free. No score in the alert, so tapping it won't ruin the result.",
+    items: [
+      "Fires once per series, only for teams you follow",
+      "Opens the match with spoilers hidden so you can watch unspoiled",
+      "Turn it off anytime alongside your other match alerts",
+    ],
+  },
+  {
+    date: "July 12, 2026",
+    tag: "new",
     title: "My Teams is now one tap away, always",
     desc: "Following a team no longer requires hunting for one of their match rows in the feed. My Teams now opens from Settings on every page, the card at the top of your feed stays visible even on days your teams aren't playing, and you can confirm match alerts actually reach your device with a test notification.",
     items: [

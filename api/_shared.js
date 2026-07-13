@@ -477,6 +477,25 @@ export function teamPairScore(psNameA, psNameB, odNameA, odNameB) {
   return (namesEquivalent(a, r) || namesEquivalent(a, d) ? 1 : 0) + (namesEquivalent(b, r) || namesEquivalent(b, d) ? 1 : 0)
 }
 
+// Maps a raw team name (typically an OpenDota radiant_name/dire_name) to the canonical
+// followable org name in TIER1_TEAMS_SERVER, so the push follower index (keyed by the names
+// users actually follow, e.g. "BetBoom Team") is hit even when OpenDota carries a divergent
+// name ("BoomBoys"). Matches ONLY on full normalized equality or an explicit alias group —
+// NOT the bidirectional substring rule teamPairMatch uses. Substring is safe for a
+// disambiguated PAIR but not for a single short org: "OG" (normalized "og") is a substring
+// of "zerogaming", "turbogaming", etc., which would misfire replays to OG's followers. OD
+// uses full registered names for the 20 tier-1 orgs, so equality + alias covers every real
+// divergence; add a TEAM_NAME_ALIAS_GROUPS entry if a new one appears. Returns the input
+// unchanged when it matches no tier-1 org, so a non-tier-1 name is never silently dropped.
+export function resolveFollowedTeamName(name) {
+  const n = normalizeTeamName(name)
+  if (!n) return name
+  return TIER1_TEAMS_SERVER.find(t => {
+    const c = normalizeTeamName(t)
+    return c === n || namesAlias(c, n)
+  }) || name
+}
+
 // Finds the best-matching PandaScore match from a list of same-time-window candidates for
 // a given OD team pair. Two passes:
 //  1. Strict — teamPairMatch() on both names (existing behavior, zero ambiguity, always
@@ -704,6 +723,47 @@ export async function rateLimitByIp(req, kv, limitKey, maxPerMin = 10) {
   } catch {
     return true
   }
+}
+
+// Server-side GA4 event via the Measurement Protocol — the only way to land an event
+// from a cron/serverless context (where window.gtag and Vercel's client `track()` don't
+// exist) into the SAME GA4 property + BigQuery export the client uses. Best-effort: no-ops
+// silently until GA4_API_SECRET is set (create one in GA4 Admin → Data Streams → Measurement
+// Protocol API secrets), and never throws into the caller. `clientId` should be stable per
+// logical user when available so events attribute to one pseudo-user rather than inflating
+// user counts; falls back to a valid-format synthetic id.
+export async function sendGa4Event(name, params = {}, clientId = null) {
+  const apiSecret = process.env.GA4_API_SECRET
+  if (!apiSecret) return
+  const measurementId = process.env.GA4_MEASUREMENT_ID || 'G-XM3M9BCBWD'
+  // GA4 requires client_id shaped <digits>.<digits>; a malformed id can be silently
+  // dropped. Accept a real GA client id as-is, coerce a semantic key (e.g. "push-replay")
+  // to a STABLE numeric id via a char hash so it stays one pseudo-user per key, and fall
+  // back to a fresh random id when none is given.
+  let cid
+  if (clientId && /^\d+\.\d+$/.test(clientId)) {
+    cid = clientId
+  } else if (clientId) {
+    let h = 0
+    for (let i = 0; i < clientId.length; i++) h = (h * 31 + clientId.charCodeAt(i)) >>> 0
+    cid = `${h}.1`
+  } else {
+    cid = `${Math.floor(Math.random() * 1e10)}.${Math.floor(Date.now() / 1000)}`
+  }
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 3000)
+    try {
+      await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: cid, events: [{ name, params }] }),
+        signal: ctrl.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+  } catch (_) {}
 }
 
 // Fire-and-forget error telemetry. Writes to a daily KV list capped at 100

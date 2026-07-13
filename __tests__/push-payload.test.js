@@ -40,6 +40,8 @@ describe('buildPushPayload', () => {
   it('replay: links to the completed-match page with spoilers off; opts.matchId wins', () => {
     const p = buildPushPayload('replay', RESULT_MATCH, { matchId: 8123456789 })
     expect(p.title).toContain('replay is up')
+    expect(p.title).not.toContain('—') // no em dashes in user-facing copy
+    expect(p.title).not.toMatch(/\d+\s*-\s*\d+/) // never leak a score into the title
     expect(p.url).toBe('/match/8123456789?spoilers=off&from=push&pt=replay')
     // Falls back to the series id when no OD match id is supplied.
     expect(buildPushPayload('replay', RESULT_MATCH).url).toBe('/match/998877?spoilers=off&from=push&pt=replay')

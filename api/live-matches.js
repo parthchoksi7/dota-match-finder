@@ -11,6 +11,7 @@ const PUSH_SUB_TTL = 90 * 24 * 3600 // 90 days — refreshed on every visit (App
 // Longer than the old 30d so a fan who follows a team but doesn't return for a few weeks
 // isn't silently dropped from notifications. The reliable fix is the Supabase migration
 // (pending-refactors #92); this is the interim KV mitigation.
+const REPLAY_DEDUP_TTL = 7 * 24 * 3600 // 7 days — a series binds once; guards partial-bind re-runs.
 
 // Headroom above the 10s default: the cron=1 capture path fetches up to 100 running
 // matches, enriches multi-stream ones, and walks the push-subscriber loop. Hobby allows
@@ -25,7 +26,7 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp, resolveFollowedTeamName, sendGa4Event } from './_shared.js'
 
 
 
@@ -244,9 +245,9 @@ async function cacheRunningStreams(rawMatches) {
  * SPOILER-SAFE: never include a series score or winner in the title/body — the outcome
  * must live behind the tap. `match` is a mapMatch() result.
  *   - soon/live → homepage feed with ?m=<seriesId> highlight (no dedicated live-match page)
- *   - replay    → the completed-match page (?spoilers=off). opts.matchId is the OpenDota
- *                 match id supplied by the warm-streams replay hook (WS3); falls back to
- *                 the PandaScore id only as a placeholder.
+ *   - replay    → the completed-match page (?spoilers=off). The warm-streams hook sets
+ *                 match.id to the series' anchor OpenDota match id (min game id), so the
+ *                 URL resolves to a real completed match; opts.matchId can override it.
  */
 export function buildPushPayload(type, match, opts = {}) {
   const teams = `${match.teamA} vs ${match.teamB}`
@@ -259,7 +260,7 @@ export function buildPushPayload(type, match, opts = {}) {
     case 'live':
       return { title: `${teams} is live`, body: `${stakes} • watch now`, url: `/?m=${match.id}&from=push&pt=live`, tag: `live-${match.id}` }
     case 'replay':
-      return { title: `${teams} — replay is up`, body: `Watch the full series on Spectate`, url: `/match/${opts.matchId ?? match.id}?spoilers=off&from=push&pt=replay`, tag: `replay-${match.id}` }
+      return { title: `${teams} · replay is up`, body: `Watch the full series on Spectate`, url: `/match/${opts.matchId ?? match.id}?spoilers=off&from=push&pt=replay`, tag: `replay-${match.id}` }
     default:
       return { title: teams, body: stakes, url: '/', tag: `push-${match.id}` }
   }
@@ -345,7 +346,13 @@ async function dispatchPush(match, { type, dedupPrefix, dedupTtl }) {
         })
     )
   })
-  if (ops.length > 0) await Promise.all(ops)
+  if (ops.length > 0) {
+    await Promise.all(ops)
+    // Server-side "sent" counterpart to the client-side push_opened (click) event; both
+    // carry `type` so GA4/BigQuery can compute per-type CTR (opens ÷ sends). Aggregated
+    // per dispatch (count = sends) rather than one event per recipient to bound MP volume.
+    await sendGa4Event('push_sent', { type, count: ops.length }, `push-${type}`)
+  }
   return ops.length
 }
 
@@ -686,7 +693,26 @@ export default async function handler(req, res) {
           const r = await fetch(`${base}/api/match-streams?${params.toString()}`)
           if (r.ok) {
             const body = await r.json()
-            if (s.ids.some(id => body?.[id])) bound++
+            if (s.ids.some(id => body?.[id])) {
+              bound++
+              // WS3 replay-ready: a real Twitch channel resolved for this completed series,
+              // so a timestamped replay is available. Fire once per series (7d dedup) to
+              // followers of either team. Additive read of the bind result — touches no
+              // locked stream-cache write path. Awaited so sends complete before the
+              // function freezes (cf. the fire-and-forget upsert bug, commit 88d9b26).
+              // OD names are resolved to the canonical followable org so the follower
+              // index is hit even when OpenDota diverges (e.g. "BoomBoys" -> "BetBoom Team").
+              const numericIds = s.ids.map(Number).filter(Number.isFinite)
+              const anchorId = numericIds.length ? Math.min(...numericIds) : s.ids[0]
+              const replayMatch = {
+                teamA: resolveFollowedTeamName(s.radiantTeam),
+                teamB: resolveFollowedTeamName(s.direTeam),
+                tournament: s.tournament,
+                id: anchorId,
+              }
+              await dispatchPush(replayMatch, { type: 'replay', dedupPrefix: 'push:sent:replay', dedupTtl: REPLAY_DEDUP_TTL })
+                .catch(err => log.warn('warm-streams: replay push failed', { error: err?.message }))
+            }
           }
         } catch (err) {
           log.warn('warm-streams: self-call failed', { error: err?.message })

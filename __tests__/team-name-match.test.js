@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { normalizeTeamName, teamPairMatch, teamPairScore, findBestPsMatch } from '../api/_shared.js'
+import { normalizeTeamName, teamPairMatch, teamPairScore, findBestPsMatch, resolveFollowedTeamName } from '../api/_shared.js'
 
 describe('normalizeTeamName', () => {
   it('lowercases and strips spaces', () => {
@@ -156,5 +156,38 @@ describe('findBestPsMatch', () => {
   it('returns null for an empty or missing candidate list', () => {
     expect(findBestPsMatch([], 'OG', 'Liquid')).toBeNull()
     expect(findBestPsMatch(null, 'OG', 'Liquid')).toBeNull()
+  })
+})
+
+describe('resolveFollowedTeamName (OD name → canonical followable org)', () => {
+  it('returns the exact canonical name for an already-canonical input', () => {
+    expect(resolveFollowedTeamName('Team Liquid')).toBe('Team Liquid')
+    expect(resolveFollowedTeamName('OG')).toBe('OG')
+  })
+
+  it('resolves a punctuation/spacing variant to canonical', () => {
+    expect(resolveFollowedTeamName('Virtuspro')).toBe('Virtus.pro')
+    expect(resolveFollowedTeamName('team liquid')).toBe('Team Liquid')
+  })
+
+  it('resolves a known alias divergence (OD BoomBoys → BetBoom Team)', () => {
+    expect(resolveFollowedTeamName('BoomBoys')).toBe('BetBoom Team')
+  })
+
+  it('passes a non-tier-1 name through unchanged so it is never dropped', () => {
+    expect(resolveFollowedTeamName('Some Qualifier Squad')).toBe('Some Qualifier Squad')
+  })
+
+  it('does NOT coincidentally map a substring-of-a-short-org name (no "og" false positive)', () => {
+    // "OG" normalizes to "og", a substring of these — must NOT resolve to OG.
+    expect(resolveFollowedTeamName('Zero Gaming')).toBe('Zero Gaming')
+    expect(resolveFollowedTeamName('Turbo Gaming')).toBe('Turbo Gaming')
+    expect(resolveFollowedTeamName('Dogs')).toBe('Dogs')
+  })
+
+  it('returns the original for empty/missing input', () => {
+    expect(resolveFollowedTeamName('')).toBe('')
+    expect(resolveFollowedTeamName(null)).toBe(null)
+    expect(resolveFollowedTeamName(undefined)).toBe(undefined)
   })
 })

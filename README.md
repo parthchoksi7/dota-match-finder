@@ -65,6 +65,7 @@ Requires `.env.local` with:
 - `KV_REST_API_URL`
 - `KV_REST_API_TOKEN`
 - `QSTASH_TOKEN` (only to run `npm run setup-qstash` — provisions the QStash schedules that trigger the stream-capture / warm-streams crons)
+- `GA4_API_SECRET` (optional — enables server-side GA4 `push_sent` events via the Measurement Protocol; push notifications work without it, but "sent" won't show in GA4/BigQuery)
 
 ## Deployment
 
