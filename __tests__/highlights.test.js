@@ -127,6 +127,14 @@ describe('matchHighlightsToSeries', () => {
     expect(result?.videoId).toBe('full')
   })
 
+  // ── "vs." with trailing period (EWC channel style) ────────────────────────
+
+  it('matches "vs." with a trailing period, not just bare "vs"', () => {
+    const v = makeVideo('ewc', '1W vs. YANDEX | Dota 2 at EWC 26 - Group Stage - HIGHLIGHTS', '2026-07-12T14:30:53Z')
+    const result = matchHighlightsToSeries([v], '1W', 'Team Yandex', t('2026-07-12T12:00:00Z'))
+    expect(result?.videoId).toBe('ewc')
+  })
+
   // ── Null/missing team names ───────────────────────────────────────────────
 
   it('returns null when both team names are null/undefined', () => {

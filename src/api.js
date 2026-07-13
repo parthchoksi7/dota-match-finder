@@ -439,9 +439,10 @@ export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesSta
   return videos
     .filter(v => {
       const t = norm(v.title)
-      // Require " vs " — all match highlights use "Team A vs Team B" format.
+      // Require "vs"/"vs." — all match highlights use a "Team A vs[.] Team B" format.
       // Filters out celebration posts, Shorts, and general tournament content.
-      if (!t.includes(' vs ')) return false
+      // Optional trailing period tolerates channels (e.g. @EWC_Extra) that write "vs.".
+      if (!/\bvs\.?\s/.test(t)) return false
       const matchesRa = raTokens.length > 0 && raTokens.some(tok => t.includes(tok))
       const matchesDi = diTokens.length > 0 && diTokens.some(tok => t.includes(tok))
       return matchesRa || matchesDi
