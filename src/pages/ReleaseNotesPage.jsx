@@ -4,6 +4,22 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 13, 2026",
+    tag: "improvement",
+    title: "A clearer ask before match alerts, and a fix for iPhone",
+    desc: "Turning on match alerts now explains what you're signing up for before your browser asks for permission, so declining our ask never blocks you from trying again later. On iPhone and iPad, if you haven't installed Spectate Esports to your home screen yet (required for alerts to work on iOS), My Teams now shows exactly how instead of a button that quietly did nothing.",
+    items: [
+      "\"Not now\" skips your browser's permission dialog entirely, no penalty for trying later",
+      "iPhone/iPad: Add to Home Screen button walks you through installing when it's needed",
+    ],
+  },
+  {
+    date: "July 13, 2026",
+    tag: "improvement",
+    title: "Esports World Cup highlights now available",
+    desc: "The Highlights tab in the Tournament Hub now pulls official recap clips from the Esports World Cup's YouTube channel for EWC events, alongside existing coverage of ESL, PGL, BLAST, WePlay, and Valve's Dota 2 channel.",
+  },
+  {
     date: "July 12, 2026",
     tag: "new",
     title: "Get notified when a replay is ready",
