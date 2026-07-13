@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { trackEvent } from "../utils"
-import { isPushSupported, getPushPermission, subscribeToPush } from "../utils/push"
+import { isPushSupported, getPushPermission, subscribeToPush, needsIOSInstall } from "../utils/push"
+import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
 
 const TIER1_TEAMS = [
   'Aurora Gaming', 'beastcoast', 'BetBoom Team', 'Evil Geniuses',
@@ -11,6 +12,10 @@ const TIER1_TEAMS = [
 ]
 
 const PUSH_DISABLED_KEY = 'spectate-push-disabled'
+// Shown once: explains what alerts you get + a "Not now" that never touches the OS
+// permission dialog, so a decline here can't burn Notification.requestPermission's
+// one-shot prompt. Collapses to the compact Enable row for good once dismissed or granted.
+const PUSH_PRIMER_DISMISSED_KEY = 'spectate-push-primer-dismissed'
 
 // Dispatch on window to open this modal from anywhere (SettingsSheet, follow callout).
 // Same pattern as SETTINGS_OPEN_EVENT in SettingsSheet.
@@ -32,6 +37,15 @@ function CalendarIcon() {
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  )
+}
+
+function AddToHomeIcon() {
+  return (
+    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M12 8v8M8 12h8" />
     </svg>
   )
 }
@@ -62,6 +76,9 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
   })
   const [pushLoading, setPushLoading] = useState(false)
   const [testState, setTestState] = useState('idle') // idle | sending | sent | failed
+  const [primerDismissed, setPrimerDismissed] = useState(() => {
+    try { return localStorage.getItem(PUSH_PRIMER_DISMISSED_KEY) === '1' } catch { return false }
+  })
 
   useEffect(() => {
     if (testState !== 'sent' && testState !== 'failed') return
@@ -91,6 +108,20 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
   const pushGranted = pushPermission === 'granted'
   const pushDenied = pushPermission === 'denied'
   const pushOn = pushGranted && !pushDisabled
+  const iosInstallNeeded = needsIOSInstall()
+  const showPrimer = pushSupported && !iosInstallNeeded && !pushGranted && !pushDenied && !primerDismissed && followedTeams.length > 0
+
+  function handleDismissPrimer() {
+    try { localStorage.setItem(PUSH_PRIMER_DISMISSED_KEY, '1') } catch {}
+    setPrimerDismissed(true)
+    trackEvent('push_primer_dismissed', { source: 'manage_teams_modal' })
+  }
+
+  function handleOpenInstallGuide() {
+    trackEvent('push_ios_install_prompt', { source: 'manage_teams_modal' })
+    onClose()
+    window.dispatchEvent(new Event(PWA_SHOW_EVENT))
+  }
 
   async function handleEnablePush() {
     if (followedTeams.length === 0) return
@@ -263,7 +294,62 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
           </div>
 
           {/* ── Push notifications ──────────────────────────── */}
-          {pushSupported && !pushDenied && (
+          {pushSupported && iosInstallNeeded && (
+            <div className="rounded border border-gray-100 dark:border-gray-800 overflow-hidden">
+              <div className="flex items-start gap-2.5 px-3 py-3">
+                <span className="text-gray-400 dark:text-gray-600 mt-0.5"><BellIcon /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">Get match alerts</p>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-snug mt-1">
+                    iOS requires installing Spectate Esports to your home screen first.
+                  </p>
+                </div>
+              </div>
+              <div className="px-3 pb-3">
+                <button
+                  type="button"
+                  onClick={handleOpenInstallGuide}
+                  className="focus-ring w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide rounded bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                >
+                  <AddToHomeIcon />
+                  Add to Home Screen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {pushSupported && !iosInstallNeeded && !pushDenied && showPrimer && (
+            <div className="rounded border border-gray-100 dark:border-gray-800 overflow-hidden">
+              <div className="flex items-start gap-2.5 px-3 py-3">
+                <span className="text-gray-400 dark:text-gray-600 mt-0.5"><BellIcon /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">Get match alerts</p>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-snug mt-1">
+                    A heads-up before kickoff, when your team goes live, and when the replay's ready. Off anytime.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 pb-3">
+                <button
+                  type="button"
+                  onClick={handleDismissPrimer}
+                  className="focus-ring flex-1 px-3 py-2 text-xs font-semibold uppercase tracking-wide rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
+                >
+                  Not now
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  disabled={pushLoading}
+                  className="focus-ring flex-1 px-3 py-2 text-xs font-bold uppercase tracking-wide rounded bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 disabled:opacity-40 transition-colors"
+                >
+                  {pushLoading ? '...' : 'Turn on'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {pushSupported && !iosInstallNeeded && !pushDenied && !showPrimer && (
             <div className="rounded border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="flex items-center justify-between px-3 py-3.5">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -322,7 +408,11 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
             </div>
           )}
 
-          {pushDenied && (
+          {/* iosInstallNeeded takes priority even over denied: on iOS in-tab, permission
+              state is moot until installed (Apple blocks push regardless), and without
+              this guard both cards could render at once for a user who denied in-tab
+              before this flow existed. */}
+          {pushDenied && !iosInstallNeeded && (
             <div className="flex items-start gap-2.5 px-3 py-3 rounded border border-gray-100 dark:border-gray-800">
               <span className="text-gray-400 dark:text-gray-600 mt-0.5">
                 <BellIcon />

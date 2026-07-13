@@ -309,6 +309,33 @@ Used for opt-in features surfaced inline within the My Teams section (calendar s
 - Success state (already enabled): `text-green-600 dark:text-green-500 text-xs font-semibold flex items-center gap-1` with a 14×14 checkmark icon
 - `mb-3` between cards; no dividers between them
 
+### Two-action permission primer card (push notifications)
+
+Used to ask for a permission-gated feature (push alerts) BEFORE the browser's native permission dialog fires, so a "no" in our UI never touches — and can't accidentally exhaust — the OS-level one-shot prompt. Also the pattern for a hard platform blocker (iOS needing install-to-home-screen before push can work at all).
+
+```jsx
+<div className="rounded border border-gray-100 dark:border-gray-800 overflow-hidden">
+  <div className="flex items-start gap-2.5 px-3 py-3">
+    <span className="text-gray-400 dark:text-gray-600 mt-0.5">{/* 16×16 icon */}</span>
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{title}</p>
+      <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-snug mt-1">{explanation}</p>
+    </div>
+  </div>
+  <div className="flex items-center gap-2 px-3 pb-3">
+    {/* two-button variant: secondary "Not now" + primary "Turn on" */}
+    {/* single-button variant (hard blocker): one full-width primary action */}
+  </div>
+</div>
+```
+
+- Explanation line states the concrete value ("a heads-up before kickoff, when live, when the replay's ready") — never generic ("enable notifications")
+- Secondary/dismiss button: `flex-1 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600` — ghost, ties for width with the primary button
+- Primary button: same `bg-gray-900 dark:bg-white` treatment as the standard callout action button
+- Dismissing (secondary button) never calls the browser permission API — it only sets a "seen" localStorage flag so the primer shows once, then permanently collapses to the compact status row (still offering the feature, just without the expanded pitch)
+- The primer is gated on having something to notify about (e.g. only shown once ≥1 team is followed) — asking before there's any payoff reads as noise
+- Single-button variant (e.g. iOS "Add to Home Screen"): drop the two-button row for one full-width primary button; used when the feature is structurally blocked rather than a permission ask
+
 ### Loading states
 - **Inline spinners:** `w-4 h-4 border-2 border-gray-300 dark:border-gray-700 border-t-red-500 rounded-full animate-spin`
 - **Skeleton loaders:** Use `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` blocks that mirror the actual content shape

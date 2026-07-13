@@ -19,6 +19,18 @@ export function getPushPermission() {
   return Notification.permission
 }
 
+// iOS Safari 16.4+ reports serviceWorker/PushManager/Notification as present even in a
+// normal browser tab (isPushSupported() returns true), but Apple only delivers push to a
+// site installed to the home screen — requesting permission in-tab silently can't work.
+// Callers must check this BEFORE calling subscribeToPush and offer the install guide
+// instead, so the one-shot OS permission prompt is never wasted on a dead end.
+export function needsIOSInstall() {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return false
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+  return isIOS && !isStandalone
+}
+
 export async function subscribeToPush(teamNames) {
   if (!isPushSupported() || !VAPID_PUBLIC_KEY) return { ok: false, reason: 'unsupported' }
 

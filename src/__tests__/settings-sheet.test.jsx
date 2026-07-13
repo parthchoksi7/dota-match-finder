@@ -16,7 +16,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import SettingsSheet, { SETTINGS_OPEN_EVENT } from '../components/SettingsSheet'
 import { SHOW_EVENT as PWA_SHOW_EVENT } from '../components/InstallPrompt'
-import { isPushSupported, getPushPermission } from '../utils/push'
+import { MANAGE_TEAMS_OPEN_EVENT } from '../components/ManageTeamsModal'
+import { isPushSupported, getPushPermission, subscribeToPush } from '../utils/push'
 
 vi.mock('../utils', async () => {
   const actual = await vi.importActual('../utils')
@@ -189,6 +190,33 @@ describe('SettingsSheet - push notifications', () => {
     render(<SettingsSheet />)
     await openSheet()
     expect(screen.queryByText('Live match alerts')).not.toBeInTheDocument()
+  })
+
+  it('clicking Enable routes to Manage Teams (the primer/iOS-guide surface) instead of subscribing directly', async () => {
+    isPushSupported.mockReturnValue(true)
+    getPushPermission.mockReturnValue('default')
+    const listener = vi.fn()
+    window.addEventListener(MANAGE_TEAMS_OPEN_EVENT, listener)
+    render(<SettingsSheet />)
+    await openSheet()
+    fireEvent.click(screen.getByText('Enable →').closest('button'))
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(subscribeToPush).not.toHaveBeenCalled()
+    window.removeEventListener(MANAGE_TEAMS_OPEN_EVENT, listener)
+  })
+})
+
+describe('SettingsSheet - my teams row', () => {
+  it('routes to Manage Teams and closes when clicked', async () => {
+    const listener = vi.fn()
+    window.addEventListener(MANAGE_TEAMS_OPEN_EVENT, listener)
+    render(<SettingsSheet />)
+    await openSheet()
+    fireEvent.click(screen.getByText('My teams').closest('button'))
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    window.removeEventListener(MANAGE_TEAMS_OPEN_EVENT, listener)
   })
 })
 

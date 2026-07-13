@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { trackEvent, STORAGE_KEYS } from "../utils"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
-import { isPushSupported, getPushPermission, subscribeToPush } from "../utils/push"
+import { isPushSupported, getPushPermission } from "../utils/push"
 import { MANAGE_TEAMS_OPEN_EVENT } from "./ManageTeamsModal"
 
 export const SETTINGS_OPEN_EVENT = "settings:open"
@@ -36,15 +36,17 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
     document.documentElement.classList.toggle("dark", theme === "dark")
   }, [theme])
 
+  const pushSupported = isPushSupported()
+  const [pushPermission, setPushPermission] = useState(() => getPushPermission())
+
   useEffect(() => {
-    const onOpen = () => setIsOpen(true)
+    // Re-read push permission on every open: it can change from elsewhere (e.g. granted
+    // via the ManageTeamsModal primer) while this sheet stays mounted-but-closed, so a
+    // stale 'default' read at first mount would otherwise never refresh.
+    const onOpen = () => { setIsOpen(true); setPushPermission(getPushPermission()) }
     window.addEventListener(SETTINGS_OPEN_EVENT, onOpen)
     return () => window.removeEventListener(SETTINGS_OPEN_EVENT, onOpen)
   }, [])
-
-  const pushSupported = isPushSupported()
-  const [pushPermission, setPushPermission] = useState(() => getPushPermission())
-  const [subscribing, setSubscribing] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -64,15 +66,6 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
     trackEvent("pwa_install_icon_click", { source: "settings_sheet" })
     window.dispatchEvent(new Event(PWA_SHOW_EVENT))
     onClose()
-  }
-
-  async function handleEnablePush() {
-    setSubscribing(true)
-    trackEvent("push_notifications_enable_click", { source: "settings_sheet" })
-    const teams = JSON.parse(localStorage.getItem(STORAGE_KEYS.MY_TEAMS) || '[]')
-    await subscribeToPush(teams)
-    setPushPermission(getPushPermission())
-    setSubscribing(false)
   }
 
   function handleSpoiler() {
@@ -157,13 +150,13 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           </SettingsRow>
           {pushSupported && pushPermission !== 'denied' && (
             <SettingsRow
-              onClick={pushPermission === 'granted' ? undefined : handleEnablePush}
+              onClick={pushPermission === 'granted' ? undefined : handleManageTeams}
               label="Live match alerts"
               sublabel={pushPermission === 'granted' ? 'On for your teams' : 'Notify when your teams go live'}
             >
               {pushPermission === 'granted'
                 ? <span className="text-xs font-semibold text-green-500">On</span>
-                : <span className="text-xs font-semibold text-gray-500 dark:text-gray-500">{subscribing ? 'Enabling…' : 'Enable →'}</span>
+                : <span className="text-xs font-semibold text-gray-500 dark:text-gray-500">Enable →</span>
               }
             </SettingsRow>
           )}
