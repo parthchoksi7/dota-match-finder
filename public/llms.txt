@@ -41,6 +41,7 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 
 ### Esports World Cup 2026 — Coverage
 
+- [Four Elimination Matches Tomorrow — Which One to Watch First](https://spectateesports.live/articles/ewc-2026-survival-round-1-preview) — July 13, 2026. Survival Round 1 hits July 14 with four win-or-go-home best-of-3s. One of them sends its winner straight into a match against the reigning champion the very next day.
 - [The Survival Stage, Explained: How EWC 2026's Do-or-Die Bracket Works](https://spectateesports.live/articles/ewc-2026-survival-stage-explained) — July 13, 2026. Groups wrapped July 12. Four teams go straight to Playoffs. Everyone else has to survive a single-elimination gauntlet first — here is exactly how it works, who plays who, and when.
 
 ### Tier 1 Tournaments Covered
