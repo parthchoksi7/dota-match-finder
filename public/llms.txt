@@ -39,6 +39,10 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 
 ## Data Coverage
 
+### Esports World Cup 2026 — Coverage
+
+- [The Survival Stage, Explained: How EWC 2026's Do-or-Die Bracket Works](https://spectateesports.live/articles/ewc-2026-survival-stage-explained) — July 13, 2026. Groups wrapped July 12. Four teams go straight to Playoffs. Everyone else has to survive a single-elimination gauntlet first — here is exactly how it works, who plays who, and when.
+
 ### Tier 1 Tournaments Covered
 - DreamLeague (ESL Gaming / DreamHack) — premier international LAN circuit
 - ESL One — international LAN events (Birmingham, Kuala Lumpur, etc.)

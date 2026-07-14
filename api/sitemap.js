@@ -239,6 +239,11 @@ ${articleTournaments.map(t => `  <url>
     <loc>${BASE_URL}/articles?tournament=${t}</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/articles?tournament=esports-world-cup-2026</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>`).join('\n')}
 ${articleSlugs.map(slug => `  <url>
     <loc>${BASE_URL}/articles/${slug}</loc>
