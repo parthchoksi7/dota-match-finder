@@ -101,6 +101,32 @@ These tests verify the PandaScore → OpenDota match ID connection and the VOD r
 3. Verify for a BO2 1-1 draw: series summary tweet posts with `"Team A 1-1 Team B"` as the first line
 4. Verify no duplicate tweets for already-posted matches
 
+### Push Notifications
+
+Run after any change to `src/utils/push.js`, `src/components/ManageTeamsModal.jsx`, `src/components/SettingsSheet.jsx`, `src/sw.js`, or the push paths in `api/live-matches.js`. **Web push cannot be fully validated in jsdom or a headless browser** — the OS permission dialog and actual delivery require a real device. Automated coverage: `src/__tests__/manage-teams-modal.test.jsx`, `src/__tests__/manage-teams-push-matrix.test.jsx` (exhaustive state matrix), `src/__tests__/push-utils.test.js`, `__tests__/push-*.test.js`, plus the Chromium primer E2E in `scripts/` (see below). The following MUST be done on real hardware before shipping a push change:
+
+**Entry points (any browser)**
+- [ ] Follow ≥1 team, open My Teams (Settings → My teams, or the feed card's Manage button) — the push section renders exactly one card, never two stacked
+- [ ] With 0 teams followed: no primer; the compact row shows "Follow at least one team first."
+
+**Permission primer (Android Chrome / desktop Chrome — a fresh profile where permission is `default`)**
+- [ ] First open with a followed team shows the two-button primer ("Not now" / "Turn on")
+- [ ] **"Not now" does NOT trigger the browser's permission dialog** (the one-shot prompt must be preserved), collapses the primer to the compact "Enable" row, and does not reappear on reopen
+- [ ] "Turn on" DOES trigger the native permission dialog; granting it flips the row to a Toggle + "Send test notification"
+- [ ] "Send test notification" delivers a notification to the device within a few seconds; tapping it opens the app
+
+**Android specifically**
+- [ ] Works in Chrome **without** installing the PWA (Android delivers push in a browser tab)
+- [ ] Notification shows icon + title + body; tapping deep-links to the right place
+
+**iPhone / iPad specifically**
+- [ ] In Safari **before** installing: My Teams shows the "Add to Home Screen" card (NOT a dead Enable button, NOT the primer), and tapping it opens the install guide
+- [ ] After installing to the home screen and opening from the icon: the primer/Enable flow appears and permission can be granted
+- [ ] A previously-denied iOS user in-tab sees ONLY the install card, never the "notifications blocked" message alongside it
+
+**GA (perform the actions, then check GA4 Realtime)**
+- [ ] `push_primer_dismissed` fires on "Not now"; `push_ios_install_prompt` on the iOS card; `push_test_*` on the test button; `push_opened` when a delivered notification is tapped
+
 ---
 
 ## Before Releasing a Major Feature
@@ -125,6 +151,7 @@ For features that touch core match data, series grouping, or new API integration
 | Search changes | Search and clear both work; query is tracked in GA4 |
 | Tier filter changes | At least one known tier-S or tier-A event (e.g. DreamLeague, PGL, Premier Series, ESL Challenger) appears in live/upcoming/tournaments; a known non-pro event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results. Any new `filter[param]=value` added to a PandaScore URL must be tested for multi-value support before using comma-separated syntax -- write a unit test that mocks `fetch` and asserts the URL contains the expected single-value parameter |
 | `live-matches.js` / `match-streams.js` / `_shared.js` changes | Run the PS ↔ OD VOD Linking scenarios above; confirm `stream:match:*` and `live:game:*` entries are written during live matches; confirm `format:match:*` is written for at least one running game; verify `findOdMatchByTime` still uses bidirectional substring matching |
+| Push notification changes (`utils/push.js`, `ManageTeamsModal`, `SettingsSheet`, `sw.js`, push paths in `live-matches.js`) | Run the **Push Notifications** manual scenarios above on a real Android browser AND an installed iOS PWA — the OS prompt and delivery can't be validated headlessly. Run the Chromium primer E2E (`node scripts/push-primer-e2e.mjs` against `npm run preview`). Confirm exactly one push card renders per state (matrix test) and that "Not now" never calls `Notification.requestPermission` |
 
 ---
 
