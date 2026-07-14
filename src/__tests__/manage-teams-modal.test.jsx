@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import ManageTeamsModal from '../components/ManageTeamsModal'
 import { SHOW_EVENT as PWA_SHOW_EVENT } from '../components/InstallPrompt'
-import { isPushSupported, getPushPermission, subscribeToPush, needsIOSInstall } from '../utils/push'
+import { isPushSupported, getPushPermission, subscribeToPush, needsIOSInstall, updatePushPrefs } from '../utils/push'
 
 vi.mock('../utils', async () => {
   const actual = await vi.importActual('../utils')
@@ -23,6 +23,7 @@ vi.mock('../utils/push', () => ({
   getPushPermission: vi.fn(() => 'default'),
   subscribeToPush: vi.fn(() => Promise.resolve({ ok: true })),
   needsIOSInstall: vi.fn(() => false),
+  updatePushPrefs: vi.fn(() => Promise.resolve({ ok: true })),
 }))
 
 const baseProps = {
@@ -39,6 +40,7 @@ beforeEach(() => {
   getPushPermission.mockReturnValue('default')
   needsIOSInstall.mockReturnValue(false)
   subscribeToPush.mockResolvedValue({ ok: true })
+  updatePushPrefs.mockResolvedValue({ ok: true })
 })
 
 describe('ManageTeamsModal - visibility', () => {
@@ -133,5 +135,95 @@ describe('ManageTeamsModal - granted state', () => {
     expect(screen.getByText('Send test notification')).toBeInTheDocument()
     expect(screen.queryByText(/heads-up before kickoff/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Get match alerts')).not.toBeInTheDocument()
+  })
+})
+
+describe('ManageTeamsModal - customize alerts', () => {
+  beforeEach(() => {
+    getPushPermission.mockReturnValue('granted')
+  })
+
+  it('shows the "Customize alerts" row but keeps the panel collapsed by default', () => {
+    render(<ManageTeamsModal {...baseProps} />)
+    expect(screen.getByText('Customize alerts')).toBeInTheDocument()
+    expect(screen.queryByText('Starting soon')).not.toBeInTheDocument()
+  })
+
+  it('is not shown at all when push is not granted (primer state)', () => {
+    getPushPermission.mockReturnValue('default')
+    render(<ManageTeamsModal {...baseProps} />)
+    expect(screen.queryByText('Customize alerts')).not.toBeInTheDocument()
+  })
+
+  it('expanding reveals the 3 type toggles (all on by default) and Quiet hours (off by default)', () => {
+    render(<ManageTeamsModal {...baseProps} />)
+    fireEvent.click(screen.getByText('Customize alerts'))
+
+    expect(screen.getByText('Starting soon')).toBeInTheDocument()
+    expect(screen.getByText('Live')).toBeInTheDocument()
+    expect(screen.getByText('Replay ready')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Starting soon alerts' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: 'Live alerts' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: 'Replay ready alerts' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'false')
+    // No time pickers until quiet hours is turned on
+    expect(screen.queryByLabelText('Quiet hours start')).not.toBeInTheDocument()
+  })
+
+  it('toggling a type off updates the switch, persists to localStorage, and syncs to the server', () => {
+    render(<ManageTeamsModal {...baseProps} />)
+    fireEvent.click(screen.getByText('Customize alerts'))
+    fireEvent.click(screen.getByRole('switch', { name: 'Live alerts' }))
+
+    expect(screen.getByRole('switch', { name: 'Live alerts' })).toHaveAttribute('aria-checked', 'false')
+    const stored = JSON.parse(localStorage.getItem('spectate-push-prefs'))
+    expect(stored.types).toEqual({ soon: true, live: false, replay: true })
+    expect(updatePushPrefs).toHaveBeenCalledWith(['Team Liquid'], expect.objectContaining({ types: { soon: true, live: false, replay: true } }))
+  })
+
+  it('turning on Quiet hours reveals start/end pickers pre-filled with the default window, and persists', () => {
+    render(<ManageTeamsModal {...baseProps} />)
+    fireEvent.click(screen.getByText('Customize alerts'))
+    fireEvent.click(screen.getByRole('switch', { name: 'Quiet hours' }))
+
+    expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByLabelText('Quiet hours start')).toHaveValue('23')
+    expect(screen.getByLabelText('Quiet hours end')).toHaveValue('8')
+    const stored = JSON.parse(localStorage.getItem('spectate-push-prefs'))
+    expect(stored.quietStart).toBe(23)
+    expect(stored.quietEnd).toBe(8)
+  })
+
+  it('turning Quiet hours back off clears the stored window and hides the pickers', () => {
+    render(<ManageTeamsModal {...baseProps} />)
+    fireEvent.click(screen.getByText('Customize alerts'))
+    fireEvent.click(screen.getByRole('switch', { name: 'Quiet hours' })) // on
+    fireEvent.click(screen.getByRole('switch', { name: 'Quiet hours' })) // off
+
+    expect(screen.queryByLabelText('Quiet hours start')).not.toBeInTheDocument()
+    const stored = JSON.parse(localStorage.getItem('spectate-push-prefs'))
+    expect(stored.quietStart).toBeNull()
+    expect(stored.quietEnd).toBeNull()
+  })
+
+  it('changing the start hour select updates and persists the new value', () => {
+    render(<ManageTeamsModal {...baseProps} />)
+    fireEvent.click(screen.getByText('Customize alerts'))
+    fireEvent.click(screen.getByRole('switch', { name: 'Quiet hours' }))
+    fireEvent.change(screen.getByLabelText('Quiet hours start'), { target: { value: '22' } })
+
+    expect(screen.getByLabelText('Quiet hours start')).toHaveValue('22')
+    const stored = JSON.parse(localStorage.getItem('spectate-push-prefs'))
+    expect(stored.quietStart).toBe(22)
+  })
+
+  it('reopening the modal restores previously saved prefs from localStorage', () => {
+    localStorage.setItem('spectate-push-prefs', JSON.stringify({ types: { soon: false, live: true, replay: true }, quietStart: 22, quietEnd: 7 }))
+    render(<ManageTeamsModal {...baseProps} />)
+    fireEvent.click(screen.getByText('Customize alerts'))
+
+    expect(screen.getByRole('switch', { name: 'Starting soon alerts' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByLabelText('Quiet hours start')).toHaveValue('22')
   })
 })

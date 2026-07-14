@@ -62,3 +62,30 @@ export async function subscribeToPush(teamNames) {
     return { ok: false, reason: 'error' }
   }
 }
+
+// Syncs notification-type toggles / quiet hours for an ALREADY-granted subscription. Reuses
+// the existing subscription via getSubscription() (never .subscribe() — no re-permission,
+// no new endpoint) and posts to the same push-subscribe endpoint, which merges partial prefs
+// over what's stored server-side. Callers only need to send the fields that changed.
+export async function updatePushPrefs(teamNames, prefs) {
+  if (!isPushSupported()) return { ok: false, reason: 'unsupported' }
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (!sub) return { ok: false, reason: 'no_subscription' }
+
+    let tz = null
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null } catch { /* unsupported */ }
+
+    const res = await fetch('/api/live-matches?mode=push-subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), teamNames, prefs: { ...prefs, tz } }),
+    })
+
+    return res.ok ? { ok: true } : { ok: false, reason: 'server_error' }
+  } catch (err) {
+    console.error('push prefs update failed:', err)
+    return { ok: false, reason: 'error' }
+  }
+}

@@ -329,6 +329,33 @@ Used to ask for a permission-gated feature (push alerts) BEFORE the browser's na
 </div>
 ```
 
+### Nested settings row (progressive disclosure within a card)
+
+Used when a card's default state should stay untouched but power users need deeper control — e.g. "Customize alerts" inside the granted push card, revealing per-type toggles and quiet hours. Reuses the same chevron affordance as the stream picker (`### Stream picker (multi-language replay list)`), applied to a settings row instead of a list:
+
+```jsx
+<div className="border-t border-gray-100 dark:border-gray-800">
+  <button
+    type="button"
+    aria-expanded={expanded}
+    onClick={() => setExpanded(!expanded)}
+    className="focus-ring w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+  >
+    <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-500">{label}</span>
+    <svg className={`w-3 h-3 text-gray-400 transition-transform duration-150 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`} ...>
+      <path d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+  {expanded && <div className="px-3 pb-3 space-y-3">{/* nested controls */}</div>}
+</div>
+```
+
+- Collapsed by default; resets to collapsed whenever the parent modal/sheet reopens (matches the existing search-dropdown reset pattern) — never persisted across sessions
+- Nested toggle rows: `flex items-center justify-between gap-2`, label `text-xs font-semibold text-gray-800 dark:text-gray-200`, sublabel `text-[10px] text-gray-400 dark:text-gray-600` directly beneath, `Toggle` component on the right with an `ariaLabel` prop (required once more than one toggle can appear together — screen readers and tests both need to distinguish them)
+- Nested `<select>` (e.g. an hour picker): `px-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded`, paired selects separated by a small lowercase `to` label, each with an `aria-label` (no visible `<label>` needed at this density)
+- Only reveal a sub-control when its toggle is on (e.g. quiet-hours start/end pickers appear only once "Quiet hours" is switched on) — don't show disabled/greyed-out controls for an off state
+- Track the expand itself once (`{feature}_customize_expand`), and each meaningful change as its own event — don't bundle a whole panel's interactions into one generic event
+
 - Explanation line states the concrete value ("a heads-up before kickoff, when live, when the replay's ready") — never generic ("enable notifications")
 - Secondary/dismiss button: `flex-1 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600` — ghost, ties for width with the primary button
 - Primary button: same `bg-gray-900 dark:bg-white` treatment as the standard callout action button
