@@ -1,4 +1,11 @@
 import { track } from '@vercel/analytics'
+// winsRequiredForSeries / isSeriesComplete live in seriesLogic.js (zero-import, so it's also
+// safe to import server-side — see api/live-matches.js's WS3 replay-ready gate). Imported
+// (not just re-exported) because buildSeriesGroups/groupIntoSeries below call isSeriesComplete
+// internally — `export { x } from 'y'` alone would NOT create a usable local binding for
+// those call sites. Do not redefine either function in this file.
+import { winsRequiredForSeries, isSeriesComplete } from './seriesLogic.js'
+export { winsRequiredForSeries, isSeriesComplete }
 
 export const STORAGE_KEYS = {
   SUMMARY_CACHE:            "dota-match-finder-summaries",
@@ -253,14 +260,6 @@ export function orderSeriesGames(ids, matches) {
     .map((id) => matches.find((m) => m.id === id))
     .filter(Boolean)
     .sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
-}
-
-/** Wins required to win the series (BO1=1, BO2=2, BO3=2, BO5=3) */
-export function winsRequiredForSeries(seriesType) {
-  if (seriesType === 0) return 1
-  if (seriesType === 2) return 3
-  if (seriesType === 3) return 2 // BO2
-  return 2
 }
 
 /** Maximum games possible in a series (BO1=1, BO2=2, BO3=3, BO5=5) */
@@ -596,18 +595,3 @@ export function getStageFormatConfig(formatKey, stageName) {
   return config.stages.find(s => s.match(stageName || '')) ?? null
 }
 
-export function isSeriesComplete(series) {
-  if (!series || !series.games || !series.games.length) return false
-  const teamWins = {}
-  for (const g of series.games) {
-    const winner = g.radiantWin ? g.radiantTeam : g.direTeam
-    teamWins[winner] = (teamWins[winner] || 0) + 1
-  }
-  const maxWins = Math.max(...Object.values(teamWins))
-  if (maxWins >= winsRequiredForSeries(series.seriesType)) return true
-  // BO2 draw: both teams have 1 win after 2 games. Only check seriesType 3 (explicit BO2 from
-  // PandaScore format cache). seriesType 1 is BO3 — a 1-1 BO3 is NOT complete (G3 still to play).
-  const isBO2 = series.seriesType === 3
-  if (isBO2 && series.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
-  return false
-}

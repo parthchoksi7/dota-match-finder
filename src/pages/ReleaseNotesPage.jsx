@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 14, 2026",
+    tag: "fix",
+    title: "\"Replay is up\" alerts no longer fire mid-series",
+    desc: "In a best-of-3 or best-of-5, you could get a \"replay is up\" notification after just the first game, while the series was still being decided. Replay alerts now only fire once the series is actually over.",
+  },
+  {
     date: "July 13, 2026",
     tag: "improvement",
     title: "Esports World Cup highlights now available",

@@ -4,6 +4,10 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { kv } from './_kv.js'
 import { getSupabaseAdmin } from './_supabase.js'
+// Same series-completion logic the homepage feed uses (never reimplement this). Safe to
+// import server-side: seriesLogic.js has zero dependencies, unlike src/utils.js which pulls
+// in @vercel/analytics (browser-oriented; do not import utils.js itself from here).
+import { isSeriesComplete } from '../src/seriesLogic.js'
 
 const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes
@@ -378,11 +382,17 @@ const WARM_DELAY_MS = 150
  * OpenDota match IDs, the earliest game start (best proxy for the PandaScore series
  * begin_at the fuzzy match filters on), and both team names.
  *
+ * `isSeriesComplete` reflects only the games VISIBLE in this run's odMatches window — a
+ * BO3 with just Game 1 played (or Game 1 alone in-window with Game 2 not yet fetched)
+ * reports false, since the win threshold isn't met yet. Callers that gate a "series is
+ * over" action (e.g. the replay-ready push) MUST check this flag; channel-binding itself
+ * is legitimately per-game and does not need to wait for series completion.
+ *
  * Pure and side-effect free so it can be unit-tested without network or KV.
  *
  * @param {Array} odMatches - raw OpenDota promatches array
  * @param {{ tier1Names: string[], nowSec: number, lookbackSec: number, maxSeries?: number }} opts
- * @returns {Array<{ ids: string[], ts: number, radiantTeam: string, direTeam: string, tournament: string }>}
+ * @returns {Array<{ ids: string[], ts: number, radiantTeam: string, direTeam: string, tournament: string, seriesType: number|undefined, isSeriesComplete: boolean }>}
  */
 export function selectSeriesToWarm(odMatches, { tier1Names, nowSec, lookbackSec, maxSeries = WARM_MAX_SERIES }) {
   if (!Array.isArray(odMatches) || !Array.isArray(tier1Names) || tier1Names.length === 0) return []
@@ -404,15 +414,34 @@ export function selectSeriesToWarm(odMatches, { tier1Names, nowSec, lookbackSec,
     const key = (m.series_id && m.series_id !== 0) ? `s:${m.series_id}` : `m:${matchId}`
     let entry = seriesMap.get(key)
     if (!entry) {
-      entry = { ids: new Set(), ts: startTime, radiantTeam, direTeam, tournament: m.league_name }
+      // seriesType (OD enum: 0=BO1, 1=BO3, 2=BO5) is attached to every game of a series
+      // identically, so the first game seen fixes it for the group.
+      entry = { ids: new Set(), ts: startTime, radiantTeam, direTeam, tournament: m.league_name, seriesType: m.series_type, games: [] }
       seriesMap.set(key, entry)
     }
     entry.ids.add(String(matchId))
     if (startTime < entry.ts) entry.ts = startTime
+    // Per-game result in the exact shape isSeriesComplete() expects (radiantTeam/direTeam/
+    // radiantWin) — the SAME completion logic the homepage feed uses (src/seriesLogic.js),
+    // not a reimplementation. Only recorded when radiant_win is a real boolean; an unknown
+    // result is never guessed at (isSeriesComplete already treats a missing game as
+    // "not this team's win" via undefined !== true, so omitting is equally safe, but being
+    // explicit keeps the games array free of games we have no result for).
+    if (typeof m.radiant_win === 'boolean') {
+      entry.games.push({ radiantTeam, direTeam, radiantWin: m.radiant_win })
+    }
   }
 
   return [...seriesMap.values()]
-    .map(e => ({ ids: [...e.ids], ts: e.ts, radiantTeam: e.radiantTeam, direTeam: e.direTeam, tournament: e.tournament }))
+    .map(e => ({
+      ids: [...e.ids],
+      ts: e.ts,
+      radiantTeam: e.radiantTeam,
+      direTeam: e.direTeam,
+      tournament: e.tournament,
+      seriesType: e.seriesType,
+      isSeriesComplete: isSeriesComplete({ seriesType: e.seriesType, games: e.games }),
+    }))
     .slice(0, maxSeries)
 }
 
@@ -695,23 +724,30 @@ export default async function handler(req, res) {
             const body = await r.json()
             if (s.ids.some(id => body?.[id])) {
               bound++
-              // WS3 replay-ready: a real Twitch channel resolved for this completed series,
-              // so a timestamped replay is available. Fire once per series (7d dedup) to
-              // followers of either team. Additive read of the bind result — touches no
-              // locked stream-cache write path. Awaited so sends complete before the
-              // function freezes (cf. the fire-and-forget upsert bug, commit 88d9b26).
-              // OD names are resolved to the canonical followable org so the follower
-              // index is hit even when OpenDota diverges (e.g. "BoomBoys" -> "BetBoom Team").
-              const numericIds = s.ids.map(Number).filter(Number.isFinite)
-              const anchorId = numericIds.length ? Math.min(...numericIds) : s.ids[0]
-              const replayMatch = {
-                teamA: resolveFollowedTeamName(s.radiantTeam),
-                teamB: resolveFollowedTeamName(s.direTeam),
-                tournament: s.tournament,
-                id: anchorId,
+              // WS3 replay-ready: fire only once the SERIES (not just a game within it) is
+              // won — s.isSeriesComplete checks the win threshold for s.seriesType against
+              // games visible in this run's window. Without this gate, a channel binding
+              // for Game 1 of an in-progress BO3 would fire "replay is up" for a series
+              // that's still 1-0 (regression: EWC 2026 Liquid vs Xtreme, 2026-07-14 — see
+              // pending-refactors for the KV cleanup this required). Channel binding itself
+              // stays unconditional above; only the notification is gated. Fire once per
+              // series (7d dedup) to followers of either team. Additive read of the bind
+              // result — touches no locked stream-cache write path. Awaited so sends
+              // complete before the function freezes (cf. commit 88d9b26). OD names are
+              // resolved to the canonical followable org so the follower index is hit even
+              // when OpenDota diverges (e.g. "BoomBoys" -> "BetBoom Team").
+              if (s.isSeriesComplete) {
+                const numericIds = s.ids.map(Number).filter(Number.isFinite)
+                const anchorId = numericIds.length ? Math.min(...numericIds) : s.ids[0]
+                const replayMatch = {
+                  teamA: resolveFollowedTeamName(s.radiantTeam),
+                  teamB: resolveFollowedTeamName(s.direTeam),
+                  tournament: s.tournament,
+                  id: anchorId,
+                }
+                await dispatchPush(replayMatch, { type: 'replay', dedupPrefix: 'push:sent:replay', dedupTtl: REPLAY_DEDUP_TTL })
+                  .catch(err => log.warn('warm-streams: replay push failed', { error: err?.message }))
               }
-              await dispatchPush(replayMatch, { type: 'replay', dedupPrefix: 'push:sent:replay', dedupTtl: REPLAY_DEDUP_TTL })
-                .catch(err => log.warn('warm-streams: replay push failed', { error: err?.message }))
             }
           }
         } catch (err) {

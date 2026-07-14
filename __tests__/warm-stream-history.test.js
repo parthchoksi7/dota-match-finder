@@ -2,8 +2,9 @@
  * Tests for the warm-streams cron in api/live-matches.js.
  *
  * Covers the pure selectSeriesToWarm() selector (tier filter, lookback boundary,
- * series grouping, null-field guards, cap) and the handler branch that drives the
- * existing /api/match-streams resolver to fuzzy-bind completed tier-1 series.
+ * series grouping, null-field guards, cap, series-completion gate) and the handler
+ * branch that drives the existing /api/match-streams resolver to fuzzy-bind completed
+ * tier-1 series and, once truly complete, fires the WS3 replay-ready push.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -11,20 +12,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('dotenv', () => ({ config: vi.fn() }))
 vi.mock('../api/_supabase.js', () => ({ getSupabaseAdmin: () => ({}) }))
 
-const { mockKv } = vi.hoisted(() => {
+const { mockKv, mockSendNotification } = vi.hoisted(() => {
   const mockKv = { get: vi.fn(), set: vi.fn(), mget: vi.fn(), scan: vi.fn(), del: vi.fn() }
-  return { mockKv }
+  return { mockKv, mockSendNotification: vi.fn() }
 })
 vi.mock('../api/_kv.js', () => ({ kv: mockKv }))
 vi.mock('@upstash/redis', () => ({ Redis: class { constructor() { Object.assign(this, mockKv) } } }))
+vi.mock('web-push', () => ({ default: { setVapidDetails: vi.fn(), sendNotification: mockSendNotification } }))
 
 import handler, { selectSeriesToWarm } from '../api/live-matches.js'
 
 const NOW = 1_780_000_000 // fixed reference second
 const recent = (offsetSec = 3600) => NOW - offsetSec
 
-function odGame({ matchId, seriesId = 0, league = 'The International 2026 - Regional Qualifier Southeast Asia', radiant = 'REKONIX', dire = 'TEAM GRIND', start = recent() }) {
-  return { match_id: matchId, series_id: seriesId, league_name: league, radiant_name: radiant, dire_name: dire, start_time: start }
+function odGame({ matchId, seriesId = 0, league = 'The International 2026 - Regional Qualifier Southeast Asia', radiant = 'REKONIX', dire = 'TEAM GRIND', start = recent(), seriesType, radiantWin }) {
+  return { match_id: matchId, series_id: seriesId, league_name: league, radiant_name: radiant, dire_name: dire, start_time: start, series_type: seriesType, radiant_win: radiantWin }
 }
 
 const TIER1 = ['the international', 'pgl', 'dreamleague']
@@ -85,6 +87,82 @@ describe('selectSeriesToWarm', () => {
   it('returns [] for non-array input or empty tier1 list', () => {
     expect(selectSeriesToWarm(null, { tier1Names: TIER1, nowSec: NOW, lookbackSec: 1 })).toEqual([])
     expect(selectSeriesToWarm([odGame({ matchId: 1 })], { tier1Names: [], nowSec: NOW, lookbackSec: 1 })).toEqual([])
+  })
+
+  // Regression: EWC 2026 Liquid vs Xtreme, 2026-07-14 — a replay-ready push fired after
+  // Game 1 alone of a BO3, which was still 1-0. Reuses the SAME completion logic the
+  // homepage feed uses (src/seriesLogic.js), not a reimplementation — these tests exercise
+  // it through selectSeriesToWarm's output.
+  describe('isSeriesComplete gate', () => {
+    it('BO3 (seriesType 1) with only Game 1 played is NOT complete', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 900, seriesType: 1, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(out[0].isSeriesComplete).toBe(false)
+    })
+
+    it('BO3 2-0 sweep (2 games, same winner) IS complete', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 901, seriesType: 1, radiantWin: true }),
+        odGame({ matchId: 2, seriesId: 901, seriesType: 1, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(out[0].isSeriesComplete).toBe(true)
+    })
+
+    it('BO3 at 1-1 (game 2 won by the loser of game 1) is NOT complete — decider still to play', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 902, seriesType: 1, radiantWin: true }),
+        odGame({ matchId: 2, seriesId: 902, seriesType: 1, radiantWin: false }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(out[0].isSeriesComplete).toBe(false)
+    })
+
+    it('BO3 decider: 2-1 after game 3 IS complete', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 903, seriesType: 1, radiantWin: true }),
+        odGame({ matchId: 2, seriesId: 903, seriesType: 1, radiantWin: false }),
+        odGame({ matchId: 3, seriesId: 903, seriesType: 1, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(out[0].isSeriesComplete).toBe(true)
+    })
+
+    it('BO1 (seriesType 0) is complete after its single game', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 904, seriesType: 0, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(out[0].isSeriesComplete).toBe(true)
+    })
+
+    it('BO5 (seriesType 2) needs 3 wins: 2-0 not complete, 3-0 complete', () => {
+      const twoGames = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 905, seriesType: 2, radiantWin: true }),
+        odGame({ matchId: 2, seriesId: 905, seriesType: 2, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(twoGames[0].isSeriesComplete).toBe(false)
+
+      const threeGames = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 906, seriesType: 2, radiantWin: true }),
+        odGame({ matchId: 2, seriesId: 906, seriesType: 2, radiantWin: true }),
+        odGame({ matchId: 3, seriesId: 906, seriesType: 2, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(threeGames[0].isSeriesComplete).toBe(true)
+    })
+
+    it('missing/unknown seriesType with 1 game is fail-safe (treated as not-yet-complete, not guessed)', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 907, seriesType: undefined, radiantWin: true }),
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      // winsRequiredForSeries defaults unknown types to 2 (BO3-like) — 1 win is not enough.
+      expect(out[0].isSeriesComplete).toBe(false)
+    })
+
+    it('a game with no result yet (radiant_win missing) does not count toward the win total', () => {
+      const out = selectSeriesToWarm([
+        odGame({ matchId: 1, seriesId: 908, seriesType: 1, radiantWin: true }),
+        odGame({ matchId: 2, seriesId: 908, seriesType: 1, radiantWin: undefined }), // e.g. still parsing
+      ], { tier1Names: TIER1, nowSec: NOW, lookbackSec: 24 * 3600 })
+      expect(out[0].isSeriesComplete).toBe(false)
+    })
   })
 })
 
@@ -229,5 +307,114 @@ describe('warm-streams handler', () => {
     expect(promatchesCalls).toHaveLength(1)               // stopped after page 0 (oldest < lookback)
     expect(page0Url).not.toContain('less_than_match_id')  // first page is the unparameterized feed
     expect(res.body.series).toBe(1)                        // only the in-window series is selected
+  })
+
+  // End-to-end regression coverage for the fix: a channel binding alone must NOT be enough
+  // to fire the replay-ready push — the series must actually be won. VAPID must be set for
+  // dispatchPush to run at all (it no-ops otherwise).
+  describe('WS3 replay-ready push — gated on series completion, not just channel bind', () => {
+    beforeEach(() => {
+      process.env.VAPID_PRIVATE_KEY = 'test-vapid-key'
+      mockSendNotification.mockReset().mockResolvedValue({})
+      // Route mget by key prefix: unbound stream cache (forces an attempt), one subscriber
+      // per team lookup, not-yet-sent dedup, a valid stored subscription, and default prefs.
+      mockKv.mget.mockImplementation((...keys) => {
+        const first = keys[0] || ''
+        if (first.startsWith('stream:match:')) return Promise.resolve(keys.map(() => null))
+        if (first.startsWith('push:team:')) return Promise.resolve(keys.map(() => ['user1']))
+        if (first.startsWith('push:sent:')) return Promise.resolve(keys.map(() => null))
+        if (first.startsWith('push:sub:')) return Promise.resolve(keys.map(() => JSON.stringify({ endpoint: 'https://push.example/ep', keys: { p256dh: 'p', auth: 'a' } })))
+        if (first.startsWith('push:prefs:')) return Promise.resolve(keys.map(() => null))
+        return Promise.resolve(keys.map(() => null))
+      })
+    })
+
+    it('does NOT send a replay-ready push when only Game 1 of a BO3 is bound (series still 1-0)', async () => {
+      global.fetch = vi.fn((url) => {
+        if (url.includes('api.opendota.com/api/promatches')) {
+          if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] })
+          return Promise.resolve({ ok: true, json: async () => [
+            liveGame(8101, 950),
+          ].map(g => ({ ...g, series_type: 1, radiant_win: true })) })
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ 8101: 'pgl_dota2' }) })
+      })
+
+      const res = makeRes()
+      await handler(makeReq(), res)
+
+      expect(res.body.bound).toBe(1)          // channel binding is unconditional — still happens
+      expect(mockSendNotification).not.toHaveBeenCalled()
+    })
+
+    it('DOES send a replay-ready push once the BO3 is actually won (2-0)', async () => {
+      global.fetch = vi.fn((url) => {
+        if (url.includes('api.opendota.com/api/promatches')) {
+          if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] })
+          return Promise.resolve({ ok: true, json: async () => [
+            liveGame(8102, 951),
+            liveGame(8103, 951),
+          ].map(g => ({ ...g, series_type: 1, radiant_win: true })) })
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ 8102: 'pgl_dota2', 8103: 'pgl_dota2' }) })
+      })
+
+      const res = makeRes()
+      await handler(makeReq(), res)
+
+      expect(res.body.bound).toBe(1)
+      expect(mockSendNotification).toHaveBeenCalledTimes(1)
+      const [, payloadStr] = mockSendNotification.mock.calls[0]
+      const payload = JSON.parse(payloadStr)
+      expect(payload.tag).toBe('replay-8102') // anchor = min match id in the series
+      expect(payload.title).not.toMatch(/\d+\s*-\s*\d+/) // spoiler-safe: no score in the title
+    })
+
+    it('the exact incident sequence: Game 1 binds+skips-push on one cron run, Game 2 finishing on a LATER run correctly fires once the series is won', async () => {
+      // Run 1: only Game 1 exists yet (not bound in KV).
+      global.fetch = vi.fn((url) => {
+        if (url.includes('api.opendota.com/api/promatches')) {
+          if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] })
+          return Promise.resolve({ ok: true, json: async () => [
+            liveGame(8201, 952),
+          ].map(g => ({ ...g, series_type: 1, radiant_win: true })) })
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ 8201: 'pgl_dota2' }) })
+      })
+      const res1 = makeRes()
+      await handler(makeReq(), res1)
+      expect(res1.body.bound).toBe(1)
+      expect(mockSendNotification).not.toHaveBeenCalled() // 1-0, series not complete
+
+      // Run 2 (next cron tick): Game 2 has now finished too. Game 1's channel is already
+      // bound in KV (stream:match:8201); Game 2's is not — so the series is re-attempted
+      // (existing.every(Boolean) is false) and the completion gate re-evaluates with BOTH
+      // games. This is the exact sequence that produced the real incident.
+      mockKv.mget.mockImplementation((...keys) => {
+        const first = keys[0] || ''
+        if (first.startsWith('stream:match:')) return Promise.resolve(keys.map(k => k === 'stream:match:8201' ? 'pgl_dota2' : null))
+        if (first.startsWith('push:team:')) return Promise.resolve(keys.map(() => ['user1']))
+        if (first.startsWith('push:sent:')) return Promise.resolve(keys.map(() => null))
+        if (first.startsWith('push:sub:')) return Promise.resolve(keys.map(() => JSON.stringify({ endpoint: 'https://push.example/ep', keys: { p256dh: 'p', auth: 'a' } })))
+        if (first.startsWith('push:prefs:')) return Promise.resolve(keys.map(() => null))
+        return Promise.resolve(keys.map(() => null))
+      })
+      global.fetch = vi.fn((url) => {
+        if (url.includes('api.opendota.com/api/promatches')) {
+          if (url.includes('less_than_match_id')) return Promise.resolve({ ok: true, json: async () => [] })
+          return Promise.resolve({ ok: true, json: async () => [
+            liveGame(8201, 952),
+            liveGame(8202, 952),
+          ].map(g => ({ ...g, series_type: 1, radiant_win: true })) }) // 2-0 sweep
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ 8201: 'pgl_dota2', 8202: 'pgl_dota2' }) })
+      })
+      const res2 = makeRes()
+      await handler(makeReq(), res2)
+
+      expect(mockSendNotification).toHaveBeenCalledTimes(1) // fires now that the series is actually won
+      const payload = JSON.parse(mockSendNotification.mock.calls[0][1])
+      expect(payload.tag).toBe('replay-8201')
+    })
   })
 })
