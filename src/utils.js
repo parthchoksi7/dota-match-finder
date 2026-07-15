@@ -6,6 +6,11 @@ import { track } from '@vercel/analytics'
 // those call sites. Do not redefine either function in this file.
 import { winsRequiredForSeries, isSeriesComplete } from './seriesLogic.js'
 export { winsRequiredForSeries, isSeriesComplete }
+// isTeamFollowed lives in teamMatching.js (zero-import, also used server-side via
+// api/_shared.js) — imported (not just re-exported) because buildTournamentCards below calls
+// it internally. Do not redefine PS↔OD team matching here.
+import { isTeamFollowed } from './teamMatching.js'
+export { isTeamFollowed }
 
 export const STORAGE_KEYS = {
   SUMMARY_CACHE:            "dota-match-finder-summaries",
@@ -465,12 +470,8 @@ export function normalizeTournamentKey(name) {
  *                                 Accepted as a param so tests can pass a fixed value.
  */
 export function buildTournamentCards(live, upcoming, completed, followedTeams, now = Date.now() / 1000) {
-  const isFollowedSeries = s =>
-    !!followedTeams?.length &&
-    (followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
-  const isFollowedLive = m =>
-    !!followedTeams?.length &&
-    (followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+  const isFollowedSeries = s => isTeamFollowed(followedTeams, s.games?.[0]?.radiantTeam, s.games?.[0]?.direTeam)
+  const isFollowedLive = m => isTeamFollowed(followedTeams, m.teamA, m.teamB)
 
   // Build canonical key -> display name; live/upcoming names (PandaScore) preferred.
   const keyToDisplay = new Map()

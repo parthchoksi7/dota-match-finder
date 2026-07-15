@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime, isTeamFollowed } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -365,13 +365,13 @@ function HomeFeed({
       {/* My Teams card — persists for followers even with no matches on the active date,
           showing the next scheduled followed-team match so the feature never vanishes */}
       {followedTeams?.length > 0 && (() => {
-        const myLive = activeLiveMatches.filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
-        const myUpcoming = activeUpcomingMatches.filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
-        const myCompleted = activeCompletedSeries.filter(s => followedTeams.includes(s.games?.[0]?.radiantTeam) || followedTeams.includes(s.games?.[0]?.direTeam))
+        const myLive = activeLiveMatches.filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
+        const myUpcoming = activeUpcomingMatches.filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
+        const myCompleted = activeCompletedSeries.filter(s => isTeamFollowed(followedTeams, s.games?.[0]?.radiantTeam, s.games?.[0]?.direTeam))
         if (myLive.length + myUpcoming.length + myCompleted.length === 0) {
           // upcomingMatches spans the next 72h across all dates (unfiltered by activeDate)
           const next = upcomingMatches
-            .filter(m => followedTeams.includes(m.teamA) || followedTeams.includes(m.teamB))
+            .filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
             .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))[0]
           return (
             <div className="border border-amber-400/60 dark:border-amber-500/40 rounded mb-3 overflow-hidden bg-white dark:bg-gray-950">
@@ -549,7 +549,7 @@ function HomeFeed({
                     onSelectMatchId={onSelectMatchId}
                     onSelectLiveMatch={onSelectLiveMatch}
                     spoilerFree={spoilerFree}
-                    isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
+                    isFollowedMatch={isTeamFollowed(followedTeams, m.teamA, m.teamB)}
                   />
                 ))}
                 {justEnded.length > 0 && (
@@ -572,7 +572,7 @@ function HomeFeed({
                           onToggleFollow={onToggleFollow}
                           isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
                           bracketRound={s.games[0]?.bracketRound}
-                          isFollowedMatch={!!(followedTeams?.includes(s.games[0]?.radiantTeam) || followedTeams?.includes(s.games[0]?.direTeam))}
+                          isFollowedMatch={isTeamFollowed(followedTeams, s.games[0]?.radiantTeam, s.games[0]?.direTeam)}
                         />
                       )
                     })}
@@ -587,7 +587,7 @@ function HomeFeed({
                   <UpcomingMatchRow
                     key={m.id}
                     match={m}
-                    isFollowedMatch={!!(followedTeams?.includes(m.teamA) || followedTeams?.includes(m.teamB))}
+                    isFollowedMatch={isTeamFollowed(followedTeams, m.teamA, m.teamB)}
                     spoilerFree={spoilerFree}
                   />
                 ))}
@@ -597,10 +597,7 @@ function HomeFeed({
                   </div>
                 )}
                 {card.completedSeries.map(s => {
-                  const isFollowedMatch = !!(
-                    followedTeams?.includes(s.games[0]?.radiantTeam) ||
-                    followedTeams?.includes(s.games[0]?.direTeam)
-                  )
+                  const isFollowedMatch = isTeamFollowed(followedTeams, s.games[0]?.radiantTeam, s.games[0]?.direTeam)
                   return (
                     <CompactSeriesRow
                       key={s.id}

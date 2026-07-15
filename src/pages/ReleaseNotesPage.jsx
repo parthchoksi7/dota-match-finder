@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 15, 2026",
+    tag: "fix",
+    title: "Followed teams now highlight in upcoming matches too",
+    desc: "Following a team only highlighted their completed and live matches, not their upcoming ones. Cause: PandaScore and OpenDota sometimes use different names for the same team (for example 1win, formerly Tundra Esports, whose games OpenDota still labels under the old name), and upcoming matches only carry PandaScore's name. My Teams now recognizes both names for the same org, so a followed team's upcoming matches highlight consistently with its completed ones.",
+  },
+  {
     date: "July 14, 2026",
     tag: "improvement",
     title: "Manage notifications straight from Settings",

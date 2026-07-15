@@ -9,6 +9,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { normalizeTeamName, teamPairMatch, teamPairScore, findBestPsMatch, resolveFollowedTeamName } from '../api/_shared.js'
+import { isTeamFollowed } from '../src/teamMatching.js'
 
 describe('normalizeTeamName', () => {
   it('lowercases and strips spaces', () => {
@@ -72,6 +73,12 @@ describe('teamPairMatch', () => {
 
   it('still matches PS "BetBoom Team" against a normal OD "BetBoom" row (the alias must not break this)', () => {
     expect(teamPairMatch('BetBoom Team', 'Nigma Galaxy', 'BetBoom', 'Nigma')).toBe(true)
+  })
+
+  it('resolves PS "1win" vs OD "Tundra Esports" as a strict match via the alias (confirmed live 2026-07-15, EWC 2026 match 1565904)', () => {
+    // OpenDota's per-match name for this org hasn't caught up to the June 2026 roster/branding
+    // swap yet — team_id 8291895 still carries "Tundra Esports" on its most recent match.
+    expect(teamPairMatch('1win', 'Vici Gaming', 'Tundra Esports', 'Vici Gaming')).toBe(true)
   })
 })
 
@@ -189,5 +196,70 @@ describe('resolveFollowedTeamName (OD name → canonical followable org)', () =>
     expect(resolveFollowedTeamName('')).toBe('')
     expect(resolveFollowedTeamName(null)).toBe(null)
     expect(resolveFollowedTeamName(undefined)).toBe(undefined)
+  })
+})
+
+describe('isTeamFollowed (favorites highlighting, 2026-07-15 fix)', () => {
+  it('matches an exact followed name', () => {
+    expect(isTeamFollowed(['Team Liquid'], 'Team Liquid', 'Tundra Esports')).toBe(true)
+  })
+
+  it('matches via substring/normalization (e.g. spacing/punctuation differences)', () => {
+    expect(isTeamFollowed(['Virtus.pro'], 'Virtuspro', 'Shifters')).toBe(true)
+  })
+
+  it('matches via the OD name even when the other candidate name is PS-sourced', () => {
+    expect(isTeamFollowed(['BetBoom Team'], 'BetBoom', 'Nigma Galaxy')).toBe(true)
+  })
+
+  // The actual bug report: a team followed under its OpenDota name (only ever possible from a
+  // played match, since the follow star doesn't appear on unplayed ones) must still highlight
+  // that same org's PandaScore-sourced upcoming fixture, even with zero substring overlap.
+  it('bridges the "1win"/"Tundra Esports" alias divergence (the reported regression)', () => {
+    expect(isTeamFollowed(['Tundra Esports'], '1win', 'Vici Gaming')).toBe(true)
+    expect(isTeamFollowed(['1win'], 'Tundra Esports', 'Vici Gaming')).toBe(true)
+  })
+
+  it('checks every candidate team name, not just the first', () => {
+    expect(isTeamFollowed(['Vici Gaming'], '1win', 'Vici Gaming')).toBe(true)
+  })
+
+  it('returns false for unrelated teams', () => {
+    expect(isTeamFollowed(['Team Spirit'], '1win', 'Vici Gaming')).toBe(false)
+  })
+
+  it('returns false when followedTeams is empty, null, or undefined', () => {
+    expect(isTeamFollowed([], 'Team Liquid', 'OG')).toBe(false)
+    expect(isTeamFollowed(null, 'Team Liquid', 'OG')).toBe(false)
+    expect(isTeamFollowed(undefined, 'Team Liquid', 'OG')).toBe(false)
+  })
+
+  it('returns false when every candidate name is empty/missing (an empty name never matches all)', () => {
+    expect(isTeamFollowed(['Team Liquid'], null, undefined)).toBe(false)
+    expect(isTeamFollowed(['Team Liquid'], '', '')).toBe(false)
+  })
+
+  it('matches when any one of multiple followed teams matches any one candidate name', () => {
+    expect(isTeamFollowed(['OG', 'Tundra Esports', 'Team Spirit'], '1win', 'Vici Gaming')).toBe(true)
+  })
+
+  // Regression: an earlier version reused teamPairMatch's bidirectional-substring rule
+  // directly. That's safe there because BOTH sides of a pairing must match at once (a false
+  // positive needs two independent coincidences); a single followed name checked against one
+  // arbitrary candidate has no such cross-validation, so "OG" (normalizes to "og") false-
+  // positive-matched any team whose name happens to contain "og" — including two of the app's
+  // own curated tier-1 orgs' generic-name near-misses. Caught in review before shipping.
+  it('does NOT false-positive on a short followed name coincidentally substring-matching an unrelated team (the "OG" hazard)', () => {
+    expect(isTeamFollowed(['OG'], 'Zero Gaming', 'Something Else')).toBe(false)
+    expect(isTeamFollowed(['OG'], 'Turbo Gaming', 'Something Else')).toBe(false)
+    expect(isTeamFollowed(['OG'], 'Dogs', 'Something Else')).toBe(false)
+  })
+
+  it('still matches a short followed name exactly (the OG guard only blocks substring, not equality)', () => {
+    expect(isTeamFollowed(['OG'], 'OG', 'Liquid')).toBe(true)
+  })
+
+  it('still matches a long-enough truncation (PS "Aurora" vs OD "Aurora Gaming")', () => {
+    expect(isTeamFollowed(['Aurora Gaming'], 'Aurora', 'Something Else')).toBe(true)
   })
 })
