@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 14, 2026",
+    tag: "improvement",
+    title: "Manage notifications straight from Settings",
+    desc: "The full match-alert controls, turn on or off, pick which alert types you want, and set quiet hours, now live directly in Settings, not just in My Teams. It's where most people look to manage notifications, so that's where they are.",
+  },
+  {
+    date: "July 14, 2026",
     tag: "new",
     title: "Choose exactly which match alerts you get",
     desc: "Once alerts are on, tap \"Customize alerts\" in My Teams to turn starting-soon, live, or replay-ready notifications off individually, or set quiet hours so nothing pings you overnight.",

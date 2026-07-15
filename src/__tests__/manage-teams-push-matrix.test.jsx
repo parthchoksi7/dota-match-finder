@@ -22,6 +22,7 @@ vi.mock('../utils/push', () => ({
   getPushPermission: vi.fn(),
   subscribeToPush: vi.fn(() => Promise.resolve({ ok: true })),
   needsIOSInstall: vi.fn(),
+  updatePushPrefs: vi.fn(() => Promise.resolve({ ok: true })),
 }))
 vi.mock('./InstallPrompt', () => ({ SHOW_EVENT: 'pwa-show-prompt' }), { virtual: true })
 

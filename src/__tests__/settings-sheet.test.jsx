@@ -17,22 +17,27 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import SettingsSheet, { SETTINGS_OPEN_EVENT } from '../components/SettingsSheet'
 import { SHOW_EVENT as PWA_SHOW_EVENT } from '../components/InstallPrompt'
 import { MANAGE_TEAMS_OPEN_EVENT } from '../components/ManageTeamsModal'
-import { isPushSupported, getPushPermission, subscribeToPush } from '../utils/push'
+import { isPushSupported, getPushPermission, needsIOSInstall } from '../utils/push'
 
 vi.mock('../utils', async () => {
   const actual = await vi.importActual('../utils')
-  return { ...actual, trackEvent: vi.fn() }
+  return { ...actual, trackEvent: vi.fn(), getFollowedTeams: vi.fn(() => ['Team Liquid']) }
 })
+// SettingsSheet now renders the shared PushNotificationSettings, which uses the full push API.
 vi.mock('../utils/push', () => ({
   isPushSupported: vi.fn(() => false),
   getPushPermission: vi.fn(() => 'unsupported'),
-  subscribeToPush: vi.fn(),
+  subscribeToPush: vi.fn(() => Promise.resolve({ ok: true })),
+  needsIOSInstall: vi.fn(() => false),
+  updatePushPrefs: vi.fn(() => Promise.resolve({ ok: true })),
 }))
 
 beforeEach(() => {
   localStorage.clear()
+  vi.clearAllMocks()
   isPushSupported.mockReturnValue(false)
   getPushPermission.mockReturnValue('unsupported')
+  needsIOSInstall.mockReturnValue(false)
 })
 
 async function openSheet() {
@@ -159,51 +164,56 @@ describe('SettingsSheet - links', () => {
   })
 })
 
-describe('SettingsSheet - push notifications', () => {
-  it('does not show Live match alerts row when push is not supported', async () => {
+describe('SettingsSheet - inline push notification controls', () => {
+  // SettingsSheet now renders the shared PushNotificationSettings component directly, so the
+  // full alert controls live in Settings (not just a routing row). These verify the wrapper
+  // gating + that the shared component actually mounts in the Settings context.
+  it('renders no push UI when push is not supported (wrapper gated, no empty gap)', async () => {
+    isPushSupported.mockReturnValue(false)
     render(<SettingsSheet />)
     await openSheet()
     expect(screen.queryByText('Live match alerts')).not.toBeInTheDocument()
+    expect(screen.queryByText('Get match alerts')).not.toBeInTheDocument()
   })
 
-  it('shows Live match alerts row with Enable when permission is default', async () => {
+  it('shows the inline Enable control when supported and permission is default', async () => {
     isPushSupported.mockReturnValue(true)
     getPushPermission.mockReturnValue('default')
     render(<SettingsSheet />)
     await openSheet()
-    expect(screen.getByText('Live match alerts')).toBeInTheDocument()
-    expect(screen.getByText('Enable →')).toBeInTheDocument()
+    // getFollowedTeams is mocked to ['Team Liquid'] → primer path ("Turn on"), not the bare row
+    expect(screen.getByText('Get match alerts')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /turn on/i })).toBeInTheDocument()
   })
 
-  it('shows On state when push permission is granted', async () => {
+  it('shows the inline On toggle + Customize alerts when permission is granted', async () => {
     isPushSupported.mockReturnValue(true)
     getPushPermission.mockReturnValue('granted')
     render(<SettingsSheet />)
     await openSheet()
-    expect(screen.getByText('Live match alerts')).toBeInTheDocument()
-    expect(screen.getByText('On for your teams')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Live match alerts' })).toBeInTheDocument()
+    expect(screen.getByText('Customize alerts')).toBeInTheDocument()
   })
 
-  it('hides Live match alerts row when permission is denied', async () => {
+  it('shows the blocked message inline when permission is denied', async () => {
     isPushSupported.mockReturnValue(true)
     getPushPermission.mockReturnValue('denied')
     render(<SettingsSheet />)
     await openSheet()
-    expect(screen.queryByText('Live match alerts')).not.toBeInTheDocument()
+    expect(screen.getByText(/notifications are blocked/i)).toBeInTheDocument()
   })
 
-  it('clicking Enable routes to Manage Teams (the primer/iOS-guide surface) instead of subscribing directly', async () => {
+  it('shows the iOS install card inline when needsIOSInstall (and closing the sheet is wired to the guide)', async () => {
     isPushSupported.mockReturnValue(true)
-    getPushPermission.mockReturnValue('default')
+    needsIOSInstall.mockReturnValue(true)
     const listener = vi.fn()
-    window.addEventListener(MANAGE_TEAMS_OPEN_EVENT, listener)
+    window.addEventListener(PWA_SHOW_EVENT, listener)
     render(<SettingsSheet />)
     await openSheet()
-    fireEvent.click(screen.getByText('Enable →').closest('button'))
+    fireEvent.click(screen.getByRole('button', { name: /add to home screen/i }))
     expect(listener).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(subscribeToPush).not.toHaveBeenCalled()
-    window.removeEventListener(MANAGE_TEAMS_OPEN_EVENT, listener)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument() // onCloseParent closed the sheet
+    window.removeEventListener(PWA_SHOW_EVENT, listener)
   })
 })
 

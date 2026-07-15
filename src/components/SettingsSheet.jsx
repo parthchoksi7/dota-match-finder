@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react"
-import { trackEvent, STORAGE_KEYS } from "../utils"
+import { trackEvent, STORAGE_KEYS, getFollowedTeams } from "../utils"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
-import { isPushSupported, getPushPermission } from "../utils/push"
+import { isPushSupported } from "../utils/push"
 import { MANAGE_TEAMS_OPEN_EVENT } from "./ManageTeamsModal"
+import PushNotificationSettings from "./PushNotificationSettings"
 
 export const SETTINGS_OPEN_EVENT = "settings:open"
 
@@ -37,13 +38,9 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   }, [theme])
 
   const pushSupported = isPushSupported()
-  const [pushPermission, setPushPermission] = useState(() => getPushPermission())
 
   useEffect(() => {
-    // Re-read push permission on every open: it can change from elsewhere (e.g. granted
-    // via the ManageTeamsModal primer) while this sheet stays mounted-but-closed, so a
-    // stale 'default' read at first mount would otherwise never refresh.
-    const onOpen = () => { setIsOpen(true); setPushPermission(getPushPermission()) }
+    const onOpen = () => setIsOpen(true)
     window.addEventListener(SETTINGS_OPEN_EVENT, onOpen)
     return () => window.removeEventListener(SETTINGS_OPEN_EVENT, onOpen)
   }, [])
@@ -142,24 +139,20 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           </div>
 
           <SettingsGroupLabel>Stay updated</SettingsGroupLabel>
-          <SettingsRow onClick={handleManageTeams} label="My teams" sublabel="Follow teams, manage alerts">
+          <SettingsRow onClick={handleManageTeams} label="My teams" sublabel="Follow teams, manage in one place">
             <Arrow />
           </SettingsRow>
+          {/* Full notification controls inline — Settings is where users expect to manage
+              alerts. Same shared component as ManageTeamsModal (single source of truth).
+              Self-hides when push is unsupported; wrapper is gated so no empty gap appears. */}
+          {pushSupported && (
+            <div className="px-2 pt-1 pb-2">
+              <PushNotificationSettings followedTeams={getFollowedTeams()} source="settings_sheet" onCloseParent={onClose} />
+            </div>
+          )}
           <SettingsRow as="a" href="/calendar" label="Add to Google / Apple Calendar" sublabel="Google, Apple, Outlook" onClick={() => trackEvent("nav_calendar_click", { source: "settings_sheet" })}>
             <Arrow />
           </SettingsRow>
-          {pushSupported && pushPermission !== 'denied' && (
-            <SettingsRow
-              onClick={pushPermission === 'granted' ? undefined : handleManageTeams}
-              label="Live match alerts"
-              sublabel={pushPermission === 'granted' ? 'On for your teams' : 'Notify when your teams go live'}
-            >
-              {pushPermission === 'granted'
-                ? <span className="text-xs font-semibold text-green-500">On</span>
-                : <span className="text-xs font-semibold text-gray-500 dark:text-gray-500">Enable →</span>
-              }
-            </SettingsRow>
-          )}
           {!isInstalled && (
             <SettingsRow onClick={handleInstall} label="Install as app">
               <Arrow />
