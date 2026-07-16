@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 16, 2026",
+    tag: "improvement",
+    title: "Homepage story card keeps to fresh coverage",
+    desc: "The featured story on the homepage now steps aside two days after it's published, so the card always highlights current coverage instead of an older preview. Nothing is lost: every article stays permanently on the Articles page.",
+  },
+  {
     date: "July 15, 2026",
     tag: "fix",
     title: "Followed teams now highlight in upcoming matches too",

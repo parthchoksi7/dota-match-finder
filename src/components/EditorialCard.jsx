@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { trackEvent } from '../utils'
 
-const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
+// Articles drop off the homepage card 2 days after publishing. They stay
+// permanently visible on /articles — this window only gates the homepage feature.
+const HOMEPAGE_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000
 
 export default function EditorialCard() {
   const [featured, setFeatured] = useState(null)
@@ -13,8 +15,10 @@ export default function EditorialCard() {
       .then(r => r.json())
       .then(data => {
         const today = new Date().toDateString()
+        // API returns articles newest-first; keep only those still inside the
+        // homepage window, so the newest eligible one wins the feature slot.
         const recent = (data.articles || []).filter(
-          a => Date.now() - new Date(a.publishedAt).getTime() < TWO_WEEKS_MS
+          a => Date.now() - new Date(a.publishedAt).getTime() < HOMEPAGE_MAX_AGE_MS
         )
         if (recent.length === 0) return
         const top = recent[0]
