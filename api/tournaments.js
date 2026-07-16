@@ -19,6 +19,7 @@ import handleHeroMatches from './_handlers/heroMatches.js'
 import handleSeriesList from './_handlers/seriesList.js'
 import handleRecentCompleted from './_handlers/recentCompleted.js'
 import handleLiveSeriesGames from './_handlers/liveSeriesGames.js'
+import handleLiveOdCapture from './_handlers/liveOdCapture.js'
 
 import { kv } from './_kv.js'
 import { fetchTournamentList, fetchTournamentStatuses, KV_LIST_KEY, KV_STATUS_KEY } from './_handlers/_tournamentUtils.js'
@@ -62,6 +63,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ids })
     } catch { return res.status(200).json({ ids: [] }) }
   }
+
+  // ── od-live-capture mode ────────────────────────────────────────────────────
+  // Snapshots OpenDota /live tier-1 games into live_game_map (Phase 0a). OpenDota-only
+  // write trigger — no PandaScore token needed, throttled by its own KV lock. Placed
+  // before the PANDASCORE_TOKEN check and the shared s-maxage cache header (it sets its
+  // own no-store).
+  if (req.query?.mode === 'od-live-capture') return handleLiveOdCapture(req, res)
 
   // ── promatches-proxy mode ───────────────────────────────────────────────────
   // Proxy for OpenDota /api/promatches — avoids client-side CORS restrictions.

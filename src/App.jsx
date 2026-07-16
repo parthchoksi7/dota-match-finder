@@ -413,6 +413,16 @@ function App() {
       ])
       setLiveMatches(liveRes.matches || [])
       setUpcomingMatches(upcomingRes.matches || [])
+      // Phase 0b: while a game is actually running, nudge the OpenDota /live capture so
+      // finished games in a live series reliably get their OD match_id mid-series. This is
+      // the primary (0-QStash-cost) trigger; a server-side KV lock throttles the real
+      // /live fetch to ~once per 2 min regardless of how many clients ping. Fire-and-forget.
+      const hasRunningGame = (liveRes.matches || []).some(m =>
+        (m.games || []).some(g => g.status === 'running')
+      )
+      if (hasRunningGame) {
+        fetch('/api/tournaments?mode=od-live-capture').catch(() => {})
+      }
     } catch {}
     setLiveLoading(false)
   }, [])

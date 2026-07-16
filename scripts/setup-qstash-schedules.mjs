@@ -35,13 +35,17 @@ const SITE_URL = (process.env.QSTASH_TARGET_URL || 'https://spectateesports.live
 // stream-capture / warm-streams / vod-enrich were declared `*/15 * * * *` on GHA; keep that
 // cadence on QStash. push-scan is the "starting soon" trigger — it must run finer than 15 min
 // so a T-5 alert actually lands ~2-5 min before kickoff (a */5 scan can slip to a 0-min lead),
-// hence */3. Free plan allows 1,000 msgs/day + 10 schedules; 3 × 4/hr + 1 × 20/hr = 768/day
-// across 4 schedules — within limits.
+// hence */3. od-live-capture is only a BACKSTOP for no-user coverage — the primary trigger is
+// the client's existing 2-min live poll (0 QStash cost), throttled server-side by a KV lock;
+// */15 here just guarantees capture when nobody is watching.
+// Free plan allows 1,000 msgs/day + 10 schedules; 4 × 4/hr + 1 × 20/hr = 864/day across
+// 5 schedules — within limits.
 const SCHEDULES = [
-  { name: 'stream-capture', path: '/api/live-matches?cron=1',            cron: '*/15 * * * *' },
-  { name: 'warm-streams',   path: '/api/live-matches?cron=warm-streams', cron: '*/15 * * * *' },
-  { name: 'vod-enrich',     path: '/api/pipeline?type=vod-enrich',        cron: '*/15 * * * *' },
-  { name: 'push-scan',      path: '/api/live-matches?cron=push-scan',     cron: '*/3 * * * *'  },
+  { name: 'stream-capture',  path: '/api/live-matches?cron=1',                 cron: '*/15 * * * *' },
+  { name: 'warm-streams',    path: '/api/live-matches?cron=warm-streams',      cron: '*/15 * * * *' },
+  { name: 'vod-enrich',      path: '/api/pipeline?type=vod-enrich',             cron: '*/15 * * * *' },
+  { name: 'od-live-capture', path: '/api/tournaments?mode=od-live-capture',     cron: '*/15 * * * *' },
+  { name: 'push-scan',       path: '/api/live-matches?cron=push-scan',          cron: '*/3 * * * *'  },
 ]
 
 if (!QSTASH_TOKEN) { console.error('Missing QSTASH_TOKEN — set it in .env.local (console.upstash.com -> QStash).'); process.exit(1) }
