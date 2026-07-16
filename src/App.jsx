@@ -1388,6 +1388,7 @@ function App() {
           onDismiss={() => setSelectedLiveSeries(null)}
           onReplay={handleLiveSeriesReplay}
           spoilerFree={spoilerFree}
+          isOwner={isOwner}
         />
       )}
 

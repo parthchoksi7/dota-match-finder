@@ -379,6 +379,26 @@ export async function fetchMatchStats(matchId) {
   }
 }
 
+// Resolve OpenDota match_ids for the finished games of a live/just-ended PandaScore series via
+// the resolver (?mode=live-series-games). Returns { [position]: matchId } for games it resolved.
+// Not cached: a live series resolves more games as they finish, and it's only called on
+// companion-open, so freshness beats shaving a sub-second call.
+export async function fetchLiveSeriesGameIds(psMatchId) {
+  if (!psMatchId) return {}
+  try {
+    const res = await fetch(`/api/tournaments?mode=live-series-games&id=${encodeURIComponent(psMatchId)}`)
+    if (!res.ok) return {}
+    const data = await res.json()
+    const byPosition = {}
+    for (const g of data.games || []) {
+      if (g && g.position != null && g.matchId) byPosition[g.position] = String(g.matchId)
+    }
+    return byPosition
+  } catch {
+    return {}
+  }
+}
+
 const _tournamentPlayersCache = new Map()
 
 export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false, beginAt = null) {

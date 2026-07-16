@@ -1,6 +1,8 @@
 # Live Series Companion — Feature Spec
 
-**Status:** Building — Phase 0a + 0b landed (unmerged, undeployed); Phase 1 pending
+**Status:** Phase 0 DEPLOYED (commit `3c26cb0`) — table created, `setup-qstash` run (5 schedules incl. `od-live-capture` `*/15`), verify-prod green. Phase 1 core built and **gated behind `spectate-owner`** (owner-only preview) for owner verification before public launch; non-owners see today's sheet byte-for-byte. Independent review clean; two edge-case fixes applied. Per the Owner-Only rule, NOT in About/Release Notes/CONTEXT until it graduates to public.
+
+**Phase 1 build (owner-gated):** `src/components/SeriesGameDraftStrip.jsx` (new, glanceable 5v5 hero-icon strip), `LiveSeriesSheet.jsx` (owner branch: summary card w/ draft strip + result + whole-row tap → MatchDrawer; `!isOwner` branch unchanged), `src/api.js` `fetchLiveSeriesGameIds` (resolver call to patch missing ids), `App.jsx` passes `isOwner`. Deferred until owner approves the look: event indicators on the card, "Just Ended" entry-point generalization, DESIGN_GUIDELINES pattern entry, and (on public launch) removing the flag + About/Release Notes.
 **Authors:** PM × Design × Engineering (collaborative spec)
 **Date:** 2026-07-15 (Phase 0a + 0b built 2026-07-16)
 

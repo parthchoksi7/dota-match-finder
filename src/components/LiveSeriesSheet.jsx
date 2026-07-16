@@ -1,4 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { fetchLiveSeriesGameIds } from '../api'
+import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 
 function formatMinutes(seconds) {
   if (!seconds || isNaN(seconds)) return null
@@ -21,7 +23,7 @@ function CloseIcon() {
   )
 }
 
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree, isOwner = false }) {
   // Close on Escape
   useEffect(() => {
     function onKey(e) {
@@ -30,6 +32,19 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onDismiss])
+
+  // Owner preview (Phase 1, gated behind spectate-owner): recover OD match_ids for finished games
+  // the live feed returned without one, so their draft strips can render. Non-owners never call
+  // this and see exactly the current sheet.
+  const [resolvedIds, setResolvedIds] = useState({})
+  useEffect(() => {
+    if (!isOwner || !match?.id) return
+    let cancelled = false
+    fetchLiveSeriesGameIds(match.id)
+      .then(map => { if (!cancelled && map && Object.keys(map).length) setResolvedIds(map) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isOwner, match?.id])
 
   const finishedGames = (match.games || []).filter(g => g.status === 'finished')
   const currentGame = (match.games || []).find(g => g.status === 'running')
@@ -74,40 +89,95 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
 
         {/* Game rows */}
         <div className="flex-1 overflow-y-auto py-2">
-          {finishedGames.map(game => (
-            <div
-              key={game.position}
-              className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
-                  G{game.position}
-                </span>
-                <div className="min-w-0">
-                  {!spoilerFree && game.winnerName ? (
-                    <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
-                      {game.winnerName}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
+          {finishedGames.map(game => {
+            // Non-owners: exactly the current row. Owners: enhanced companion card below.
+            if (!isOwner) {
+              return (
+                <div
+                  key={game.position}
+                  className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
+                      G{game.position}
+                    </span>
+                    <div className="min-w-0">
+                      {!spoilerFree && game.winnerName ? (
+                        <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
+                          {game.winnerName}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
+                      )}
+                      {!spoilerFree && game.length && (
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
+                      )}
+                    </div>
+                  </div>
+                  {!spoilerFree && game.matchId && onReplay && (
+                    <button
+                      type="button"
+                      onClick={() => onReplay(game.matchId)}
+                      className="focus-ring flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+                    >
+                      <PlayIcon />
+                      Replay
+                    </button>
                   )}
-                  {!spoilerFree && game.length && (
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
+                </div>
+              )
+            }
+
+            const gameMatchId = game.matchId || resolvedIds[game.position] || null
+            const clickable = !spoilerFree && gameMatchId && onReplay
+            return (
+              <div key={game.position} className="px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0">
+                <div
+                  role={clickable ? 'button' : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  onClick={clickable ? () => onReplay(gameMatchId) : undefined}
+                  onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReplay(gameMatchId) } } : undefined}
+                  aria-label={clickable ? `Game ${game.position}${!spoilerFree && game.winnerName ? `, ${game.winnerName} won` : ''}, view stats and replay` : undefined}
+                  className={clickable ? 'focus-ring -mx-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors' : ''}
+                >
+                  <div className="flex items-center justify-between gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
+                        G{game.position}
+                      </span>
+                      <div className="min-w-0">
+                        {!spoilerFree && game.winnerName ? (
+                          <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
+                            {game.winnerName}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
+                        )}
+                        {!spoilerFree && game.length && (
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
+                        )}
+                      </div>
+                    </div>
+                    {clickable && (
+                      <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-purple-700 dark:text-purple-400">
+                        <PlayIcon />
+                        Replay
+                      </span>
+                    )}
+                  </div>
+                  {!spoilerFree && (
+                    <div className="mt-2 pl-8">
+                      {gameMatchId ? (
+                        <SeriesGameDraftStrip matchId={gameMatchId} spoilerFree={spoilerFree} />
+                      ) : (
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">Stats indexing</p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
-              {!spoilerFree && game.matchId && onReplay && (
-                <button
-                  type="button"
-                  onClick={() => onReplay(game.matchId)}
-                  className="focus-ring flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
-                >
-                  <PlayIcon />
-                  Replay
-                </button>
-              )}
-            </div>
-          ))}
+            )
+          })}
 
           {currentGame && (
             <div className="flex items-center gap-3 px-4 py-3">
