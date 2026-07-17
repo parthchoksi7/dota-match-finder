@@ -264,7 +264,7 @@ export function buildPushPayload(type, match, opts = {}) {
     case 'live':
       return { title: `${teams} is live`, body: `${stakes} • watch now`, url: `/?m=${match.id}&from=push&pt=live`, tag: `live-${match.id}` }
     case 'replay':
-      return { title: `${teams} · replay is up`, body: `Watch the full series on Spectate`, url: `/match/${opts.matchId ?? match.id}?spoilers=off&from=push&pt=replay`, tag: `replay-${match.id}` }
+      return { title: `${teams} · replay ready`, body: `${stakes} • watch the full series`, url: `/match/${opts.matchId ?? match.id}?spoilers=off&from=push&pt=replay`, tag: `replay-${match.id}` }
     default:
       return { title: teams, body: stakes, url: '/', tag: `push-${match.id}` }
   }
