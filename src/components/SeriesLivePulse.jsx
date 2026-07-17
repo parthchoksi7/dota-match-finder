@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchLiveGamePulse, fetchHeroes } from '../api'
+import SeriesScoreRow from './SeriesScoreRow'
 
 const POLL_MS = 20000
 
@@ -77,35 +78,32 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
   // game, so radiant/dire has no fixed relationship to the header's team order).
   const leadMag = formatGoldMagnitude(pulse.radiantLead)
   const radiantAhead = Number.isFinite(pulse.radiantLead) && pulse.radiantLead > 0
+  // Same advantage-color rule as GoldGraph's header row (finalColor): green when Radiant leads,
+  // red when Dire leads. The badge was previously hardcoded green regardless of side — wrong on
+  // any Dire-leading game, and inconsistent with this exact rule used everywhere else (GoldGraph,
+  // event markers, TeamIndicators).
+  const leadColor = radiantAhead ? 'rgb(34,197,94)' : 'rgb(239,68,68)'
   const clock = formatClock(pulse.gameTime)
   const hasScore = pulse.radiantScore != null && pulse.direScore != null
   const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
   const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
 
-  function scoreRow(name, score, showLead) {
-    return (
-      <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="font-display font-bold text-xs uppercase tracking-wide text-gray-700 dark:text-gray-300 truncate min-w-0">
-          {name}
-        </span>
-        <span className="flex items-center gap-1.5 flex-shrink-0">
-          {showLead && leadMag && (
-            <span className="text-[10px] font-bold tabular-nums text-green-600 dark:text-green-500">{leadMag}</span>
-          )}
-          {score != null && (
-            <span className="font-display font-black text-sm tabular-nums text-gray-900 dark:text-white w-4 text-right">{score}</span>
-          )}
-        </span>
-      </div>
-    )
-  }
-
   return (
     <div className="px-4 py-3">
       {!spoilerFree && (hasScore || leadMag || clock) && (
         <div className="mb-2 space-y-0.5">
-          {scoreRow(pulse.radiantName || 'Radiant', pulse.radiantScore, radiantAhead)}
-          {scoreRow(pulse.direName || 'Dire', pulse.direScore, !radiantAhead)}
+          <SeriesScoreRow
+            name={pulse.radiantName || 'Radiant'}
+            score={pulse.radiantScore}
+            leadLabel={radiantAhead ? leadMag : null}
+            leadColor={leadColor}
+          />
+          <SeriesScoreRow
+            name={pulse.direName || 'Dire'}
+            score={pulse.direScore}
+            leadLabel={!radiantAhead ? leadMag : null}
+            leadColor={leadColor}
+          />
           {clock && <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums pt-0.5">{clock}</p>}
         </div>
       )}

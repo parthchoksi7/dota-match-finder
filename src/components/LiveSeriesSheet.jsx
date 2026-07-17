@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchLiveSeriesGameIds } from '../api'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 import SeriesGameIndicators from './SeriesGameIndicators'
+import SeriesGameScore from './SeriesGameScore'
 import SeriesLivePulse from './SeriesLivePulse'
 
 function formatMinutes(seconds) {
@@ -161,8 +162,16 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                           )}
                           {!spoilerFree && gameMatchId && <SeriesGameIndicators matchId={gameMatchId} />}
                         </div>
-                        {!spoilerFree && game.length && (
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
+                        {!spoilerFree && (gameMatchId || game.length) && (
+                          <div className="flex items-center gap-1.5">
+                            {gameMatchId && <SeriesGameScore matchId={gameMatchId} />}
+                            {gameMatchId && game.length && (
+                              <span className="text-gray-300 dark:text-gray-700 text-[10px]" aria-hidden="true">&middot;</span>
+                            )}
+                            {game.length && (
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

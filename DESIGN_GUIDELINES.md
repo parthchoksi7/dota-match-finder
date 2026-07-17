@@ -731,6 +731,25 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 
 ---
 
+## Live series companion — score row + gold-lead micro-label
+
+Used in the owner-gated live-series companion sheet (`SeriesLivePulse.jsx` for the running game, `SeriesGameScore.jsx` for a finished game). Two distinct shapes for two distinct states — do not conflate them.
+
+**Live game (`SeriesScoreRow.jsx`, shared, name + score per team):**
+- Row: `flex items-center justify-between gap-2 min-w-0`. Name left (`text-xs uppercase tracking-wide truncate`), score right (`text-sm tabular-nums w-4 text-right`).
+- No result yet, so names/scores use neutral styling (`font-bold text-gray-700 dark:text-gray-300` name, `font-black text-gray-900 dark:text-white` score) — never the winner/loser treatment, since a live lead is not a result.
+- **Gold-lead micro-label**: a two-line stack (`flex-col items-end leading-none`) to the left of the score digit — value (`text-[10px] font-bold tabular-nums`) above a `GOLD` tertiary label (`text-[7px] font-bold uppercase tracking-wide`), both in the same **advantage color**. This is the fix for a bare, unattributable "+302": pairing the value with a same-colored micro-label reads as one glyph-group, distinct from the kill-score digit beside it.
+- **Advantage color — same rule as GoldGraph's header row (`finalColor`), not a fixed color**: `radiantLead > 0` → `rgb(34,197,94)` (green, Radiant leads), `< 0` → `rgb(239,68,68)` (red, Dire leads). A fixed green regardless of side is wrong — it contradicts the Radiant=green/Dire=red convention used everywhere else (GoldGraph, event markers, TeamIndicators) and actively misleads when the Dire side leads.
+- Badge is placed via `leadLabel`/`leadColor` props on whichever team's row is actually ahead — never both, never a bare unattributed number outside a row.
+
+**Finished game (`SeriesGameScore.jsx`, compact single-line, no team name shown):**
+- Reuses the sitewide winner/loser score-digit convention ("Match cards — winner/loser state" above), scaled to this card's density: `font-display font-black text-xs tabular-nums`, winner digit `text-gray-900 dark:text-white`, loser digit `text-gray-400 dark:text-gray-500`, separator `—` `text-gray-300 dark:text-gray-700 mx-1 font-medium`.
+- Does NOT show either team's name — the card's header line above it already shows the winner's name, so this only needs winner-first digit ordering (via OpenDota's `radiant_win` mapped onto the already-known PandaScore names one level up, never displaying an OD-sourced name here).
+- Placed inline with the game duration, separated by a tertiary middot: `{score} · {duration}` — score first, since "how did it go" outranks "how long" in the glance hierarchy.
+- Renders nothing until parsed (no fabricated "0-0") — same rule as the draft strip's "Stats indexing" fallback.
+
+---
+
 ## What to Avoid
 
 - Adding sections "just in case" — every section needs a job
