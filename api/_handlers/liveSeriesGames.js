@@ -23,6 +23,9 @@ import { PANDASCORE_BASE, STREAM_TTL, createLogger, validateId, findOdMatchByTim
 
 const LGM_WINDOW_S = 900 // matches findOdMatchByTime's ±900s window — querying wider is wasted work
 const PS_FETCH_TIMEOUT_MS = 4000
+// PANDASCORE_BASE ends in /dota2 (the per-videogame LIST endpoint). A single match by id is served
+// game-agnostically at the API root — /matches/{id} — so strip the /dota2 suffix.
+const PANDASCORE_ROOT = PANDASCORE_BASE.replace(/\/dota2$/, '')
 
 // PandaScore game.begin_at is an ISO 8601 string; findOdMatchByTime needs unix seconds.
 export function beginAtToUnix(iso) {
@@ -64,7 +67,12 @@ export async function fetchPsMatchDetail(pandaId, log) {
     const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     let psRes
     try {
-      psRes = await fetch(`${PANDASCORE_BASE}/matches/${pandaId}`, { headers, signal: controller.signal })
+      // PandaScore's single-match endpoint is game-AGNOSTIC: /matches/{id}, NOT /dota2/matches/{id}
+      // (PANDASCORE_BASE ends in /dota2, which is the LIST endpoint — appending an id 404s "Route
+      // not found"). That 404 made fetchPsMatchDetail return null, degrading every resolver lookup
+      // to the KV-only branch and never consulting live_game_map — so finished games showed
+      // "Stats indexing" and the pulse never rendered, despite the data being captured.
+      psRes = await fetch(`${PANDASCORE_ROOT}/matches/${pandaId}`, { headers, signal: controller.signal })
     } finally {
       clearTimeout(timer)
     }
