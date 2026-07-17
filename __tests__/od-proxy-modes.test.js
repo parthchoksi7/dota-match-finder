@@ -1,8 +1,10 @@
 /**
- * Tests for the two OpenDota proxy modes added to api/tournaments.js to avoid
- * client-side CORS errors:
+ * Tests for the OpenDota proxy modes added to api/tournaments.js to avoid client-side CORS
+ * errors (OpenDota's Cloudflare bot protection can 403 direct browser requests and drop the
+ * CORS header on that response, which browsers then report as a CORS failure, not a 403):
  *   ?mode=premium-league-ids  — proxies GET /api/leagues, returns array of premium IDs
  *   ?mode=promatches-proxy    — proxies GET /api/promatches, passes pagination param through
+ *   ?mode=heroes-proxy        — proxies GET /api/heroes, raw pass-through array
  *
  * Tests focus on the transformation logic (Set→Array spread, non-array guard, URL construction)
  * rather than re-testing buildPremiumLeagueIds itself (covered in tier-filter.test.js).
@@ -86,5 +88,26 @@ describe('promatches-proxy data guard', () => {
 
   it('returns empty array when OpenDota returns a string', () => {
     expect(safeData('bad gateway')).toEqual([])
+  })
+})
+
+// ── heroes-proxy: non-array guard (same pattern as promatches-proxy) ────────────
+
+describe('heroes-proxy data guard', () => {
+  function safeHeroes(data) {
+    return Array.isArray(data) ? data : []
+  }
+
+  it('passes through a valid hero array unchanged', () => {
+    const data = [{ id: 1, name: 'npc_dota_hero_antimage', localized_name: 'Anti-Mage' }]
+    expect(safeHeroes(data)).toEqual(data)
+  })
+
+  it('returns empty array when OpenDota returns an object (error shape)', () => {
+    expect(safeHeroes({ error: 'rate limited' })).toEqual([])
+  })
+
+  it('returns empty array when OpenDota returns null', () => {
+    expect(safeHeroes(null)).toEqual([])
   })
 })

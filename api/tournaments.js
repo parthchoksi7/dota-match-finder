@@ -65,6 +65,21 @@ export default async function handler(req, res) {
     } catch { return res.status(200).json({ ids: [] }) }
   }
 
+  // ── heroes-proxy mode ────────────────────────────────────────────────────────
+  // Proxy for OpenDota /api/heroes — avoids client-side CORS errors. OpenDota's Cloudflare
+  // bot protection can 403 direct browser requests (and drop the CORS header on that 403,
+  // which the browser then reports as a CORS failure, not a 403) — server-to-server calls
+  // aren't subject to that. Heroes change only on major patches, so cache generously.
+  if (req.query?.mode === 'heroes-proxy') {
+    try {
+      const odRes = await fetch('https://api.opendota.com/api/heroes')
+      if (!odRes.ok) return res.status(200).json([])
+      const heroes = await odRes.json()
+      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800')
+      return res.status(200).json(Array.isArray(heroes) ? heroes : [])
+    } catch { return res.status(200).json([]) }
+  }
+
   // ── od-live-capture mode ────────────────────────────────────────────────────
   // Snapshots OpenDota /live tier-1 games into live_game_map (Phase 0a). OpenDota-only
   // write trigger — no PandaScore token needed, throttled by its own KV lock. Placed

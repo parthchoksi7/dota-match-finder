@@ -488,6 +488,7 @@ export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesSta
 }
 
 let heroCache = null
+let heroFetchPromise = null
 
 export async function fetchHeroes() {
   if (heroCache) return heroCache
@@ -501,19 +502,33 @@ export async function fetchHeroes() {
       }
     }
   } catch {}
-  const res = await fetch('https://api.opendota.com/api/heroes')
-  const data = await res.json()
-  heroCache = {}
-  for (const h of data) {
-    heroCache[h.id] = {
-      name: h.localized_name,
-      key: h.name.replace('npc_dota_hero_', '')
+  // Dedup concurrent cold-cache callers (multiple components mount and call fetchHeroes() in
+  // the same tick) into a single network request rather than one fetch per caller.
+  if (heroFetchPromise) return heroFetchPromise
+  heroFetchPromise = (async () => {
+    // Routed through our own backend, not OpenDota directly: OpenDota's Cloudflare bot
+    // protection can 403 direct browser requests and drop the CORS header on that response,
+    // which browsers then report as a CORS failure rather than the underlying 403.
+    const res = await fetch('/api/tournaments?mode=heroes-proxy')
+    const data = await res.json()
+    const map = {}
+    for (const h of data) {
+      map[h.id] = {
+        name: h.localized_name,
+        key: h.name.replace('npc_dota_hero_', '')
+      }
     }
-  }
+    heroCache = map
+    try {
+      localStorage.setItem(STORAGE_KEYS.HEROES, JSON.stringify({ ts: Date.now(), data: heroCache }))
+    } catch {}
+    return heroCache
+  })()
   try {
-    localStorage.setItem(STORAGE_KEYS.HEROES, JSON.stringify({ ts: Date.now(), data: heroCache }))
-  } catch {}
-  return heroCache
+    return await heroFetchPromise
+  } finally {
+    heroFetchPromise = null
+  }
 }
 
 // Resolve a search query string to a hero entry { id, name, key } or null.
