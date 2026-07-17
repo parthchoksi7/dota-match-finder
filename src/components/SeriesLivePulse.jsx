@@ -36,9 +36,17 @@ function HeroIcon({ heroKey, name }) {
 
 // Live pulse for the CURRENTLY RUNNING game of a series: gold lead + kill score + live draft,
 // sourced from live_game_map via ?mode=live-game-pulse. Self-polls while mounted (matchId is
-// stable — one running game per series at a time) since the sheet itself only refreshes on the
-// app's 2-min live poll otherwise. Live draft shows even in spoiler-free (pre-outcome, same rule
-// as the finished-game draft strip); gold lead + kill score are gated by the parent.
+// stable — one running game per series at a time).
+//
+// Each poll ALSO nudges the capture (?mode=od-live-capture) before reading the pulse, so "an
+// owner has this exact live game open" drives freshness directly — not just the app's ambient
+// 2-min site-wide poll, which can leave the pulse tens of seconds to minutes stale (worse if the
+// browser tab backgrounds and throttles that interval). The capture is server-lock-throttled to
+// ~once/110s regardless of caller count, so most of these pings are a cheap early-exit KV read;
+// only the poll that actually lands on an open lock window pays for the full OpenDota round trip.
+//
+// Live draft shows even in spoiler-free (pre-outcome, same rule as the finished-game draft
+// strip); gold lead + kill score are gated by the parent.
 export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
@@ -46,7 +54,9 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
   useEffect(() => {
     if (!psMatchId) return
     let cancelled = false
-    function poll() {
+    async function poll() {
+      await fetch('/api/tournaments?mode=od-live-capture').catch(() => {})
+      if (cancelled) return
       fetchLiveGamePulse(psMatchId).then(p => { if (!cancelled) setPulse(p) }).catch(() => {})
     }
     poll()
