@@ -5,6 +5,9 @@ import { fetchMatchStats, fetchHeroes } from '../api'
 // Intentionally lighter than the drawer's DraftDisplay (no names/KDA) — the deep view is the
 // MatchDrawer a tap away. Fed by the session-cached fetchMatchStats + fetchHeroes. Each strip
 // has a stable matchId (one per game position), so the effect never needs to reset mid-life.
+// Shown even in spoiler-free mode: a draft is pre-game and doesn't reveal the result (same as the
+// drawer's DraftDisplay). Only the winner/score/indicators are spoilers, and those are gated by
+// the parent — never here.
 function HeroIcon({ heroKey, name }) {
   if (!heroKey) return <div className="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-800 flex-shrink-0" aria-hidden="true" />
   return (
@@ -19,12 +22,12 @@ function HeroIcon({ heroKey, name }) {
   )
 }
 
-export default function SeriesGameDraftStrip({ matchId, spoilerFree }) {
+export default function SeriesGameDraftStrip({ matchId }) {
   const [draft, setDraft] = useState(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!matchId || spoilerFree) return
+    if (!matchId) return
     let cancelled = false
     Promise.all([fetchMatchStats(matchId), fetchHeroes()])
       .then(([stats, heroMap]) => {
@@ -43,9 +46,9 @@ export default function SeriesGameDraftStrip({ matchId, spoilerFree }) {
       })
       .catch(() => { if (!cancelled) setLoaded(true) })
     return () => { cancelled = true }
-  }, [matchId, spoilerFree])
+  }, [matchId])
 
-  if (spoilerFree || !matchId) return null
+  if (!matchId) return null
 
   if (!loaded) {
     return (

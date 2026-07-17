@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchLiveSeriesGameIds } from '../api'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
+import SeriesGameIndicators from './SeriesGameIndicators'
 
 function formatMinutes(seconds) {
   if (!seconds || isNaN(seconds)) return null
@@ -76,6 +77,9 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
               {match.teamA} <span className="text-gray-400 dark:text-gray-600">vs</span> {match.teamB}
             </h2>
             <p className="text-xs text-gray-400 dark:text-gray-600 truncate">{match.tournament}{match.seriesLabel ? ` · ${match.seriesLabel}` : ''}</p>
+            {isOwner && match.bracketRound && (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mt-0.5 truncate">{match.bracketRound}</p>
+            )}
           </div>
           <button
             type="button"
@@ -129,7 +133,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
             }
 
             const gameMatchId = game.matchId || resolvedIds[game.position] || null
-            const clickable = !spoilerFree && gameMatchId && onReplay
+            const clickable = gameMatchId && onReplay
             return (
               <div key={game.position} className="px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0">
                 <div
@@ -146,13 +150,16 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                         G{game.position}
                       </span>
                       <div className="min-w-0">
-                        {!spoilerFree && game.winnerName ? (
-                          <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
-                            {game.winnerName}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
-                        )}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {!spoilerFree && game.winnerName ? (
+                            <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate min-w-0">
+                              {game.winnerName}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
+                          )}
+                          {!spoilerFree && gameMatchId && <SeriesGameIndicators matchId={gameMatchId} />}
+                        </div>
                         {!spoilerFree && game.length && (
                           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
                         )}
@@ -165,15 +172,13 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                       </span>
                     )}
                   </div>
-                  {!spoilerFree && (
-                    <div className="mt-2 pl-8">
-                      {gameMatchId ? (
-                        <SeriesGameDraftStrip matchId={gameMatchId} spoilerFree={spoilerFree} />
-                      ) : (
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">Stats indexing</p>
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-2 pl-8">
+                    {gameMatchId ? (
+                      <SeriesGameDraftStrip matchId={gameMatchId} />
+                    ) : (
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">Stats indexing</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )
