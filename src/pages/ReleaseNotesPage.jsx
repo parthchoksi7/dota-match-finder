@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 17, 2026",
+    tag: "new",
+    title: "Live Series Companion: see what happened, without waiting for the series to end",
+    desc: "Click any live match row with a score to open a companion panel that no longer stops at just the score. Each completed game now shows its kill score, notable-event badges, and full 5v5 draft, and taps straight through to that game's complete stats, gold graph, and VOD. The game currently being played shows a live gold lead and live draft, updating automatically while you watch.",
+    items: [
+      "Finished games: kill score, Rampage/Rapier/gold-swing/mega-comeback badges, full draft",
+      "Live game: running gold lead (color-matched to the team ahead) and live draft",
+      "Tap any finished game for its complete stats, gold graph, and VOD",
+      "Refresh-safe — reopening the page brings the panel right back",
+    ],
+  },
+  {
     date: "July 16, 2026",
     tag: "fix",
     title: "Clearer wording on the replay-ready alert",

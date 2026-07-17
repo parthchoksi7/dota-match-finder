@@ -733,7 +733,7 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 
 ## Live series companion — score row + gold-lead micro-label
 
-Used in the owner-gated live-series companion sheet (`SeriesLivePulse.jsx` for the running game, `SeriesGameScore.jsx` for a finished game). Two distinct shapes for two distinct states — do not conflate them.
+Used in the live-series companion sheet (`SeriesLivePulse.jsx` for the running game, `SeriesGameScore.jsx` for a finished game). Two distinct shapes for two distinct states — do not conflate them.
 
 **Live game (`SeriesScoreRow.jsx`, shared, name + score per team):**
 - Row: `flex items-center justify-between gap-2 min-w-0`. Name left (`text-xs uppercase tracking-wide truncate`), score right (`text-sm tabular-nums w-4 text-right`).
