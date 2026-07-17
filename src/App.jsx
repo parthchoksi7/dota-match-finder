@@ -237,6 +237,13 @@ function App() {
 
   // Mid-series side sheet (PS data while series is running)
   const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
+  // ?live=<psSeriesId> restore-on-refresh target. Captured ONCE at mount (see the effect below)
+  // — NOT re-derived from window.location.search on every poll, because handleSelectLiveMatch
+  // itself writes ?live= on every open (including a plain click), and re-reading the live URL
+  // from an ambient-poll-driven effect would misread that write as a restore request on the next
+  // poll tick, double-firing the open. Capturing once at mount, before any click can occur, is
+  // what actually prevents that.
+  const [liveRestoreId, setLiveRestoreId] = useState(null)
 
   // Push-notification landing (WS4): ?m=<psSeriesId> from a tapped starting-soon/now-live
   // notification. pushTargetId holds the target until live data arrives; highlightMatchId
@@ -579,6 +586,42 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushTargetId, liveLoading, liveMatches, upcomingMatches])
 
+  // Keep an open live-series sheet fresh: re-sync `selectedLiveSeries` from each ambient
+  // liveMatches poll (fetchLiveData, every 2 min) so game-status transitions (a game finishing,
+  // a new one starting) and newly-resolved matchIds reach the open sheet without the user having
+  // to close and reopen it. Deliberately does nothing if the series disappears from liveMatches
+  // (fully concluded) — keeps showing its last-known state rather than yanking the sheet away
+  // mid-read; the user closes it explicitly.
+  useEffect(() => {
+    if (!selectedLiveSeries) return
+    const fresh = liveMatches.find(m => String(m.id) === String(selectedLiveSeries.id))
+    if (fresh) setSelectedLiveSeries(fresh)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMatches])
+
+  // Capture ?live=<psSeriesId> from the URL exactly ONCE, at mount — mirrors the ?m= push-landing
+  // capture above ([] deps, read-then-strip-nothing). This must NOT be re-read from
+  // window.location.search on every liveMatches poll: handleSelectLiveMatch itself writes ?live=
+  // on every open (including a plain click), so an effect that re-checks the live URL each poll
+  // would misread that write as a fresh restore request on the very next tick and double-fire the
+  // open (and its trackEvent). Capturing once here, before any click can happen, prevents that.
+  useEffect(() => {
+    const liveId = new URLSearchParams(window.location.search).get('live')
+    if (liveId) setLiveRestoreId(liveId)
+  }, [])
+
+  // Consume the captured restore target once live data has arrived. Mirrors pushTargetId's
+  // consumption pattern exactly: nulled after one attempt regardless of outcome (accepting the
+  // same one-shot-on-first-try tradeoff already established for push landings elsewhere in this
+  // file) — handleSelectLiveMatch itself no-ops silently if the series isn't found yet or has no
+  // finished game.
+  useEffect(() => {
+    if (!liveRestoreId || liveLoading) return
+    setLiveRestoreId(null)
+    handleSelectLiveMatch(liveRestoreId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveRestoreId, liveLoading, liveMatches])
+
   // Fade the highlight ring after 4s. Separate effect: the consumption effect above
   // nulls pushTargetId (its own dep), so a timer owned there would be torn down by its
   // cleanup on the very next render and the ring would never clear.
@@ -797,17 +840,33 @@ function App() {
   }
 
   function handleSelectLiveMatch(pandaScoreMatchId) {
-    const match = liveMatches.find(m => m.id === pandaScoreMatchId)
+    // String comparison (not ===) so this also works when called with a raw string id from the
+    // ?live= URL restore below — mirrors the existing push-landing lookup (`String(mm.id) === pushTargetId`).
+    const match = liveMatches.find(m => String(m.id) === String(pandaScoreMatchId))
     if (!match) return
     const hasFinishedGame = (match.games || []).some(g => g.status === 'finished')
     if (!hasFinishedGame) return
     trackEvent('live_series_sheet_open', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
     setSelectedLiveSeries(match)
+    // Persist so a refresh (or a shared link) restores the same sheet — live series have no
+    // dedicated URL like completed matches do (/match/:id).
+    const params = new URLSearchParams(window.location.search)
+    params.set('live', String(match.id))
+    window.history.replaceState(null, '', window.location.pathname + '?' + params.toString() + window.location.hash)
+  }
+
+  function closeLiveSeriesSheet() {
+    setSelectedLiveSeries(null)
+    const params = new URLSearchParams(window.location.search)
+    if (!params.has('live')) return
+    params.delete('live')
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash)
   }
 
   async function handleLiveSeriesReplay(odMatchId) {
     trackEvent('live_series_replay', { odMatchId })
-    setSelectedLiveSeries(null)
+    closeLiveSeriesSheet()
     await handleSelectMatchId(odMatchId, 'live_series_replay')
   }
 
@@ -1378,7 +1437,7 @@ function App() {
       {selectedLiveSeries && !selectedMatch && (
         <LiveSeriesSheet
           match={selectedLiveSeries}
-          onDismiss={() => setSelectedLiveSeries(null)}
+          onDismiss={closeLiveSeriesSheet}
           onReplay={handleLiveSeriesReplay}
           spoilerFree={spoilerFree}
           isOwner={isOwner}
