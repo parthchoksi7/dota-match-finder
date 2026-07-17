@@ -35,6 +35,14 @@ create table if not exists live_game_map (
   constraint live_game_map_od_match_id_key unique (od_match_id)
 );
 
+-- Grants: the capture (write) and both resolvers (read) use the service_role key. Supabase does
+-- NOT always auto-grant table privileges on a SQL-editor-created table, and the failure is silent
+-- until a row is actually written (error 42501 "permission denied"). Explicit + idempotent.
+-- The bigserial `id` needs a SEPARATE grant on its sequence — INSERT calls nextval() on it, and a
+-- table grant alone still fails with "permission denied for sequence live_game_map_id_seq".
+grant select, insert, update, delete on public.live_game_map to service_role;
+grant usage, select on sequence live_game_map_id_seq to service_role;
+
 -- Resolver query: recent rows within a ±15 min window of a PandaScore game's begin_at,
 -- team-matched in app code. start_time index keeps that window scan fast as the table grows.
 create index if not exists idx_lgm_start_time on live_game_map (start_time desc);
