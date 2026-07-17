@@ -39,8 +39,8 @@ function HeroIcon({ heroKey, name }) {
 // sourced from live_game_map via ?mode=live-game-pulse. Self-polls while mounted (matchId is
 // stable — one running game per series at a time).
 //
-// Each poll ALSO nudges the capture (?mode=od-live-capture) before reading the pulse, so "an
-// owner has this exact live game open" drives freshness directly — not just the app's ambient
+// Each poll ALSO nudges the capture (?mode=od-live-capture) before reading the pulse, so "a
+// viewer has this exact live game open" drives freshness directly — not just the app's ambient
 // 2-min site-wide poll, which can leave the pulse tens of seconds to minutes stale (worse if the
 // browser tab backgrounds and throttles that interval). The capture is server-lock-throttled to
 // ~once/110s regardless of caller count, so most of these pings are a cheap early-exit KV read;

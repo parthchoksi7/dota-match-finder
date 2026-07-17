@@ -23,6 +23,11 @@ import { PANDASCORE_BASE, STREAM_TTL, createLogger, validateId, findOdMatchByTim
 
 const LGM_WINDOW_S = 900 // matches findOdMatchByTime's ±900s window — querying wider is wasted work
 const PS_FETCH_TIMEOUT_MS = 4000
+// Public feature: many concurrent viewers can have the SAME live series open at once, each
+// polling (the live pulse self-polls every 20s per open sheet). Without this, a popular series
+// would fan out to one PandaScore call per viewer per poll. Short TTL — still fresher than the
+// pulse's own 20s cadence, but collapses any number of concurrent callers to ~1 PS call per window.
+const PS_MATCH_DETAIL_CACHE_TTL_S = 15
 // PANDASCORE_BASE ends in /dota2 (the per-videogame LIST endpoint). A single match by id is served
 // game-agnostically at the API root — /matches/{id} — so strip the /dota2 suffix.
 const PANDASCORE_ROOT = PANDASCORE_BASE.replace(/\/dota2$/, '')
@@ -59,6 +64,14 @@ export function pickFinishedGameId({ externalId, kvId, streamHistoryId, liveGame
 // network error, or timeout) so callers degrade gracefully rather than throwing — a network
 // rejection here must never look different from PS legitimately having nothing to say.
 export async function fetchPsMatchDetail(pandaId, log) {
+  const cacheKey = `ps:match-detail:v1:${pandaId}`
+  try {
+    const cached = await kv.get(cacheKey)
+    if (cached) return cached
+  } catch (err) {
+    log.warn('PS match detail cache read failed', { pandaId, error: err?.message })
+  }
+
   const token = process.env.PANDASCORE_TOKEN
   if (!token) return null
   try {
@@ -80,7 +93,19 @@ export async function fetchPsMatchDetail(pandaId, log) {
       log.warn('PS match fetch failed', { pandaId, status: psRes.status })
       return null
     }
-    return await psRes.json()
+    const detail = await psRes.json()
+    // Only successful, parsed responses are cached — a failure must never get "stuck" cached,
+    // so the next caller retries immediately rather than inheriting a null for the full TTL.
+    // Own try/catch (not just the .catch() on the promise): a synchronous throw from kv.set()
+    // itself must never be swallowed by the outer catch below and turn a successful PS fetch
+    // into a null return.
+    try {
+      kv.set(cacheKey, detail, { ex: PS_MATCH_DETAIL_CACHE_TTL_S })
+        .catch(err => log.warn('PS match detail cache write failed', { pandaId, error: err?.message }))
+    } catch (err) {
+      log.warn('PS match detail cache write failed', { pandaId, error: err?.message })
+    }
+    return detail
   } catch (err) {
     log.warn('PS match fetch error', { pandaId, error: err?.message })
     return null

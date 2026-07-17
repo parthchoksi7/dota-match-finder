@@ -26,7 +26,10 @@ function CloseIcon() {
   )
 }
 
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree, isOwner = false }) {
+// The mid-series companion: shows the completed games of an in-progress series (draft, score,
+// notable-event indicators, tap-through to the full MatchDrawer) plus a live pulse (gold lead,
+// kill score, live draft) for the currently running game.
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree }) {
   // Close on Escape
   useEffect(() => {
     function onKey(e) {
@@ -36,18 +39,17 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
     return () => window.removeEventListener('keydown', onKey)
   }, [onDismiss])
 
-  // Owner preview (Phase 1, gated behind spectate-owner): recover OD match_ids for finished games
-  // the live feed returned without one, so their draft strips can render. Non-owners never call
-  // this and see exactly the current sheet.
+  // Recover OD match_ids for finished games the live feed returned without one, so their draft
+  // strips can render.
   const [resolvedIds, setResolvedIds] = useState({})
   useEffect(() => {
-    if (!isOwner || !match?.id) return
+    if (!match?.id) return
     let cancelled = false
     fetchLiveSeriesGameIds(match.id)
       .then(map => { if (!cancelled && map && Object.keys(map).length) setResolvedIds(map) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [isOwner, match?.id])
+  }, [match?.id])
 
   const finishedGames = (match.games || []).filter(g => g.status === 'finished')
   const currentGame = (match.games || []).find(g => g.status === 'running')
@@ -79,7 +81,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
               {match.teamA} <span className="text-gray-400 dark:text-gray-600">vs</span> {match.teamB}
             </h2>
             <p className="text-xs text-gray-400 dark:text-gray-600 truncate">{match.tournament}{match.seriesLabel ? ` · ${match.seriesLabel}` : ''}</p>
-            {isOwner && match.bracketRound && (
+            {match.bracketRound && (
               <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mt-0.5 truncate">{match.bracketRound}</p>
             )}
           </div>
@@ -96,44 +98,6 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
         {/* Game rows */}
         <div className="flex-1 overflow-y-auto py-2">
           {finishedGames.map(game => {
-            // Non-owners: exactly the current row. Owners: enhanced companion card below.
-            if (!isOwner) {
-              return (
-                <div
-                  key={game.position}
-                  className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
-                      G{game.position}
-                    </span>
-                    <div className="min-w-0">
-                      {!spoilerFree && game.winnerName ? (
-                        <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
-                          {game.winnerName}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
-                      )}
-                      {!spoilerFree && game.length && (
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">{formatMinutes(game.length)}</p>
-                      )}
-                    </div>
-                  </div>
-                  {!spoilerFree && game.matchId && onReplay && (
-                    <button
-                      type="button"
-                      onClick={() => onReplay(game.matchId)}
-                      className="focus-ring flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
-                    >
-                      <PlayIcon />
-                      Replay
-                    </button>
-                  )}
-                </div>
-              )
-            }
-
             const gameMatchId = game.matchId || resolvedIds[game.position] || null
             const clickable = gameMatchId && onReplay
             return (
@@ -194,21 +158,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
             )
           })}
 
-          {/* Non-owners: exactly the original block, unchanged. */}
-          {currentGame && !isOwner && (
-            <div className="flex items-center gap-3 px-4 py-3">
-              <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
-                G{currentGame.position}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-wide text-red-500">Live</span>
-              </div>
-            </div>
-          )}
-
-          {/* Owner preview: same header row + live pulse (gold lead/score/draft) below it. */}
-          {currentGame && isOwner && (
+          {currentGame && (
             <div>
               <div className="flex items-center gap-3 px-4 py-3 pb-0">
                 <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">

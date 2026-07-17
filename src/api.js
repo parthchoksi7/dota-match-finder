@@ -332,6 +332,7 @@ export async function fetchMatchSummary(matchId) {
 
 const _indicatorsCache = new Map()
 const _statsCache = new Map()
+const _statsInFlight = new Map()
 
 /**
  * Fetch game indicators for one or more match IDs.
@@ -363,20 +364,31 @@ export async function fetchMatchIndicators(matchIds) {
  * Fetch end-game stats for a single match: player networth, items, and gold advantage array.
  * Results cached in-memory for the browser session (backend also caches in Redis for 7 days).
  * Returns { radiantGoldAdv, players, itemNames } or null on failure.
+ *
+ * Dedups concurrent calls for the SAME matchId into one request — the live-series companion
+ * mounts SeriesGameDraftStrip and SeriesGameScore together for every finished game, and on a
+ * cold cache both would otherwise fire independent requests for identical data.
  */
 export async function fetchMatchStats(matchId) {
   if (!matchId) return null
   const key = String(matchId)
   if (_statsCache.has(key)) return _statsCache.get(key)
-  try {
-    const res = await fetch(`/api/tournaments?mode=match-stats&id=${key}`)
-    if (!res.ok) return null
-    const data = await res.json()
-    _statsCache.set(key, data)
-    return data
-  } catch {
-    return null
-  }
+  if (_statsInFlight.has(key)) return _statsInFlight.get(key)
+  const promise = (async () => {
+    try {
+      const res = await fetch(`/api/tournaments?mode=match-stats&id=${key}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      _statsCache.set(key, data)
+      return data
+    } catch {
+      return null
+    } finally {
+      _statsInFlight.delete(key)
+    }
+  })()
+  _statsInFlight.set(key, promise)
+  return promise
 }
 
 // Resolve OpenDota match_ids for the finished games of a live/just-ended PandaScore series via

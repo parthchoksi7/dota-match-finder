@@ -1440,7 +1440,6 @@ function App() {
           onDismiss={closeLiveSeriesSheet}
           onReplay={handleLiveSeriesReplay}
           spoilerFree={spoilerFree}
-          isOwner={isOwner}
         />
       )}
 
