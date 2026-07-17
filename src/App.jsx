@@ -37,6 +37,28 @@ function getMatchSlug(match) {
   ].filter(Boolean).join("-")
 }
 
+// Fetch a single match from OpenDota and map it into the app's match shape.
+// Shared by the shared-URL loader and handleSelectMatchId (series-game replay nav) —
+// both need the same OpenDota match object turned into the same fields.
+async function fetchAppMatchFromOpenDota(matchId) {
+  const data = await fetch(`https://api.opendota.com/api/matches/${matchId}`).then(r => r.json())
+  if (!data || !data.match_id) return null
+  return {
+    id: String(data.match_id),
+    tournament: data.league?.name || "Match " + data.match_id,
+    date: new Date(data.start_time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    radiantTeam: data.radiant_name || "Radiant",
+    direTeam: data.dire_name || "Dire",
+    radiantScore: data.radiant_score,
+    direScore: data.dire_score,
+    radiantWin: data.radiant_win,
+    duration: new Date((data.duration || 0) * 1000).toISOString().slice(11, 16),
+    startTime: data.start_time,
+    seriesId: data.series_id,
+    seriesType: data.series_type,
+  }
+}
+
 // Extract match ID from /match/<slug-ending-in-matchId> or legacy #match-:id hash
 function getMatchIdFromUrl() {
   if (typeof window === "undefined") return null
@@ -580,26 +602,11 @@ function App() {
       return
     }
 
-    fetch(`https://api.opendota.com/api/matches/${matchId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data || !data.match_id) {
+    fetchAppMatchFromOpenDota(matchId)
+      .then(match => {
+        if (!match) {
           setMatchUrlNotFound(true)
           return
-        }
-        const match = {
-          id: String(data.match_id),
-          tournament: "Match " + data.match_id,
-          date: new Date(data.start_time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-          radiantTeam: data.radiant_name || "Radiant",
-          direTeam: data.dire_name || "Dire",
-          radiantScore: data.radiant_score,
-          direScore: data.dire_score,
-          radiantWin: data.radiant_win,
-          duration: new Date((data.duration || 0) * 1000).toISOString().slice(11, 16),
-          startTime: data.start_time,
-          seriesId: data.series_id,
-          seriesType: data.series_type,
         }
         handleSelectMatch(match, 'shared_url')
       })
@@ -781,22 +788,8 @@ function App() {
 
   async function handleSelectMatchId(matchId, source = 'replay') {
     try {
-      const data = await fetch(`https://api.opendota.com/api/matches/${matchId}`).then(r => r.json())
-      if (!data || !data.match_id) return
-      const match = {
-        id: String(data.match_id),
-        tournament: data.league?.name || "Match " + data.match_id,
-        date: new Date(data.start_time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-        radiantTeam: data.radiant_name || "Radiant",
-        direTeam: data.dire_name || "Dire",
-        radiantScore: data.radiant_score,
-        direScore: data.dire_score,
-        radiantWin: data.radiant_win,
-        duration: new Date((data.duration || 0) * 1000).toISOString().slice(11, 16),
-        startTime: data.start_time,
-        seriesId: data.series_id,
-        seriesType: data.series_type,
-      }
+      const match = await fetchAppMatchFromOpenDota(matchId)
+      if (!match) return
       handleSelectMatch(match, source)
     } catch {
       // silently fail
