@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchLiveSeriesGameIds } from '../api'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 import SeriesGameIndicators from './SeriesGameIndicators'
+import SeriesLivePulse from './SeriesLivePulse'
 
 function formatMinutes(seconds) {
   if (!seconds || isNaN(seconds)) return null
@@ -184,7 +185,8 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
             )
           })}
 
-          {currentGame && (
+          {/* Non-owners: exactly the original block, unchanged. */}
+          {currentGame && !isOwner && (
             <div className="flex items-center gap-3 px-4 py-3">
               <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
                 G{currentGame.position}
@@ -193,6 +195,22 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-wide text-red-500">Live</span>
               </div>
+            </div>
+          )}
+
+          {/* Owner preview: same header row + live pulse (gold lead/score/draft) below it. */}
+          {currentGame && isOwner && (
+            <div>
+              <div className="flex items-center gap-3 px-4 py-3 pb-0">
+                <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
+                  G{currentGame.position}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-red-500">Live</span>
+                </div>
+              </div>
+              <SeriesLivePulse psMatchId={match.id} spoilerFree={spoilerFree} />
             </div>
           )}
         </div>

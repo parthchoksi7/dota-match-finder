@@ -1,0 +1,113 @@
+import { useEffect, useState } from 'react'
+import { fetchLiveGamePulse, fetchHeroes } from '../api'
+
+const POLL_MS = 20000
+
+// Absolute gold-lead magnitude with a leading "+", e.g. 2540 -> "+2.5k", -300 -> "+300". The
+// sign is NOT encoded here: the caller attributes the lead by placing this badge next to the
+// leading team's name (radiant if radiantLead > 0, else dire), so it always reads as a positive
+// "ahead by" amount tied to a named team — never a bare "+500" a viewer can't attribute.
+export function formatGoldMagnitude(lead) {
+  if (!Number.isFinite(lead) || lead === 0) return null
+  const abs = Math.abs(lead)
+  return '+' + (abs >= 1000 ? (abs / 1000).toFixed(1) + 'k' : String(abs))
+}
+
+export function formatClock(gameTime) {
+  if (!Number.isFinite(gameTime) || gameTime < 0) return null
+  const m = Math.floor(gameTime / 60)
+  const s = gameTime % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function HeroIcon({ heroKey, name }) {
+  if (!heroKey) return <div className="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-800 flex-shrink-0" aria-hidden="true" />
+  return (
+    <img
+      src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`}
+      alt={name}
+      title={name}
+      className="w-5 h-5 rounded-sm object-cover flex-shrink-0"
+      loading="lazy"
+      onError={(e) => { e.currentTarget.style.visibility = 'hidden' }}
+    />
+  )
+}
+
+// Live pulse for the CURRENTLY RUNNING game of a series: gold lead + kill score + live draft,
+// sourced from live_game_map via ?mode=live-game-pulse. Self-polls while mounted (matchId is
+// stable — one running game per series at a time) since the sheet itself only refreshes on the
+// app's 2-min live poll otherwise. Live draft shows even in spoiler-free (pre-outcome, same rule
+// as the finished-game draft strip); gold lead + kill score are gated by the parent.
+export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
+  const [pulse, setPulse] = useState(null)
+  const [heroMap, setHeroMap] = useState(null)
+
+  useEffect(() => {
+    if (!psMatchId) return
+    let cancelled = false
+    function poll() {
+      fetchLiveGamePulse(psMatchId).then(p => { if (!cancelled) setPulse(p) }).catch(() => {})
+    }
+    poll()
+    const interval = setInterval(poll, POLL_MS)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [psMatchId])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchHeroes().then(map => { if (!cancelled) setHeroMap(map) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  if (!pulse) return null
+
+  // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
+  // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
+  // game, so radiant/dire has no fixed relationship to the header's team order).
+  const leadMag = formatGoldMagnitude(pulse.radiantLead)
+  const radiantAhead = Number.isFinite(pulse.radiantLead) && pulse.radiantLead > 0
+  const clock = formatClock(pulse.gameTime)
+  const hasScore = pulse.radiantScore != null && pulse.direScore != null
+  const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
+  const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
+
+  function scoreRow(name, score, showLead) {
+    return (
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="font-display font-bold text-xs uppercase tracking-wide text-gray-700 dark:text-gray-300 truncate min-w-0">
+          {name}
+        </span>
+        <span className="flex items-center gap-1.5 flex-shrink-0">
+          {showLead && leadMag && (
+            <span className="text-[10px] font-bold tabular-nums text-green-600 dark:text-green-500">{leadMag}</span>
+          )}
+          {score != null && (
+            <span className="font-display font-black text-sm tabular-nums text-gray-900 dark:text-white w-4 text-right">{score}</span>
+          )}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-4 py-3">
+      {!spoilerFree && (hasScore || leadMag || clock) && (
+        <div className="mb-2 space-y-0.5">
+          {scoreRow(pulse.radiantName || 'Radiant', pulse.radiantScore, radiantAhead)}
+          {scoreRow(pulse.direName || 'Dire', pulse.direScore, !radiantAhead)}
+          {clock && <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums pt-0.5">{clock}</p>}
+        </div>
+      )}
+      {(radiantHeroes.length > 0 || direHeroes.length > 0) && (
+        <div className="flex items-center gap-0.5" role="img" aria-label="Live draft">
+          {radiantHeroes.map((h, i) => <HeroIcon key={`r${i}`} heroKey={h.key} name={h.name} />)}
+          {radiantHeroes.length > 0 && direHeroes.length > 0 && (
+            <span className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1.5 flex-shrink-0" aria-hidden="true" />
+          )}
+          {direHeroes.map((h, i) => <HeroIcon key={`d${i}`} heroKey={h.key} name={h.name} />)}
+        </div>
+      )}
+    </div>
+  )
+}

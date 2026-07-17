@@ -20,6 +20,7 @@ import handleSeriesList from './_handlers/seriesList.js'
 import handleRecentCompleted from './_handlers/recentCompleted.js'
 import handleLiveSeriesGames from './_handlers/liveSeriesGames.js'
 import handleLiveOdCapture from './_handlers/liveOdCapture.js'
+import handleLiveGamePulse from './_handlers/liveGamePulse.js'
 
 import { kv } from './_kv.js'
 import { fetchTournamentList, fetchTournamentStatuses, KV_LIST_KEY, KV_STATUS_KEY } from './_handlers/_tournamentUtils.js'
@@ -119,6 +120,9 @@ export default async function handler(req, res) {
 
   // ── live-series-games mode ──────────────────────────────────────────────────
   if (req.query?.mode === 'live-series-games') return handleLiveSeriesGames(req, res)
+
+  // ── live-game-pulse mode (Phase 2) ──────────────────────────────────────────
+  if (req.query?.mode === 'live-game-pulse') return handleLiveGamePulse(req, res)
 
   // ── series mode ─────────────────────────────────────────────────────────────
   if (req.query?.mode === 'series') return handleSeriesList(req, res)

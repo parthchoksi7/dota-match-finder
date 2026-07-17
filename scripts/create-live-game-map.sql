@@ -45,3 +45,13 @@ create index if not exists idx_lgm_series on live_game_map (od_series_id);
 -- Retention (optional, run periodically or as a scheduled job): the resolver only ever
 -- queries recent rows, so old snapshots can be pruned without affecting behavior.
 --   delete from live_game_map where captured_at < now() - interval '30 days';
+
+-- ---------------------------------------------------------------------------
+-- Migration 2026-07-16 (live-draft): existing tables only. Idempotent — safe to re-run.
+-- Adds each side's live hero picks (Phase 2 "live pulse": gold lead/score/draft for the
+-- CURRENTLY RUNNING game, read alongside the radiant_lead/scores columns above). NULL on
+-- existing rows until their next capture cycle; a fresh run of this whole script also
+-- leaves existing rows untouched (ADD COLUMN IF NOT EXISTS is a no-op on rerun).
+-- ---------------------------------------------------------------------------
+alter table live_game_map add column if not exists radiant_hero_ids integer[];
+alter table live_game_map add column if not exists dire_hero_ids integer[];

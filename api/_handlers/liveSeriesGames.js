@@ -51,6 +51,34 @@ export function pickFinishedGameId({ externalId, kvId, streamHistoryId, liveGame
   return { matchId: null, authoritative: false }
 }
 
+// Fetches a PandaScore match's detail (opponents + games), shared by this resolver and the
+// Phase 2 live-pulse handler. Returns null on ANY failure (missing token, non-OK response,
+// network error, or timeout) so callers degrade gracefully rather than throwing — a network
+// rejection here must never look different from PS legitimately having nothing to say.
+export async function fetchPsMatchDetail(pandaId, log) {
+  const token = process.env.PANDASCORE_TOKEN
+  if (!token) return null
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), PS_FETCH_TIMEOUT_MS)
+    const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+    let psRes
+    try {
+      psRes = await fetch(`${PANDASCORE_BASE}/matches/${pandaId}`, { headers, signal: controller.signal })
+    } finally {
+      clearTimeout(timer)
+    }
+    if (!psRes.ok) {
+      log.warn('PS match fetch failed', { pandaId, status: psRes.status })
+      return null
+    }
+    return await psRes.json()
+  } catch (err) {
+    log.warn('PS match fetch error', { pandaId, error: err?.message })
+    return null
+  }
+}
+
 async function resolveFromStreamHistory(psId, position, log) {
   try {
     const { data, error } = await getSupabaseAdmin()
@@ -92,7 +120,6 @@ async function resolveFromLiveGameMap(beginAtUnix, opponents, log) {
 
 export default async function handleLiveSeriesGames(req, res) {
   const log = createLogger('/api/tournaments?mode=live-series-games')
-  const token = process.env.PANDASCORE_TOKEN
   const pandaId = req.query?.id
   if (!pandaId) return res.status(400).json({ games: [], gameIds: [] })
   const idV = validateId(pandaId, { name: 'id' })
@@ -101,40 +128,22 @@ export default async function handleLiveSeriesGames(req, res) {
   try {
     // The per-match PandaScore endpoint is the authority on which games are finished and
     // their begin_at/opponents, and still exposes external_identifier on freshly finished
-    // games (the bulk running feed does not). If PS is unavailable, degrade to KV-only.
+    // games (the bulk running feed does not). fetchPsMatchDetail returns null on ANY failure
+    // (missing token, non-OK, network error, timeout), so `finished` correctly stays null and
+    // we degrade to the KV-only branch below rather than falling through to the outer catch.
     let finished = null
     let opponents = []
-    if (token) {
-      // A network-level failure (DNS/timeout/reset — the usual way PS is "unavailable") must
-      // leave `finished` null so we degrade to the KV-only branch below, NOT fall through to the
-      // outer catch and return empty. Own try/catch + AbortController guarantee that.
-      try {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), PS_FETCH_TIMEOUT_MS)
-        const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-        let psRes
-        try {
-          psRes = await fetch(`${PANDASCORE_BASE}/matches/${pandaId}`, { headers, signal: controller.signal })
-        } finally {
-          clearTimeout(timer)
-        }
-        if (psRes.ok) {
-          const detail = await psRes.json()
-          opponents = detail.opponents || []
-          finished = (detail.games || [])
-            .filter(g => g.status === 'finished')
-            .sort((a, b) => a.position - b.position)
-            .map(g => ({
-              position: g.position,
-              externalId: g.external_identifier ? String(g.external_identifier) : null,
-              beginAtUnix: beginAtToUnix(g.begin_at),
-            }))
-        } else {
-          log.warn('PS match fetch failed', { pandaId, status: psRes.status })
-        }
-      } catch (err) {
-        log.warn('PS match fetch error', { pandaId, error: err?.message })
-      }
+    const detail = await fetchPsMatchDetail(pandaId, log)
+    if (detail) {
+      opponents = detail.opponents || []
+      finished = (detail.games || [])
+        .filter(g => g.status === 'finished')
+        .sort((a, b) => a.position - b.position)
+        .map(g => ({
+          position: g.position,
+          externalId: g.external_identifier ? String(g.external_identifier) : null,
+          beginAtUnix: beginAtToUnix(g.begin_at),
+        }))
     }
 
     // KV read for the relevant positions (all finished positions, or 1..5 when PS is down).

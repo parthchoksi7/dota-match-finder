@@ -20,10 +20,27 @@ import { createLogger } from '../_shared.js'
 // control and doubles as abuse protection: however many callers hit this, at most one
 // OpenDota /live fetch runs per LOCK_TTL_S. The endpoint is intentionally unauthenticated
 // (idempotent, throttled, no user input, no sensitive data) — like promatches-proxy.
+//
+// Phase 2 addition: also captures each side's live hero picks (players[].hero_id, split by
+// players[].team) so the resolver can serve a "live pulse" (gold lead/score/draft) for the
+// CURRENTLY RUNNING game, not just recover ids for finished ones.
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
 const LOCK_TTL_S = 110 // ~2-min throttle. NOT released — the TTL IS the cadence.
+
+// Splits a /live `players` array into each side's hero_id picks by `team` (0=Radiant,
+// 1=Dire — confirmed empirically 2026-07-16: every live league game splits players 5/5 across
+// exactly these two values, consistent with isRadiant derivation used everywhere else in this
+// codebase). Missing/malformed players -> []. hero_id 0 (still picking) is kept as-is; the
+// frontend already renders a placeholder tile for hero 0/unknown, same as the finished-game
+// draft strip.
+function splitHeroPicks(players) {
+  const list = Array.isArray(players) ? players : []
+  const radiant = list.filter(p => p && p.team === 0).map(p => p.hero_id)
+  const dire = list.filter(p => p && p.team === 1).map(p => p.hero_id)
+  return { radiant, dire }
+}
 
 // Keep only league games with a real OpenDota match id and both team names — the only rows
 // the resolver can team-match. Pubs report league_id 0. We deliberately do NOT narrow to
@@ -40,20 +57,25 @@ export function mapLiveGamesToRows(games, capturedAt) {
       g.match_id && String(g.match_id) !== '0' &&
       g.team_name_radiant && g.team_name_dire
     )
-    .map(g => ({
-      od_match_id: Number(g.match_id),
-      od_series_id: g.series_id ? Number(g.series_id) : null,
-      radiant_name: g.team_name_radiant,
-      dire_name: g.team_name_dire,
-      start_time: Number(g.activate_time) || null, // findOdMatchByTime compares this
-      league_id: Number(g.league_id),
-      radiant_lead: Number.isFinite(g.radiant_lead) ? g.radiant_lead : null,
-      radiant_score: Number.isFinite(g.radiant_score) ? g.radiant_score : null,
-      dire_score: Number.isFinite(g.dire_score) ? g.dire_score : null,
-      server_steam_id: g.server_steam_id ? String(g.server_steam_id) : null, // TEXT: exceeds bigint
-      game_time: Number.isFinite(g.game_time) ? g.game_time : null,
-      captured_at: capturedAt,
-    }))
+    .map(g => {
+      const { radiant, dire } = splitHeroPicks(g.players)
+      return {
+        od_match_id: Number(g.match_id),
+        od_series_id: g.series_id ? Number(g.series_id) : null,
+        radiant_name: g.team_name_radiant,
+        dire_name: g.team_name_dire,
+        start_time: Number(g.activate_time) || null, // findOdMatchByTime compares this
+        league_id: Number(g.league_id),
+        radiant_lead: Number.isFinite(g.radiant_lead) ? g.radiant_lead : null,
+        radiant_score: Number.isFinite(g.radiant_score) ? g.radiant_score : null,
+        dire_score: Number.isFinite(g.dire_score) ? g.dire_score : null,
+        server_steam_id: g.server_steam_id ? String(g.server_steam_id) : null, // TEXT: exceeds bigint
+        game_time: Number.isFinite(g.game_time) ? g.game_time : null,
+        radiant_hero_ids: radiant,
+        dire_hero_ids: dire,
+        captured_at: capturedAt,
+      }
+    })
 }
 
 export default async function handleLiveOdCapture(req, res) {

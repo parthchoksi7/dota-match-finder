@@ -399,6 +399,22 @@ export async function fetchLiveSeriesGameIds(psMatchId) {
   }
 }
 
+// Live pulse (gold lead, kill score, live draft) for the CURRENTLY RUNNING game of a series, via
+// the resolver (?mode=live-game-pulse). Returns null when nothing resolves (not yet captured,
+// PS unavailable, or the game hasn't started). Not cached — intended to be polled while the
+// companion is open on a running game.
+export async function fetchLiveGamePulse(psMatchId) {
+  if (!psMatchId) return null
+  try {
+    const res = await fetch(`/api/tournaments?mode=live-game-pulse&id=${encodeURIComponent(psMatchId)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.pulse || null
+  } catch {
+    return null
+  }
+}
+
 const _tournamentPlayersCache = new Map()
 
 export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false, beginAt = null) {

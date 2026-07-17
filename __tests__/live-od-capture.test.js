@@ -12,6 +12,17 @@ import { mapLiveGamesToRows } from '../api/_handlers/liveOdCapture.js'
 
 const CAPTURED_AT = '2026-07-16T00:00:00.000Z'
 
+// A realistic OpenDota /live players[] entry: team 0 = Radiant, team 1 = Dire (confirmed
+// empirically 2026-07-16 — every live league game splits exactly 5/5 across these two values).
+function livePlayer(team, teamSlot, heroId) {
+  return { account_id: 1, hero_id: heroId, team_slot: teamSlot, team }
+}
+
+const TEN_PLAYERS = [
+  livePlayer(1, 2, 5), livePlayer(0, 1, 82), livePlayer(1, 5, 48), livePlayer(0, 3, 26), livePlayer(1, 3, 126),
+  livePlayer(0, 4, 57), livePlayer(1, 1, 71), livePlayer(1, 4, 96), livePlayer(0, 2, 10), livePlayer(0, 5, 79),
+]
+
 // A realistic OpenDota /live league entry (shape verified against the live endpoint 2026-07-16).
 function leagueGame(overrides = {}) {
   return {
@@ -26,6 +37,7 @@ function leagueGame(overrides = {}) {
     dire_score: 8,
     server_steam_id: '90288953705420822',
     game_time: 1320,
+    players: TEN_PLAYERS,
     ...overrides,
   }
 }
@@ -115,6 +127,46 @@ describe('mapLiveGamesToRows — types & null handling', () => {
   it('stamps captured_at from the argument', () => {
     const [row] = mapLiveGamesToRows([leagueGame()], CAPTURED_AT)
     expect(row.captured_at).toBe(CAPTURED_AT)
+  })
+})
+
+describe('mapLiveGamesToRows — live hero picks (Phase 2)', () => {
+  it('splits players into radiant/dire hero_id arrays by team (0=Radiant, 1=Dire)', () => {
+    const [row] = mapLiveGamesToRows([leagueGame()], CAPTURED_AT)
+    expect(row.radiant_hero_ids.sort((a, b) => a - b)).toEqual([10, 26, 57, 79, 82].sort((a, b) => a - b))
+    expect(row.dire_hero_ids.sort((a, b) => a - b)).toEqual([5, 48, 71, 96, 126].sort((a, b) => a - b))
+  })
+
+  it('never mixes a Dire player into radiant_hero_ids or vice versa', () => {
+    const [row] = mapLiveGamesToRows([leagueGame()], CAPTURED_AT)
+    const directIds = [5, 48, 71, 96, 126]
+    const radiantIds = [10, 26, 57, 79, 82]
+    expect(row.radiant_hero_ids.some(id => directIds.includes(id))).toBe(false)
+    expect(row.dire_hero_ids.some(id => radiantIds.includes(id))).toBe(false)
+  })
+
+  it('returns empty arrays (not null/undefined) when players is missing', () => {
+    const [row] = mapLiveGamesToRows([leagueGame({ players: undefined })], CAPTURED_AT)
+    expect(row.radiant_hero_ids).toEqual([])
+    expect(row.dire_hero_ids).toEqual([])
+  })
+
+  it('returns empty arrays when players is not an array', () => {
+    const [row] = mapLiveGamesToRows([leagueGame({ players: 'not-an-array' })], CAPTURED_AT)
+    expect(row.radiant_hero_ids).toEqual([])
+    expect(row.dire_hero_ids).toEqual([])
+  })
+
+  it('keeps hero_id 0 (still picking) rather than dropping the player', () => {
+    const draftInProgress = [...TEN_PLAYERS.slice(0, 9), livePlayer(0, 5, 0)]
+    const [row] = mapLiveGamesToRows([leagueGame({ players: draftInProgress })], CAPTURED_AT)
+    expect(row.radiant_hero_ids).toContain(0)
+    expect(row.radiant_hero_ids).toHaveLength(5)
+  })
+
+  it('tolerates a malformed player entry (null in the array) without throwing', () => {
+    const withNull = [...TEN_PLAYERS, null]
+    expect(() => mapLiveGamesToRows([leagueGame({ players: withNull })], CAPTURED_AT)).not.toThrow()
   })
 })
 
