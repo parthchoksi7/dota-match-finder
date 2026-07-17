@@ -1,6 +1,12 @@
 # Live Series Companion — Feature Spec
 
-**Status:** Phase 0 DEPLOYED (commit `3c26cb0`) — table created, `setup-qstash` run (5 schedules incl. `od-live-capture` `*/15`), verify-prod green. Phase 1 core built and **gated behind `spectate-owner`** (owner-only preview) for owner verification before public launch; non-owners see today's sheet byte-for-byte. Independent review clean; two edge-case fixes applied. Per the Owner-Only rule, NOT in About/Release Notes/CONTEXT until it graduates to public.
+**Status: PUBLIC (2026-07-17).** All phases (0–2) shipped and graduated out of the `spectate-owner` gate — every visitor now sees the full companion (draft, indicators, score, live pulse). Owner-only preview served its purpose: caught and fixed a wrong PandaScore route, missing Supabase grants, a wrong-side gold-lead color, and a URL-restore double-fire bug before wider release. Documentation complete: About page, Release Notes, CONTEXT.md, DESIGN_GUIDELINES.md all updated for the public feature. A short (15s) shared cache was added to the PandaScore match-detail fetch at the public-launch point, since concurrent viewers on a popular series now share load that a single owner never did.
+
+The narrative below (Phase 0/1/2 build history) is kept as-is — an accurate record of what was owner-gated *during the build*, not a description of current state.
+
+---
+
+**Status (historical):** Phase 0 DEPLOYED (commit `3c26cb0`) — table created, `setup-qstash` run (5 schedules incl. `od-live-capture` `*/15`), verify-prod green. Phase 1 core built and **gated behind `spectate-owner`** (owner-only preview) for owner verification before public launch; non-owners see today's sheet byte-for-byte. Independent review clean; two edge-case fixes applied. Per the Owner-Only rule, NOT in About/Release Notes/CONTEXT until it graduates to public.
 
 **Phase 1 build (owner-gated):** `src/components/SeriesGameDraftStrip.jsx` (new, glanceable 5v5 hero-icon strip), `LiveSeriesSheet.jsx` (owner branch: summary card w/ draft strip + result + whole-row tap → MatchDrawer; `!isOwner` branch unchanged), `src/api.js` `fetchLiveSeriesGameIds` (resolver call to patch missing ids), `App.jsx` passes `isOwner`. Enhanced (commit `16e28fb`, 2026-07-16) per a product/eng review from a fan's perspective: draft strip now shows in spoiler-free (pre-game, not a spoiler); `SeriesGameIndicators.jsx` added (Rampage/Rapier/swing/comeback chips, reusing `fetchMatchIndicators` + `GameIndicators`); series stakes line (`bracketRound`) in the header. A per-game kill score was prototyped and dropped — `match-stats` has no radiant/dire→named-winner attribution, so it would've been ambiguous next to a swapped-sides winner name.
 
