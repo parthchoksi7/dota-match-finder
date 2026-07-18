@@ -844,8 +844,11 @@ function App() {
     // ?live= URL restore below — mirrors the existing push-landing lookup (`String(mm.id) === pushTargetId`).
     const match = liveMatches.find(m => String(m.id) === String(pandaScoreMatchId))
     if (!match) return
+    // Owner-only for now: the sheet's live pulse already renders independent of finished-game
+    // count, but this gate (leftover from when the companion only surfaced finished games) still
+    // blocks opening it on a G1-only series. Public behavior stays unchanged pending a launch call.
     const hasFinishedGame = (match.games || []).some(g => g.status === 'finished')
-    if (!hasFinishedGame) return
+    if (!hasFinishedGame && !isOwner) return
     trackEvent('live_series_sheet_open', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
     setSelectedLiveSeries(match)
     // Persist so a refresh (or a shared link) restores the same sheet — live series have no
