@@ -17,6 +17,23 @@
 | 5 | Spoiler-free behavior | Graph values, momentum read, and AI line are all *hidden* in spoiler-free (they reveal who's winning); live draft still renders. | Consistent with the existing companion rule (draft is pre-outcome, not a spoiler). |
 | 6 | New indexable routes? | None. Live telemetry is transient; the companion stays on the non-canonical `?live=<id>` param. Durable value flows into the eventual post-match `/match/:id` + AI-intelligence page, not a live URL. | No middleware/JSON-LD/sitemap/llms.txt changes for the live surface. |
 
+## Pressure-Test Revisions (2026-07-17)
+
+Applied after CTO + Dota-analyst review. **These override the sections below where they conflict.**
+
+**Domain (dota_analyst):**
+- **R2 momentum read is game-time-relative and net-worth-aware, never absolute-gold.** A fixed lead means opposite things at 15:00 vs 45:00 (a stomp vs. a coin-flip), and a scaling lineup's lead is safer than a timing lineup's. Thresholds widen with `game_time`. v1 vocabulary is **state, not fate**: `EVEN`, `{TEAM} AHEAD`, `{TEAM} FAR AHEAD` — drop `COMMANDING`/`COMEBACK BREWING`/anything predictive. Dota comebacks (buyback + Aegis + Rapier + mega creeps) make late leads structurally fragile; we must never imply a decided game before barracks fall.
+- **Label the metric "NET WORTH," not "GOLD."** OD `radiant_lead` is the net-worth difference; the hardcore audience reads "gold" as unspent gold. (Tradeoff: post-game `GoldGraph` says "gold" — accept the divergence for now or reconcile later.)
+- **Pull series stakes into MVP (R2).** `DECIDER · 1–1` / `MATCH POINT · {TEAM}` is free (PS `seriesScore` + `currentGame` already in hand) and is the strongest "is this worth watching" signal — higher discovery value than the graph itself.
+- **R3 "catch me up" content model = draft-derived win conditions + current phase + net-worth state + hedged swing inference** — NOT fabricated fight recaps. Translating heroes → win conditions is the analyst-grade, patch-invariant, defensible core. Inferred events ("swing near 24:00 suggests a won fight") must be hedged, never stated as fact.
+- **R4 (objective/map state) is the corrective to the graph's blind spot, not just polish.** Net worth ignores map control; tower/rax state is often the truer "how close to ending." Still v1.2, but tower counts are the highest-value slice.
+
+**Architecture (cto):**
+- **Add a short server-side KV cache (~12–15s) on the whole `live-game-pulse` response (incl. `history`).** Verified: `fetchPsMatchDetail` is already KV-cached at 15s, but the Supabase window-scan + `findOdMatchByTime` correlation run **uncached every poll per client**. Caching the resolved payload collapses N concurrent viewers to ~1 resolve/window (client stays `private, no-store`; the cache is our own KV).
+- **`live_game_gold` gets `unique (od_match_id, game_time)` + insert-ignore-on-conflict.** Kills duplicate inserts under a lock blip and handles pauses (frozen `game_time` → no new x-point). Plot x-axis by `game_time` (dedup, filter `>= 0` and non-null).
+- **Retain last-known pulse/graph on a null poll — do not blank the live block.** Verified: `SeriesLivePulse` currently `setPulse(null)` on any failed/empty poll → the whole live section (and now the graph) flickers out and back. The parent already stops rendering the block on genuine game-end, so retaining last-known-good inside the component is safe.
+- **Graph resolution is traffic-dependent, ~110s during any broadcast.** The global `capture:od-live:lock` means one capture snapshots ALL live games, and the ambient site-wide 2-min poll (any visitor, not just open sheets) triggers it — so every live game accretes ~1 point/110s whenever the site has any traffic. Only games that began before the site had traffic start sparse. Acceptable; post-game graph is complete via OD `radiant_gold_adv`.
+
 ---
 
 # Feature Summary

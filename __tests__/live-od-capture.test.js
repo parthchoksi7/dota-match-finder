@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { mapLiveGamesToRows } from '../api/_handlers/liveOdCapture.js'
+import { mapLiveGamesToRows, toGoldRows } from '../api/_handlers/liveOdCapture.js'
 
 const CAPTURED_AT = '2026-07-16T00:00:00.000Z'
 
@@ -180,5 +180,48 @@ describe('mapLiveGamesToRows — PostgREST bulk upsert safety', () => {
     const keys0 = Object.keys(rows[0]).sort().join(',')
     const keys1 = Object.keys(rows[1]).sort().join(',')
     expect(keys1).toBe(keys0)
+  })
+})
+
+describe('toGoldRows — live gold timeseries append (Live Story, Phase A)', () => {
+  it('reduces map rows to exactly the five gold-timeseries columns', () => {
+    const rows = mapLiveGamesToRows([leagueGame()], CAPTURED_AT)
+    const [g] = toGoldRows(rows)
+    expect(g).toEqual({
+      od_match_id: 8898592653,
+      game_time: 1320,
+      radiant_lead: 1500,
+      radiant_score: 12,
+      dire_score: 8,
+    })
+  })
+
+  it('keeps draft (negative game_time) and zero-lead points — the read layer filters, not capture', () => {
+    const rows = mapLiveGamesToRows([leagueGame({ game_time: -79, radiant_lead: 0 })], CAPTURED_AT)
+    const [g] = toGoldRows(rows)
+    expect(g.game_time).toBe(-79)
+    expect(g.radiant_lead).toBe(0)
+  })
+
+  it('drops rows with a null game_time (cannot key the (od_match_id, game_time) unique constraint)', () => {
+    const rows = mapLiveGamesToRows([leagueGame({ game_time: undefined })], CAPTURED_AT)
+    expect(rows).toHaveLength(1)            // still a valid live_game_map row
+    expect(toGoldRows(rows)).toHaveLength(0) // but not a gold-timeseries point
+  })
+
+  it('keeps a null radiant_lead point (filtered at read) with a uniform key set for bulk upsert', () => {
+    const rows = mapLiveGamesToRows(
+      [leagueGame(), leagueGame({ match_id: '9', radiant_lead: undefined })],
+      CAPTURED_AT,
+    )
+    const gold = toGoldRows(rows)
+    expect(gold).toHaveLength(2)
+    expect(gold[1].radiant_lead).toBeNull()
+    expect(Object.keys(gold[0]).sort().join(',')).toBe(Object.keys(gold[1]).sort().join(','))
+  })
+
+  it('returns [] for non-array input', () => {
+    expect(toGoldRows(null)).toEqual([])
+    expect(toGoldRows(undefined)).toEqual([])
   })
 })

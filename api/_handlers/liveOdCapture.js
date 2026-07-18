@@ -78,6 +78,25 @@ export function mapLiveGamesToRows(games, capturedAt) {
     })
 }
 
+// Live Story (Phase A): reduce mapLiveGamesToRows() output to append-only net-worth timeseries
+// points for the live gold graph — one point per game per capture, read back and plotted by
+// game_time via ?mode=live-game-pulse. Keeps only rows with a real game_time (the graph x-axis and
+// half of the (od_match_id, game_time) unique key); radiant_lead may be null here and is filtered
+// at read, not capture ("store raw, filter at read", same as live_game_map). Exported for unit
+// testing. Independent of live_game_map and of the LOCKED VOD stream cache.
+export function toGoldRows(rows) {
+  if (!Array.isArray(rows)) return []
+  return rows
+    .filter(r => r && r.game_time != null)
+    .map(r => ({
+      od_match_id: r.od_match_id,
+      game_time: r.game_time,
+      radiant_lead: r.radiant_lead,
+      radiant_score: r.radiant_score,
+      dire_score: r.dire_score,
+    }))
+}
+
 export default async function handleLiveOdCapture(req, res) {
   const log = createLogger('/api/tournaments?mode=od-live-capture')
   res.setHeader('Cache-Control', 'private, no-store')
@@ -113,6 +132,28 @@ export default async function handleLiveOdCapture(req, res) {
     }
 
     log.info('captured', { count: rows.length })
+
+    // Live Story (Phase A): append a net-worth timeseries point per game to live_game_gold so the
+    // running game's gold trajectory can be graphed live. Best-effort and fully independent of the
+    // live_game_map upsert above — a failure here must NEVER affect the resolver's capture. Own
+    // try/catch (not just checking the returned `error`): a thrown fetch-level failure (e.g. a
+    // network blip) from postgrest-js's non-retryable POST path would otherwise escape to the
+    // outer catch and misreport this already-successful capture as `ok: false`. Insert-ignore on
+    // (od_match_id, game_time) dedups under a lock blip and makes a pause (frozen game_time) a
+    // no-op. Requires scripts/create-live-game-gold.sql to have been run INCLUDING its grants —
+    // otherwise this warns with the silent-42501 permission error, same trap as live_game_map.
+    try {
+      const goldRows = toGoldRows(rows)
+      if (goldRows.length > 0) {
+        const { error: goldErr } = await getSupabaseAdmin()
+          .from('live_game_gold')
+          .upsert(goldRows, { onConflict: 'od_match_id,game_time', ignoreDuplicates: true })
+        if (goldErr) log.warn('live_game_gold append failed', { error: goldErr.message })
+      }
+    } catch (goldErr) {
+      log.warn('live_game_gold append threw', { error: goldErr?.message })
+    }
+
     return res.status(200).json({ ok: true, captured: rows.length })
   } catch (err) {
     // Fail open — this is a best-effort background capture; never surface a 500 to the
