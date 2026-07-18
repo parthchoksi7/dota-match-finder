@@ -1289,6 +1289,7 @@ function App() {
               hasMore={!!nextMatchId}
               onManageTeams={() => setManageTeamsOpen(true)}
               highlightMatchId={highlightMatchId}
+              isOwner={isOwner}
             />
           </div>
         )}
