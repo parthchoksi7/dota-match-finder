@@ -17,7 +17,7 @@ function YouTubeIcon() {
   )
 }
 
-function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch, isHighlighted = false, isOwner = false }) {
+function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch, isHighlighted = false }) {
   const hasScore = match.seriesScore && match.seriesScore !== '0-0'
   const [scoreA, scoreB] = hasScore ? match.seriesScore.split('-').map(Number) : [0, 0]
 
@@ -36,11 +36,10 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
   const amberStyle = 'border-l-2 border-l-amber-500 bg-amber-50/60 dark:border-l-amber-400 dark:bg-amber-400/10'
   const redStyle = 'border-l-2 border-l-red-500 bg-red-50/20 dark:bg-red-950/10'
 
-  // Owner-only for now (Live Story verification needs a fresh 0-0 series openable, same reason
-  // App.jsx's handleSelectLiveMatch gate was relaxed for owners): hasScore alone was a leftover
-  // from before the companion had anything worth showing at 0-0 (the live pulse's draft/score/
-  // Live Story render fine before any game has been decided). Public row clickability unchanged.
-  const isClickable = (hasScore || isOwner) && !!onSelectLiveMatch
+  // hasScore is no longer required to open the row: the companion's live pulse (draft/score/
+  // Live Story) renders fine before any game has been decided, so a fresh 0-0 series is openable
+  // too — hasScore-only was a leftover from before the companion had anything worth showing then.
+  const isClickable = !!onSelectLiveMatch
 
   const hasSubRow = match.currentGame || match.bracketRound || watchUrl || match.youtubeStream
 

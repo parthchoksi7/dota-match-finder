@@ -72,11 +72,11 @@ function HeroIcon({ heroKey, name }) {
 // Live draft shows even in spoiler-free (pre-outcome, same rule as the finished-game draft
 // strip); gold lead + kill score are gated by the parent.
 //
-// Live Story (owner-only during the pre-launch window — see api/_handlers/liveGamePulse.js):
-// seriesLabel/seriesScore/teamA/teamB feed computeStakes ("does this game matter"), isOwner both
-// requests `history` from the pulse endpoint and gates whether the graph/momentum/stakes render
-// at all — the whole surface stays inert for a non-owner exactly like it did before this existed.
-export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, isOwner }) {
+// Live Story: seriesLabel/seriesScore/teamA/teamB feed computeStakes ("does this game matter").
+// `true` below always requests `history` from the pulse endpoint (api/_handlers/liveGamePulse.js
+// still checks its own `&owner=1` query param, which this satisfies unconditionally now that the
+// surface is public — left as-is server-side since it's harmless and already tested).
+export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
 
@@ -86,12 +86,12 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     async function poll() {
       await fetch('/api/tournaments?mode=od-live-capture').catch(() => {})
       if (cancelled) return
-      fetchLiveGamePulse(psMatchId, isOwner).then(p => { if (!cancelled) setPulse(prev => nextPulseState(p, prev)) }).catch(() => {})
+      fetchLiveGamePulse(psMatchId, true).then(p => { if (!cancelled) setPulse(prev => nextPulseState(p, prev)) }).catch(() => {})
     }
     poll()
     const interval = setInterval(poll, POLL_MS)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [psMatchId, isOwner])
+  }, [psMatchId])
 
   useEffect(() => {
     let cancelled = false
@@ -116,11 +116,10 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
   const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
 
-  // Live Story surfaces (stakes chip, momentum read, net-worth graph) are gated the same way the
-  // companion itself was during its own build window: owner flag first, public later via one
-  // flip. Spoiler-free hides them too (they reveal who's winning) — draft above is unaffected,
-  // same "draft is pre-outcome, not a spoiler" rule the finished-game strip already follows.
-  const showLiveStory = isOwner && !spoilerFree
+  // Live Story surfaces (stakes chip, momentum read, net-worth graph) are public. Spoiler-free
+  // still hides them (they reveal who's winning) — draft above is unaffected, same "draft is
+  // pre-outcome, not a spoiler" rule the finished-game strip already follows.
+  const showLiveStory = !spoilerFree
   const stakes = showLiveStory ? computeStakes({ seriesLabel, seriesScore, teamA, teamB }) : null
   const momentum = showLiveStory
     ? computeMomentum({ radiantLead: pulse.radiantLead, gameTime: pulse.gameTime, radiantName: pulse.radiantName, direName: pulse.direName })
@@ -144,7 +143,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
             {momentum.band === 'EVEN' ? 'Even' : `${momentum.leaderName} ${momentum.band === 'FAR_AHEAD' ? 'Far Ahead' : 'Ahead'}`}
           </span>
           <span className="ml-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-600 normal-case tracking-normal">
-            as of {formatClock(pulse.gameTime)}
+            game time {formatClock(pulse.gameTime)}
           </span>
         </p>
       )}

@@ -76,7 +76,6 @@ function HomeFeed({
   hasMore,
   onManageTeams,
   highlightMatchId = null,
-  isOwner = false,
 }) {
   const todayKey = useMemo(() => new Date().toDateString(), [])
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86400000).toDateString(), [])
@@ -437,7 +436,7 @@ function HomeFeed({
                   push targets are always followed teams, so the My Teams card is the
                   canonical landing — one scroll target, no double-pulse. */}
               {myLive.map(m => (
-                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} onSelectLiveMatch={onSelectLiveMatch} spoilerFree={spoilerFree} isFollowedMatch isHighlighted={String(m.id) === highlightMatchId} isOwner={isOwner} />
+                <LiveMatchRow key={m.id} match={m} onSelectMatchId={onSelectMatchId} onSelectLiveMatch={onSelectLiveMatch} spoilerFree={spoilerFree} isFollowedMatch isHighlighted={String(m.id) === highlightMatchId} />
               ))}
               {myUpcoming.map(m => (
                 <UpcomingMatchRow key={m.id} match={m} isFollowedMatch spoilerFree={spoilerFree} isHighlighted={String(m.id) === highlightMatchId} />
@@ -551,7 +550,6 @@ function HomeFeed({
                     onSelectLiveMatch={onSelectLiveMatch}
                     spoilerFree={spoilerFree}
                     isFollowedMatch={isTeamFollowed(followedTeams, m.teamA, m.teamB)}
-                    isOwner={isOwner}
                   />
                 ))}
                 {justEnded.length > 0 && (
