@@ -29,7 +29,7 @@ function CloseIcon() {
 // The mid-series companion: shows the completed games of an in-progress series (draft, score,
 // notable-event indicators, tap-through to the full MatchDrawer) plus a live pulse (gold lead,
 // kill score, live draft) for the currently running game.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree, isOwner }) {
   // Close on Escape
   useEffect(() => {
     function onKey(e) {
@@ -169,7 +169,15 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                   <span className="text-[10px] font-bold uppercase tracking-wide text-red-500">Live</span>
                 </div>
               </div>
-              <SeriesLivePulse psMatchId={match.id} spoilerFree={spoilerFree} />
+              <SeriesLivePulse
+                psMatchId={match.id}
+                spoilerFree={spoilerFree}
+                seriesLabel={match.seriesLabel}
+                seriesScore={match.seriesScore}
+                teamA={match.teamA}
+                teamB={match.teamB}
+                isOwner={isOwner}
+              />
             </div>
           )}
         </div>

@@ -21,9 +21,9 @@ export default function SeriesScoreRow({ name, score, winner, leadLabel, leadCol
       </span>
       <span className="flex items-center gap-1.5 flex-shrink-0">
         {leadLabel && (
-          <span className="flex flex-col items-end leading-none" aria-label={`${name} leads by ${leadLabel} gold`}>
+          <span className="flex flex-col items-end leading-none" aria-label={`${name} leads by ${leadLabel} net worth`}>
             <span className="text-[10px] font-bold tabular-nums" style={{ color: leadColor }}>{leadLabel}</span>
-            <span className="text-[7px] font-bold uppercase tracking-wide" style={{ color: leadColor }}>Gold</span>
+            <span className="text-[7px] font-bold uppercase tracking-wide" style={{ color: leadColor }}>Net Worth</span>
           </span>
         )}
         {score != null && (

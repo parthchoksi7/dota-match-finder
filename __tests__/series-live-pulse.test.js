@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { formatGoldMagnitude, formatClock } from '../src/components/SeriesLivePulse.jsx'
+import { formatGoldMagnitude, formatClock, nextPulseState } from '../src/components/SeriesLivePulse.jsx'
 
 describe('formatGoldMagnitude', () => {
   it('returns null for a zero lead (dead even — nothing to report)', () => {
@@ -59,5 +59,33 @@ describe('formatClock', () => {
   it('formats minutes and seconds correctly', () => {
     expect(formatClock(1320)).toBe('22:00')
     expect(formatClock(125)).toBe('2:05')
+  })
+})
+
+describe('nextPulseState — retain-last-known-good, bounded (Live Story)', () => {
+  const NOW = new Date('2026-07-18T00:10:00.000Z').getTime()
+  const prev = { matchId: '1', radiantLead: 5000, capturedAt: '2026-07-18T00:09:00.000Z' } // 60s old at NOW
+
+  it('a fresh pulse always wins, regardless of how recent the previous one was', () => {
+    const fresh = { matchId: '2', radiantLead: 9000, capturedAt: '2026-07-18T00:10:00.000Z' }
+    expect(nextPulseState(fresh, prev, NOW)).toBe(fresh)
+  })
+
+  it('a null poll retains the previous pulse while it is still recent (survives a transient miss)', () => {
+    expect(nextPulseState(null, prev, NOW)).toBe(prev)
+  })
+
+  it('a null poll does NOT retain a previous pulse older than the staleness bound — a real game transition must still clear', () => {
+    const stale = { matchId: '1', radiantLead: 5000, capturedAt: '2026-07-18T00:08:00.000Z' } // 120s old at NOW
+    expect(nextPulseState(null, stale, NOW)).toBeNull()
+  })
+
+  it('a null poll with no previous pulse stays null (nothing to retain)', () => {
+    expect(nextPulseState(null, null, NOW)).toBeNull()
+  })
+
+  it('treats a previous pulse with a missing/invalid capturedAt as unknown freshness, not indefinitely fresh', () => {
+    expect(nextPulseState(null, { matchId: '1', radiantLead: 5000 }, NOW)).toBeNull()
+    expect(nextPulseState(null, { matchId: '1', radiantLead: 5000, capturedAt: 'not-a-date' }, NOW)).toBeNull()
   })
 })

@@ -1,8 +1,31 @@
 import { useEffect, useState } from 'react'
 import { fetchLiveGamePulse, fetchHeroes } from '../api'
+import { computeMomentum, computeStakes } from '../utils/momentum'
+import LiveGoldGraph from './LiveGoldGraph'
 import SeriesScoreRow from './SeriesScoreRow'
 
 const POLL_MS = 20000
+// Bounds the retain-last-known-good behavior below: a failed/empty poll and a routine "no game
+// is running right now" (the ordinary gap between games in a BO3/BO5 — drafting, or the new
+// game's OD correlation hasn't landed yet) are indistinguishable from the client's point of view,
+// since both surface as a null pulse. Retaining indefinitely would show a FINISHED game's numbers
+// captioned as if they described whichever game is running now. 90s survives a transient miss or
+// two at this component's 20s poll cadence without risking that.
+const STALE_AFTER_MS = 90000
+
+// Decides what the next pulse state should be after a poll. A fresh (non-null) result always
+// wins. A null/failed result retains the previous pulse ONLY while it's still recent (bounded by
+// STALE_AFTER_MS) — otherwise a transient poll miss would flicker the whole live section out and
+// back, but an actual game transition would correctly still clear the stale display. Exported for
+// unit testing.
+export function nextPulseState(freshPulse, prevPulse, now = Date.now()) {
+  if (freshPulse) return freshPulse
+  if (prevPulse?.capturedAt) {
+    const age = now - new Date(prevPulse.capturedAt).getTime()
+    if (Number.isFinite(age) && age < STALE_AFTER_MS) return prevPulse
+  }
+  return null
+}
 
 // Absolute gold-lead magnitude with a leading "+", e.g. 2540 -> "+2.5k", -300 -> "+300". The
 // sign is NOT encoded here: the caller attributes the lead by placing this badge next to the
@@ -48,7 +71,12 @@ function HeroIcon({ heroKey, name }) {
 //
 // Live draft shows even in spoiler-free (pre-outcome, same rule as the finished-game draft
 // strip); gold lead + kill score are gated by the parent.
-export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
+//
+// Live Story (owner-only during the pre-launch window — see api/_handlers/liveGamePulse.js):
+// seriesLabel/seriesScore/teamA/teamB feed computeStakes ("does this game matter"), isOwner both
+// requests `history` from the pulse endpoint and gates whether the graph/momentum/stakes render
+// at all — the whole surface stays inert for a non-owner exactly like it did before this existed.
+export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, isOwner }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
 
@@ -58,12 +86,12 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
     async function poll() {
       await fetch('/api/tournaments?mode=od-live-capture').catch(() => {})
       if (cancelled) return
-      fetchLiveGamePulse(psMatchId).then(p => { if (!cancelled) setPulse(p) }).catch(() => {})
+      fetchLiveGamePulse(psMatchId, isOwner).then(p => { if (!cancelled) setPulse(prev => nextPulseState(p, prev)) }).catch(() => {})
     }
     poll()
     const interval = setInterval(poll, POLL_MS)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [psMatchId])
+  }, [psMatchId, isOwner])
 
   useEffect(() => {
     let cancelled = false
@@ -88,8 +116,39 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree }) {
   const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
   const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
 
+  // Live Story surfaces (stakes chip, momentum read, net-worth graph) are gated the same way the
+  // companion itself was during its own build window: owner flag first, public later via one
+  // flip. Spoiler-free hides them too (they reveal who's winning) — draft above is unaffected,
+  // same "draft is pre-outcome, not a spoiler" rule the finished-game strip already follows.
+  const showLiveStory = isOwner && !spoilerFree
+  const stakes = showLiveStory ? computeStakes({ seriesLabel, seriesScore, teamA, teamB }) : null
+  const momentum = showLiveStory
+    ? computeMomentum({ radiantLead: pulse.radiantLead, gameTime: pulse.gameTime, radiantName: pulse.radiantName, direName: pulse.direName })
+    : null
+
   return (
     <div className="px-4 py-3">
+      {stakes?.kind && (
+        <p className="mb-1.5">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            {stakes.kind === 'DECIDER' ? 'Decider' : `Match Point · ${stakes.leaderName}`}
+          </span>
+        </p>
+      )}
+      {momentum && (
+        <p className="mb-1.5">
+          <span
+            className={`text-xs font-bold uppercase tracking-wide ${momentum.leadColor ? '' : 'text-gray-600 dark:text-gray-400'}`}
+            style={momentum.leadColor ? { color: momentum.leadColor } : undefined}
+          >
+            {momentum.band === 'EVEN' ? 'Even' : `${momentum.leaderName} ${momentum.band === 'FAR_AHEAD' ? 'Far Ahead' : 'Ahead'}`}
+          </span>
+          <span className="ml-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-600 normal-case tracking-normal">
+            as of {formatClock(pulse.gameTime)}
+          </span>
+        </p>
+      )}
+      {showLiveStory && <LiveGoldGraph history={pulse.history} />}
       {!spoilerFree && (hasScore || leadMag || clock) && (
         <div className="mb-2 space-y-0.5">
           <SeriesScoreRow
