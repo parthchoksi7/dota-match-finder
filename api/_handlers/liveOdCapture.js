@@ -15,10 +15,13 @@ import { createLogger } from '../_shared.js'
 // `stream:match:`). Correlation to a PandaScore game happens later, at resolve time,
 // via findOdMatchByTime() — not here.
 //
-// Trigger: the client fires this on its existing 2-min live poll (0 QStash cost), plus
-// a */15 QStash backstop for no-user coverage. The KV lock below is the real cadence
-// control and doubles as abuse protection: however many callers hit this, at most one
-// OpenDota /live fetch runs per LOCK_TTL_S. The endpoint is intentionally unauthenticated
+// Trigger: the live-sheet pulse (SeriesLivePulse) fires this every 20s while a live series is
+// open, and App.jsx's ambient 2-min live poll fires it too (both 0 QStash cost); a */15 QStash
+// backstop covers no-user windows. The KV lock below is the real cadence control and doubles as
+// abuse protection: however many callers hit this, at most one OpenDota /live fetch runs per
+// LOCK_TTL_S. So the EFFECTIVE cadence is ~LOCK_TTL_S while any live sheet is open (the 20s pulse
+// out-paces the lock), and ~2 min when only the ambient poll triggers it (that poll's own rate is
+// then the floor, below the lock). The endpoint is intentionally unauthenticated
 // (idempotent, throttled, no user input, no sensitive data) — like promatches-proxy.
 //
 // Phase 2 addition: also captures each side's live hero picks (players[].hero_id, split by
@@ -27,7 +30,7 @@ import { createLogger } from '../_shared.js'
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
-const LOCK_TTL_S = 110 // ~2-min throttle. NOT released — the TTL IS the cadence.
+const LOCK_TTL_S = 60 // throttle ceiling, never released — the TTL IS the cadence whenever a caller polls faster than it (the live-sheet pulse fires every 20s); the trigger's own rate floors it otherwise.
 
 // Splits a /live `players` array into each side's hero_id picks by `team` (0=Radiant,
 // 1=Dire — confirmed empirically 2026-07-16: every live league game splits players 5/5 across
@@ -102,7 +105,7 @@ export default async function handleLiveOdCapture(req, res) {
   res.setHeader('Cache-Control', 'private, no-store')
 
   try {
-    // Global throttle: the first caller in the ~2-min window runs the fetch; concurrent
+    // Global throttle: the first caller in the LOCK_TTL_S window runs the fetch; concurrent
     // tabs and the */15 backstop early-exit on a single KV GET. Deliberately never
     // released — the TTL expiring is what permits the next run.
     const gotLock = await kv.set(LOCK_KEY, Date.now(), { nx: true, ex: LOCK_TTL_S })

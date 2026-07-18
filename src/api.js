@@ -415,10 +415,14 @@ export async function fetchLiveSeriesGameIds(psMatchId) {
 // the resolver (?mode=live-game-pulse). Returns null when nothing resolves (not yet captured,
 // PS unavailable, or the game hasn't started). Not cached — intended to be polled while the
 // companion is open on a running game.
-export async function fetchLiveGamePulse(psMatchId) {
+// isOwner requests the Live Story gold-graph history alongside the pulse (owner-only during the
+// pre-launch window — see api/_handlers/liveGamePulse.js). Defaults to false so existing callers
+// are unaffected and simply never receive `history`.
+export async function fetchLiveGamePulse(psMatchId, isOwner = false) {
   if (!psMatchId) return null
   try {
-    const res = await fetch(`/api/tournaments?mode=live-game-pulse&id=${encodeURIComponent(psMatchId)}`)
+    const ownerParam = isOwner ? '&owner=1' : ''
+    const res = await fetch(`/api/tournaments?mode=live-game-pulse&id=${encodeURIComponent(psMatchId)}${ownerParam}`)
     if (!res.ok) return null
     const data = await res.json()
     return data.pulse || null

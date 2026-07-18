@@ -43,7 +43,7 @@ function HeroIcon({ heroKey, name }) {
 // viewer has this exact live game open" drives freshness directly — not just the app's ambient
 // 2-min site-wide poll, which can leave the pulse tens of seconds to minutes stale (worse if the
 // browser tab backgrounds and throttles that interval). The capture is server-lock-throttled to
-// ~once/110s regardless of caller count, so most of these pings are a cheap early-exit KV read;
+// ~once/60s regardless of caller count, so most of these 20s pings are a cheap early-exit KV read;
 // only the poll that actually lands on an open lock window pays for the full OpenDota round trip.
 //
 // Live draft shows even in spoiler-free (pre-outcome, same rule as the finished-game draft
