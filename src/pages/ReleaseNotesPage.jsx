@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 18, 2026",
+    tag: "improvement",
+    title: "A richer live game: scrub the net-worth graph and read the draft at a glance",
+    desc: "The live game in the series companion just got a lot more useful. The net-worth graph is now interactive with a real timeline: hover or drag across it to read exactly who was ahead, and by how much, at any point so far. And the live draft now shows each hero with its name in the same tidy card layout as finished games, instead of a bare row of icons.",
+    items: [
+      "Interactive net-worth graph with a time axis, green when Radiant leads and red when Dire leads",
+      "Hover on desktop or drag on mobile to see the net-worth lead at any past moment",
+      "Live draft now shows hero icons with hero names, per team, matching the finished-game view",
+      "An honest label appears when the graph starts mid-game (its full shape fills in once the game ends)",
+    ],
+  },
+  {
     date: "July 17, 2026",
     tag: "new",
     title: "Live Series Companion: see what happened, without waiting for the series to end",

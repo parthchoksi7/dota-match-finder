@@ -44,17 +44,39 @@ export function formatClock(gameTime) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function HeroIcon({ heroKey, name }) {
-  if (!heroKey) return <div className="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-800 flex-shrink-0" aria-hidden="true" />
+// One pick in the live draft — mirrors the finished-game DraftDisplay row (hero icon + hero name),
+// tinted by side (Radiant green / Dire red). Two columns of these replace the old bare-icon strip so
+// the live draft reads like the drawer's completed-game draft. Deliberately WITHOUT the two things
+// the live data can't honestly show: per-player KDA (OpenDota's /live feed carries only the
+// team-level score, already shown above — never per-player kills/deaths/assists) and the player IGN
+// (not captured today — a follow-up once live_game_map stores player names). A null hero key/name
+// (hero map still loading, or hero_id 0 during draft phase) degrades to a placeholder tile + no
+// label, never a broken image or a "Hero 155" flash.
+function DraftPickRow({ heroKey, heroName, side }) {
+  const tint = side === 'radiant'
+    ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50'
+    : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50'
+  const placeholder = side === 'radiant' ? 'bg-green-200 dark:bg-green-900' : 'bg-red-200 dark:bg-red-900'
   return (
-    <img
-      src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`}
-      alt={name}
-      title={name}
-      className="w-5 h-5 rounded-sm object-cover flex-shrink-0"
-      loading="lazy"
-      onError={(e) => { e.currentTarget.style.visibility = 'hidden' }}
-    />
+    <div className={`flex items-center gap-2 px-2 py-1.5 rounded border ${tint}`}>
+      {heroKey ? (
+        <img
+          src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`}
+          alt={heroName || 'Hero'}
+          title={heroName || undefined}
+          className="w-8 h-8 rounded-sm flex-shrink-0 object-cover"
+          loading="lazy"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+      ) : (
+        <div className={`w-8 h-8 rounded-sm flex-shrink-0 ${placeholder}`} aria-hidden="true" />
+      )}
+      {heroName && (
+        <span className="font-semibold text-xs text-gray-900 dark:text-white truncate min-w-0">
+          {heroName}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -113,8 +135,10 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   const leadColor = radiantAhead ? 'rgb(34,197,94)' : 'rgb(239,68,68)'
   const clock = formatClock(pulse.gameTime)
   const hasScore = pulse.radiantScore != null && pulse.direScore != null
-  const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
-  const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || `Hero ${id}` }))
+  // name is null (not "Hero 155") until the hero map resolves, so a row degrades to icon-only rather
+  // than flashing a raw id string; DraftPickRow renders the label only when a real name is present.
+  const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || null }))
+  const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || null }))
 
   // Live Story surfaces (stakes chip, momentum read, net-worth graph) are public. Spoiler-free
   // still hides them (they reveal who's winning) — draft above is unaffected, same "draft is
@@ -147,7 +171,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
           </span>
         </p>
       )}
-      {showLiveStory && <LiveGoldGraph history={pulse.history} />}
+      {showLiveStory && <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />}
       {!spoilerFree && (hasScore || leadMag || clock) && (
         <div className="mb-2 space-y-0.5">
           <SeriesScoreRow
@@ -166,12 +190,26 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
       {(radiantHeroes.length > 0 || direHeroes.length > 0) && (
-        <div className="flex items-center gap-0.5" role="img" aria-label="Live draft">
-          {radiantHeroes.map((h, i) => <HeroIcon key={`r${i}`} heroKey={h.key} name={h.name} />)}
-          {radiantHeroes.length > 0 && direHeroes.length > 0 && (
-            <span className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1.5 flex-shrink-0" aria-hidden="true" />
-          )}
-          {direHeroes.map((h, i) => <HeroIcon key={`d${i}`} heroKey={h.key} name={h.name} />)}
+        <div className="mt-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Picks</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-green-600 dark:text-green-500 mb-1.5 truncate">
+                {pulse.radiantName || 'Radiant'}
+              </p>
+              {radiantHeroes.map((h, i) => (
+                <DraftPickRow key={`r${i}`} heroKey={h.key} heroName={h.name} side="radiant" />
+              ))}
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-red-600 dark:text-red-500 mb-1.5 truncate">
+                {pulse.direName || 'Dire'}
+              </p>
+              {direHeroes.map((h, i) => (
+                <DraftPickRow key={`d${i}`} heroKey={h.key} heroName={h.name} side="dire" />
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -24,7 +24,9 @@ export function computePoints(data) {
   }))
 }
 
-function formatGold(val) {
+// Exported so LiveGoldGraph reuses the exact header/tooltip formatting instead of duplicating it
+// (the live net-worth graph is the pre-game sibling of this post-game graph — same number format).
+export function formatGold(val) {
   if (val === 0) return '0'
   const abs = Math.abs(val)
   const sign = val > 0 ? '+' : '-'
@@ -32,7 +34,7 @@ function formatGold(val) {
   return `${sign}${abs}`
 }
 
-function formatHoverLabel(val, radiantName, direName) {
+export function formatHoverLabel(val, radiantName, direName) {
   if (val === 0) return 'Even'
   const abs = Math.abs(val)
   const formatted = abs >= 1000 ? `${(abs / 1000).toFixed(1)}k` : `${abs}`

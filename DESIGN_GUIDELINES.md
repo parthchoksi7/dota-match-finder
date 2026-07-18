@@ -750,6 +750,28 @@ Used in the live-series companion sheet (`SeriesLivePulse.jsx` for the running g
 
 ---
 
+## Live series companion — live net-worth graph + live draft (Live Story)
+
+Two surfaces inside the running-game block of `SeriesLivePulse.jsx`. Both are built to read as the pre-game siblings of the finished-game `GoldGraph`/`DraftDisplay`, so a viewer can't tell "this is the cut-down live version" from styling alone — only from the honesty markers (partial-history caption; no KDA/IGN).
+
+### Live net-worth graph (`LiveGoldGraph.jsx`)
+- **Same visual chrome as `GoldGraph`:** green area fill (`rgba(34,197,94,0.25)`) above the dashed zero line, red (`rgba(239,68,68,0.25)`) below; data line `stroke-gray-400 dark:stroke-gray-500`; RADIANT (green) · current net-worth diff (advantage color) · DIRE (red) header row; 5-minute time-axis labels (`fontSize 9`, `rgb(156,163,175)`). Section label is **"Net Worth"** (`text-[10px] font-bold uppercase tracking-widest text-gray-500`), never "Gold" — same rule as the score-row micro-label.
+- **Compact viewBox** (`480×128`, `PL 4 / PR 8 / PT 8 / PB 20`), contained within the sheet's `px-4` (NOT full-bleed like the drawer's `-mx-5` `GoldGraph` — the live graph aligns with the score row + draft in the same narrow sheet).
+- **Two deliberate divergences from `GoldGraph` (intentional — do NOT "fix" into uniformity):**
+  1. **Time-scaled x-axis, not index-spaced.** `computeTimeScaledPoints()` maps `x ∝ game_time`, so an irregular/sparse capture gap (the live feed is ~60–110s cadence, with gaps on pauses/reconnects) shows as honest horizontal distance instead of being compressed. `GoldGraph` is index-spaced because it has a value every minute.
+  2. **Hover/scrub SNAPS to the nearest real captured point; never interpolates.** The live capture is coarse — interpolating a value between two snapshots would imply a precision we don't have. Desktop `onMouseMove` + mobile horizontal-drag (`passive:false`, 5px direction-intent threshold, same as `GoldGraph`) → crosshair + dot + floating `position:fixed`, viewport-clamped tooltip (`MM:SS · +X.Xk TEAM`, reusing `GoldGraph`'s exported `formatHoverLabel`).
+- **No event markers** — there is no live Roshan/Rapier/teamfight feed (those are post-game only). Don't add marker/collision machinery here.
+- **Partial-history honesty:** if the first captured point isn't near kickoff (`t > 90`), render a `Since MM:SS — full trend after the game ends` caption rather than implying the line covers the whole game.
+- `role="img"` + a trend `aria-label` ("Net worth trend, trending up"). GA: `live_gold_scrub { source }`.
+
+### Live draft rows (`SeriesLivePulse.jsx` `DraftPickRow`)
+- **Same row shape as `DraftDisplay`'s spoiler-free row** (do NOT design a separate pattern — mirror it so the two never drift): two columns headed by the team name (`text-[10px] font-semibold uppercase tracking-widest`, green-600/red-600), then per-pick rows — `flex items-center gap-2 px-2 py-1.5 rounded border`, side-tinted (`bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50` / red), a 32px hero icon (`w-8 h-8 rounded-sm`), and the hero name (`font-semibold text-xs truncate min-w-0`).
+- **Deliberately omits per-player KDA and player IGN.** OD `/live` carries no per-player kills/deaths/assists (only the team-level score, shown in the score row), and player names aren't captured yet. The row is the same shape a future IGN/stat slot attaches to — not a dead end.
+- A hero whose name hasn't resolved yet (hero map still loading, or `hero_id` 0 in draft phase) degrades to icon-only (placeholder tile + no label) — never a broken image or a raw "Hero 155".
+- Renders regardless of spoiler-free (a draft is pre-outcome, same rule as `DraftDisplay` and the finished-game strip).
+
+---
+
 ## What to Avoid
 
 - Adding sections "just in case" — every section needs a job
