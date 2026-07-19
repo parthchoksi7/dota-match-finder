@@ -78,6 +78,12 @@ describe('StreamPicker', () => {
     expect(screen.getByRole('link').textContent).not.toMatch(/^..\s/)
   })
 
+  it('labels a non-Twitch/YouTube "other" source (e.g. Kick) by its URL host, not "Twitch"', () => {
+    render(<StreamPicker streams={[{ url: 'https://kick.com/esl_dota2', channel: null, language: 'en', source: 'other', official: true, deep_link: false, kind: 'stream_page' }]} matchId="1" />)
+    expect(screen.getByText('Kick')).toBeInTheDocument()
+    expect(screen.queryByText('Twitch')).not.toBeInTheDocument()
+  })
+
   it('fires vod_click with picker dimensions on row click', () => {
     render(<StreamPicker streams={[RU_VOD]} matchId="7" />)
     fireEvent.click(screen.getByRole('link'))

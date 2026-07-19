@@ -79,7 +79,25 @@ describe('buildGameUrls', () => {
       streams_json: [{ raw_url: 'https://youtube.com/watch?v=z', language: 'en', official: true, main: false, source: 'youtube', channel: null }],
     })
     expect(main).toMatchObject({ source: 'youtube', deep_link: false, kind: 'stream_page' })
-    expect(others).toHaveLength(0)
+    // A non-Twitch, non-start_point main has no path back into view once App.jsx
+    // discards it (it only special-cases kind==='start_point'), so it must also
+    // surface via others as a safety net.
+    expect(others).toHaveLength(1)
+    expect(others[0]).toMatchObject({ source: 'youtube', kind: 'stream_page' })
+  })
+
+  it('a non-Twitch official main (e.g. Kick) never disappears, even with better alternatives present (regression: EWC third-place match)', () => {
+    const { main, others } = buildGameUrls({
+      channel: null,
+      streams_json: [
+        { raw_url: 'https://www.twitch.tv/betboom_dota_ru3', language: 'ru', official: false, main: false, source: 'twitch', channel: 'betboom_dota_ru3' },
+        { raw_url: 'https://www.youtube.com/watch?v=avxSeNmhm_o', language: 'en', official: false, main: false, source: 'youtube', channel: null },
+        { raw_url: 'https://kick.com/esl_dota2', language: 'en', official: true, main: true, source: 'other', channel: null },
+      ],
+    })
+    expect(main).toMatchObject({ url: 'https://kick.com/esl_dota2', source: 'other', kind: 'stream_page' })
+    expect(others.map(o => o.url)).toContain('https://kick.com/esl_dota2')
+    expect(others).toHaveLength(3)
   })
 
   it('youtube URL with ?t= is treated as a timestamped start_point', () => {

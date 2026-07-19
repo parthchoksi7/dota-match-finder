@@ -155,8 +155,17 @@ export function buildGameUrls(row, vodByChannel = {}) {
     main = vodUrlObj({ twitch_vod_id: row.twitch_vod_id, vod_offset_s: row.vod_offset_s }, { channel: row.channel || null })
   }
 
+  // A primary stream whose `main` isn't a start_point has no path back into view for
+  // non-Twitch sources: App.jsx's resolveMatchStreams only keeps a stored `main` when
+  // kind==='start_point', and the live Twitch resolver it falls back to can't
+  // reconstruct a non-Twitch channel. Twitch primaries are safe to exclude from
+  // others even as a stream_page — the live resolver independently re-resolves the
+  // same channel. Everything else (Kick, a timestamp-less YouTube official, etc.)
+  // must also surface via others so it isn't silently dropped.
+  const mainVanishes = primaryStream && main?.kind !== 'start_point' && primaryStream.source !== 'twitch'
+
   const others = streams
-    .filter(s => s.raw_url !== primaryStream?.raw_url)
+    .filter(s => s.raw_url !== primaryStream?.raw_url || mainVanishes)
     .map(urlObjFor)
     .sort(compareOthers)
   return { main, others }

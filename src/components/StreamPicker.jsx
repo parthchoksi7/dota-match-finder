@@ -3,7 +3,17 @@ import { VOD_CHANNEL_LABELS } from "../api"
 import { trackEvent } from "../utils"
 
 function streamLabel(stream) {
-  return VOD_CHANNEL_LABELS[stream.channel] || stream.channel || (stream.source === "youtube" ? "YouTube" : "Twitch")
+  if (VOD_CHANNEL_LABELS[stream.channel]) return VOD_CHANNEL_LABELS[stream.channel]
+  if (stream.channel) return stream.channel
+  if (stream.source === "youtube") return "YouTube"
+  if (stream.source === "twitch") return "Twitch"
+  // "other" source (e.g. Kick) with no channel — derive a label from the host.
+  try {
+    const host = new URL(stream.url).hostname.replace(/^www\./, "").split(".")[0]
+    return host.charAt(0).toUpperCase() + host.slice(1)
+  } catch {
+    return "Stream"
+  }
 }
 
 function StreamRow({ stream, matchId }) {

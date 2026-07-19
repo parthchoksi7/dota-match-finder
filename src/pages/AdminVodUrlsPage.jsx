@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { dedupOthersAgainstPrimary } from '../vodStreams'
 
 // Internal-only VOD URL browser. Token-gated (CRON_SECRET as Bearer), never linked,
 // noindex. Shows every stream URL recorded in match_stream_history, grouped
@@ -130,6 +131,12 @@ function UrlRow({ u }) {
 }
 
 function GameRow({ game }) {
+  // A non-Twitch primary (e.g. Kick) that can't produce a start_point is folded back
+  // into `others` server-side so it's never lost (see api/pipeline/_vod-urls.js), but
+  // that means it's also still `main` — dedup here the same way the production
+  // MatchDrawer path does (src/App.jsx's resolveMatchStreams via dedupOthersAgainstPrimary)
+  // so it isn't shown twice in this admin view.
+  const others = dedupOthersAgainstPrimary(game.main ? [game.main] : [], game.others)
   return (
     <div className="border-t border-gray-800/60 py-2.5 pl-3">
       <div className="flex items-center gap-2 mb-1">
@@ -144,8 +151,8 @@ function GameRow({ game }) {
         <div><UrlRow u={game.main} /></div>
         <div className="text-[10px] uppercase tracking-widest text-gray-500 pt-1">Other</div>
         <div>
-          {game.others?.length
-            ? game.others.map((u, i) => <UrlRow key={i} u={u} />)
+          {others.length
+            ? others.map((u, i) => <UrlRow key={i} u={u} />)
             : <span className="text-xs text-gray-600 italic">none</span>}
         </div>
       </div>

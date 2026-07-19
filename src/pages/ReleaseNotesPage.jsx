@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 19, 2026",
+    tag: "fix",
+    title: "Non-Twitch official broadcasts no longer vanish from the replay list",
+    desc: "When a match's official broadcast wasn't on Twitch (a Kick-only stream, for example), the link used to disappear entirely instead of showing up in the other-streams list. Those links now always show up, correctly labeled by platform instead of defaulting to \"Twitch\".",
+  },
+  {
     date: "July 18, 2026",
     tag: "fix",
     title: "Smoother transition when replaying a finished game mid-series",
