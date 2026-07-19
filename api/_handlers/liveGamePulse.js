@@ -71,7 +71,7 @@ export async function resolvePulse(pandaId, isOwner, log) {
 
     const { data, error } = await getSupabaseAdmin()
       .from('live_game_map')
-      .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, radiant_hero_ids, dire_hero_ids, captured_at')
+      .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, radiant_hero_ids, dire_hero_ids, radiant_player_names, dire_player_names, captured_at')
       .gte('start_time', beginAtUnix - LGM_WINDOW_S)
       .lte('start_time', beginAtUnix + LGM_WINDOW_S)
     if (error || !data || data.length === 0) return { pulse: null }
@@ -91,6 +91,11 @@ export async function resolvePulse(pandaId, isOwner, log) {
       gameTime: row.game_time,
       radiantHeroIds: row.radiant_hero_ids || [],
       direHeroIds: row.dire_hero_ids || [],
+      // Index-aligned with the hero-id arrays above (2026-07-19 migration, scripts/create-live-game-map.sql).
+      // Rows captured before the migration (or before their next capture cycle) simply read back null here —
+      // same degrade-safe pattern as radiant_hero_ids/dire_hero_ids when those were first added.
+      radiantPlayerNames: row.radiant_player_names || [],
+      direPlayerNames: row.dire_player_names || [],
       capturedAt: row.captured_at,
     }
 

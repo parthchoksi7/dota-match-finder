@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { formatGoldMagnitude, formatClock, nextPulseState } from '../src/components/SeriesLivePulse.jsx'
+import { formatGoldMagnitude, formatClock, nextPulseState, zipDraftPicks } from '../src/components/SeriesLivePulse.jsx'
 
 describe('formatGoldMagnitude', () => {
   it('returns null for a zero lead (dead even — nothing to report)', () => {
@@ -87,5 +87,47 @@ describe('nextPulseState — retain-last-known-good, bounded (Live Story)', () =
   it('treats a previous pulse with a missing/invalid capturedAt as unknown freshness, not indefinitely fresh', () => {
     expect(nextPulseState(null, { matchId: '1', radiantLead: 5000 }, NOW)).toBeNull()
     expect(nextPulseState(null, { matchId: '1', radiantLead: 5000, capturedAt: 'not-a-date' }, NOW)).toBeNull()
+  })
+})
+
+describe('zipDraftPicks — hero + live IGN, index-aligned (2026-07-19 richer live draft)', () => {
+  const heroMap = {
+    82: { key: 'lone_druid', name: 'Lone Druid' },
+    26: { key: 'undying', name: 'Undying' },
+  }
+
+  it('zips hero ids, hero names/keys (from heroMap), and player names by array position', () => {
+    const result = zipDraftPicks([82, 26], ['Kiritych~', 'Kataomi`'], heroMap)
+    expect(result).toEqual([
+      { key: 'lone_druid', name: 'Lone Druid', player: 'Kiritych~' },
+      { key: 'undying', name: 'Undying', player: 'Kataomi`' },
+    ])
+  })
+
+  it('never mixes a name from one position into another position', () => {
+    const result = zipDraftPicks([26, 82], ['Kataomi`', 'Kiritych~'], heroMap)
+    expect(result[0]).toEqual({ key: 'undying', name: 'Undying', player: 'Kataomi`' })
+    expect(result[1]).toEqual({ key: 'lone_druid', name: 'Lone Druid', player: 'Kiritych~' })
+  })
+
+  it('degrades to hero-only (player: null) when playerNames is shorter, missing, or undefined — never throws or misaligns', () => {
+    expect(zipDraftPicks([82, 26], ['Kiritych~'], heroMap)[1].player).toBeNull()
+    expect(zipDraftPicks([82, 26], undefined, heroMap).every(p => p.player === null)).toBe(true)
+    expect(zipDraftPicks([82, 26], null, heroMap).every(p => p.player === null)).toBe(true)
+  })
+
+  it('degrades hero key/name to null (not a raw id string) while heroMap is still loading', () => {
+    const result = zipDraftPicks([82], ['Kiritych~'], null)
+    expect(result).toEqual([{ key: null, name: null, player: 'Kiritych~' }])
+  })
+
+  it('degrades hero key/name to null for a hero id not present in heroMap (e.g. hero 0 during draft phase)', () => {
+    const result = zipDraftPicks([0], [null], heroMap)
+    expect(result).toEqual([{ key: null, name: null, player: null }])
+  })
+
+  it('returns [] for missing/empty heroIds', () => {
+    expect(zipDraftPicks(undefined, ['a'], heroMap)).toEqual([])
+    expect(zipDraftPicks([], [], heroMap)).toEqual([])
   })
 })

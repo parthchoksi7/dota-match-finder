@@ -26,22 +26,37 @@ import { createLogger } from '../_shared.js'
 //
 // Phase 2 addition: also captures each side's live hero picks (players[].hero_id, split by
 // players[].team) so the resolver can serve a "live pulse" (gold lead/score/draft) for the
-// CURRENTLY RUNNING game, not just recover ids for finished ones.
+// CURRENTLY RUNNING game, not just recover ids for finished ones. 2026-07-19: also captures each
+// side's live player names (players[].name) alongside the hero ids, index-aligned, so the pulse
+// can show hero + pro name per pick instead of hero-only (requires scripts/create-live-game-map.sql's
+// 2026-07-19 migration to have been run — new columns read as null until then, same degrade-safe
+// pattern as every other additive column in this table).
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
 const LOCK_TTL_S = 60 // throttle ceiling, never released — the TTL IS the cadence whenever a caller polls faster than it (the live-sheet pulse fires every 20s); the trigger's own rate floors it otherwise.
 
-// Splits a /live `players` array into each side's hero_id picks by `team` (0=Radiant,
-// 1=Dire — confirmed empirically 2026-07-16: every live league game splits players 5/5 across
-// exactly these two values, consistent with isRadiant derivation used everywhere else in this
-// codebase). Missing/malformed players -> []. hero_id 0 (still picking) is kept as-is; the
-// frontend already renders a placeholder tile for hero 0/unknown, same as the finished-game
-// draft strip.
-function splitHeroPicks(players) {
+// Splits a /live `players` array into each side's hero_id picks AND player names by `team`
+// (0=Radiant, 1=Dire — confirmed empirically 2026-07-16: every live league game splits players
+// 5/5 across exactly these two values, consistent with isRadiant derivation used everywhere else
+// in this codebase). Missing/malformed players -> empty arrays. hero_id 0 (still picking) is kept
+// as-is; the frontend already renders a placeholder tile for hero 0/unknown, same as the
+// finished-game draft strip. names[i] stays index-aligned with heroIds[i] (same player, same
+// position) so the frontend can zip hero + player together per pick; a missing/blank live IGN
+// (verified present on all 10 players of a real live game 2026-07-19, but not guaranteed — e.g.
+// OD hasn't resolved the pro identity yet) is kept as null, never an empty string, so the frontend
+// can tell "no data yet" apart from an actually-empty name.
+function splitLivePicks(players) {
   const list = Array.isArray(players) ? players : []
-  const radiant = list.filter(p => p && p.team === 0).map(p => p.hero_id)
-  const dire = list.filter(p => p && p.team === 1).map(p => p.hero_id)
+  const radiant = { heroIds: [], names: [] }
+  const dire = { heroIds: [], names: [] }
+  for (const p of list) {
+    if (!p) continue
+    const bucket = p.team === 0 ? radiant : p.team === 1 ? dire : null
+    if (!bucket) continue
+    bucket.heroIds.push(p.hero_id)
+    bucket.names.push(p.name || null)
+  }
   return { radiant, dire }
 }
 
@@ -61,7 +76,7 @@ export function mapLiveGamesToRows(games, capturedAt) {
       g.team_name_radiant && g.team_name_dire
     )
     .map(g => {
-      const { radiant, dire } = splitHeroPicks(g.players)
+      const { radiant, dire } = splitLivePicks(g.players)
       return {
         od_match_id: Number(g.match_id),
         od_series_id: g.series_id ? Number(g.series_id) : null,
@@ -74,8 +89,10 @@ export function mapLiveGamesToRows(games, capturedAt) {
         dire_score: Number.isFinite(g.dire_score) ? g.dire_score : null,
         server_steam_id: g.server_steam_id ? String(g.server_steam_id) : null, // TEXT: exceeds bigint
         game_time: Number.isFinite(g.game_time) ? g.game_time : null,
-        radiant_hero_ids: radiant,
-        dire_hero_ids: dire,
+        radiant_hero_ids: radiant.heroIds,
+        dire_hero_ids: dire.heroIds,
+        radiant_player_names: radiant.names,
+        dire_player_names: dire.names,
         captured_at: capturedAt,
       }
     })

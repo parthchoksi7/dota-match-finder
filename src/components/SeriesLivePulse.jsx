@@ -44,15 +44,32 @@ export function formatClock(gameTime) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-// One pick in the live draft — mirrors the finished-game DraftDisplay row (hero icon + hero name),
-// tinted by side (Radiant green / Dire red). Two columns of these replace the old bare-icon strip so
-// the live draft reads like the drawer's completed-game draft. Deliberately WITHOUT the two things
-// the live data can't honestly show: per-player KDA (OpenDota's /live feed carries only the
-// team-level score, already shown above — never per-player kills/deaths/assists) and the player IGN
-// (not captured today — a follow-up once live_game_map stores player names). A null hero key/name
-// (hero map still loading, or hero_id 0 during draft phase) degrades to a placeholder tile + no
-// label, never a broken image or a "Hero 155" flash.
-function DraftPickRow({ heroKey, heroName, side }) {
+// Zips one side's hero ids + live IGNs (index-aligned by construction — both arrays were split
+// from OD /live's players[] in the same pass, same order, api/_handlers/liveOdCapture.js) into
+// per-pick display data. `heroIds`/`playerNames` are read positionally, so a shorter/missing
+// `playerNames` (a pre-migration or not-yet-recaptured live_game_map row) degrades each pick to
+// hero-only rather than throwing or misaligning. `heroMap` may be null while still loading — a
+// hero name of null (not "Hero 155") tells DraftPickRow to render icon-only rather than flashing a
+// raw id string. Exported for unit testing.
+export function zipDraftPicks(heroIds, playerNames, heroMap) {
+  return (heroIds || []).map((id, i) => ({
+    key: heroMap?.[id]?.key || null,
+    name: heroMap?.[id]?.name || null,
+    player: playerNames?.[i] || null,
+  }))
+}
+
+// One pick in the live draft — mirrors the finished-game DraftDisplay row (hero icon + hero name +
+// player name), tinted by side (Radiant green / Dire red). Two columns of these replace the old
+// bare-icon strip so the live draft reads like the drawer's completed-game draft. Deliberately
+// WITHOUT per-player KDA: OpenDota's /live feed carries only the team-level score (already shown
+// above), never per-player kills/deaths/assists — there is no live source for it, so the row never
+// shows a stat slot that would have to be faked. A null hero key/name (hero map still loading, or
+// hero_id 0 during draft phase) degrades to a placeholder tile + no label, never a broken image or
+// a "Hero 155" flash. playerName is the live IGN from live_game_map's radiant/dire_player_names
+// (2026-07-19 migration) — null on rows captured before that migration or before their next capture
+// cycle, in which case the row is hero-only, same degrade-safe shape as a name-pending hero.
+function DraftPickRow({ heroKey, heroName, playerName, side }) {
   const tint = side === 'radiant'
     ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50'
     : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50'
@@ -71,11 +88,18 @@ function DraftPickRow({ heroKey, heroName, side }) {
       ) : (
         <div className={`w-8 h-8 rounded-sm flex-shrink-0 ${placeholder}`} aria-hidden="true" />
       )}
-      {heroName && (
-        <span className="font-semibold text-xs text-gray-900 dark:text-white truncate min-w-0">
-          {heroName}
-        </span>
-      )}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {heroName && (
+          <span className="block font-semibold text-xs text-gray-900 dark:text-white truncate min-w-0">
+            {heroName}
+          </span>
+        )}
+        {playerName && (
+          <span className="block text-xs text-gray-500 dark:text-gray-400 truncate min-w-0">
+            {playerName}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -135,10 +159,8 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   const leadColor = radiantAhead ? 'rgb(34,197,94)' : 'rgb(239,68,68)'
   const clock = formatClock(pulse.gameTime)
   const hasScore = pulse.radiantScore != null && pulse.direScore != null
-  // name is null (not "Hero 155") until the hero map resolves, so a row degrades to icon-only rather
-  // than flashing a raw id string; DraftPickRow renders the label only when a real name is present.
-  const radiantHeroes = (pulse.radiantHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || null }))
-  const direHeroes = (pulse.direHeroIds || []).map(id => ({ key: heroMap?.[id]?.key || null, name: heroMap?.[id]?.name || null }))
+  const radiantHeroes = zipDraftPicks(pulse.radiantHeroIds, pulse.radiantPlayerNames, heroMap)
+  const direHeroes = zipDraftPicks(pulse.direHeroIds, pulse.direPlayerNames, heroMap)
 
   // Live Story surfaces (stakes chip, momentum read, net-worth graph) are public. Spoiler-free
   // still hides them (they reveal who's winning) — draft above is unaffected, same "draft is
@@ -198,7 +220,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
                 {pulse.radiantName || 'Radiant'}
               </p>
               {radiantHeroes.map((h, i) => (
-                <DraftPickRow key={`r${i}`} heroKey={h.key} heroName={h.name} side="radiant" />
+                <DraftPickRow key={`r${i}`} heroKey={h.key} heroName={h.name} playerName={h.player} side="radiant" />
               ))}
             </div>
             <div className="space-y-1">
@@ -206,7 +228,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
                 {pulse.direName || 'Dire'}
               </p>
               {direHeroes.map((h, i) => (
-                <DraftPickRow key={`d${i}`} heroKey={h.key} heroName={h.name} side="dire" />
+                <DraftPickRow key={`d${i}`} heroKey={h.key} heroName={h.name} playerName={h.player} side="dire" />
               ))}
             </div>
           </div>

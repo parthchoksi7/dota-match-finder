@@ -1,7 +1,5 @@
 import { matchesTier1Names, winsRequiredForSeries, trackEvent, STORAGE_KEYS } from './utils'
 
-const OPENDOTA_BASE = 'https://api.opendota.com/api'
-
 // OpenDota sometimes uses abbreviations that differ from the team's full name.
 // Map abbrev → canonical name so team display, fuzzy stream matching, and follow
 // logic all see the same string.
@@ -299,21 +297,14 @@ export async function fetchStoredReplay(odMatchId) {
 }
 
 export async function fetchMatchSummary(matchId) {
-  const matchRes = await fetch(OPENDOTA_BASE + '/matches/' + matchId)
-  const matchData = await matchRes.json()
-
-  // Replace persona names with pro names
-  if (matchData.players) {
-    matchData.players = matchData.players.map(p => ({
-      ...p,
-      personaname: p.name || p.personaname
-    }))
-  }
-
+  // Server fetches OpenDota itself (api/summarize.js) — not from the browser. OpenDota's Cloudflare
+  // bot protection can 403 direct browser requests and drop the CORS header on that response, which
+  // the browser reports as a CORS failure rather than the underlying 403 (the same failure class
+  // that broke fetchHeroes() sitewide, fixed via ?mode=heroes-proxy).
   const summaryRes = await fetch('/api/summarize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ matchData })
+    body: JSON.stringify({ matchId })
   })
 
   const data = await summaryRes.json()

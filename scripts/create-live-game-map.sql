@@ -63,3 +63,14 @@ create index if not exists idx_lgm_series on live_game_map (od_series_id);
 -- ---------------------------------------------------------------------------
 alter table live_game_map add column if not exists radiant_hero_ids integer[];
 alter table live_game_map add column if not exists dire_hero_ids integer[];
+
+-- ---------------------------------------------------------------------------
+-- Migration 2026-07-19 (live-draft player IGNs): existing tables only. Idempotent.
+-- Adds each side's live player names (OD /live players[].name), parallel-indexed to
+-- radiant_hero_ids/dire_hero_ids above (same order, same team split, same length per
+-- side) so the frontend can zip hero + player together per pick. NULL on existing rows
+-- until their next capture cycle. Lets the live draft show "Clinkz — shiro" instead of
+-- hero-only, matching the finished-game DraftDisplay's hero + pro-name row.
+-- ---------------------------------------------------------------------------
+alter table live_game_map add column if not exists radiant_player_names text[];
+alter table live_game_map add column if not exists dire_player_names text[];

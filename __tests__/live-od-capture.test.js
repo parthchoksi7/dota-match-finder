@@ -14,13 +14,22 @@ const CAPTURED_AT = '2026-07-16T00:00:00.000Z'
 
 // A realistic OpenDota /live players[] entry: team 0 = Radiant, team 1 = Dire (confirmed
 // empirically 2026-07-16 — every live league game splits exactly 5/5 across these two values).
-function livePlayer(team, teamSlot, heroId) {
-  return { account_id: 1, hero_id: heroId, team_slot: teamSlot, team }
+// `name` (the live IGN) defaults to undefined so existing tests that don't care about names are
+// unaffected; per-player-name tests below pass it explicitly.
+function livePlayer(team, teamSlot, heroId, name) {
+  return { account_id: 1, hero_id: heroId, team_slot: teamSlot, team, name }
 }
 
 const TEN_PLAYERS = [
   livePlayer(1, 2, 5), livePlayer(0, 1, 82), livePlayer(1, 5, 48), livePlayer(0, 3, 26), livePlayer(1, 3, 126),
   livePlayer(0, 4, 57), livePlayer(1, 1, 71), livePlayer(1, 4, 96), livePlayer(0, 2, 10), livePlayer(0, 5, 79),
+]
+
+// Same 10 players, with realistic live IGNs (shape verified against the live OD /live endpoint
+// 2026-07-19 — all 10 players of a real running game had a non-empty players[].name).
+const TEN_PLAYERS_NAMED = [
+  livePlayer(1, 2, 5, 'gpk~'), livePlayer(0, 1, 82, 'Kiritych~'), livePlayer(1, 5, 48, 'Dukalis'), livePlayer(0, 3, 26, 'MieRo'), livePlayer(1, 3, 126, 'Noticed'),
+  livePlayer(0, 4, 57, 'Save-'), livePlayer(1, 1, 71, '9Class'), livePlayer(1, 4, 96, 'Satanic'), livePlayer(0, 2, 10, 'Kataomi`'), livePlayer(0, 5, 79, 'No[o]ne-'),
 ]
 
 // A realistic OpenDota /live league entry (shape verified against the live endpoint 2026-07-16).
@@ -167,6 +176,45 @@ describe('mapLiveGamesToRows — live hero picks (Phase 2)', () => {
   it('tolerates a malformed player entry (null in the array) without throwing', () => {
     const withNull = [...TEN_PLAYERS, null]
     expect(() => mapLiveGamesToRows([leagueGame({ players: withNull })], CAPTURED_AT)).not.toThrow()
+  })
+})
+
+describe('mapLiveGamesToRows — live player names (2026-07-19 migration)', () => {
+  it('splits players into radiant/dire player-name arrays by team, index-aligned with hero_ids', () => {
+    const [row] = mapLiveGamesToRows([leagueGame({ players: TEN_PLAYERS_NAMED })], CAPTURED_AT)
+    // TEN_PLAYERS_NAMED radiant entries, in source order: Kiritych~(82), MieRo(26), Save-(57), Kataomi`(10), No[o]ne-(79)
+    expect(row.radiant_hero_ids).toEqual([82, 26, 57, 10, 79])
+    expect(row.radiant_player_names).toEqual(['Kiritych~', 'MieRo', 'Save-', 'Kataomi`', 'No[o]ne-'])
+    // dire entries, in source order: gpk~(5), Dukalis(48), Noticed(126), 9Class(71), Satanic(96)
+    expect(row.dire_hero_ids).toEqual([5, 48, 126, 71, 96])
+    expect(row.dire_player_names).toEqual(['gpk~', 'Dukalis', 'Noticed', '9Class', 'Satanic'])
+  })
+
+  it('keeps a name index-aligned with its hero at the same position (never mixed across players)', () => {
+    const [row] = mapLiveGamesToRows([leagueGame({ players: TEN_PLAYERS_NAMED })], CAPTURED_AT)
+    const heroToPlayer = Object.fromEntries(row.radiant_hero_ids.map((id, i) => [id, row.radiant_player_names[i]]))
+    expect(heroToPlayer[82]).toBe('Kiritych~') // Lone Druid
+    expect(heroToPlayer[10]).toBe('Kataomi`')  // Undying
+  })
+
+  it('nulls a missing/blank name rather than an empty string', () => {
+    const mixed = [...TEN_PLAYERS.slice(0, 9), livePlayer(0, 5, 79, '')]
+    const [row] = mapLiveGamesToRows([leagueGame({ players: mixed })], CAPTURED_AT)
+    expect(row.radiant_player_names.every(n => n === null)).toBe(true)
+  })
+
+  it('returns empty name arrays (not null/undefined) when players is missing', () => {
+    const [row] = mapLiveGamesToRows([leagueGame({ players: undefined })], CAPTURED_AT)
+    expect(row.radiant_player_names).toEqual([])
+    expect(row.dire_player_names).toEqual([])
+  })
+
+  it('stays index-aligned even when hero_id is 0 (still picking)', () => {
+    const draftInProgress = [...TEN_PLAYERS_NAMED.slice(0, 9), livePlayer(0, 5, 0, 'No[o]ne-')]
+    const [row] = mapLiveGamesToRows([leagueGame({ players: draftInProgress })], CAPTURED_AT)
+    const idx = row.radiant_hero_ids.indexOf(0)
+    expect(idx).toBeGreaterThanOrEqual(0)
+    expect(row.radiant_player_names[idx]).toBe('No[o]ne-')
   })
 })
 

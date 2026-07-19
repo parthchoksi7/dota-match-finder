@@ -1,3 +1,10 @@
+// Headroom above the 10s default: match-summary mode now does two serial fetches before the
+// (unbounded-latency) Anthropic call — getMatchData (up to 8s) and, on a rare heroes-cache miss,
+// getHeroNames (up to 5s) — where before 2026-07-19 the OpenDota fetch happened in the browser and
+// never counted against this function's execution budget. Matches the headroom pattern already
+// used by other multi-fetch handlers (api/live-matches.js, api/pipeline.js).
+export const config = { maxDuration: 30 }
+
 /** Allowed player fields for summary prompt (max 10 players). */
 const PLAYER_FIELDS = ['hero_id', 'personaname', 'name', 'isRadiant', 'kills', 'deaths', 'assists', 'net_worth', 'hero_damage', 'lane_role']
 
@@ -77,7 +84,30 @@ async function getHeroNames() {
 // Caches 24h for live/upcoming, 30 days for completed.
 
 import { kv as _kv } from './_kv.js'
-import { trackError, rateLimitByIp, setCorsHeaders, createLogger } from './_shared.js'
+import { trackError, rateLimitByIp, setCorsHeaders, createLogger, validateId } from './_shared.js'
+
+// Fetches a match server-side. OpenDota's Cloudflare bot protection can 403 direct browser
+// requests and drop the CORS header on that response (the browser then reports a CORS failure,
+// not the underlying 403) — the same failure class that broke fetchHeroes() sitewide (fixed via
+// ?mode=heroes-proxy). Mirrors getHeroNames()'s fail-open shape: any error (timeout, network,
+// non-2xx, bad JSON) returns null rather than throwing, so the caller has one check to make.
+export async function getMatchData(matchId, log) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+  try {
+    const res = await fetch(`https://api.opendota.com/api/matches/${matchId}`, { signal: controller.signal })
+    if (!res.ok) {
+      log.warn('OpenDota match fetch failed', { matchId, status: res.status })
+      return null
+    }
+    return await res.json()
+  } catch (err) {
+    log.warn('OpenDota match fetch threw', { matchId, error: err?.message })
+    return null
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 async function handleTournamentSummary(req, res) {
   const { seriesId, name, leagueName, status, beginAt, endAt, prizePool, teams, stages } = req.body || {}
@@ -171,9 +201,15 @@ export default async function handler(req, res) {
     }
   }
 
-  const { matchData } = req.body || {}
+  const { matchId } = req.body || {}
+  const idV = validateId(matchId, { name: 'matchId' })
+  if (!idV.ok) {
+    return res.status(400).json({ error: idV.error })
+  }
+
+  const matchData = await getMatchData(idV.value, log)
   if (!matchData) {
-    return res.status(400).json({ error: 'Missing matchData in request body' })
+    return res.status(502).json({ error: 'Failed to fetch match data', message: 'OpenDota is unavailable or the match was not found' })
   }
 
   const trimmed = trimMatchDataForSummary(matchData)

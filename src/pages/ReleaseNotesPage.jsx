@@ -5,6 +5,18 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 19, 2026",
+    tag: "improvement",
+    title: "Live draft now shows who's playing, not just what they're playing",
+    desc: "The live game in the series companion now shows each player's name alongside their hero, matching the finished-game draft view instead of a hero-only row.",
+  },
+  {
+    date: "July 19, 2026",
+    tag: "fix",
+    title: "AI match summaries now generate reliably",
+    desc: "The AI Summary feature fetched match data directly from OpenDota in the browser, which OpenDota's bot protection can silently block. Summaries are now generated entirely on our server, the same fix already applied to hero icons.",
+  },
+  {
+    date: "July 19, 2026",
     tag: "fix",
     title: "Non-Twitch official broadcasts no longer vanish from the replay list",
     desc: "When a match's official broadcast wasn't on Twitch (a Kick-only stream, for example), the link used to disappear entirely instead of showing up in the other-streams list. Those links now always show up, correctly labeled by platform instead of defaulting to \"Twitch\".",
