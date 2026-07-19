@@ -1,4 +1,5 @@
 import { matchesTier1Names, winsRequiredForSeries, trackEvent, STORAGE_KEYS } from './utils'
+import { TIER1_TEAMS_FALLBACK } from './data/tier1TeamsFallback.js'
 
 // OpenDota sometimes uses abbreviations that differ from the team's full name.
 // Map abbrev → canonical name so team display, fuzzy stream matching, and follow
@@ -535,6 +536,52 @@ export async function fetchHeroes() {
     return await heroFetchPromise
   } finally {
     heroFetchPromise = null
+  }
+}
+
+let tier1TeamsCache = null
+let tier1TeamsFetchPromise = null
+const TIER1_TEAMS_CACHE_MS = 3600 * 1000 // 1h — matches ?mode=teams' CDN s-maxage
+
+// Live tier-1 team list (name/slug/acronym/aliases) for Follow Teams search
+// (ManageTeamsModal.jsx) and the Calendar team picker (Calendar.jsx). Backed by
+// GET /api/tournaments?mode=teams, which is populated by the sync-teams cron from
+// PandaScore tournament rosters — new tier-1 teams appear here without a code change.
+// Falls back to the static TIER1_TEAMS_FALLBACK on any fetch/parse error (never throws),
+// and does NOT cache that fallback in-memory so the next call retries the network.
+export async function fetchTier1Teams() {
+  if (tier1TeamsCache) return tier1TeamsCache
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS.TIER1_TEAMS)
+    if (cached) {
+      const { ts, data } = JSON.parse(cached)
+      if (Date.now() - ts < TIER1_TEAMS_CACHE_MS && Array.isArray(data) && data.length > 0) {
+        tier1TeamsCache = data
+        return tier1TeamsCache
+      }
+    }
+  } catch {}
+
+  if (tier1TeamsFetchPromise) return tier1TeamsFetchPromise
+  tier1TeamsFetchPromise = (async () => {
+    try {
+      const res = await fetch('/api/tournaments?mode=teams')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      if (!Array.isArray(data?.teams) || data.teams.length === 0) throw new Error('empty teams list')
+      tier1TeamsCache = data.teams
+      try {
+        localStorage.setItem(STORAGE_KEYS.TIER1_TEAMS, JSON.stringify({ ts: Date.now(), data: tier1TeamsCache }))
+      } catch {}
+      return tier1TeamsCache
+    } catch {
+      return TIER1_TEAMS_FALLBACK
+    }
+  })()
+  try {
+    return await tier1TeamsFetchPromise
+  } finally {
+    tier1TeamsFetchPromise = null
   }
 }
 

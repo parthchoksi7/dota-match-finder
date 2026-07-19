@@ -10,6 +10,7 @@ import handleCalendarTeam from './_handlers/calendarTeam.js'
 import handleCalendarAll from './_handlers/calendarAll.js'
 import handleCalendarTournament from './_handlers/calendarTournament.js'
 import handleSyncTeams from './_handlers/syncTeams.js'
+import handleTeamsList from './_handlers/teamsList.js'
 import handleTier1Leagues from './_handlers/tier1Leagues.js'
 import handleMatchEnrichment, { handleMatchFormats, handleMatchBrackets } from './_handlers/matchEnrichment.js'
 import handleHighlights from './_handlers/highlights.js'
@@ -117,6 +118,9 @@ export default async function handler(req, res) {
 
   // ── sync-teams mode ─────────────────────────────────────────────────────────
   if (req.query?.mode === 'sync-teams') return handleSyncTeams(req, res)
+
+  // ── teams mode ───────────────────────────────────────────────────────────────
+  if (req.query?.mode === 'teams') return handleTeamsList(req, res)
 
   // ── tier1-leagues mode ──────────────────────────────────────────────────────
   if (req.query?.mode === 'tier1-leagues') return handleTier1Leagues(req, res)

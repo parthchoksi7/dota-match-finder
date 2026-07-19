@@ -3,31 +3,9 @@ import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
 import CalendarSubscribeModal from '../components/CalendarSubscribeModal'
-import { trackEvent, toTitleCase } from '../utils'
-
-// Tier 1 teams with their PandaScore slugs
-const TIER1_TEAMS = [
-  { name: 'Team Liquid', slug: 'team-liquid' },
-  { name: 'Tundra Esports', slug: 'tundra-esports' },
-  { name: 'Team Spirit', slug: 'team-spirit' },
-  { name: 'BetBoom Team', slug: 'betboom' },
-  { name: 'Team Falcons', slug: 'team-falcons' },
-  { name: 'Gaimin Gladiators', slug: 'gaimin-gladiators' },
-  { name: 'Aurora Gaming', slug: 'aurora-gaming' },
-  { name: 'OG', slug: 'og' },
-  { name: 'Natus Vincere', slug: 'natus-vincere' },
-  { name: 'Virtus.pro', slug: 'virtus-pro' },
-  { name: 'Team Secret', slug: 'team-secret' },
-  { name: 'Team Aster', slug: 'team-aster' },
-  { name: 'Talon Esports', slug: 'talon-esports' },
-  { name: 'Nouns Esports', slug: 'nouns-esports' },
-  { name: 'Team Yandex', slug: 'team-yandex' },
-  { name: 'PSG.LGD', slug: 'psg-lgd' },
-  { name: 'Nigma Galaxy', slug: 'nigma-galaxy' },
-  { name: 'Evil Geniuses', slug: 'evil-geniuses' },
-  { name: 'beastcoast', slug: 'beastcoast' },
-  { name: 'Thunder Awaken', slug: 'thunder-awaken' },
-]
+import { trackEvent, toTitleCase, teamMatchesQuery } from '../utils'
+import { fetchTier1Teams } from '../api'
+import { TIER1_TEAMS_FALLBACK } from '../data/tier1TeamsFallback'
 
 function formatScheduledTime(dateStr) {
   if (!dateStr) return null
@@ -96,7 +74,19 @@ export default function Calendar() {
   const [tournamentModalUrl, setTournamentModalUrl] = useState(null)
   const [tournamentModalLabel, setTournamentModalLabel] = useState(null)
   const [allTournamentsModalOpen, setAllTournamentsModalOpen] = useState(false)
+  const [teams, setTeams] = useState(TIER1_TEAMS_FALLBACK)
   const ALL_TOURNAMENTS_URL = 'https://spectateesports.live/api/tournaments?mode=calendar-all'
+
+  // Swaps in the live, auto-updated tier-1 team list once fetched. fetchTier1Teams()
+  // never rejects — it resolves to TIER1_TEAMS_FALLBACK on any network/parse error — so
+  // the team picker always has a usable list, live data or not.
+  useEffect(() => {
+    let cancelled = false
+    fetchTier1Teams().then(list => {
+      if (!cancelled && Array.isArray(list) && list.length > 0) setTeams(list)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     trackEvent('calendar_page_view', {})
@@ -152,15 +142,19 @@ export default function Calendar() {
       .finally(() => setPreviewLoading(false))
   }, [selectedTeams.map(t => t.slug).join(',')])
 
-  // Filtered team suggestions
+  // Filtered team suggestions. Requires a resolved PandaScore slug (unlike the Follow
+  // Teams picker, which only needs a name) — the calendar .ics feed resolves teams by
+  // slug, and a name-only entry (e.g. a static-fallback team the sync cron hasn't
+  // observed in a live tournament payload yet) would silently contribute zero matches.
   const suggestions = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
     const selectedSlugs = new Set(selectedTeams.map(t => t.slug))
-    return TIER1_TEAMS.filter(t =>
+    return teams.filter(t =>
+      t.slug &&
       !selectedSlugs.has(t.slug) &&
-      (q === '' || t.name.toLowerCase().includes(q) || t.slug.includes(q))
+      (teamMatchesQuery(t, q) || t.slug.toLowerCase().includes(q))
     )
-  }, [searchQuery, selectedTeams])
+  }, [searchQuery, selectedTeams, teams])
 
   function addTeam(team) {
     setSelectedTeams(prev => [...prev, team])

@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
   MY_TEAMS:                 "my-teams",
   RECENT_SEARCHES:          "dota-recent-searches",
   HEROES:                   "spectate-heroes-v1",
+  TIER1_TEAMS:              "spectate-tier1-teams-v1",
   HAS_VISITED:              "spectate-has-visited",
   SPOILER_NUDGE_DISMISSED:  "spoiler-nudge-dismissed",
 }
@@ -316,6 +317,18 @@ export function setFollowedTeams(teams) {
   try {
     localStorage.setItem(STORAGE_KEYS.FOLLOWED_TEAMS, JSON.stringify(teams))
   } catch {}
+}
+
+// Matches a team-search query against a team object from fetchTier1Teams() (src/api.js):
+// { name, slug, acronym, aliases }. Checks the display name first (the common case),
+// then acronym and known nicknames (e.g. "boomboys" -> BetBoom Team, "pvision" ->
+// Parivision) so users aren't limited to searching the exact official name.
+export function teamMatchesQuery(team, query) {
+  const q = (query || '').toLowerCase().trim()
+  if (q === '') return true
+  if (team.name.toLowerCase().includes(q)) return true
+  if (team.acronym && team.acronym.toLowerCase().includes(q)) return true
+  return (team.aliases || []).some(a => a.toLowerCase().includes(q))
 }
 
 // ── News unread indicator helpers ─────────────────────────────────────────

@@ -1,14 +1,8 @@
 import { useState, useEffect } from "react"
-import { trackEvent } from "../utils"
+import { trackEvent, teamMatchesQuery } from "../utils"
+import { fetchTier1Teams } from "../api"
+import { TIER1_TEAMS_FALLBACK } from "../data/tier1TeamsFallback"
 import PushNotificationSettings from "./PushNotificationSettings"
-
-const TIER1_TEAMS = [
-  'Aurora Gaming', 'beastcoast', 'BetBoom Team', 'Evil Geniuses',
-  'Gaimin Gladiators', 'Natus Vincere', 'Nigma Galaxy', 'Nouns Esports',
-  'OG', 'PSG.LGD', 'Talon Esports', 'Team Aster', 'Team Falcons',
-  'Team Liquid', 'Team Secret', 'Team Spirit', 'Team Yandex',
-  'Thunder Awaken', 'Tundra Esports', 'Virtus.pro',
-]
 
 // Dispatch on window to open this modal from anywhere (SettingsSheet, follow callout).
 // Same pattern as SETTINGS_OPEN_EVENT in SettingsSheet.
@@ -28,6 +22,7 @@ function CalendarIcon() {
 function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
   const [query, setQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [teams, setTeams] = useState(TIER1_TEAMS_FALLBACK)
 
   useEffect(() => {
     if (!open) return
@@ -40,11 +35,23 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, onClose])
 
+  // Swaps in the live, auto-updated tier-1 team list once fetched. fetchTier1Teams()
+  // never rejects — it resolves to TIER1_TEAMS_FALLBACK on any network/parse error — so
+  // the dropdown always has a usable list, live data or not.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetchTier1Teams().then(list => {
+      if (!cancelled && Array.isArray(list) && list.length > 0) setTeams(list)
+    })
+    return () => { cancelled = true }
+  }, [open])
+
   if (!open) return null
 
-  const suggestions = TIER1_TEAMS.filter(name =>
-    !followedTeams.includes(name) &&
-    (query === '' || name.toLowerCase().includes(query.toLowerCase()))
+  const suggestions = teams.filter(team =>
+    !followedTeams.includes(team.name) &&
+    teamMatchesQuery(team, query)
   )
 
   function handleAddTeam(name) {
@@ -101,14 +108,14 @@ function ManageTeamsModal({ open, followedTeams, onToggleFollow, onClose }) {
               />
               {showDropdown && suggestions.length > 0 && (
                 <ul className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-xl max-h-48 overflow-y-auto">
-                  {suggestions.map(name => (
-                    <li key={name}>
+                  {suggestions.map(team => (
+                    <li key={team.name}>
                       <button
                         type="button"
-                        onMouseDown={() => handleAddTeam(name)}
+                        onMouseDown={() => handleAddTeam(team.name)}
                         className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        {name}
+                        {team.name}
                       </button>
                     </li>
                   ))}

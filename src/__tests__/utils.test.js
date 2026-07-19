@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -892,5 +892,40 @@ describe('buildSeriesGroups — feeds App.jsx seriesMatchMap for the drawer game
     const groups = Object.values(buildSeriesGroups([g1]))
     expect(groups).toHaveLength(1)
     expect(groups[0].games.map(g => g.id)).toEqual(['lonely'])
+  })
+})
+
+describe('teamMatchesQuery', () => {
+  const betboom = { name: 'BetBoom Team', slug: 'betboom', acronym: 'BB', aliases: ['boomboys', 'bb'] }
+  const parivision = { name: 'Parivision', slug: 'parivision', acronym: null, aliases: ['pvision'] }
+
+  it('matches on the official name (case-insensitive)', () => {
+    expect(teamMatchesQuery(betboom, 'betboom')).toBe(true)
+    expect(teamMatchesQuery(betboom, 'BETBOOM')).toBe(true)
+  })
+
+  it('matches on acronym', () => {
+    expect(teamMatchesQuery(betboom, 'bb')).toBe(true)
+  })
+
+  it('matches on a nickname that is not a substring of the official name', () => {
+    // "boomboys" doesn't appear anywhere in "BetBoom Team" — only the aliases list catches it
+    expect(teamMatchesQuery(betboom, 'boomboys')).toBe(true)
+    expect(teamMatchesQuery(parivision, 'pvision')).toBe(true)
+  })
+
+  it('returns true for an empty/whitespace query (no filter applied)', () => {
+    expect(teamMatchesQuery(betboom, '')).toBe(true)
+    expect(teamMatchesQuery(betboom, '   ')).toBe(true)
+  })
+
+  it('returns false when the query matches nothing', () => {
+    expect(teamMatchesQuery(betboom, 'zzz-unrelated')).toBe(false)
+  })
+
+  it('handles a team with no acronym or aliases without throwing', () => {
+    const noExtras = { name: 'OG', slug: 'og' }
+    expect(teamMatchesQuery(noExtras, 'og')).toBe(true)
+    expect(teamMatchesQuery(noExtras, 'zzz')).toBe(false)
   })
 })

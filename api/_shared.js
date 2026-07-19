@@ -333,16 +333,67 @@ export function normalizeAllStreams(streamsList) {
     })
 }
 
-// Server-side tier-1 team list for entity tagging in news ingestion.
-// Kept separate from the frontend TIER1_TEAMS in src/pages/Calendar.jsx
-// because they run in different runtimes (Node.js vs browser).
+// Server-side tier-1 team list for entity tagging in news ingestion, and the last-resort
+// fallback for ?mode=teams (see api/_handlers/teamsList.js) if both KV keys below are
+// empty/unreachable. The living, auto-updated list is dota2:tier1_teams_full_v1,
+// populated by ?mode=sync-teams (api/_handlers/syncTeams.js) from PandaScore tournament
+// rosters — this static array only needs manual edits as a safety net, not as the
+// day-to-day source of truth.
 export const TIER1_TEAMS_SERVER = [
   'Team Liquid', 'Tundra Esports', 'Team Spirit', 'BetBoom Team',
   'Team Falcons', 'Gaimin Gladiators', 'Aurora Gaming', 'OG',
   'Natus Vincere', 'Virtus.pro', 'Team Secret', 'Team Aster',
   'Talon Esports', 'Nouns Esports', 'Team Yandex', 'PSG.LGD',
   'Nigma Galaxy', 'Evil Geniuses', 'beastcoast', 'Thunder Awaken',
+  'Parivision', 'Xtreme Gaming',
 ]
+
+/** KV keys written by ?mode=sync-teams, read by ?mode=teams and api/news.js. */
+export const KV_TIER1_TEAMS_KEY = 'dota2:tier1_teams_dynamic_v1'
+export const KV_TIER1_TEAMS_FULL_KEY = 'dota2:tier1_teams_full_v1'
+
+// Known PandaScore slugs for the TIER1_TEAMS_SERVER fallback teams. ?mode=teams uses
+// this to give its own fallback (KV_TIER1_TEAMS_FULL_KEY empty/unreachable — e.g. right
+// after this feature first deploys, before the sync-teams cron has ever run) real, usable
+// slugs instead of null — Calendar.jsx's team picker requires a non-null slug per team,
+// so a null-slug fallback would silently empty it out until KV is populated.
+export const TIER1_TEAMS_SERVER_SLUGS = {
+  'Team Liquid': 'team-liquid',
+  'Tundra Esports': 'tundra-esports',
+  'Team Spirit': 'team-spirit',
+  'BetBoom Team': 'betboom',
+  'Team Falcons': 'team-falcons',
+  'Gaimin Gladiators': 'gaimin-gladiators',
+  'Aurora Gaming': 'aurora-gaming',
+  'OG': 'og',
+  'Natus Vincere': 'natus-vincere',
+  'Virtus.pro': 'virtus-pro',
+  'Team Secret': 'team-secret',
+  'Team Aster': 'team-aster',
+  'Talon Esports': 'talon-esports',
+  'Nouns Esports': 'nouns-esports',
+  'Team Yandex': 'team-yandex',
+  'PSG.LGD': 'psg-lgd',
+  'Nigma Galaxy': 'nigma-galaxy',
+  'Evil Geniuses': 'evil-geniuses',
+  'beastcoast': 'beastcoast',
+  'Thunder Awaken': 'thunder-awaken',
+  'Parivision': 'parivision',
+  'Xtreme Gaming': 'xtreme-gaming',
+}
+
+// Community nicknames/shorthand that don't appear as a substring of the official team
+// name, so plain substring search can't find them — hand-maintained since PandaScore has
+// no concept of a fan nickname. Keyed by the exact official name used elsewhere in this
+// list. Extend as new nicknames come up; no need to cover every team, only ones whose
+// common short form isn't already substring-matchable.
+export const TEAM_NICKNAMES = {
+  'BetBoom Team': ['boomboys', 'bb'],
+  'Parivision': ['pvision'],
+  'Natus Vincere': ['navi'],
+  'Virtus.pro': ['vp'],
+  'Team Liquid': ['tl'],
+}
 
 // RSS sources for the news aggregation feature (api/news.js).
 // Add new sources here; set disabled: true to temporarily pause a source
