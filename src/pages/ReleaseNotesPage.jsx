@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 18, 2026",
+    tag: "fix",
+    title: "Smoother transition when replaying a finished game mid-series",
+    desc: "Tapping a finished game (like Game 1) while a later game in the series was still live used to briefly close the companion panel and drop you back on the homepage before the replay opened. That panel now stays open with a loading indicator on the game you tapped, and swaps straight into the replay once it's ready.",
+  },
+  {
+    date: "July 18, 2026",
     tag: "improvement",
     title: "A richer live game: scrub the net-worth graph and read the draft at a glance",
     desc: "The live game in the series companion just got a lot more useful. The net-worth graph is now interactive with a real timeline: hover or drag across it to read exactly who was ahead, and by how much, at any point so far. And the live draft now shows each hero with its name in the same tidy card layout as finished games, instead of a bare row of icons.",

@@ -237,6 +237,13 @@ function App() {
 
   // Mid-series side sheet (PS data while series is running)
   const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
+  // OD match id currently being fetched for a tap-through from the live sheet to a finished
+  // game's MatchDrawer (e.g. clicking "G1" while G2 is live) — keeps the sheet open with an
+  // inline loading state instead of closing to a bare homepage while the fetch is in flight.
+  const [liveReplayLoadingId, setLiveReplayLoadingId] = useState(null)
+  // Bumped whenever the live sheet is dismissed or swapped to a different series, so a replay
+  // fetch that resolves afterward can tell it's stale and skip opening MatchDrawer.
+  const liveReplayTokenRef = useRef(0)
   // ?live=<psSeriesId> restore-on-refresh target. Captured ONCE at mount (see the effect below)
   // — NOT re-derived from window.location.search on every poll, because handleSelectLiveMatch
   // itself writes ?live= on every open (including a plain click), and re-reading the live URL
@@ -845,6 +852,11 @@ function App() {
     const match = liveMatches.find(m => String(m.id) === String(pandaScoreMatchId))
     if (!match) return
     trackEvent('live_series_sheet_open', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
+    // Opening a (possibly different) series' sheet invalidates any replay fetch still in flight
+    // from whatever sheet was open before, so its result can't land in the wrong sheet and so
+    // this sheet doesn't inherit a stale "all rows disabled" loading state that belongs to it.
+    liveReplayTokenRef.current++
+    setLiveReplayLoadingId(null)
     setSelectedLiveSeries(match)
     // Persist so a refresh (or a shared link) restores the same sheet — live series have no
     // dedicated URL like completed matches do (/match/:id).
@@ -854,6 +866,10 @@ function App() {
   }
 
   function closeLiveSeriesSheet() {
+    // Invalidate any replay fetch still in flight so it can't reopen MatchDrawer after the user
+    // has already dismissed the sheet (see handleLiveSeriesReplay's token check).
+    liveReplayTokenRef.current++
+    setLiveReplayLoadingId(null)
     setSelectedLiveSeries(null)
     const params = new URLSearchParams(window.location.search)
     if (!params.has('live')) return
@@ -863,9 +879,27 @@ function App() {
   }
 
   async function handleLiveSeriesReplay(odMatchId) {
+    if (liveReplayLoadingId) return // a replay fetch is already in flight — ignore extra clicks
     trackEvent('live_series_replay', { odMatchId })
-    closeLiveSeriesSheet()
-    await handleSelectMatchId(odMatchId, 'live_series_replay')
+    const token = ++liveReplayTokenRef.current
+    setLiveReplayLoadingId(odMatchId)
+    try {
+      const match = await fetchAppMatchFromOpenDota(odMatchId)
+      if (!match) return // silently fail, same as handleSelectMatchId — sheet stays open
+      // If the sheet was dismissed or swapped to a different series while this fetch was in
+      // flight, closeLiveSeriesSheet/handleSelectLiveMatch already bumped the token — bail out
+      // instead of forcing MatchDrawer open on top of whatever the user is doing now.
+      if (liveReplayTokenRef.current !== token) return
+      // Close the live sheet and open the MatchDrawer in the same tick so React batches them
+      // into one render: no frame where neither is mounted (which used to flash the bare
+      // homepage while the fetch above was in flight).
+      closeLiveSeriesSheet()
+      handleSelectMatch(match, 'live_series_replay')
+    } catch {
+      // silently fail — sheet stays open
+    } finally {
+      if (liveReplayTokenRef.current === token) setLiveReplayLoadingId(null)
+    }
   }
 
   async function handleDraftPosts(series) {
@@ -1437,6 +1471,7 @@ function App() {
           match={selectedLiveSeries}
           onDismiss={closeLiveSeriesSheet}
           onReplay={handleLiveSeriesReplay}
+          loadingGameId={liveReplayLoadingId}
           spoilerFree={spoilerFree}
         />
       )}

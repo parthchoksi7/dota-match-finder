@@ -29,7 +29,7 @@ function CloseIcon() {
 // The mid-series companion: shows the completed games of an in-progress series (draft, score,
 // notable-event indicators, tap-through to the full MatchDrawer) plus a live pulse (gold lead,
 // kill score, live draft) for the currently running game.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFree }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree }) {
   // Close on Escape
   useEffect(() => {
     function onKey(e) {
@@ -99,7 +99,17 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
         <div className="flex-1 overflow-y-auto py-2">
           {finishedGames.map(game => {
             const gameMatchId = game.matchId || resolvedIds[game.position] || null
-            const clickable = gameMatchId && onReplay
+            // String() guards against `loadingGameId` (set from a click) and `gameMatchId` (may be
+            // re-derived from a fresher poll response by the time this re-renders) landing on
+            // different JS types for what's otherwise the same id.
+            const isLoadingThis = !!loadingGameId && String(loadingGameId) === String(gameMatchId)
+            const isDimmed = !!loadingGameId && !isLoadingThis
+            const clickable = gameMatchId && onReplay && !loadingGameId
+            const rowClassName = clickable
+              ? 'focus-ring -mx-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors'
+              : isDimmed
+                ? '-mx-2 px-2 py-1.5 rounded transition-opacity opacity-50'
+                : ''
             return (
               <div key={game.position} className="px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0">
                 <div
@@ -107,8 +117,15 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                   tabIndex={clickable ? 0 : undefined}
                   onClick={clickable ? () => onReplay(gameMatchId) : undefined}
                   onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReplay(gameMatchId) } } : undefined}
-                  aria-label={clickable ? `Game ${game.position}${!spoilerFree && game.winnerName ? `, ${game.winnerName} won` : ''}, view stats and replay` : undefined}
-                  className={clickable ? 'focus-ring -mx-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors' : ''}
+                  aria-label={
+                    isLoadingThis
+                      ? `Loading Game ${game.position}`
+                      : clickable
+                        ? `Game ${game.position}${!spoilerFree && game.winnerName ? `, ${game.winnerName} won` : ''}, view stats and replay`
+                        : undefined
+                  }
+                  aria-busy={isLoadingThis || undefined}
+                  className={rowClassName}
                 >
                   <div className="flex items-center justify-between gap-3 min-w-0">
                     <div className="flex items-center gap-3 min-w-0">
@@ -139,6 +156,11 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, spoilerFre
                         )}
                       </div>
                     </div>
+                    {isLoadingThis && (
+                      <span aria-live="polite" className="flex-shrink-0 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-yellow-500 animate-pulse">
+                        Loading&hellip;
+                      </span>
+                    )}
                     {clickable && (
                       <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-purple-700 dark:text-purple-400">
                         <PlayIcon />

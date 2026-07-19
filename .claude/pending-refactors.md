@@ -64,16 +64,17 @@ Exempt from RICE: work that literally cannot start yet.
 | 8 | Batch push-subscriber KV reads in `sendPushNotificationsForMatches` | 4 | 4 | 80% | 3 | **4.3** |
 | 9 | Remove dead "Multiple channels were live" copy | 1 | 1 | 100% | 0.25 | **4.0** |
 | 9 | `aria-describedby` on search errors | 1 | 2 | 100% | 0.5 | **4.0** |
-| 11 | Replace O(n²) series merge with union-find | 5 | 2 | 90% | 3 | **3.0** |
-| 12 | Sticky "Now Watching" panel | 4 | 3 | 70% | 3 | **2.8** |
-| 13 | App.jsx state machine for async clusters (`useReducer`) | 3 | 3 | 70% | 3 | **2.1** |
-| 14 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
-| 15 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
-| 16 | Recent / popular search suggestions | 3 | 2 | 60% | 3 | **1.2** |
-| 16 | "Has VOD" filter | 3 | 2 | 60% | 3 | **1.2** |
-| 16 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
-| 19 | Verify "OG" PS↔OD name mapping when next active | 1 | 2 | 50% | 1 | **1.0** |
-| 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
+| 11 | Shared `Sheet`/`Drawer` wrapper for `LiveSeriesSheet` + `MatchDrawer` | 4 | 1 | 85% | 1 | **3.4** |
+| 12 | Replace O(n²) series merge with union-find | 5 | 2 | 90% | 3 | **3.0** |
+| 13 | Sticky "Now Watching" panel | 4 | 3 | 70% | 3 | **2.8** |
+| 14 | App.jsx state machine for async clusters (`useReducer`) | 3 | 3 | 70% | 3 | **2.1** |
+| 15 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
+| 16 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
+| 17 | Recent / popular search suggestions | 3 | 2 | 60% | 3 | **1.2** |
+| 17 | "Has VOD" filter | 3 | 2 | 60% | 3 | **1.2** |
+| 17 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
+| 20 | Verify "OG" PS↔OD name mapping when next active | 1 | 2 | 50% | 1 | **1.0** |
+| 21 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
 
 ---
 
@@ -115,45 +116,51 @@ Exempt from RICE: work that literally cannot start yet.
 ### 9. `aria-describedby` on search errors
 - **What:** Associate the error message ("Failed to load matches") with the search form using `aria-describedby` for screen reader users.
 
-### 11. Replace O(n²) series merge with union-find
+### 11. Shared `Sheet`/`Drawer` wrapper for `LiveSeriesSheet` + `MatchDrawer`
+- **Files:** `src/components/LiveSeriesSheet.jsx`, `src/components/MatchDrawer.jsx`
+- **What:** Spotted 2026-07-18 while fixing the G1-tap-through-during-G2-live homepage flash (see `CONTEXT.md`'s `LiveSeriesSheet.jsx` entry). The two components independently hand-code an identical backdrop (`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity`) + sliding panel (`fixed top-0 right-0 z-50 ... animate-slide-in`, same `role="dialog"`/`aria-modal`/Escape-to-close wiring) with only width classes differing. No shared wrapper exists anywhere in `src/components/`. Extract a `Sheet.jsx` (backdrop + panel + Escape handler + focus-ring dismiss button) that both render their content into.
+- **Why it's not higher:** Pure DRY/maintainability — no correctness bug today, and the two panels' animate-in-only (no animate-out) behavior would need to be preserved exactly during extraction.
+- **Risk:** Low — additive extraction, both call sites get visually identical output if done carefully. Worth doing before a third sheet-style overlay gets hand-coded a third time.
+
+### 12. Replace O(n²) series merge with union-find
 - **Files:** `src/utils.js` (`groupIntoSeries`, third pass, lines 163–190)
 - **What:** The `while(mergedAny) + break outer` restart loop is O(n²·m) in the worst case. Replace with a path-compressed union-find (disjoint set union) that finds merge candidates in a single pass: O(n²) one pass to build the merge set + O(n·α(n)) for union operations ≈ effectively O(n²) total but with no restart penalty.
 - **Why it's not higher:** At current scale (~50–100 matches per page) this is negligible — Impact is capped at 2 until scale changes. At 10x scale (500+ matches in a tournament view + multi-page load-more), revisit — the restart loop starts accumulating and Impact should be re-scored upward.
 - **Risk:** Medium — the series merge algorithm is subtle and has existing tests. Must keep all current test cases passing. Run `vitest run` before and after.
 - **Dependencies:** None — isolated to `src/utils.js`.
 
-### 12. Sticky "Now Watching" panel
+### 13. Sticky "Now Watching" panel
 - **What:** Keep the match detail panel (currently a drawer) sticky below the header on scroll so Watch / Summary actions stay visible while browsing the match list.
 
-### 13. App.jsx state machine for async clusters
+### 14. App.jsx state machine for async clusters
 - **File:** `src/App.jsx:134-194`
 - **What:** Replace the 5-state summary cluster (`summary`, `summaryMatchId`, `summaryError`, `summaryErrorMatchId`, `summaryLoading`) with a `useReducer`. Same for xPosts and redditPosts clusters.
 - Start with the xPosts cluster (fully self-contained, no external callers) as a pilot.
 
-### 14. URL query-param rewrite boilerplate duplicated four times in App.jsx
+### 15. URL query-param rewrite boilerplate duplicated four times in App.jsx
 - **What:** Flagged in the `?live=` URL-persistence review (2026-07-17). The `new URLSearchParams(window.location.search)` → mutate → `window.history.replaceState(null, '', pathname + '?' + qs + hash)` pattern is hand-rolled in four places: the manage-teams effect, the `?m=` push-landing strip effect, `handleSelectLiveMatch` (sets `?live=`), and `closeLiveSeriesSheet` (clears `?live=`). A small shared `setUrlParam(key, value)` / `removeUrlParam(key)` helper would remove the duplication. Purely a simplification — no correctness issue in any of the four call sites.
 
-### 15. verify-prod od-consistency check miscalibrated for round-robin group stages
+### 16. verify-prod od-consistency check miscalibrated for round-robin group stages
 - **What:** `scripts/verify-prod.mjs`'s od-consistency check (`maxExpected = effectiveSeries * 5`) uses `finishedSeries` from the bracket API as the fallback denominator when `totalStandingWins <= finishedSeries * 3`. For a BO2 round-robin group stage (e.g. EWC 2026 Group A), `finishedSeries` (bracket-only) stayed at 3 all day while the actual completed-game count climbed to 18 as more round-robin series finished — the bracket API doesn't track round-robin completions the way it tracks elimination-bracket ones, so the denominator never grows with real progress. Failed a 2026-07-07 deploy verification for reasons unrelated to that deploy (confirmed: the deploy's actual target — 4 previously-unmatched EWC series — was independently verified archived correctly via direct `match_stream_history` inspection). Needs a group-stage-aware denominator (e.g. count distinct series_id in OD's own game list) instead of relying on the bracket API for formats that don't use single-elimination brackets.
 
-### 16. Recent / popular search suggestions
+### 17. Recent / popular search suggestions
 - **What:** Show up to 5 recent searches (localStorage) and a few suggested queries ("Team Liquid", "DreamLeague") in the search overlay before the user types anything.
 
-### 16. "Has VOD" filter
+### 17. "Has VOD" filter
 - **What:** Post-search filter chip to narrow results to games that have a confirmed VOD link. Complements the existing All/BO1/BO3/BO5 series type filter.
 
-### 16. Move push subscriptions from KV to Supabase
+### 17. Move push subscriptions from KV to Supabase
 - **What:** Design a `push_subscriptions` table in Supabase: `(id UUID PK, user_id TEXT UNIQUE, endpoint TEXT, p256dh TEXT, auth TEXT, teams TEXT[], updated_at TIMESTAMPTZ)`. Migrate the push-subscribe write path in `live-matches.js` to Supabase upsert. Migrate the notification send path to query Supabase by team name instead of KV `push:team:{name}` index.
 - **Expected benefit:** Proper relational data model. No more 30-day TTL expiry silently deleting subscriptions. Queryable: you can count subscribers per team, identify expired subscriptions, and analyze notification delivery rates.
 - **Risk:** Medium — requires a migration of existing KV subscriptions, a new Supabase table, and updating both the subscribe and send paths. Supabase is already integrated (articles table), so no new credentials needed.
 - **Dependencies:** Server-derived userId fix — **done** (see Completed Archive). Unblocked.
 - **Sequence:** Design schema → dual-write (KV + Supabase) → verify parity → cut over read path to Supabase → deprecate KV push keys.
 
-### 19. Verify "OG" PS↔OD name mapping when next active
+### 20. Verify "OG" PS↔OD name mapping when next active
 - **What:** 2026-07-07 tier-1 team-name scrub (see `CONTEXT.md` `TEAM_NAME_ALIAS_GROUPS`) couldn't confirm PandaScore's team search for "OG" — their 2-char name makes PS's search return noise, so their real PS team id was never found. Revisit once OG has a live/recent match to check both providers' actual match-time naming — add to `TEAM_NAME_ALIAS_GROUPS` only if a real divergence shows up.
 - **Note:** Confidence is 50% and this is opportunistic — do it whenever OG next plays, don't go looking for a reason to schedule it.
 
-### 20. Full TypeScript migration
+### 21. Full TypeScript migration
 - **What:** Phase 1 (jsconfig + checkJs, 1 week): enable `checkJs: true`, fix all implicit any errors in `_shared.js` and `api.js`. Phase 2 (rename to .ts, 1–2 weeks): start with `_shared.ts`, `_kv.ts`, then API handlers, then React components. Phase 3: CI enforcement (`tsc --noEmit` in GitHub Actions).
 - **Expected benefit:** Compiles away an entire category of bugs (wrong property name, null not handled, wrong function signature). Required for sustainable multi-engineer development. Makes the PS↔OD bridge contract machine-checkable. Enables IDE autocomplete on the complex PandaScore and OpenDota object shapes.
 - **Risk:** Medium — edge middleware (`middleware.js`) has edge runtime constraints that limit which Node.js types are available. React 19 is fully TypeScript-compatible. Vercel serverless functions support TypeScript natively.
