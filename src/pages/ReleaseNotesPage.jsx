@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "July 19, 2026",
     tag: "improvement",
+    title: "My Teams and Calendar now find every Tier 1 team, plus nicknames",
+    desc: "The Follow a Team search and the Calendar team picker used to check against a fixed, hand-maintained list that missed newer Tier 1 teams (Parivision, for one). Both now pull from a list that updates automatically as the competitive scene changes, and search also matches common nicknames — \"boomboys\" finds BetBoom Team, \"pvision\" finds Parivision.",
+  },
+  {
+    date: "July 19, 2026",
+    tag: "improvement",
     title: "Live draft now shows who's playing, not just what they're playing",
     desc: "The live game in the series companion now shows each player's name alongside their hero, matching the finished-game draft view instead of a hero-only row.",
   },
