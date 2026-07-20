@@ -339,32 +339,45 @@ export function normalizeAllStreams(streamsList) {
 // populated by ?mode=sync-teams (api/_handlers/syncTeams.js) from PandaScore tournament
 // rosters — this static array only needs manual edits as a safety net, not as the
 // day-to-day source of truth.
+// 2026-07-19: cross-checked every entry against a live PandaScore fetch (past 50 +
+// running + upcoming /dota2/tournaments/*) and every tier-S/A Esports World Cup 2026 +
+// BLAST Slam stage specifically. Two renames (orgs that dropped/changed branding —
+// PandaScore no longer returns the old name at all) and twelve additions (real EWC
+// group-stage/playoffs or BLAST Slam Playoffs participants that had no entry here,
+// 1win among them — it inherited Tundra Esports' roster in June 2026, see
+// TEAM_NAME_ALIAS_GROUPS in src/teamMatching.js).
 export const TIER1_TEAMS_SERVER = [
   'Team Liquid', 'Tundra Esports', 'Team Spirit', 'BetBoom Team',
-  'Team Falcons', 'Gaimin Gladiators', 'Aurora Gaming', 'OG',
+  'Team Falcons', 'Gaimin Gladiators', 'Aurora', 'OG',
   'Natus Vincere', 'Virtus.pro', 'Team Secret', 'Team Aster',
-  'Talon Esports', 'Nouns Esports', 'Team Yandex', 'PSG.LGD',
+  'Talon Esports', 'Nouns Esports', 'Team Yandex', 'LGD Gaming',
   'Nigma Galaxy', 'Evil Geniuses', 'beastcoast', 'Thunder Awaken',
-  'Parivision', 'Xtreme Gaming',
+  'Parivision', 'Xtreme Gaming', '1win', 'Vici Gaming', 'Rune Eaters',
+  'GamerLegion', 'MOUZ', 'Team Nemesis', 'L1ga Team', 'Level UP',
+  'PlayTime', 'Poor Rangers', 'Inner Circle x Insanity', 'REKONIX',
 ]
 
 /** KV keys written by ?mode=sync-teams, read by ?mode=teams and api/news.js. */
 export const KV_TIER1_TEAMS_KEY = 'dota2:tier1_teams_dynamic_v1'
 export const KV_TIER1_TEAMS_FULL_KEY = 'dota2:tier1_teams_full_v1'
 
-// Known PandaScore slugs for the TIER1_TEAMS_SERVER fallback teams. ?mode=teams uses
-// this to give its own fallback (KV_TIER1_TEAMS_FULL_KEY empty/unreachable — e.g. right
-// after this feature first deploys, before the sync-teams cron has ever run) real, usable
-// slugs instead of null — Calendar.jsx's team picker requires a non-null slug per team,
-// so a null-slug fallback would silently empty it out until KV is populated.
+// Known PandaScore slugs for the TIER1_TEAMS_SERVER fallback teams, taken directly from
+// a live PandaScore team object per name (not guessed — three earlier guesses here were
+// wrong: BetBoom Team is "betboom-team" not "betboom", Team Falcons is
+// "team-falcons-dota-2" not "team-falcons", Parivision is "parivision-dota-2" not
+// "parivision"). ?mode=teams uses this to give its own fallback (KV_TIER1_TEAMS_FULL_KEY
+// empty/unreachable — e.g. right after this feature first deploys, before the sync-teams
+// cron has ever run) real, usable slugs instead of null — Calendar.jsx's team picker
+// requires a non-null slug per team, so a null-slug fallback would silently empty it out
+// until KV is populated.
 export const TIER1_TEAMS_SERVER_SLUGS = {
   'Team Liquid': 'team-liquid',
   'Tundra Esports': 'tundra-esports',
   'Team Spirit': 'team-spirit',
-  'BetBoom Team': 'betboom',
-  'Team Falcons': 'team-falcons',
+  'BetBoom Team': 'betboom-team',
+  'Team Falcons': 'team-falcons-dota-2',
   'Gaimin Gladiators': 'gaimin-gladiators',
-  'Aurora Gaming': 'aurora-gaming',
+  'Aurora': 'aurora-dota-2',
   'OG': 'og',
   'Natus Vincere': 'natus-vincere',
   'Virtus.pro': 'virtus-pro',
@@ -373,13 +386,25 @@ export const TIER1_TEAMS_SERVER_SLUGS = {
   'Talon Esports': 'talon-esports',
   'Nouns Esports': 'nouns-esports',
   'Team Yandex': 'team-yandex',
-  'PSG.LGD': 'psg-lgd',
+  'LGD Gaming': 'lgd-gaming-dota-2',
   'Nigma Galaxy': 'nigma-galaxy',
   'Evil Geniuses': 'evil-geniuses',
   'beastcoast': 'beastcoast',
   'Thunder Awaken': 'thunder-awaken',
-  'Parivision': 'parivision',
+  'Parivision': 'parivision-dota-2',
   'Xtreme Gaming': 'xtreme-gaming',
+  '1win': '1win-dota-2',
+  'Vici Gaming': 'vici-gaming-dota-2',
+  'Rune Eaters': 'rune-eaters',
+  'GamerLegion': 'gamerlegion-dota-2',
+  'MOUZ': 'mouz-dota-2',
+  'Team Nemesis': 'team-nemesis',
+  'L1ga Team': 'l1ga-team',
+  'Level UP': 'level-up',
+  'PlayTime': 'playtime',
+  'Poor Rangers': 'poor-rangers',
+  'Inner Circle x Insanity': 'inner-circle',
+  'REKONIX': 'rekonix',
 }
 
 // Community nicknames/shorthand that don't appear as a substring of the official team
@@ -393,6 +418,15 @@ export const TEAM_NICKNAMES = {
   'Natus Vincere': ['navi'],
   'Virtus.pro': ['vp'],
   'Team Liquid': ['tl'],
+  // Nicknames longer than the current official name — plain substring search only
+  // checks name.includes(query), so a query longer than the name never matches without
+  // an explicit alias here.
+  '1win': ['1win team'],
+  'Aurora': ['aurora gaming'],
+  // LGD Gaming dropped the PSG sponsorship in its name; PandaScore no longer returns
+  // "PSG.LGD" at all (confirmed 2026-07-19), but plenty of existing content/muscle memory
+  // still calls them that.
+  'LGD Gaming': ['psg.lgd', 'psg'],
 }
 
 // RSS sources for the news aggregation feature (api/news.js).

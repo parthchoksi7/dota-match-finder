@@ -53,8 +53,18 @@ describe('teamsList handler', () => {
     expect(res.body.teams.length).toBeGreaterThan(0)
     const parivision = res.body.teams.find(t => t.name === 'Parivision')
     expect(parivision).toBeTruthy()
-    expect(parivision.slug).toBe('parivision')
+    expect(parivision.slug).toBe('parivision-dota-2')
     expect(res.body.teams.every(t => t.slug)).toBe(true)
+  })
+
+  it('includes 1win (inherited Tundra Esports\' roster in June 2026) in the static fallback', async () => {
+    kv.get.mockResolvedValue(null)
+    const res = mockRes()
+    await handleTeamsList({}, res)
+    const oneWin = res.body.teams.find(t => t.name === '1win')
+    expect(oneWin).toBeTruthy()
+    expect(oneWin.slug).toBe('1win-dota-2')
+    expect(oneWin.aliases).toContain('1win team')
   })
 
   it('falls back to the static list when the KV read throws', async () => {
