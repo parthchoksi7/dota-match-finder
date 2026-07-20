@@ -145,6 +145,7 @@ const SITE_NAME = 'Spectate Esports'
 const TIER1_NAME_PATTERNS_SSR = [
   'DreamLeague', 'ESL One', 'PGL', 'PGL Wallachia', 'BLAST', 'The International',
   'Beyond The Summit', 'WePlay', 'Riyadh Masters', '1win Essence', 'Esports World Cup',
+  'EPL Masters',
 ]
 function isTier1LeagueNameSSR(name) {
   if (!name) return false

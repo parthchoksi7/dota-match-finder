@@ -600,6 +600,7 @@ export const PERMANENT_TIER1_NAMES = [
   'Riyadh Masters',
   '1win Essence',
   'Esports World Cup',
+  'EPL Masters',
 ]
 
 // ── OpenDota league fuzzy-matching ───────────────────────────────────────────
