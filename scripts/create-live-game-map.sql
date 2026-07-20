@@ -74,3 +74,19 @@ alter table live_game_map add column if not exists dire_hero_ids integer[];
 -- ---------------------------------------------------------------------------
 alter table live_game_map add column if not exists radiant_player_names text[];
 alter table live_game_map add column if not exists dire_player_names text[];
+
+-- ---------------------------------------------------------------------------
+-- Migration 2026-07-19 (Live Story R4 — objective/map state, Phase A capture):
+-- existing tables only. Idempotent. Stores the raw OD /live objective signals per
+-- capture so the running game's map state (standing towers, and — if the bit layout
+-- proves to include them — barracks) can be surfaced live, plus a spectator count as
+-- a discovery/hype signal. Both stored RAW (no decode at capture — "store raw, filter
+-- at read", the table's convention); the bit layout of building_state is decoded at
+-- read time by a pure decoder, and ONLY after the R4.0 verification spike confirms it
+-- (see .claude/specs/live-story-r4-*.md). NULL on existing rows until their next
+-- capture cycle. building_state is a bitmask of standing buildings; a live sample was
+-- 16187530 (fits int32, but bigint is used defensively in case a future patch widens
+-- the mask — values stay well under JS's 2^53 exact-integer ceiling either way).
+-- ---------------------------------------------------------------------------
+alter table live_game_map add column if not exists building_state bigint;
+alter table live_game_map add column if not exists spectators integer;

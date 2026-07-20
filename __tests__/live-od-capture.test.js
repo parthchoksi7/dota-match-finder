@@ -46,6 +46,8 @@ function leagueGame(overrides = {}) {
     dire_score: 8,
     server_steam_id: '90288953705420822',
     game_time: 1320,
+    building_state: 16187530, // live sample (24 significant bits) — bitmask of standing buildings
+    spectators: 976,
     players: TEN_PLAYERS,
     ...overrides,
   }
@@ -215,6 +217,32 @@ describe('mapLiveGamesToRows — live player names (2026-07-19 migration)', () =
     const idx = row.radiant_hero_ids.indexOf(0)
     expect(idx).toBeGreaterThanOrEqual(0)
     expect(row.radiant_player_names[idx]).toBe('No[o]ne-')
+  })
+})
+
+describe('mapLiveGamesToRows — objective/map state (Live Story R4, Phase A)', () => {
+  it('captures building_state and spectators raw (no decode at capture)', () => {
+    const [row] = mapLiveGamesToRows([leagueGame()], CAPTURED_AT)
+    expect(row.building_state).toBe(16187530)
+    expect(row.spectators).toBe(976)
+  })
+
+  it('nulls building_state / spectators when missing or non-finite', () => {
+    const [row] = mapLiveGamesToRows(
+      [leagueGame({ building_state: undefined, spectators: NaN })],
+      CAPTURED_AT,
+    )
+    expect(row.building_state).toBeNull()
+    expect(row.spectators).toBeNull()
+  })
+
+  it('preserves a zero spectators / zero building_state (0 is a value, not null — filtered at read)', () => {
+    const [row] = mapLiveGamesToRows(
+      [leagueGame({ building_state: 0, spectators: 0 })],
+      CAPTURED_AT,
+    )
+    expect(row.building_state).toBe(0)
+    expect(row.spectators).toBe(0)
   })
 })
 

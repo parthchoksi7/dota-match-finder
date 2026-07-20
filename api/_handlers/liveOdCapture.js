@@ -31,6 +31,11 @@ import { createLogger } from '../_shared.js'
 // can show hero + pro name per pick instead of hero-only (requires scripts/create-live-game-map.sql's
 // 2026-07-19 migration to have been run — new columns read as null until then, same degrade-safe
 // pattern as every other additive column in this table).
+//
+// R4 addition (2026-07-19): also captures the raw building_state (bitmask of standing buildings)
+// and spectators count for a future objective/map-state readout ("how close is this to ending"),
+// stored UNDECODED — the bit layout is decoded at read time only after the R4.0 verification spike
+// confirms it, never here. Same additive-column, null-until-recaptured pattern as the fields above.
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
@@ -89,6 +94,13 @@ export function mapLiveGamesToRows(games, capturedAt) {
         dire_score: Number.isFinite(g.dire_score) ? g.dire_score : null,
         server_steam_id: g.server_steam_id ? String(g.server_steam_id) : null, // TEXT: exceeds bigint
         game_time: Number.isFinite(g.game_time) ? g.game_time : null,
+        // Live Story R4 (objective/map state): raw OD /live objective signals, stored undecoded.
+        // building_state is a bitmask of standing buildings (bit layout decoded at read time, only
+        // after the R4.0 verification spike — never decoded here); spectators is a live viewer count
+        // used as a discovery/hype signal. Both nullable, same store-raw-filter-at-read convention as
+        // the telemetry above. See .claude/specs/live-story-r4-*.md.
+        building_state: Number.isFinite(g.building_state) ? g.building_state : null,
+        spectators: Number.isFinite(g.spectators) ? g.spectators : null,
         radiant_hero_ids: radiant.heroIds,
         dire_hero_ids: dire.heroIds,
         radiant_player_names: radiant.names,
