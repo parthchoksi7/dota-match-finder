@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 19, 2026",
+    tag: "new",
+    title: "Switch games and watch live, right inside the series companion",
+    desc: "The live series companion now shows one game at a time behind a G1/G2/... switcher instead of stacking every game in one long scroll, so you can jump straight to what's live. The live game also now surfaces Watch links for every stream we know about — the official broadcast, YouTube, and any other-language or co-stream links — so you don't have to leave the companion to start watching.",
+  },
+  {
+    date: "July 19, 2026",
     tag: "improvement",
     title: "My Teams and Calendar now find every Tier 1 team, plus nicknames",
     desc: "The Follow a Team search and the Calendar team picker used to check against a fixed, hand-maintained list that missed newer Tier 1 teams (Parivision, for one). Both now pull from a list that updates automatically as the competitive scene changes, and search also matches common nicknames — \"boomboys\" finds BetBoom Team, \"pvision\" finds Parivision.",

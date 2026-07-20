@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { fetchLiveGamePulse, fetchHeroes } from '../api'
+import { trackEvent } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
 import LiveGoldGraph from './LiveGoldGraph'
 import SeriesScoreRow from './SeriesScoreRow'
+import LiveStreamPicker from './LiveStreamPicker'
+import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
 
 const POLL_MS = 20000
 // Bounds the retain-last-known-good behavior below: a failed/empty poll and a routine "no game
@@ -122,7 +125,7 @@ function DraftPickRow({ heroKey, heroName, playerName, side }) {
 // `true` below always requests `history` from the pulse endpoint (api/_handlers/liveGamePulse.js
 // still checks its own `&owner=1` query param, which this satisfies unconditionally now that the
 // surface is public — left as-is server-side since it's harmless and already tested).
-export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB }) {
+export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
 
@@ -145,7 +148,47 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     return () => { cancelled = true }
   }, [])
 
-  if (!pulse) return null
+  // Watch links don't depend on the pulse poll (they come from the already-fetched match
+  // object), so they're computed and rendered regardless of whether a pulse has arrived yet -
+  // a fan shouldn't wait on the 20s live-data poll just to get a link to the stream.
+  const twitchUrl = streams?.[0]?.url || null
+  const twitchLabel = streams?.[0]?.label || null
+  const hasWatchLinks = !!(twitchUrl || youtubeStream || (otherStreams && otherStreams.length > 0))
+  const watchLinks = hasWatchLinks && (
+    <div className="mb-2">
+      {(twitchUrl || youtubeStream) && (
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {twitchUrl && (
+            <a
+              href={twitchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackEvent('live_match_watch', { channel: twitchLabel, teamA, teamB, tournament, source: 'live_series_sheet' })}
+              className="focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+            >
+              <TwitchIcon />
+              Watch{twitchLabel ? ` · ${twitchLabel}` : ''}
+            </a>
+          )}
+          {youtubeStream && (
+            <a
+              href={youtubeStream}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackEvent('live_match_watch_youtube', { teamA, teamB, tournament, source: 'live_series_sheet' })}
+              className="focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+            >
+              <YouTubeIcon />
+              Watch on YouTube
+            </a>
+          )}
+        </div>
+      )}
+      {otherStreams && otherStreams.length > 0 && <LiveStreamPicker streams={otherStreams} matchId={psMatchId} />}
+    </div>
+  )
+
+  if (!pulse) return hasWatchLinks ? <div className="px-4 py-3">{watchLinks}</div> : null
 
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
@@ -173,6 +216,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
 
   return (
     <div className="px-4 py-3">
+      {watchLinks}
       {stakes?.kind && (
         <p className="mb-1.5">
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400">

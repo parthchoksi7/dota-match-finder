@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchLiveSeriesGameIds } from '../api'
+import { trackEvent } from '../utils'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 import SeriesGameIndicators from './SeriesGameIndicators'
 import SeriesGameScore from './SeriesGameScore'
@@ -26,10 +27,31 @@ function CloseIcon() {
   )
 }
 
-// The mid-series companion: shows the completed games of an in-progress series (draft, score,
-// notable-event indicators, tap-through to the full MatchDrawer) plus a live pulse (gold lead,
-// kill score, live draft) for the currently running game.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree }) {
+// Builds the ordered list of game tabs for the switcher: every finished game plus the
+// currently running one (if any), in position order. Exported for the default-position helper.
+function buildGameTabs(match) {
+  const finished = (match.games || []).filter(g => g.status === 'finished')
+  const running = (match.games || []).find(g => g.status === 'running')
+  const tabs = finished.map(g => ({ position: g.position, kind: 'finished' }))
+  if (running) tabs.push({ position: running.position, kind: 'live' })
+  return tabs
+}
+
+// The "currently most relevant" tab: the running game, or the last finished one if nothing is
+// running right now (a between-games gap). Recomputed fresh from whatever `match` is current -
+// this is what an unpinned viewer auto-follows as the series progresses.
+function defaultPosition(match) {
+  const tabs = buildGameTabs(match)
+  const live = tabs.find(t => t.kind === 'live')
+  if (live) return live.position
+  return tabs.length ? tabs[tabs.length - 1].position : null
+}
+
+// The mid-series companion: shows one game at a time (finished draft/score/indicators, or the
+// currently running game's live pulse) via a chip switcher, so a fan reaches "what's happening
+// now" without scrolling past every earlier game first. `initialGamePosition` lets a future
+// per-game entry point open the sheet pre-scoped to a specific game; no caller passes it today.
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition }) {
   // Close on Escape
   useEffect(() => {
     function onKey(e) {
@@ -51,8 +73,47 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
     return () => { cancelled = true }
   }, [match?.id])
 
+  // `pinnedPosition` is null until the fan explicitly clicks a tab - while null, the switcher
+  // auto-follows `defaultPosition` (the running game, or the last finished one) as the series
+  // progresses, so a fan who never touches the switcher still gets moved onto a newly-live game
+  // instead of being silently stuck viewing a game that already finished. Clicking any tab
+  // (including the already-active one) pins the fan's choice and stops the auto-follow, matching
+  // the earlier "don't yank the fan back to a different tab" rule for anyone who DID engage.
+  const [pinnedPosition, setPinnedPosition] = useState(initialGamePosition ?? null)
+  // Reset the pin only when a genuinely different series is shown under this same mounted
+  // instance (e.g. a push-notification target swaps `selectedLiveSeries` mid-view) - a same-series
+  // re-sync from the ambient poll must never touch it.
+  const prevMatchIdRef = useRef(match.id)
+  useEffect(() => {
+    if (prevMatchIdRef.current !== match.id) {
+      prevMatchIdRef.current = match.id
+      setPinnedPosition(initialGamePosition ?? null)
+    }
+  }, [match.id, initialGamePosition])
+
   const finishedGames = (match.games || []).filter(g => g.status === 'finished')
   const currentGame = (match.games || []).find(g => g.status === 'running')
+  const gameTabs = buildGameTabs(match)
+  const selectedPosition = pinnedPosition ?? defaultPosition(match)
+
+  const selectedFinishedGame = finishedGames.find(g => g.position === selectedPosition) || null
+  const showLivePulse = !!currentGame && currentGame.position === selectedPosition
+
+  // Every language/co-stream PandaScore knows about, minus whichever channel/link is already
+  // shown as its own primary Watch button below (see the "all live streams" scope - additive
+  // `allStreams` field on api/live-matches.js's mapMatch()). Compared case-insensitively:
+  // normalizeAllStreams() (api/_shared.js) preserves the raw_url's original casing, while
+  // getTwitchStreams() lowercases the channel via twitchLoginFromUrl - PandaScore is confirmed to
+  // send mixed-case logins (e.g. EWC 2026's `EWC_LegionGauntlet_EN2`), so a case-sensitive
+  // comparison here would fail to exclude the primary channel and double-list it.
+  const primaryTwitchChannel = match.streams?.[0]?.url
+    ? match.streams[0].url.replace('https://www.twitch.tv/', '').toLowerCase()
+    : null
+  const otherStreams = (match.allStreams || []).filter(s => {
+    if (primaryTwitchChannel && s.source === 'twitch' && s.channel && s.channel.toLowerCase() === primaryTwitchChannel) return false
+    if (match.youtubeStream && s.raw_url === match.youtubeStream) return false
+    return true
+  })
 
   return (
     <>
@@ -95,23 +156,50 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
           </button>
         </div>
 
-        {/* Game rows */}
+        {/* Game switcher */}
+        {gameTabs.length > 1 && (
+          <div className="flex-shrink-0 flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 border-b border-gray-100 dark:border-gray-900" style={{ scrollbarWidth: 'none' }}>
+            {gameTabs.map(tab => {
+              const isActive = tab.position === selectedPosition
+              return (
+                <button
+                  key={tab.position}
+                  type="button"
+                  disabled={!!loadingGameId}
+                  onClick={() => {
+                    setPinnedPosition(tab.position)
+                    trackEvent('live_series_tab_click', { position: tab.position, status: tab.kind })
+                  }}
+                  aria-current={isActive ? 'true' : undefined}
+                  className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isActive
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-transparent hover:border-gray-300 dark:hover:border-gray-700'
+                  }`}
+                >
+                  {tab.kind === 'live' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden="true" />}
+                  G{tab.position}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Selected game content */}
         <div className="flex-1 overflow-y-auto py-2">
-          {finishedGames.map(game => {
+          {selectedFinishedGame && (() => {
+            const game = selectedFinishedGame
             const gameMatchId = game.matchId || resolvedIds[game.position] || null
             // String() guards against `loadingGameId` (set from a click) and `gameMatchId` (may be
             // re-derived from a fresher poll response by the time this re-renders) landing on
             // different JS types for what's otherwise the same id.
             const isLoadingThis = !!loadingGameId && String(loadingGameId) === String(gameMatchId)
-            const isDimmed = !!loadingGameId && !isLoadingThis
             const clickable = gameMatchId && onReplay && !loadingGameId
             const rowClassName = clickable
               ? 'focus-ring -mx-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors'
-              : isDimmed
-                ? '-mx-2 px-2 py-1.5 rounded transition-opacity opacity-50'
-                : ''
+              : ''
             return (
-              <div key={game.position} className="px-4 py-3 border-b border-gray-50 dark:border-gray-900 last:border-b-0">
+              <div className="px-4 py-3">
                 <div
                   role={clickable ? 'button' : undefined}
                   tabIndex={clickable ? 0 : undefined}
@@ -178,9 +266,9 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
                 </div>
               </div>
             )
-          })}
+          })()}
 
-          {currentGame && (
+          {showLivePulse && (
             <div>
               <div className="flex items-center gap-3 px-4 py-3 pb-0">
                 <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
@@ -198,6 +286,10 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
                 seriesScore={match.seriesScore}
                 teamA={match.teamA}
                 teamB={match.teamB}
+                tournament={match.tournament}
+                streams={match.streams}
+                youtubeStream={match.youtubeStream}
+                otherStreams={otherStreams}
               />
             </div>
           )}

@@ -105,6 +105,10 @@ function mapMatch(m) {
     games: mapGames(m),
     streams: getTwitchStreams(m.streams_list),
     youtubeStream: getYoutubeStream(m.streams_list),
+    // All languages/co-streams (official + unofficial), for the Live Series Companion's
+    // multi-language watch picker. Purely additive read of the same streams_list already
+    // fetched for this response — no cache key, write, or lookup-order change.
+    allStreams: normalizeAllStreams(m.streams_list),
   }
 }
 

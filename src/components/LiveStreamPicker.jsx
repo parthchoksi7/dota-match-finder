@@ -1,52 +1,36 @@
 import { useState } from "react"
-import { VOD_CHANNEL_LABELS } from "../api"
+import { streamLabel } from "./StreamPicker"
 import { trackEvent } from "../utils"
 
-export function streamLabel(stream) {
-  if (VOD_CHANNEL_LABELS[stream.channel]) return VOD_CHANNEL_LABELS[stream.channel]
-  if (stream.channel) return stream.channel
-  if (stream.source === "youtube") return "YouTube"
-  if (stream.source === "twitch") return "Twitch"
-  // "other" source (e.g. Kick) with no channel — derive a label from the host.
-  try {
-    const host = new URL(stream.url).hostname.replace(/^www\./, "").split(".")[0]
-    return host.charAt(0).toUpperCase() + host.slice(1)
-  } catch {
-    return "Stream"
-  }
-}
-
-function StreamRow({ stream, matchId }) {
-  const label = streamLabel(stream)
+// Sibling to StreamPicker (VOD/replay) for the Live Series Companion. Every row here is
+// "watch live now" - no deep_link/from-stream-start concept applies, since there is no VOD
+// timestamp yet (see DESIGN_GUIDELINES "two distinct shapes for two distinct states").
+function LiveStreamRow({ stream, matchId }) {
+  const label = streamLabel({ ...stream, url: stream.raw_url })
   const lang = stream.language ? stream.language.toUpperCase() : null
-  const ariaLabel = `Watch${lang ? ` in ${lang}` : ""} on ${label}` +
-    (stream.official === false ? ", co-stream" : "") +
-    (stream.deep_link ? "" : ", from stream start")
+  const ariaLabel = `Watch live${lang ? ` in ${lang}` : ""} on ${label}` +
+    (stream.official === false ? ", co-stream" : "")
   return (
     <a
-      href={stream.url}
+      href={stream.raw_url}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={ariaLabel}
-      onClick={() => trackEvent("vod_click", {
+      onClick={() => trackEvent("live_match_watch", {
         matchId,
         channel: stream.channel,
         language: stream.language,
         official: stream.official,
-        kind: stream.kind,
+        source: "live_series_sheet",
         from_picker: true,
       })}
       className="flex items-center gap-2 min-h-[44px] px-3 py-2 rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
     >
+      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden="true" />
       {lang && (
         <span className="flex-shrink-0 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-[10px] font-bold uppercase text-gray-500 dark:text-gray-500">
           {lang}
         </span>
-      )}
-      {stream.deep_link && (
-        <svg className="w-3 h-3 flex-shrink-0 text-purple-700 dark:text-purple-400" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-          <path d="M3 1.5l7 4.5-7 4.5z" />
-        </svg>
       )}
       <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 truncate">{label}</span>
       {stream.official === false && (
@@ -54,27 +38,21 @@ function StreamRow({ stream, matchId }) {
           Co-stream
         </span>
       )}
-      {!stream.deep_link && (
-        <span className="ml-auto flex-shrink-0 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
-          From stream start
-        </span>
-      )}
     </a>
   )
 }
 
 /**
- * Multi-language stream list for the match drawer's replay section. Renders the
- * non-primary streams recorded for a game: a single extra stream inline, two or
- * more behind a collapsed count pill. The primary official stream stays in the
- * existing purple VOD button above — this component never renders it.
+ * Multi-language/co-stream list for the currently live game inside the Live Series Companion.
+ * Renders alongside the primary Twitch/YouTube watch buttons: a single extra stream inline,
+ * two or more behind a collapsed count pill. Mirrors StreamPicker's render-mode rules exactly.
  */
-export default function StreamPicker({ streams, matchId }) {
+export default function LiveStreamPicker({ streams, matchId }) {
   const [expanded, setExpanded] = useState(false)
   if (!streams || streams.length === 0) return null
 
   if (streams.length === 1) {
-    return <StreamRow stream={streams[0]} matchId={matchId} />
+    return <LiveStreamRow stream={streams[0]} matchId={matchId} />
   }
 
   return (
@@ -85,7 +63,7 @@ export default function StreamPicker({ streams, matchId }) {
         onClick={() => {
           const next = !expanded
           setExpanded(next)
-          if (next) trackEvent("stream_picker_expand", { matchId, count: streams.length })
+          if (next) trackEvent("live_stream_picker_expand", { matchId, count: streams.length })
         }}
         className="inline-flex items-center gap-1.5 px-2 py-1 min-h-[32px] rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
       >
@@ -106,7 +84,7 @@ export default function StreamPicker({ streams, matchId }) {
       {expanded && (
         <div className="space-y-1.5">
           {streams.map((s, i) => (
-            <StreamRow key={`${s.channel || s.url}-${i}`} stream={s} matchId={matchId} />
+            <LiveStreamRow key={`${s.channel || s.raw_url}-${i}`} stream={s} matchId={matchId} />
           ))}
         </div>
       )}

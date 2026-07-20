@@ -454,6 +454,8 @@ Used in the match drawer's "Watch Full Match Replay" section to surface every re
 
 **Analytics:** `stream_picker_expand { matchId, count }` on expand only; row clicks fire `vod_click` with `language`, `official`, `kind`, `from_picker: true`.
 
+**Live sibling**: `src/components/LiveStreamPicker.jsx` (used in the Live Series Companion's live-game section) follows the exact same structure rules (0/1/≥2, language chip, Co-stream badge, shared `streamLabel` export from `StreamPicker.jsx`) but drops the play glyph and "from stream start" marker entirely — there is no VOD timestamp concept for a live stream, every row is just "watch live now." Do not conflate the two components; a live stream and a VOD replay are different states with different honesty markers (same "two distinct shapes for two distinct states" rule as the score row below). Analytics: `live_stream_picker_expand { matchId, count }`; row clicks fire `live_match_watch` with `source: 'live_series_sheet'`, `from_picker: true`.
+
 ### Scrollable tournament chip picker
 
 Used when a section can display content for one of N items and N is variable (e.g. multiple live tournaments). The chip bar sits between the section label and the content panel.
@@ -496,6 +498,8 @@ Used when a section can display content for one of N items and N is variable (e.
   - Different orgs, each unique → league name only: `ESL`, `PGL`, `DreamLeague`
   - Mixed (same org appears multiple times with different regions) → `"League Region"`: `ESL WEU`, `ESL EEU`
 - Do NOT use this pattern for fixed-count tab bars (2–4 items) — use the segmented control pattern instead
+
+**Also used for**: the Live Series Companion's game switcher (`G1`/`G2`/... chips in `LiveSeriesSheet.jsx`) — same variable-N rationale (a BO3 vs a late BO5 has a different chip count), same active/inactive treatment, plus a `disabled:opacity-50 disabled:cursor-not-allowed` state (chips are disabled while a tap-through replay fetch is in flight, so a fan can't switch tabs mid-transition) and a small `w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse` live dot prepended to whichever chip represents the currently-running game.
 
 ### Game indicators (GameIndicators component)
 
