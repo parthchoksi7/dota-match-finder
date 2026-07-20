@@ -1,7 +1,7 @@
 # Spectate Esports — Live Story (Tier 1) Product Specification
 
-**Status:** Draft — Not yet in development
-**Last Updated:** 2026-07-17
+**Status:** R1 + R2 (MVP) SHIPPED & PUBLIC (2026-07-18) — exceeded spec (interactive hover/scrub graph, time-scaled axis, shipped where v1 called for a static line). R3 (AI Catch Me Up) and R4 (objective/map state) below are NOT started — see `.claude/specs/live-story-v1.1-remaining-scope.md` for the product plan covering what's left.
+**Last Updated:** 2026-07-17 (status corrected 2026-07-19; body below is the original pre-build spec, kept as historical record)
 **Author:** Product (AI-assisted, via `.claude/pm_instructions.md`)
 **Scope:** Tier 1 "Live Story" — enrich the in-progress live experience inside the Live Series Companion
 **Predecessor:** `.claude/specs/live-series-companion.md` (shipped 2026-07-17). Live Story is the direct sequel: the companion answers *"what's the current score"*; Live Story answers *"what's the story, and is this worth watching right now."*

@@ -1,7 +1,7 @@
 # Live Story (Tier 1) — Implementation Plan
 
-**Status:** Ready for build — MVP scope
-**Last Updated:** 2026-07-17
+**Status:** DONE — all phases (A–D) shipped and public (2026-07-18). This plan covered R1+R2 only; R3/R4 were explicitly out of scope (see "Explicitly out of scope" below) and remain unbuilt — see `.claude/specs/live-story-v1.1-remaining-scope.md`.
+**Last Updated:** 2026-07-17 (status corrected 2026-07-19; body below is the original pre-build plan, kept as historical record)
 **Spec:** `.claude/specs/live-story.md` (read it first, incl. the "Pressure-Test Revisions" block, which this plan implements)
 **Scope of this plan:** **MVP = R1 (live net-worth graph) + R2 (momentum read + series stakes).** R3 (AI catch-up) and R4 (objective state) are deferred and out of this plan.
 
