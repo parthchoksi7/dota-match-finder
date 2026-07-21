@@ -9,7 +9,7 @@ import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import ManageTeamsModal, { MANAGE_TEAMS_OPEN_EVENT } from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, resolveHeroByName } from "./api"
-import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary } from "./vodStreams"
+import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary, resolvableStoredMain } from "./vodStreams"
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
@@ -87,30 +87,17 @@ async function resolveMatchStreams(match, allMatches) {
   const expired = isVodExpired(match.startTime)
   const storedOthers = expired ? degradeExpiredOthers(stored?.others) : (stored?.others || [])
 
-  if (!expired && stored?.main?.kind === 'start_point' && stored.main.url) {
-    trackEvent('replay_source', { source: 'supabase', matchId: match.id })
+  const resolvedMain = resolvableStoredMain(stored, expired)
+  if (resolvedMain) {
+    trackEvent('replay_source', {
+      source: resolvedMain.source === 'twitch' ? 'supabase' : 'supabase_stream_page',
+      matchId: match.id,
+    })
     return {
-      url: stored.main.url,
-      channel: stored.main.channel,
-      allVods: [stored.main],
-      otherStreams: dedupOthersAgainstPrimary([stored.main], storedOthers),
-    }
-  }
-
-  // A non-Twitch official main (Kick, a timestamp-less YouTube broadcast, etc.) has
-  // no path through the Twitch-only live resolver below — it always misses, so the
-  // primary slot fell back to "No VOD found" even when the real official broadcast
-  // link was sitting right there in Supabase. Promote it straight to the primary
-  // slot as a plain stream-page link instead of chaining into a guaranteed miss.
-  // These links don't expire on the Twitch archive schedule (see
-  // degradeExpiredOthers), so `expired` doesn't gate this branch.
-  if (stored?.main?.url && stored.main.source !== 'twitch') {
-    trackEvent('replay_source', { source: 'supabase_stream_page', matchId: match.id })
-    return {
-      url: stored.main.url,
-      channel: stored.main.channel,
-      allVods: [stored.main],
-      otherStreams: dedupOthersAgainstPrimary([stored.main], storedOthers),
+      url: resolvedMain.url,
+      channel: resolvedMain.channel,
+      allVods: [resolvedMain],
+      otherStreams: dedupOthersAgainstPrimary([resolvedMain], storedOthers),
     }
   }
 

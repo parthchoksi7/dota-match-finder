@@ -67,13 +67,14 @@ Exempt from RICE: work that literally cannot start yet.
 | 11 | Replace O(n²) series merge with union-find | 5 | 2 | 90% | 3 | **3.0** |
 | 12 | Sticky "Now Watching" panel | 4 | 3 | 70% | 3 | **2.8** |
 | 13 | App.jsx state machine for async clusters (`useReducer`) | 3 | 3 | 70% | 3 | **2.1** |
-| 14 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
-| 15 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
-| 16 | Recent / popular search suggestions | 3 | 2 | 60% | 3 | **1.2** |
-| 16 | "Has VOD" filter | 3 | 2 | 60% | 3 | **1.2** |
-| 16 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
-| 19 | Verify "OG" PS↔OD name mapping when next active | 1 | 2 | 50% | 1 | **1.0** |
-| 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
+| 13 | Guard against unmemoized-hook-driven infinite fetch loops on admin pages | 1 | 3 | 70% | 1 | **2.1** |
+| 15 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
+| 16 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
+| 17 | Recent / popular search suggestions | 3 | 2 | 60% | 3 | **1.2** |
+| 17 | "Has VOD" filter | 3 | 2 | 60% | 3 | **1.2** |
+| 17 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
+| 20 | Verify "OG" PS↔OD name mapping when next active | 1 | 2 | 50% | 1 | **1.0** |
+| 21 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
 
 ---
 
@@ -107,6 +108,11 @@ Exempt from RICE: work that literally cannot start yet.
 ### 8. Remove dead "Multiple channels were live" copy in MatchDrawer
 - **What:** `MatchDrawer.jsx` renders "Multiple channels were live. Try each one to find this match." when `allVods.length > 1`, but no code path produces more than one `allVods` entry: `findTwitchVod` returns at most one, the stored-replay path returns exactly one, and the 2026-07-11 stream-picker work deliberately kept multi-language streams in a separate `otherStreams` field. The copy block is unreachable.
 
+### 9. `GoldGraph`'s event-jump URL builder mis-parses a bare-digit `?t=` timestamp
+- **What:** Spotted during the 2026-07-20 Kick-primary-promotion review. `GoldGraph.jsx`'s `buildEventUrl(vodUrl, eventTimeSecs)` reads the existing `?t=` param and regexes out an `XhYmZs`-suffixed duration (Twitch's format). `api/pipeline/_vod-urls.js` can also produce a manually-timestamped YouTube `main`/`others` entry (`kind: 'start_point'`) whose `?t=` is a bare digit count (e.g. `?t=827`, no unit suffix) — the admin VOD-URL tool writes these. For that shape, the regex fails to match any suffix, `baseSecs` silently defaults to `0`, and the resulting Roshan/rax-marker WATCH link lands at `eventTimeSecs` into the VOD instead of `827 + eventTimeSecs` — wrong point, no error shown.
+- **Pre-existing, not introduced by the Kick fix:** this path was already reachable before 2026-07-20 (a non-expired start-point main was never source-gated), just apparently never hit in practice. The Kick change didn't touch `GoldGraph.jsx` or this parsing.
+- **Fix:** extend `buildEventUrl`'s regex to also accept a bare digit `?t=` value (treat it as raw seconds), or normalize both `_vod-urls.js` and the admin tool to always emit the `XhYmZs` suffixed form.
+
 ### 8. `aria-describedby` on search errors
 - **What:** Associate the error message ("Failed to load matches") with the search form using `aria-describedby` for screen reader users.
 
@@ -131,30 +137,34 @@ Exempt from RICE: work that literally cannot start yet.
 - **What:** Replace the 5-state summary cluster (`summary`, `summaryMatchId`, `summaryError`, `summaryErrorMatchId`, `summaryLoading`) with a `useReducer`. Same for xPosts and redditPosts clusters.
 - Start with the xPosts cluster (fully self-contained, no external callers) as a pilot.
 
-### 14. URL query-param rewrite boilerplate duplicated four times in App.jsx
+### 13. Guard against unmemoized-hook-driven infinite fetch loops on internal/admin pages
+- **What:** Root-caused 2026-07-19 while diagnosing a Fluid Active CPU spike on Jun 21 (~38 min in one day vs. a ~5–7 min/day baseline — 75% of the Hobby plan's 4h/month budget was consumed by the time this was investigated). `AdminVodUrlsPage.jsx`'s `useAdminToken()` returned `save`/`clear` without `useCallback` before commit `67652354` (2026-06-21), so `load`'s `useCallback([clear])` got a new identity every render, retriggering the `useEffect([token, days, load])` — an unthrottled fetch loop against `/api/pipeline?type=vod-urls` (a Supabase query grouping up to 5,000 rows) for ~11 hours while the tab was open. Already fixed same-day, but `react-hooks/exhaustive-deps` (enabled at `recommended` in `eslint.config.js`) doesn't catch this class of bug — it verifies listed deps are complete, not that a custom hook's *returned* functions are stable. Add either (a) a small circuit breaker / minimum-interval guard on admin-page polling fetches, or (b) an audit of other custom hooks returning callbacks (grep for hook results used inside another hook's dependency array) to confirm none share this footgun.
+- **Why it's not higher:** Dev-only surface (hidden, token-gated admin page, never linked from the product) — no customer impact. Scored on cost/reliability risk alone: the Hobby-plan Fluid CPU budget is a hard metered cap, this class of bug has no alerting today, and it would only be caught by manually checking the Vercel usage dashboard — same way this one was.
+
+### 15. URL query-param rewrite boilerplate duplicated four times in App.jsx
 - **What:** Flagged in the `?live=` URL-persistence review (2026-07-17). The `new URLSearchParams(window.location.search)` → mutate → `window.history.replaceState(null, '', pathname + '?' + qs + hash)` pattern is hand-rolled in four places: the manage-teams effect, the `?m=` push-landing strip effect, `handleSelectLiveMatch` (sets `?live=`), and `closeLiveSeriesSheet` (clears `?live=`). A small shared `setUrlParam(key, value)` / `removeUrlParam(key)` helper would remove the duplication. Purely a simplification — no correctness issue in any of the four call sites.
 
-### 15. verify-prod od-consistency check miscalibrated for round-robin group stages
+### 16. verify-prod od-consistency check miscalibrated for round-robin group stages
 - **What:** `scripts/verify-prod.mjs`'s od-consistency check (`maxExpected = effectiveSeries * 5`) uses `finishedSeries` from the bracket API as the fallback denominator when `totalStandingWins <= finishedSeries * 3`. For a BO2 round-robin group stage (e.g. EWC 2026 Group A), `finishedSeries` (bracket-only) stayed at 3 all day while the actual completed-game count climbed to 18 as more round-robin series finished — the bracket API doesn't track round-robin completions the way it tracks elimination-bracket ones, so the denominator never grows with real progress. Failed a 2026-07-07 deploy verification for reasons unrelated to that deploy (confirmed: the deploy's actual target — 4 previously-unmatched EWC series — was independently verified archived correctly via direct `match_stream_history` inspection). Needs a group-stage-aware denominator (e.g. count distinct series_id in OD's own game list) instead of relying on the bracket API for formats that don't use single-elimination brackets.
 
-### 16. Recent / popular search suggestions
+### 17. Recent / popular search suggestions
 - **What:** Show up to 5 recent searches (localStorage) and a few suggested queries ("Team Liquid", "DreamLeague") in the search overlay before the user types anything.
 
-### 16. "Has VOD" filter
+### 17. "Has VOD" filter
 - **What:** Post-search filter chip to narrow results to games that have a confirmed VOD link. Complements the existing All/BO1/BO3/BO5 series type filter.
 
-### 16. Move push subscriptions from KV to Supabase
+### 17. Move push subscriptions from KV to Supabase
 - **What:** Design a `push_subscriptions` table in Supabase: `(id UUID PK, user_id TEXT UNIQUE, endpoint TEXT, p256dh TEXT, auth TEXT, teams TEXT[], updated_at TIMESTAMPTZ)`. Migrate the push-subscribe write path in `live-matches.js` to Supabase upsert. Migrate the notification send path to query Supabase by team name instead of KV `push:team:{name}` index.
 - **Expected benefit:** Proper relational data model. No more 30-day TTL expiry silently deleting subscriptions. Queryable: you can count subscribers per team, identify expired subscriptions, and analyze notification delivery rates.
 - **Risk:** Medium — requires a migration of existing KV subscriptions, a new Supabase table, and updating both the subscribe and send paths. Supabase is already integrated (articles table), so no new credentials needed.
 - **Dependencies:** Server-derived userId fix — **done** (see Completed Archive). Unblocked.
 - **Sequence:** Design schema → dual-write (KV + Supabase) → verify parity → cut over read path to Supabase → deprecate KV push keys.
 
-### 19. Verify "OG" PS↔OD name mapping when next active
+### 20. Verify "OG" PS↔OD name mapping when next active
 - **What:** 2026-07-07 tier-1 team-name scrub (see `CONTEXT.md` `TEAM_NAME_ALIAS_GROUPS`) couldn't confirm PandaScore's team search for "OG" — their 2-char name makes PS's search return noise, so their real PS team id was never found. Revisit once OG has a live/recent match to check both providers' actual match-time naming — add to `TEAM_NAME_ALIAS_GROUPS` only if a real divergence shows up.
 - **Note:** Confidence is 50% and this is opportunistic — do it whenever OG next plays, don't go looking for a reason to schedule it.
 
-### 20. Full TypeScript migration
+### 21. Full TypeScript migration
 - **What:** Phase 1 (jsconfig + checkJs, 1 week): enable `checkJs: true`, fix all implicit any errors in `_shared.js` and `api.js`. Phase 2 (rename to .ts, 1–2 weeks): start with `_shared.ts`, `_kv.ts`, then API handlers, then React components. Phase 3: CI enforcement (`tsc --noEmit` in GitHub Actions).
 - **Expected benefit:** Compiles away an entire category of bugs (wrong property name, null not handled, wrong function signature). Required for sustainable multi-engineer development. Makes the PS↔OD bridge contract machine-checkable. Enables IDE autocomplete on the complex PandaScore and OpenDota object shapes.
 - **Risk:** Medium — edge middleware (`middleware.js`) has edge runtime constraints that limit which Node.js types are available. React 19 is fully TypeScript-compatible. Vercel serverless functions support TypeScript natively.

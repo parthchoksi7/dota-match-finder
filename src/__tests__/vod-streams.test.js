@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { VOD_MAX_AGE_S, isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary } from '../vodStreams'
+import { VOD_MAX_AGE_S, isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary, resolvableStoredMain } from '../vodStreams'
 
 const NOW = 1_800_000_000
 
@@ -39,6 +39,43 @@ describe('degradeExpiredOthers', () => {
   it('handles null/undefined input', () => {
     expect(degradeExpiredOthers(null)).toEqual([])
     expect(degradeExpiredOthers(undefined)).toEqual([])
+  })
+})
+
+describe('resolvableStoredMain', () => {
+  const twitchStartPoint = { url: 'https://www.twitch.tv/videos/900?t=100s', channel: 'pgl_dota2', source: 'twitch', kind: 'start_point' }
+  const twitchStreamPage = { url: 'https://www.twitch.tv/pgl_dota2', channel: 'pgl_dota2', source: 'twitch', kind: 'stream_page' }
+  const kickStreamPage = { url: 'https://kick.com/epldota_en2', channel: null, source: 'other', kind: 'stream_page' }
+  const youtubeStreamPage = { url: 'https://youtube.com/live/abc', channel: null, source: 'youtube', kind: 'stream_page' }
+  const youtubeStartPoint = { url: 'https://youtube.com/live/abc?t=827', channel: null, source: 'youtube', kind: 'start_point' }
+
+  it('returns a non-expired Twitch start-point', () => {
+    expect(resolvableStoredMain({ main: twitchStartPoint }, false)).toBe(twitchStartPoint)
+  })
+
+  it('rejects an expired Twitch start-point (falls through to the live resolver)', () => {
+    expect(resolvableStoredMain({ main: twitchStartPoint }, true)).toBeNull()
+  })
+
+  it('rejects a Twitch stream-page main (no timestamp resolved yet) so the chain can still try', () => {
+    expect(resolvableStoredMain({ main: twitchStreamPage }, false)).toBeNull()
+  })
+
+  it('promotes a Kick stream-page main regardless of expiry (no Twitch chain path exists for it)', () => {
+    expect(resolvableStoredMain({ main: kickStreamPage }, false)).toBe(kickStreamPage)
+    expect(resolvableStoredMain({ main: kickStreamPage }, true)).toBe(kickStreamPage)
+  })
+
+  it('promotes a YouTube main whether or not it has a timestamp', () => {
+    expect(resolvableStoredMain({ main: youtubeStreamPage }, false)).toBe(youtubeStreamPage)
+    expect(resolvableStoredMain({ main: youtubeStartPoint }, true)).toBe(youtubeStartPoint)
+  })
+
+  it('returns null when there is no stored row, no main, or no url', () => {
+    expect(resolvableStoredMain(null, false)).toBeNull()
+    expect(resolvableStoredMain({}, false)).toBeNull()
+    expect(resolvableStoredMain({ main: null }, false)).toBeNull()
+    expect(resolvableStoredMain({ main: { source: 'other', kind: 'stream_page', url: null } }, false)).toBeNull()
   })
 })
 

@@ -38,6 +38,32 @@ export function degradeExpiredOthers(others) {
 }
 
 /**
+ * Decide whether resolveMatchStreams can serve its primary slot directly from
+ * the stored Supabase main, without running the Twitch-only live resolver
+ * below. Two cases qualify (not source-exclusive — a non-expired YouTube
+ * start-point satisfies case 1, same as Twitch):
+ *   1. A resolved, non-expired start-point (kind === 'start_point' — the
+ *      original Case A hit; in practice almost always Twitch, but a
+ *      manually-timestamped YouTube main also qualifies here).
+ *   2. Any non-Twitch official main that ISN'T a start-point (Kick, a
+ *      timestamp-less YouTube broadcast, etc.) — it has no path through the
+ *      Twitch-only chain and would always miss there, so the primary slot
+ *      fell back to "No VOD found" even though the real broadcast link was
+ *      already stored. These links don't expire on the Twitch archive
+ *      schedule (see degradeExpiredOthers), so `expired` doesn't gate this
+ *      case.
+ * Returns the stored main object to use as the primary, or null to fall
+ * through to the live resolver.
+ */
+export function resolvableStoredMain(stored, expired) {
+  const main = stored?.main
+  if (!main?.url) return null
+  if (!expired && main.kind === 'start_point') return main
+  if (main.source !== 'twitch') return main
+  return null
+}
+
+/**
  * Dedup the stored others[] against whatever occupies the primary slot (the
  * stored start-point main, or the LOCKED chain's result), by URL and by
  * channel, so a freshly chain-resolved channel never appears twice. Returns
