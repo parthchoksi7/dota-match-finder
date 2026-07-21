@@ -36,3 +36,6 @@ dist-ssr
 
 # Authored article kept locally, not part of the codebase
 ARTICLE_ENTITY_RESOLUTION.md
+
+# Live Story R4 spike: raw building_state watch snapshots (local analysis data)
+scripts/building-state-samples.jsonl
