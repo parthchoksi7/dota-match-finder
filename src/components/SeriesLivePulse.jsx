@@ -47,6 +47,17 @@ export function formatClock(gameTime) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+// Compact live spectator count, e.g. 976 -> "976", 5230 -> "5.2k". Returns null for a
+// missing/non-positive/invalid count so the caller renders nothing rather than a "0 spectators"
+// line (a spectator count is never negative in practice; the guard is just defensive). This is
+// OD /live's in-client (DotaTV) spectator count, hundreds–low thousands — NOT the Twitch/YouTube
+// viewer total, which is why the UI labels it "spectators" and never "watching". Exported for
+// unit testing.
+export function formatSpectators(count) {
+  if (!Number.isFinite(count) || count <= 0) return null
+  return count >= 1000 ? (count / 1000).toFixed(1) + 'k' : String(count)
+}
+
 // Zips one side's hero ids + live IGNs (index-aligned by construction — both arrays were split
 // from OD /live's players[] in the same pass, same order, api/_handlers/liveOdCapture.js) into
 // per-pick display data. `heroIds`/`playerNames` are read positionally, so a shorter/missing
@@ -214,9 +225,23 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     ? computeMomentum({ radiantLead: pulse.radiantLead, gameTime: pulse.gameTime, radiantName: pulse.radiantName, direName: pulse.direName })
     : null
 
+  const spectatorLabel = formatSpectators(pulse.spectators)
+
   return (
     <div className="px-4 py-3">
       {watchLinks}
+      {spectatorLabel && (
+        <p
+          className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums"
+          aria-label={`${pulse.spectators} spectators watching in the Dota 2 client`}
+        >
+          <svg viewBox="0 0 24 24" className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          {spectatorLabel} spectators
+        </p>
+      )}
       {stakes?.kind && (
         <p className="mb-1.5">
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400">

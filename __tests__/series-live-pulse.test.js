@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { formatGoldMagnitude, formatClock, nextPulseState, zipDraftPicks } from '../src/components/SeriesLivePulse.jsx'
+import { formatGoldMagnitude, formatClock, nextPulseState, zipDraftPicks, formatSpectators } from '../src/components/SeriesLivePulse.jsx'
 
 describe('formatGoldMagnitude', () => {
   it('returns null for a zero lead (dead even — nothing to report)', () => {
@@ -34,6 +34,30 @@ describe('formatGoldMagnitude', () => {
 
   it('formats exactly 1000 as +1.0k, not +1000', () => {
     expect(formatGoldMagnitude(1000)).toBe('+1.0k')
+  })
+})
+
+describe('formatSpectators', () => {
+  it('returns null for a zero/negative count (render nothing, not "0 spectators")', () => {
+    expect(formatSpectators(0)).toBeNull()
+    expect(formatSpectators(-5)).toBeNull()
+  })
+
+  it('returns null for null/undefined/non-finite', () => {
+    expect(formatSpectators(null)).toBeNull()
+    expect(formatSpectators(undefined)).toBeNull()
+    expect(formatSpectators(NaN)).toBeNull()
+  })
+
+  it('formats an under-1000 count as a plain number (real DotaTV samples: 37, 491, 976)', () => {
+    expect(formatSpectators(37)).toBe('37')
+    expect(formatSpectators(491)).toBe('491')
+    expect(formatSpectators(976)).toBe('976')
+  })
+
+  it('formats a count >= 1000 in k-notation with one decimal', () => {
+    expect(formatSpectators(5230)).toBe('5.2k')
+    expect(formatSpectators(1000)).toBe('1.0k')
   })
 })
 
