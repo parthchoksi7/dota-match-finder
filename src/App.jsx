@@ -97,6 +97,23 @@ async function resolveMatchStreams(match, allMatches) {
     }
   }
 
+  // A non-Twitch official main (Kick, a timestamp-less YouTube broadcast, etc.) has
+  // no path through the Twitch-only live resolver below — it always misses, so the
+  // primary slot fell back to "No VOD found" even when the real official broadcast
+  // link was sitting right there in Supabase. Promote it straight to the primary
+  // slot as a plain stream-page link instead of chaining into a guaranteed miss.
+  // These links don't expire on the Twitch archive schedule (see
+  // degradeExpiredOthers), so `expired` doesn't gate this branch.
+  if (stored?.main?.url && stored.main.source !== 'twitch') {
+    trackEvent('replay_source', { source: 'supabase_stream_page', matchId: match.id })
+    return {
+      url: stored.main.url,
+      channel: stored.main.channel,
+      allVods: [stored.main],
+      otherStreams: dedupOthersAgainstPrimary([stored.main], storedOthers),
+    }
+  }
+
   const siblingMatches = match.seriesId
     ? allMatches.filter(m => String(m.seriesId) === String(match.seriesId) && !m.unplayed)
     : [match]

@@ -1,7 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
 import GoldGraph from "./GoldGraph"
 import PlayerStatsSection from "./PlayerStatsSection"
-import StreamPicker from "./StreamPicker"
+import StreamPicker, { streamLabel } from "./StreamPicker"
 import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -406,10 +406,20 @@ function MatchDrawer({
                 <div className="flex flex-wrap gap-2">
                   {allVods.map((vod, i) => {
                     const isYouTube = vod.source === 'youtube'
-                    const label = VOD_CHANNEL_LABELS[vod.channel] || vod.channel || (isYouTube ? "Watch on YouTube" : "Watch on Twitch")
+                    // Non-Twitch, non-YouTube primary (e.g. Kick) — an official broadcast
+                    // that has no timestamp-offset resolver, so it links to the stream/VOD
+                    // page rather than a deep-linked moment. streamLabel() derives a name
+                    // from the URL host (reused from StreamPicker's "others" rows).
+                    const isOtherSource = !isYouTube && vod.source !== 'twitch'
+                    const label = isOtherSource
+                      ? streamLabel(vod)
+                      : (VOD_CHANNEL_LABELS[vod.channel] || vod.channel || (isYouTube ? "Watch on YouTube" : "Watch on Twitch"))
                     const btnClass = isYouTube
                       ? "inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
+                      : isOtherSource
+                      ? "inline-flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
                       : "inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
+                    const badgeClass = isOtherSource || isYouTube ? "text-white/70" : "text-purple-200"
                     return (
                       <a
                         key={i}
@@ -437,8 +447,13 @@ function MatchDrawer({
                         )}
                         {label}
                         {vod.official === false && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-purple-200">
+                          <span className={`text-[10px] font-semibold uppercase tracking-wide ${badgeClass}`}>
                             Co-stream
+                          </span>
+                        )}
+                        {isOtherSource && (
+                          <span className={`text-[10px] font-medium uppercase tracking-wide ${badgeClass}`}>
+                            From stream start
                           </span>
                         )}
                       </a>
