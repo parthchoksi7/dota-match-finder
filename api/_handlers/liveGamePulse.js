@@ -70,7 +70,7 @@ export async function resolvePulse(pandaId, isOwner, log) {
 
     const { data, error } = await getSupabaseAdmin()
       .from('live_game_map')
-      .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, spectators, radiant_hero_ids, dire_hero_ids, radiant_player_names, dire_player_names, captured_at')
+      .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, radiant_hero_ids, dire_hero_ids, radiant_player_names, dire_player_names, captured_at')
       .gte('start_time', beginAtUnix - OD_MATCH_TIME_WINDOW_S)
       .lte('start_time', beginAtUnix + OD_MATCH_TIME_WINDOW_S)
     if (error || !data || data.length === 0) return { pulse: null }
@@ -88,10 +88,6 @@ export async function resolvePulse(pandaId, isOwner, log) {
       radiantScore: row.radiant_score,
       direScore: row.dire_score,
       gameTime: row.game_time,
-      // OD /live in-client (DotaTV) spectator count — a live-watch/hype signal, NOT the Twitch
-      // viewer total (values run hundreds–low thousands). Public, no decode. Unlike building_state
-      // (bitmask, decode unsolved), this int is directly displayable.
-      spectators: row.spectators ?? null,
       radiantHeroIds: row.radiant_hero_ids || [],
       direHeroIds: row.dire_hero_ids || [],
       // Index-aligned with the hero-id arrays above (2026-07-19 migration, scripts/create-live-game-map.sql).

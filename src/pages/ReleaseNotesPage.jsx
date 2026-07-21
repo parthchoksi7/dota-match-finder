@@ -16,12 +16,6 @@ const RELEASES = [
     desc: "When a match's official broadcast was on Kick or another non-Twitch platform, the replay button used to show \"No VOD found\" even though the real broadcast link was already on record. It now shows as the main Watch button instead, clearly labeled by platform.",
   },
   {
-    date: "July 20, 2026",
-    tag: "new",
-    title: "See how many people are spectating a live game",
-    desc: "The live game in the series companion now shows a spectator count — the number of people watching that match inside the Dota 2 client — right under the Watch links. It's a quick read on which live game is drawing a crowd when several are running at once. The count stays visible even in spoiler-free mode, since it says nothing about who's winning.",
-  },
-  {
     date: "July 19, 2026",
     tag: "new",
     title: "Switch games and watch live, right inside the series companion",
