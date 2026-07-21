@@ -555,14 +555,24 @@ export function findBestPsMatch(psMatches, odNameA, odNameB) {
   return (bestScore >= 1 && !tied) ? best : null
 }
 
+// The ±time window, in seconds, within which an OD game may be correlated to a PS series game.
+// 900s (not 300s) — PS begin_at is the scheduled series time; OD start_time is the actual
+// in-engine start after drafting, which empirically diverges by 7–10 minutes.
+//
+// Exported because callers that PRE-FILTER candidates for findOdMatchByTime must use the same
+// window: querying narrower silently drops correlatable games, querying wider is wasted work.
+// `api/_handlers/liveSeriesGames.js` and `api/_handlers/liveGamePulse.js` both bound their
+// live_game_map Supabase reads by it. It previously lived as a hand-copied `const LGM_WINDOW_S =
+// 900` in each of those two files plus this literal — three copies that had to agree by
+// convention alone. One definition, used by the matcher itself, so they can't drift.
+export const OD_MATCH_TIME_WINDOW_S = 900
+
 // Match a PS game (by begin_at Unix seconds + opponents array) against a list of OD promatches.
 // Uses teamPairMatch() — the canonical bidirectional substring logic shared with match-streams.js.
 // Timestamp is the primary key (±15 min window); team names break ties when multiple candidates.
-// Window is 900s (not 300s) — PS begin_at is the scheduled series time; OD start_time is the
-// actual in-engine start after drafting, which empirically diverges by 7–10 minutes.
 // Returns the best OD match object, or null if nothing is within the time window.
 export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
-  const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < 900)
+  const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < OD_MATCH_TIME_WINDOW_S)
   if (candidates.length === 0) return null
   if (candidates.length === 1) return candidates[0]
   const names = (psOpponents || []).map(o => o.opponent?.name || '')

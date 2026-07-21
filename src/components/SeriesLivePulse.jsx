@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchLiveGamePulse, fetchHeroes } from '../api'
 import { trackEvent } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
+import HeroIcon from './HeroIcon'
 import LiveGoldGraph from './LiveGoldGraph'
 import SeriesScoreRow from './SeriesScoreRow'
 import LiveStreamPicker from './LiveStreamPicker'
@@ -90,18 +91,13 @@ function DraftPickRow({ heroKey, heroName, playerName, side }) {
   const placeholder = side === 'radiant' ? 'bg-green-200 dark:bg-green-900' : 'bg-red-200 dark:bg-red-900'
   return (
     <div className={`flex items-center gap-2 px-2 py-1.5 rounded border ${tint}`}>
-      {heroKey ? (
-        <img
-          src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`}
-          alt={heroName || 'Hero'}
-          title={heroName || undefined}
-          className="w-8 h-8 rounded-sm flex-shrink-0 object-cover"
-          loading="lazy"
-          onError={(e) => { e.currentTarget.style.display = 'none' }}
-        />
-      ) : (
-        <div className={`w-8 h-8 rounded-sm flex-shrink-0 ${placeholder}`} aria-hidden="true" />
-      )}
+      <HeroIcon
+        heroKey={heroKey}
+        name={heroName}
+        sizeClassName="w-8 h-8"
+        placeholderClassName={placeholder}
+        collapseOnError
+      />
       <div className="flex-1 min-w-0 overflow-hidden">
         {heroName && (
           <span className="block font-semibold text-xs text-gray-900 dark:text-white truncate min-w-0">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
-import HomeFeed from "./components/HomeFeed"
+import HomeFeed, { FEED_ERROR_ID } from "./components/HomeFeed"
 import MatchDrawer from "./components/MatchDrawer"
 import LiveSeriesSheet from "./components/LiveSeriesSheet"
 import XPostsModal from "./components/XPostsModal"
@@ -1088,15 +1088,32 @@ function App() {
   const matchGameNumbers = {}
   // Built from buildSeriesGroups (not a naive raw-seriesId groupBy) so that games OD
   // splits across different series_ids (same teams + tournament + within 4h — see
-  // groupIntoSeries) still resolve to the same sibling-game list here. Keyed by each
-  // game's own raw seriesId (not the merged group's id) so the selectedMatch.seriesId
-  // lookup below still hits.
+  // groupIntoSeries) still resolve to the same sibling-game list here.
+  //
+  // Keyed by each game's own `id`, NOT its `seriesId`. seriesId keys collide: OD returns
+  // orphan games with a null/0/undefined series_id, and JS coerces all three to the same
+  // object key — so two games from entirely unrelated series would share one slot and the
+  // later-processed group would silently overwrite the earlier one, pointing the earlier
+  // match's game switcher at the wrong series' siblings. buildSeriesGroups already buckets
+  // those orphans correctly (by teams + tournament + date); only this map's key was lossy.
+  // A game id is unique by construction, so every game now gets its own entry pointing at
+  // its merged group's id list.
   const seriesMatchMap = {}
+  // Secondary index, truthy-seriesId only: some selectable matches are never inserted into
+  // `allMatches` — fetchAppMatchFromOpenDota() (shared-URL / push-notification / live-series
+  // "just ended" replay entry points) returns a standalone match object carrying a real OD
+  // seriesId. Its own id can never be a key in seriesMatchMap above, so without this fallback
+  // its game switcher silently disappears even though its siblings ARE in allMatches under the
+  // same seriesId. Safe from the null/0/undefined collision this file's id-keying fixed above:
+  // only truthy seriesId values are indexed here, matching buildSeriesGroups' own rule for when
+  // seriesId is authoritative enough to key by directly.
+  const seriesIdToIds = {}
   Object.values(buildSeriesGroups(allMatches)).forEach(group => {
     const ids = group.games.map(g => g.id)
-    group.games.forEach(g => { seriesMatchMap[g.seriesId] = ids })
-  })
-  Object.values(seriesMatchMap).forEach(ids => {
+    group.games.forEach(g => {
+      seriesMatchMap[g.id] = ids
+      if (g.seriesId != null && g.seriesId !== 0) seriesIdToIds[String(g.seriesId)] = ids
+    })
     orderSeriesGames(ids, allMatches).forEach((m, i) => {
       matchGameNumbers[m.id] = i + 1
     })
@@ -1104,9 +1121,11 @@ function App() {
 
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
-  const seriesGames = selectedMatch?.seriesId
-    ? orderSeriesGames(seriesMatchMap[selectedMatch.seriesId], allMatches)
-    : []
+  const selectedSeriesIds = selectedMatch?.id != null
+    ? (seriesMatchMap[selectedMatch.id]
+        || (selectedMatch.seriesId != null && selectedMatch.seriesId !== 0 ? seriesIdToIds[String(selectedMatch.seriesId)] : null))
+    : null
+  const seriesGames = selectedSeriesIds ? orderSeriesGames(selectedSeriesIds, allMatches) : []
 
   const gameSwitcher = seriesGames.length > 1 ? (
     <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
@@ -1351,6 +1370,12 @@ function App() {
                 compact
                 onQueryChange={setLiveQuery}
                 onKeyDown={handleSearchKeyDown}
+                // Search filters the already-loaded `allMatches` client-side, so when the feed
+                // load failed there is nothing to search and every query returns empty. The feed
+                // stays mounted behind this overlay, so its error element is still in the DOM and
+                // the id resolves. Only passed while an error is actually up — a dangling
+                // aria-describedby pointing at a non-existent id is worse than none.
+                errorId={error ? FEED_ERROR_ID : undefined}
               />
               {/* Cancel */}
               <button
@@ -1495,7 +1520,7 @@ function App() {
           copyFeedback={copyFeedback}
           twitchSearchHref={twitchSearchHref}
           gameNumber={matchGameNumbers[selectedMatch?.id]}
-          seriesMatches={seriesMatchMap[selectedMatch?.seriesId]?.length}
+          seriesMatches={selectedSeriesIds?.length}
           shareUrl={getShareUrl(selectedMatch)}
           spoilerFree={spoilerFree}
           gameSwitcher={gameSwitcher}

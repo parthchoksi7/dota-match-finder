@@ -56,6 +56,14 @@ function ChevronIcon({ rotated }) {
   )
 }
 
+// DOM id of the feed's load-error message. The search form (SearchBar, rendered in App's search
+// overlay) points its aria-describedby at this id while the error is up, so a screen-reader user
+// who opens search over a failed feed hears WHY searching will come back empty — the error text
+// itself is visually behind the overlay. role="alert" only announces the error once, at the moment
+// it appears; aria-describedby is what makes it re-readable from the control it affects.
+// Exported so the producer of the id and its only consumer can't drift apart.
+export const FEED_ERROR_ID = 'feed-load-error'
+
 function HomeFeed({
   liveMatches = [],
   upcomingMatches = [],
@@ -250,7 +258,7 @@ function HomeFeed({
         className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-4 border border-red-900/50 bg-red-50 dark:bg-red-950/20 rounded"
         role="alert"
       >
-        <span className="text-red-600 dark:text-red-400 text-xs uppercase tracking-widest">
+        <span id={FEED_ERROR_ID} className="text-red-600 dark:text-red-400 text-xs uppercase tracking-widest">
           Could not load matches - OpenDota may be temporarily down
         </span>
         {onRetry && (

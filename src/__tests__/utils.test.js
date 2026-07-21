@@ -863,35 +863,86 @@ describe('groupIntoSeries — third pass merges stubs with split series_ids', ()
 // correctly merged them into one 2-0 row, but the match drawer built its own sibling-game
 // map by grouping allMatches on the raw (unmerged) seriesId, so opening the drawer only
 // ever showed game 1 with no game switcher. buildSeriesGroups is what App.jsx's
-// seriesMatchMap is now built from — assert every raw seriesId among a merged group's
-// games resolves to the FULL sibling list, matching how App.jsx keys the map.
+// seriesMatchMap is now built from.
+//
+// 2026-07-20: App.jsx keys seriesMatchMap by each game's own `id`, NOT its raw seriesId —
+// seriesId keying collides on null/0/undefined (JS coerces all three to one object key), so
+// two orphan games from unrelated series could silently overwrite each other's sibling list.
+// A truthy-seriesId secondary index (seriesIdToIds) covers the one case id-keying can't: a
+// selected match that was never inserted into allMatches (fetchAppMatchFromOpenDota's
+// shared-URL / live-series-replay entry points) but shares a real seriesId with siblings that
+// are. These tests assert both the id-primary and seriesId-fallback shapes App.jsx builds.
 describe('buildSeriesGroups — feeds App.jsx seriesMatchMap for the drawer game switcher', () => {
-  it('both raw series_ids of a split BO2 resolve to the full 2-game sibling list', () => {
+  it('every game id in a merged group resolves to the full sibling list', () => {
     const g1 = makeGame({ id: 'm1', seriesId: 1119304, seriesType: 3, startTime: BASE,           radiantWin: false })
     const g2 = makeGame({ id: 'm2', seriesId: 1119374, seriesType: 3, startTime: BASE + 103 * 60, radiantWin: true  })
     const groups = Object.values(buildSeriesGroups([g1, g2]))
     expect(groups).toHaveLength(1)
 
+    // Mirrors App.jsx's actual construction: id-keyed primary map.
     const seriesMatchMap = {}
     groups.forEach(group => {
       const ids = group.games.map(g => g.id)
-      group.games.forEach(g => { seriesMatchMap[g.seriesId] = ids })
+      group.games.forEach(g => { seriesMatchMap[g.id] = ids })
     })
 
-    expect(seriesMatchMap[1119304]).toEqual(expect.arrayContaining(['m1', 'm2']))
-    expect(seriesMatchMap[1119374]).toEqual(expect.arrayContaining(['m1', 'm2']))
-    expect(seriesMatchMap[1119304]).toHaveLength(2)
+    expect(seriesMatchMap['m1']).toEqual(expect.arrayContaining(['m1', 'm2']))
+    expect(seriesMatchMap['m2']).toEqual(expect.arrayContaining(['m1', 'm2']))
+    expect(seriesMatchMap['m1']).toHaveLength(2)
+  })
+
+  it('two orphan games (seriesId null/0/undefined) from unrelated series never overwrite each other when keyed by id', () => {
+    // Regression guard for the bug App.jsx's id-keying fixes: seriesId-keying would have
+    // coerced all three of these to the SAME object key, so the later group processed would
+    // silently overwrite the earlier one's sibling list.
+    const orphanA = makeGame({ id: 'a1', seriesId: null, tournament: 'DreamLeague', radiantTeam: 'X', direTeam: 'Y', startTime: BASE })
+    const orphanB = makeGame({ id: 'b1', seriesId: 0, tournament: 'ESL One', radiantTeam: 'P', direTeam: 'Q', startTime: BASE + 3600 })
+
+    const groups = Object.values(buildSeriesGroups([orphanA, orphanB]))
+    expect(groups).toHaveLength(2) // different teams + tournament => never merged
+
+    const seriesMatchMap = {}
+    groups.forEach(group => {
+      const ids = group.games.map(g => g.id)
+      group.games.forEach(g => { seriesMatchMap[g.id] = ids })
+    })
+
+    expect(seriesMatchMap['a1']).toEqual(['a1'])
+    expect(seriesMatchMap['b1']).toEqual(['b1'])
   })
 
   it('unlike groupIntoSeries, does not drop the oldest incomplete series', () => {
     // A single lone incomplete game with no siblings at all — groupIntoSeries would
     // drop this entirely (pagination-boundary trim); the drawer still needs to resolve
-    // its own single-game lookup so seriesMatchMap[selectedMatch.seriesId] isn't undefined.
+    // its own single-game lookup so seriesMatchMap[selectedMatch.id] isn't undefined.
     const g1 = makeGame({ id: 'lonely', seriesId: 555, seriesType: 1, startTime: BASE, radiantWin: true })
     expect(groupIntoSeries([g1])).toHaveLength(0)
     const groups = Object.values(buildSeriesGroups([g1]))
     expect(groups).toHaveLength(1)
     expect(groups[0].games.map(g => g.id)).toEqual(['lonely'])
+  })
+
+  it('a match sharing a truthy seriesId with matches in allMatches resolves via the seriesId fallback even when its own id is absent', () => {
+    // Models fetchAppMatchFromOpenDota()'s return shape: a standalone match object (e.g. from a
+    // shared-URL or live-series "just ended" open) that is never inserted into allMatches, but
+    // carries a real OD seriesId shared with siblings that ARE in allMatches.
+    const g1 = makeGame({ id: 'm1', seriesId: 9001, seriesType: 1, startTime: BASE })
+    const g2 = makeGame({ id: 'm2', seriesId: 9001, seriesType: 1, startTime: BASE + 1800 })
+    const allMatches = [g1, g2] // the standalone selected match ('standalone') is NOT in here
+
+    const seriesMatchMap = {}
+    const seriesIdToIds = {}
+    Object.values(buildSeriesGroups(allMatches)).forEach(group => {
+      const ids = group.games.map(g => g.id)
+      group.games.forEach(g => {
+        seriesMatchMap[g.id] = ids
+        if (g.seriesId != null && g.seriesId !== 0) seriesIdToIds[String(g.seriesId)] = ids
+      })
+    })
+
+    const selectedMatch = { id: 'standalone', seriesId: 9001 }
+    expect(seriesMatchMap[selectedMatch.id]).toBeUndefined() // id-primary lookup misses
+    expect(seriesIdToIds[String(selectedMatch.seriesId)]).toEqual(expect.arrayContaining(['m1', 'm2']))
   })
 })
 

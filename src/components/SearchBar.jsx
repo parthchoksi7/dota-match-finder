@@ -38,7 +38,7 @@ function SearchBar(
 
   if (compact) {
     return (
-      <form onSubmit={handleSubmit} className="flex-1 flex items-center min-w-0" aria-describedby={errorId || undefined}>
+      <form onSubmit={handleSubmit} className="flex-1 flex items-center min-w-0">
         <label htmlFor="search-input" className="sr-only">Search by team or tournament</label>
         <input
           id="search-input"
@@ -51,6 +51,10 @@ function SearchBar(
           disabled={disabled}
           className="flex-1 min-w-0 bg-transparent border-none outline-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 disabled:opacity-60"
           aria-invalid={undefined}
+          // On the <input>, not the <form>: aria-describedby is announced from the element that
+          // receives focus. A <form> is a landmark role — a description on it is never read out
+          // when focus lands in the child input, so putting it there would silently no-op.
+          aria-describedby={errorId || undefined}
           autoComplete="off"
           autoCapitalize="off"
           spellCheck="false"
@@ -59,7 +63,12 @@ function SearchBar(
           <button
             type="button"
             onClick={handleClear}
-            className="flex-shrink-0 p-1.5 text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors ml-1"
+            // min-h-[44px] satisfies the touch-target floor (DESIGN_GUIDELINES "Spacing" says
+            // min-HEIGHT, not min-width) without also growing width — this row is inline
+            // (`flex items-center`, not absolutely positioned), so a wider box would narrow the
+            // input next to it. Was p-1.5 around a 14px icon, a ~26px-tall target under the
+            // floor; px-2.5 keeps a comparable width while the height reaches 44px.
+            className="focus-ring flex-shrink-0 min-h-[44px] px-2.5 inline-flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors ml-1"
             aria-label="Clear search"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5" aria-hidden="true">
@@ -74,7 +83,7 @@ function SearchBar(
 
   return (
     <div className="w-full">
-      <form onSubmit={handleSubmit} className="flex gap-2" aria-describedby={errorId || undefined}>
+      <form onSubmit={handleSubmit} className="flex gap-2">
         <label htmlFor="search-input" className="sr-only">
           Search by team, tournament, or hero
         </label>
@@ -89,12 +98,15 @@ function SearchBar(
             disabled={disabled}
             className="focus-ring w-full px-4 py-3 min-h-[44px] bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm placeholder-gray-500 dark:placeholder-gray-600 rounded transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             aria-invalid={undefined}
+            aria-describedby={errorId || undefined}
           />
           {query.length > 0 && (
             <button
               type="button"
               onClick={handleClear}
-              className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded"
+              // Absolutely positioned, so growing the box to the 44px floor costs no layout —
+              // it can only shift the glyph a few px within the input, not resize anything else.
+              className="focus-ring absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded"
               aria-label="Clear search"
             >
               <span className="text-lg leading-none">×</span>

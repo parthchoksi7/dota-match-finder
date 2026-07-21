@@ -1,6 +1,6 @@
 import { kv } from '../_kv.js'
 import { getSupabaseAdmin } from '../_supabase.js'
-import { PANDASCORE_BASE, STREAM_TTL, createLogger, validateId, findOdMatchByTime } from '../_shared.js'
+import { PANDASCORE_BASE, STREAM_TTL, createLogger, validateId, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S } from '../_shared.js'
 
 // Resolves the OpenDota match_id for each finished game of a live/just-ended PandaScore
 // series. Resolution chain, most-authoritative first:
@@ -21,7 +21,6 @@ import { PANDASCORE_BASE, STREAM_TTL, createLogger, validateId, findOdMatchByTim
 // Note: OpenDota /promatches is NOT queried here — once OD indexes a finished game it also flows
 // into the client's existing `allMatches`, which covers that (slow) path without a heavy fetch.
 
-const LGM_WINDOW_S = 900 // matches findOdMatchByTime's ±900s window — querying wider is wasted work
 const PS_FETCH_TIMEOUT_MS = 4000
 // Public feature: many concurrent viewers can have the SAME live series open at once, each
 // polling (the live pulse self-polls every 20s per open sheet). Without this, a popular series
@@ -140,8 +139,8 @@ async function resolveFromLiveGameMap(beginAtUnix, opponents, log) {
     const { data, error } = await getSupabaseAdmin()
       .from('live_game_map')
       .select('od_match_id, start_time, radiant_name, dire_name')
-      .gte('start_time', beginAtUnix - LGM_WINDOW_S)
-      .lte('start_time', beginAtUnix + LGM_WINDOW_S)
+      .gte('start_time', beginAtUnix - OD_MATCH_TIME_WINDOW_S)
+      .lte('start_time', beginAtUnix + OD_MATCH_TIME_WINDOW_S)
     if (error || !data || data.length === 0) return null
     const hit = findOdMatchByTime(shapeLiveGameMapRows(data), beginAtUnix, opponents)
     return hit ? String(hit.match_id) : null

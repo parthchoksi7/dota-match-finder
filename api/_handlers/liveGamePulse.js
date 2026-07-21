@@ -1,6 +1,6 @@
 import { kv } from '../_kv.js'
 import { getSupabaseAdmin } from '../_supabase.js'
-import { createLogger, validateId, findOdMatchByTime } from '../_shared.js'
+import { createLogger, validateId, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S } from '../_shared.js'
 import { fetchPsMatchDetail, beginAtToUnix, shapeLiveGameMapRows } from './liveSeriesGames.js'
 
 // Phase 2 — live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
@@ -9,7 +9,6 @@ import { fetchPsMatchDetail, beginAtToUnix, shapeLiveGameMapRows } from './liveS
 // game instead. Never authoritative, never written anywhere: this is a read-only pulse for
 // display, not an id resolution that feeds the locked KV.
 
-const LGM_WINDOW_S = 900 // matches findOdMatchByTime's ±900s window
 // Concurrency cache for the WHOLE resolved payload (correlation + both Supabase reads), same
 // purpose and TTL as fetchPsMatchDetail's PS_MATCH_DETAIL_CACHE_TTL_S: many viewers can have the
 // same live series open, each self-polling every 20s — without this, a popular series fans out to
@@ -72,8 +71,8 @@ export async function resolvePulse(pandaId, isOwner, log) {
     const { data, error } = await getSupabaseAdmin()
       .from('live_game_map')
       .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, spectators, radiant_hero_ids, dire_hero_ids, radiant_player_names, dire_player_names, captured_at')
-      .gte('start_time', beginAtUnix - LGM_WINDOW_S)
-      .lte('start_time', beginAtUnix + LGM_WINDOW_S)
+      .gte('start_time', beginAtUnix - OD_MATCH_TIME_WINDOW_S)
+      .lte('start_time', beginAtUnix + OD_MATCH_TIME_WINDOW_S)
     if (error || !data || data.length === 0) return { pulse: null }
 
     const hit = findOdMatchByTime(shapeLiveGameMapRows(data), beginAtUnix, opponents)

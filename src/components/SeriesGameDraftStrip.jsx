@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchMatchStats, fetchHeroes } from '../api'
+import HeroIcon from './HeroIcon'
 
 // Glanceable 5v5 hero-icon strip for one finished game inside the live-series companion.
 // Intentionally lighter than the drawer's DraftDisplay (no names/KDA) — the deep view is the
@@ -8,20 +9,6 @@ import { fetchMatchStats, fetchHeroes } from '../api'
 // Shown even in spoiler-free mode: a draft is pre-game and doesn't reveal the result (same as the
 // drawer's DraftDisplay). Only the winner/score/indicators are spoilers, and those are gated by
 // the parent — never here.
-function HeroIcon({ heroKey, name }) {
-  if (!heroKey) return <div className="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-800 flex-shrink-0" aria-hidden="true" />
-  return (
-    <img
-      src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/${heroKey}.png`}
-      alt={name}
-      title={name}
-      className="w-5 h-5 rounded-sm object-cover flex-shrink-0"
-      loading="lazy"
-      onError={(e) => { e.currentTarget.style.visibility = 'hidden' }}
-    />
-  )
-}
-
 export default function SeriesGameDraftStrip({ matchId }) {
   const [draft, setDraft] = useState(null)
   const [loaded, setLoaded] = useState(false)

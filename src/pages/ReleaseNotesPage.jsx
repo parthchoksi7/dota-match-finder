@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 21, 2026",
+    tag: "improvement",
+    title: "Easier to tap the search clear button on mobile",
+    desc: "The × button that clears your search was smaller than it should be on a phone screen. It's now sized to the same comfortable tap target as every other button on the site.",
+  },
+  {
     date: "July 20, 2026",
     tag: "fix",
     title: "Non-Twitch broadcasts like Kick now show as the main replay link",
