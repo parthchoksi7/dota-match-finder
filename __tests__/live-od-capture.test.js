@@ -260,7 +260,7 @@ describe('mapLiveGamesToRows — PostgREST bulk upsert safety', () => {
 })
 
 describe('toGoldRows — live gold timeseries append (Live Story, Phase A)', () => {
-  it('reduces map rows to exactly the five gold-timeseries columns', () => {
+  it('reduces map rows to exactly the gold-timeseries columns (incl. the R4 building_state snapshot)', () => {
     const rows = mapLiveGamesToRows([leagueGame()], CAPTURED_AT)
     const [g] = toGoldRows(rows)
     expect(g).toEqual({
@@ -269,7 +269,15 @@ describe('toGoldRows — live gold timeseries append (Live Story, Phase A)', () 
       radiant_lead: 1500,
       radiant_score: 12,
       dire_score: 8,
+      building_state: 16187530,
     })
+  })
+
+  it('carries building_state through as a per-capture timeseries point, nulling a missing one', () => {
+    const [withBs] = toGoldRows(mapLiveGamesToRows([leagueGame()], CAPTURED_AT))
+    expect(withBs.building_state).toBe(16187530)
+    const [noBs] = toGoldRows(mapLiveGamesToRows([leagueGame({ building_state: undefined })], CAPTURED_AT))
+    expect(noBs.building_state).toBeNull()
   })
 
   it('keeps draft (negative game_time) and zero-lead points — the read layer filters, not capture', () => {

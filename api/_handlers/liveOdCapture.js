@@ -126,6 +126,14 @@ export function toGoldRows(rows) {
       radiant_lead: r.radiant_lead,
       radiant_score: r.radiant_score,
       dire_score: r.dire_score,
+      // R4 (2026-07-21): the raw building_state bitmask rides the same per-capture snapshot. The
+      // live_game_map copy is upserted (latest only), so this append-only table is the ONLY place a
+      // per-game building_state TIMESERIES accumulates — which is exactly what decoding the bitmask
+      // needs (correlating bit changes against post-game building_kill events). Nothing reads it
+      // yet; stored raw, never decoded here. Requires the 2026-07-21 migration in
+      // scripts/create-live-game-gold.sql (until then this whole gold insert warns and skips —
+      // its own try/catch keeps that off the live_game_map upsert).
+      building_state: r.building_state,
     }))
 }
 

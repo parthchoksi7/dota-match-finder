@@ -39,7 +39,31 @@ create table if not exists live_game_gold (
 grant select, insert, update, delete on public.live_game_gold to service_role;
 grant usage, select on sequence live_game_gold_id_seq to service_role;
 
--- Retention: this data is only useful during a live game and briefly after — the COMPLETE
+-- Retention: the net-worth data is only useful during a live game and briefly after — the COMPLETE
 -- per-minute graph comes from OpenDota radiant_gold_adv once the game indexes (30–90 min later).
 -- Prune aggressively (much shorter than live_game_map's 30d), e.g. alongside its prune job:
 --   delete from live_game_gold where captured_at < now() - interval '48 hours';
+-- NOTE (2026-07-21): no prune job is actually implemented yet — this is still just a recommendation,
+-- so the table currently grows unbounded. That is deliberate for now: the building_state column
+-- below needs history to accumulate for the R4.0 decode analysis. Growth is negligible at present
+-- (~400 rows over the first 3 days, a few hundred KB/year), but if a prune IS added later, make
+-- sure the R4 decode work is finished first or it will delete the dataset it depends on.
+
+-- ---------------------------------------------------------------------------
+-- Migration 2026-07-21 (Live Story R4 — building_state timeseries): existing tables only.
+-- Idempotent. Adds the raw OD /live building_state bitmask to each per-capture snapshot.
+--
+-- Why here: live_game_map stores building_state too, but it UPSERTS (latest snapshot only), so it
+-- keeps no history. Decoding the bitmask requires correlating *bit changes over time* against the
+-- exact building_kill events in OpenDota's post-game `objectives` array — i.e. a dense per-game
+-- timeseries, which is precisely what this append-only table already provides for net worth.
+-- Piggybacking on it means the decode dataset accumulates passively from normal traffic instead of
+-- requiring someone to babysit a live game with scripts/verify-building-state.mjs --watch.
+--
+-- Naming nuance: this makes the table a general per-capture live-telemetry timeseries rather than
+-- strictly "gold". Accepted over creating a second near-identical table (same key, same cadence,
+-- same writer) — the (od_match_id, game_time) key and insert-ignore semantics already fit exactly.
+-- Stored RAW/undecoded, same store-raw-filter-at-read convention as everywhere else; nothing reads
+-- it yet. NULL on rows written before this migration.
+-- ---------------------------------------------------------------------------
+alter table live_game_gold add column if not exists building_state bigint;
