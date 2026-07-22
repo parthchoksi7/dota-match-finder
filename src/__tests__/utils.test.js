@@ -803,7 +803,23 @@ describe('groupIntoSeries — third pass merges stubs with split series_ids', ()
     const result = groupIntoSeries([g1, g2, g3])
     expect(result).toHaveLength(1)
     expect(result[0].games).toHaveLength(3)
+    expect(result[0].id).toBe('1000') // lower series_id is canonical, same as T1
     expect(isSeriesComplete(result[0])).toBe(true)
+  })
+
+  it('T2b: a 3-entry chain merges using the full aggregate span, not just each raw pair', () => {
+    // Total span (g1 to g3) is 3.5h — within the 4h window, so a full merge is correct. This
+    // pins down that the union-find's time-window check is evaluated against the CURRENT
+    // (possibly already-merged) aggregate at each comparison, not a stale snapshot of the two
+    // original stubs — e.g. once g1+g2 have merged, checking g3 against that group must use
+    // g1's original start time too, not just g2's.
+    const g1 = makeGame({ seriesId: 1000, seriesType: 1, startTime: BASE,                 radiantWin: true  })
+    const g2 = makeGame({ seriesId: 1001, seriesType: 1, startTime: BASE + 1.5 * 3600,     radiantWin: false })
+    const g3 = makeGame({ seriesId: 1002, seriesType: 1, startTime: BASE + 3.5 * 3600,     radiantWin: true })
+    const result = groupIntoSeries([g1, g2, g3])
+    expect(result).toHaveLength(1)
+    expect(result[0].games).toHaveLength(3)
+    expect(result[0].id).toBe('1000')
   })
 
   it('T3: does not merge stubs when games are 8 hours apart', () => {

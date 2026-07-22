@@ -136,16 +136,16 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         </div>
 
         {/* Row 2: format label (centered under score) + replay button (right) */}
-        <div className="relative flex items-center">
+        <div className="relative flex items-center min-h-[44px]">
           {(seriesLabel || bracketRound) && (
-            <span className="absolute left-1/2 -translate-x-1/2 max-w-[calc(100%-3.5rem)] overflow-hidden text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500 whitespace-nowrap">
+            <span className="absolute left-1/2 -translate-x-1/2 max-w-[calc(100%-6rem)] overflow-hidden text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-500 whitespace-nowrap">
               {[seriesLabel, bracketRound].filter(Boolean).join(' · ')}
             </span>
           )}
           <button
             type="button"
             onClick={handleReplayClick}
-            className="focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors ml-auto"
+            className="focus-ring flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors ml-auto"
             aria-label={`Watch ${radiantTeam} vs ${direTeam} replay`}
           >
             <PlayIcon />
@@ -155,7 +155,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
 
       {/* ── Desktop layout (≥ sm): horizontal 4-column grid ────────────────── */}
       <div
-        className="hidden sm:grid sm:items-center sm:gap-2 sm:min-h-[36px]"
+        className="hidden sm:grid sm:items-center sm:gap-2 sm:min-h-[44px]"
         style={{ gridTemplateColumns: '1fr minmax(76px, auto) 1fr auto' }}
       >
         {/* Radiant team + indicators (left-aligned) */}
@@ -214,7 +214,7 @@ function CompactSeriesRow({ series, onSelectGame, onSelectSeries, spoilerFree = 
         <button
           type="button"
           onClick={handleReplayClick}
-          className="focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+          className="focus-ring flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
           aria-label={`Watch ${radiantTeam} vs ${direTeam} replay`}
         >
           <PlayIcon />

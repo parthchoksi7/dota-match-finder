@@ -242,10 +242,15 @@ function StageInfoTooltip({ stageName, hasBracket }) {
         type="button"
         onClick={open}
         aria-label={`About ${stageName}`}
-        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 hover:border-gray-600 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-400 transition-colors leading-none font-bold flex-shrink-0"
-        style={{ fontSize: '9px' }}
+        className="group inline-flex items-center justify-center p-[15px] rounded-full flex-shrink-0"
       >
-        i
+        <span
+          aria-hidden="true"
+          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 group-hover:border-gray-600 dark:group-hover:border-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors leading-none font-bold"
+          style={{ fontSize: '9px' }}
+        >
+          i
+        </span>
       </button>
       {pos && (
         <div
@@ -503,7 +508,7 @@ export default function TournamentDetail() {
               {data.status === 'completed' && data.winner?.name && (
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-base">🏆</span>
-                  <span className="text-sm font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+                  <span className="text-sm font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                     {data.winner.name}
                   </span>
                 </div>

@@ -17,7 +17,17 @@ import { useEffect } from 'react'
 // unmounts immediately on dismiss. React would need the unmount deferred to play one, and the
 // drawer slide-in is the product's single signature motion (see DESIGN_GUIDELINES "Motion &
 // Animation"); a competing exit animation is not wanted. Preserve this behavior.
-export default function Sheet({ onDismiss, ariaLabel, widthClassName, children }) {
+//
+// SHEET_WIDTH / SHEET_PADDING are the canonical match-sheet shell contract (pending-refactors
+// #4 — MatchDrawer and LiveSeriesSheet had independently picked their own width and a flat
+// (non-responsive) padding, so the two panels drifted apart on desktop/tablet). Both callers
+// import these instead of hardcoding their own values so a third sheet can't reintroduce the
+// drift. `widthClassName` still defaults to the shared width but can be overridden if a future
+// sheet genuinely needs a different size.
+export const SHEET_WIDTH = "sm:w-[480px] lg:w-[520px]"
+export const SHEET_PADDING = "px-4 sm:px-5"
+
+export default function Sheet({ onDismiss, ariaLabel, widthClassName = SHEET_WIDTH, children }) {
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onDismiss()

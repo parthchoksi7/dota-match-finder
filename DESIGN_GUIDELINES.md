@@ -55,11 +55,13 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 | Loss | red-600 | red-500 | Negative outcomes |
 | Watch / VOD | purple-700 | purple-600 | Watch actions only |
 | Follow (active) | yellow-400 | yellow-400 | Followed/favorited team star only |
+| Personal / highlighted | amber-600 | amber-400 | Champion labels, Grand Final accents, My Teams, followed-row left border |
 
 ### Rules
 - **Red is reserved** for: active tab indicators, live pulse dots, primary CTAs, and loss states. Never use red for decorative purposes.
 - **Purple is reserved** for watch/VOD actions only. Don't repurpose it.
-- **Yellow-400 is reserved** for the follow/star active state only. Don't repurpose it.
+- **Yellow-400 is reserved** for the follow/star active state only. Don't repurpose it — this was violated by an earlier "Champion" label treatment (`text-yellow-600 dark:text-yellow-400`); resolved 2026-07-21 by recoloring to `amber-600 dark:amber-400` (see Personal/highlighted row above), matching the existing Grand Final trophy badge convention below instead of adding a second yellow exception.
+- **Amber is the shared "personal/highlighted content" token** — My Teams card, Grand Final card, followed-row left borders, section-label left-accent, and tournament Champion labels all use it. Don't treat it as a free color for unrelated accents.
 - **Sky-50 / sky-950/20 tinted background** is reserved for the editorial card (`EditorialCard`) — the only tinted background in the feed. It signals "this is context, not a score." Do not use tinted backgrounds for other card types.
 - Light mode must use gray-900 (not gray-700) for primary text — never sacrifice contrast for softness
 - No gradients. No shadows except on the match drawer overlay.
@@ -594,6 +596,18 @@ Fixed-bottom tab bar shown on mobile (`md:hidden`). Lives in `src/components/Bot
 - Show on desktop (`md:hidden` is non-negotiable)
 - Animate the bar on scroll - it's always-visible
 
+### Now Watching bar (sticky mini status bar)
+
+Sticky bar shown on the homepage feed once a match's drawer has been viewed and dismissed, so its Watch action stays one tap away while the fan keeps scrolling the match list — without reopening the full drawer (and its blocking backdrop). Lives in `src/components/NowWatchingBar.jsx`, mounted in `App.jsx` directly below `SiteHeader`.
+
+- Container: `sticky top-0 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800` — no shadow (drawer-only exception), no blur
+- Content row: `max-w-3xl mx-auto px-4 py-2 min-h-[44px] flex items-center gap-3`
+- Left (tap to reopen the drawer): `NOW VIEWING` tertiary label + `TEAM A vs TEAM B` in display font, truncating as one unit; winner/loser color follows the same rule as the drawer's names row, including the spoiler-free "both teams get winner color" case
+- Watch button (`bg-purple-700`, matches Watch/VOD button pattern): only rendered when a VOD has already resolved (`match.allVods[0]` present) — mirrors the "0 vods → no picker chrome" rule; opens the primary VOD directly in a new tab, same as the drawer's own Watch button
+- Dismiss (✕): `p-2 -m-1 text-gray-400`, same treatment as the spoiler-free/calendar nudge dismiss buttons
+- Appears only when no drawer is currently open and the bar hasn't been dismissed for the current selection; reselecting any match (including the same one) clears a prior dismissal
+- Does not perform its own VOD resolution — only reads the `allVods` already produced by `resolveMatchStreams` when the drawer was open (see VOD Replay System in `.claude/claude_instructions_template.md`)
+
 ### Settings sheet (consolidated settings)
 
 Slide-up sheet on mobile, dropdown panel anchored top-right on desktop. Lives in `src/components/SettingsSheet.jsx`. Triggered by dispatching `SETTINGS_OPEN_EVENT` (a window event) - so any component can open it without prop drilling.
@@ -710,8 +724,8 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - Data line: `stroke-gray-400 dark:stroke-gray-500`, strokeWidth 1.5.
 - SVG viewBox 480x160 with `preserveAspectRatio="none"` — fills the container width.
 - **SVG constants**: `VW=480, VH=160, PL=4, PR=4, PT=10, PB=22, CW=472, CH=128, MID=74`. PL/PR are minimal stroke-buffer only — no labels inside the SVG.
-- **Full-bleed rendering**: In MatchDrawer, GoldGraph is wrapped in `-mx-5` so the SVG spans the full drawer panel width. GoldGraph returns a React fragment: an HTML header row + the SVG wrapper div.
-- **HTML header row** (above SVG): `flex justify-between px-5 mb-1.5` — RADIANT label (green-500) · current gold diff in advantage color · DIRE label (red-500). The `px-5` realigns text with the rest of the drawer content despite the bleed.
+- **Full-bleed rendering**: In MatchDrawer, GoldGraph is wrapped in `-ml-4 sm:-ml-5` (left-only, matching `Sheet.jsx`'s shared `SHEET_PADDING` — see "Match drawer / Live Series sheet shell" below) so the SVG spans to the panel's true left edge. GoldGraph returns a React fragment: an HTML header row + the SVG wrapper div.
+- **HTML header row** (above SVG): `flex justify-between pl-4 sm:pl-5 pr-0 mb-1.5` — RADIANT label (green-500) · current gold diff in advantage color · DIRE label (red-500). `pl-4 sm:pl-5` realigns text with the rest of the drawer content at each breakpoint despite the left bleed; `pr-0` lets DIRE sit at the wrapper's own right edge, which is already the panel's content boundary since there's no right-side bleed.
 - Loading: fragment with `h-5 mb-1.5` spacer + 160px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
 - Empty (< 2 data points): 160px `h-[160px]` div — "Gold data unavailable".
 - **Event markers**: See `## Game event markers` section below. Three types: Roshan kill, Rampage, Divine Rapier. Colored by side (#22c55e Radiant / #ef4444 Dire), not by event type.
@@ -760,7 +774,7 @@ Two surfaces inside the running-game block of `SeriesLivePulse.jsx`. Both are bu
 
 ### Live net-worth graph (`LiveGoldGraph.jsx`)
 - **Same visual chrome as `GoldGraph`:** green area fill (`rgba(34,197,94,0.25)`) above the dashed zero line, red (`rgba(239,68,68,0.25)`) below; data line `stroke-gray-400 dark:stroke-gray-500`; RADIANT (green) · current net-worth diff (advantage color) · DIRE (red) header row; 5-minute time-axis labels (`fontSize 9`, `rgb(156,163,175)`). Section label is **"Net Worth"** (`text-[10px] font-bold uppercase tracking-widest text-gray-500`), never "Gold" — same rule as the score-row micro-label.
-- **Compact viewBox** (`480×128`, `PL 4 / PR 8 / PT 8 / PB 20`), contained within the sheet's `px-4` (NOT full-bleed like the drawer's `-mx-5` `GoldGraph` — the live graph aligns with the score row + draft in the same narrow sheet).
+- **Compact viewBox** (`480×128`, `PL 4 / PR 8 / PT 8 / PB 20`), contained within the sheet's `SHEET_PADDING` (NOT full-bleed like the drawer's `-ml-4 sm:-ml-5` `GoldGraph` — the live graph aligns with the score row + draft in the same sheet).
 - **Two deliberate divergences from `GoldGraph` (intentional — do NOT "fix" into uniformity):**
   1. **Time-scaled x-axis, not index-spaced.** `computeTimeScaledPoints()` maps `x ∝ game_time`, so an irregular/sparse capture gap (the live feed is ~60–110s cadence, with gaps on pauses/reconnects) shows as honest horizontal distance instead of being compressed. `GoldGraph` is index-spaced because it has a value every minute.
   2. **Hover/scrub SNAPS to the nearest real captured point; never interpolates.** The live capture is coarse — interpolating a value between two snapshots would imply a precision we don't have. Desktop `onMouseMove` + mobile horizontal-drag (`passive:false`, 5px direction-intent threshold, same as `GoldGraph`) → crosshair + dot + floating `position:fixed`, viewport-clamped tooltip (`MM:SS · +X.Xk TEAM`, reusing `GoldGraph`'s exported `formatHoverLabel`).

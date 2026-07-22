@@ -1,17 +1,12 @@
 import DraftDisplay from "./DraftDisplay"
 import GoldGraph from "./GoldGraph"
 import PlayerStatsSection from "./PlayerStatsSection"
-import Sheet from "./Sheet"
+import Sheet, { SHEET_WIDTH, SHEET_PADDING } from "./Sheet"
 import StreamPicker, { streamLabel } from "./StreamPicker"
 import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
 import { useEffect, useMemo, useState } from "react"
 import { formatDuration, trackEvent } from "../utils"
-
-// Both drawer variants (played and unplayed) share one width so they can never drift apart.
-// Wider than LiveSeriesSheet's 400px: this panel carries the gold graph and the full player
-// stats table, which need the extra room at lg:.
-const DRAWER_WIDTH = "sm:w-[480px] lg:w-[520px]"
 
 function formatGameTime(seconds) {
   if (seconds == null || seconds < 0) return null
@@ -152,8 +147,8 @@ function MatchDrawer({
   // Unplayed game slot — show minimal drawer with empty state
   if (match.unplayed) {
     return (
-      <Sheet onDismiss={onDismiss} ariaLabel="Match details" widthClassName={DRAWER_WIDTH}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+      <Sheet onDismiss={onDismiss} ariaLabel="Match details" widthClassName={SHEET_WIDTH}>
+        <div className={`flex items-center justify-between ${SHEET_PADDING} py-4 border-b border-gray-200 dark:border-gray-800 shrink-0`}>
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
               {match.tournament}
@@ -171,7 +166,7 @@ function MatchDrawer({
             ✕
           </button>
         </div>
-        <div className="flex-1 flex items-center justify-center px-5 py-8">
+        <div className={`flex-1 flex items-center justify-center ${SHEET_PADDING} py-8`}>
           <div className="text-center space-y-2">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
               Game {match.gameNumber}
@@ -200,8 +195,8 @@ function MatchDrawer({
     : 'text-gray-400 dark:text-gray-500'
 
   return (
-    <Sheet onDismiss={onDismiss} ariaLabel="Match details" widthClassName={DRAWER_WIDTH}>
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+    <Sheet onDismiss={onDismiss} ariaLabel="Match details" widthClassName={SHEET_WIDTH}>
+      <div className={`flex items-center justify-between ${SHEET_PADDING} py-4 border-b border-gray-200 dark:border-gray-800 shrink-0`}>
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
             {match.tournament}
@@ -228,12 +223,12 @@ function MatchDrawer({
       </div>
 
       {gameSwitcher && (
-        <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden px-5 py-2.5 border-b border-gray-800 shrink-0" style={{ scrollbarWidth: 'none' }}>
+        <div className={`overflow-x-auto [&::-webkit-scrollbar]:hidden ${SHEET_PADDING} py-2.5 border-b border-gray-800 shrink-0`} style={{ scrollbarWidth: 'none' }}>
           {gameSwitcher}
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-5 py-5 space-y-6">
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain ${SHEET_PADDING} py-5 space-y-6`}>
 
         {/* Names row — left/right anchored, single line, no separator */}
         <div className="flex items-center justify-between gap-2">
@@ -257,7 +252,7 @@ function MatchDrawer({
                   trackEvent(followedTeams?.includes(match.radiantTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.radiantTeam, source: 'drawer' })
                   onToggleFollow(match.radiantTeam)
                 }}
-                className={`flex-shrink-0 p-1 rounded transition-colors ${
+                className={`flex-shrink-0 p-[14px] rounded transition-colors ${
                   followedTeams?.includes(match.radiantTeam)
                     ? 'text-yellow-400'
                     : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
@@ -278,7 +273,7 @@ function MatchDrawer({
                   trackEvent(followedTeams?.includes(match.direTeam) ? 'unfollow_team' : 'follow_team', { team_name: match.direTeam, source: 'drawer' })
                   onToggleFollow(match.direTeam)
                 }}
-                className={`flex-shrink-0 p-1 rounded transition-colors ${
+                className={`flex-shrink-0 p-[14px] rounded transition-colors ${
                   followedTeams?.includes(match.direTeam)
                     ? 'text-yellow-400'
                     : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
@@ -560,7 +555,9 @@ function MatchDrawer({
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
                 Gold Advantage
               </h3>
-              <div className="-ml-5">
+              {/* Cancels the scroll body's own SHEET_PADDING left inset at each breakpoint so the
+                  SVG bleeds to the true panel edge — must track SHEET_PADDING's px-4/px-5 values. */}
+              <div className="-ml-4 sm:-ml-5">
                 <GoldGraph
                   radiantGoldAdv={currentStats?.radiantGoldAdv}
                   radiantName={match.radiantTeam}

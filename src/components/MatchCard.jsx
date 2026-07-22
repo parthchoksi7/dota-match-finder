@@ -168,7 +168,7 @@ function MatchCard({
                   trackEvent(isRadiantFollowed ? "unfollow_team" : "follow_team", { team_name: radiantTeam })
                   onToggleFollow(radiantTeam)
                 }}
-                className={`focus-ring flex-shrink-0 p-0.5 rounded transition-colors ${
+                className={`focus-ring flex-shrink-0 p-[15px] rounded transition-colors ${
                   isRadiantFollowed
                     ? "text-yellow-400"
                     : "text-gray-300 dark:text-gray-700 hover:text-yellow-400 dark:hover:text-yellow-400"
@@ -214,7 +214,7 @@ function MatchCard({
                   trackEvent(isDireFollowed ? "unfollow_team" : "follow_team", { team_name: direTeam })
                   onToggleFollow(direTeam)
                 }}
-                className={`focus-ring flex-shrink-0 p-0.5 rounded transition-colors ${
+                className={`focus-ring flex-shrink-0 p-[15px] rounded transition-colors ${
                   isDireFollowed
                     ? "text-yellow-400"
                     : "text-gray-300 dark:text-gray-700 hover:text-yellow-400 dark:hover:text-yellow-400"

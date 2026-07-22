@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchLiveSeriesGameIds } from '../api'
 import { trackEvent } from '../utils'
-import Sheet from './Sheet'
+import Sheet, { SHEET_WIDTH, SHEET_PADDING } from './Sheet'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 import SeriesGameIndicators from './SeriesGameIndicators'
 import SeriesGameScore from './SeriesGameScore'
@@ -111,10 +111,10 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
     <Sheet
       onDismiss={onDismiss}
       ariaLabel={`${match.teamA} vs ${match.teamB} series`}
-      widthClassName="sm:w-[400px]"
+      widthClassName={SHEET_WIDTH}
     >
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-900">
+      <div className={`flex-shrink-0 flex items-center justify-between gap-3 ${SHEET_PADDING} py-3 border-b border-gray-100 dark:border-gray-900`}>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
@@ -140,7 +140,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
 
       {/* Game switcher */}
       {gameTabs.length > 1 && (
-        <div className="flex-shrink-0 flex gap-1.5 overflow-x-auto px-4 pt-2 pb-1 border-b border-gray-100 dark:border-gray-900" style={{ scrollbarWidth: 'none' }}>
+        <div className={`flex-shrink-0 flex gap-1.5 overflow-x-auto ${SHEET_PADDING} pt-2 pb-1 border-b border-gray-100 dark:border-gray-900`} style={{ scrollbarWidth: 'none' }}>
           {gameTabs.map(tab => {
             const isActive = tab.position === selectedPosition
             return (
@@ -181,7 +181,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
             ? 'focus-ring -mx-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors'
             : ''
           return (
-            <div className="px-4 py-3">
+            <div className={`${SHEET_PADDING} py-3`}>
               <div
                 role={clickable ? 'button' : undefined}
                 tabIndex={clickable ? 0 : undefined}
@@ -252,7 +252,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
 
         {showLivePulse && (
           <div>
-            <div className="flex items-center gap-3 px-4 py-3 pb-0">
+            <div className={`flex items-center gap-3 ${SHEET_PADDING} py-3 pb-0`}>
               <span className="font-display font-black text-sm text-gray-400 dark:text-gray-600 flex-shrink-0 w-5">
                 G{currentGame.position}
               </span>

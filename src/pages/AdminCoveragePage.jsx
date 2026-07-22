@@ -20,8 +20,8 @@ const PRIORITY_STYLES = {
 
 function useAdminToken() {
   const [token, setToken] = useState(() => localStorage.getItem('admin_token') || '')
-  const save = (t) => { localStorage.setItem('admin_token', t); setToken(t) }
-  const clear = () => { localStorage.removeItem('admin_token'); setToken('') }
+  const save = useCallback((t) => { localStorage.setItem('admin_token', t); setToken(t) }, [])
+  const clear = useCallback(() => { localStorage.removeItem('admin_token'); setToken('') }, [])
   return { token, save, clear }
 }
 
@@ -264,7 +264,7 @@ export default function AdminCoveragePage() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, clear])
 
   useEffect(() => { load() }, [load])
 
@@ -280,7 +280,7 @@ export default function AdminCoveragePage() {
     }
   }
 
-  if (!token) return <LoginGate onLogin={t => { save(t); load(t) }} />
+  if (!token) return <LoginGate onLogin={save} />
 
   const STATUS_ORDER = ['queued', 'processing', 'generated', 'under_review', 'approved', 'published', 'archived', 'suppressed']
   const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter)

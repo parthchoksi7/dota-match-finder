@@ -240,6 +240,14 @@ The frontend (`findTwitchVod` in `src/api.js`) uses only `preferredChannel` from
 - Groups individual games into series (BO1/BO2/BO3/BO5) — OpenDota series_type 3 = BO2 (undocumented); BO2 draws (1-1) are also explicitly marked complete
 - Search filters `allMatches` live so load more updates results automatically
 
+### Now Watching Bar (2026-07-21)
+Sticky mini status bar on the homepage feed, below `SiteHeader`, so a match's Watch action stays reachable while a fan keeps scrolling the list after closing its drawer — without the drawer's full-screen/blocking-backdrop overlay reopening. `src/components/NowWatchingBar.jsx`.
+- `App.jsx` snapshots the fully-resolved `selectedMatch` into `lastViewedMatch` state when `dismissPanel()` closes the drawer (skips unplayed matches and any match still mid-`resolveMatchStreams` via the `loadingVod` flag)
+- Renders only when no drawer is open (`!selectedMatch`) and the bar hasn't been dismissed for the current selection; `nowWatchingDismissed` resets on every new `handleSelectMatch` call, including reselecting the same match
+- Reads `match.allVods[0]` for its Watch button — never calls `resolveMatchStreams`/`findTwitchVod` itself, so it cannot regress the locked VOD Replay System; if no VOD has resolved yet, the Watch button is simply omitted (same "0 vods → no chrome" rule `StreamPicker` follows)
+- Tapping the bar body reopens the full drawer via the existing `handleSelectMatch`; tapping Watch opens the VOD directly in a new tab; ✕ dismisses until the next selection
+- Scoped to the homepage feed only — not mounted on Tournament pages
+
 ### SEO Match URLs & Sitemap
 - Match URLs use keyword-rich slugs: `/match/team-spirit-vs-gaimin-gladiators-dreamleague-s23-{matchId}`
 - `slugify()` and `getMatchSlug()` in `App.jsx` generate the slug from team names, tournament, and match ID

@@ -65,7 +65,7 @@ export default function TournamentCard({ tournament }) {
       </div>
 
       {isCompleted && tournament.winner?.name && (
-        <p className="mt-2 text-xs font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+        <p className="mt-2 text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
           Champion: {tournament.winner.name}
         </p>
       )}

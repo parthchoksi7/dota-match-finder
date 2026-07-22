@@ -28,6 +28,19 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
 
   const hasSubRow = match.currentGame || match.bracketRound || watchUrl || match.youtubeStream
 
+  // The centered sub-row label must not sit under the mobile-only (sm:hidden) 44px watch
+  // buttons at the row's right edge. Reserved width scales with how many can render at once
+  // (Twitch + YouTube can both exist for the same live match) — sized for the 44px touch
+  // target, unlike the desktop text-label buttons which don't need the same clearance.
+  const mobileWatchButtonCount = (watchUrl ? 1 : 0) + (match.youtubeStream ? 1 : 0)
+  // 0 buttons → only the small aria-hidden placeholder renders (unchanged 28px), so the
+  // original reservation still applies; 1/2 buttons need the wider 44px-button clearance.
+  const subRowLabelMaxWidth = mobileWatchButtonCount >= 2
+    ? 'max-w-[calc(100%-14rem)]'
+    : mobileWatchButtonCount === 1
+    ? 'max-w-[calc(100%-8rem)]'
+    : 'max-w-[calc(100%-3.5rem)]'
+
   return (
     <div
       ref={rootRef}
@@ -85,9 +98,9 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
 
       {/* Sub-row: G{n} · bracket stage (centered) + watch button (right) */}
       {hasSubRow && (
-        <div className="relative flex items-center px-4 pb-2.5 min-h-[28px]">
+        <div className="relative flex items-center px-4 pb-2.5 min-h-[44px] sm:min-h-[28px]">
           {(match.currentGame || match.bracketRound) && (
-            <span className="absolute left-1/2 -translate-x-1/2 max-w-[calc(100%-3.5rem)] flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden">
+            <span className={`absolute left-1/2 -translate-x-1/2 ${subRowLabelMaxWidth} sm:max-w-[calc(100%-3.5rem)] flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden`}>
               {match.currentGame && (
                 <>
                   <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
@@ -115,7 +128,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                     e.stopPropagation()
                     trackEvent('live_match_watch', { channel: watchLabel, teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
                   }}
-                  className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+                  className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
                   aria-label={`Watch ${match.teamA} vs ${match.teamB} on Twitch`}
                 >
                   <TwitchIcon />
@@ -130,7 +143,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                     e.stopPropagation()
                     trackEvent('live_match_watch_youtube', { teamA: match.teamA, teamB: match.teamB, tournament: match.tournament })
                   }}
-                  className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+                  className="sm:hidden focus-ring flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors"
                   aria-label={`Watch ${match.teamA} vs ${match.teamB} on YouTube`}
                 >
                   <YouTubeIcon />

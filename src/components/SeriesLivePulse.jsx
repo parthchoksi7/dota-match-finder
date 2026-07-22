@@ -7,6 +7,7 @@ import LiveGoldGraph from './LiveGoldGraph'
 import SeriesScoreRow from './SeriesScoreRow'
 import LiveStreamPicker from './LiveStreamPicker'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
+import { SHEET_PADDING } from './Sheet'
 
 const POLL_MS = 20000
 // Bounds the retain-last-known-good behavior below: a failed/empty poll and a routine "no game
@@ -184,7 +185,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     </div>
   )
 
-  if (!pulse) return hasWatchLinks ? <div className="px-4 py-3">{watchLinks}</div> : null
+  if (!pulse) return hasWatchLinks ? <div className={`${SHEET_PADDING} py-3`}>{watchLinks}</div> : null
 
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
@@ -211,7 +212,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     : null
 
   return (
-    <div className="px-4 py-3">
+    <div className={`${SHEET_PADDING} py-3`}>
       {watchLinks}
       {stakes?.kind && (
         <p className="mb-1.5">

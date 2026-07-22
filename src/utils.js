@@ -205,33 +205,53 @@ export function buildSeriesGroups(matches) {
   // OD occasionally assigns a fresh series_id to each game of the same real series.
   // Merge criteria: same teams + same tournament + all game start times within 4h
   // + neither stub already complete + combined games within the series-type max.
+  //
+  // Union-find over the numeric entries, single pass: each pair is checked once (in
+  // index order) against the CURRENT aggregate for its group, via find(). Merging only
+  // ever adds games to a group, so growing an aggregate can only make a later capacity/
+  // time-window check fail more easily, never pass where it previously failed — the
+  // eventual set of unions is therefore order-independent, and a single forward pass
+  // converges to the same result the old restart-the-whole-scan-after-every-merge loop
+  // did, without its O(n^2 * m) restart penalty. Union always keeps the smaller original
+  // index as the representative, so the canonical survivor (its `id`, its `seriesType`)
+  // matches the old sA-is-always-the-earlier-entry behavior.
   const FOUR_HOURS = 4 * 3600
-  let mergedAny = true
-  while (mergedAny) {
-    mergedAny = false
-    const numericEntries = Object.entries(seriesMap).filter(([k]) => /^\d+$/.test(k))
-    outer: for (let i = 0; i < numericEntries.length; i++) {
-      const [keyA, sA] = numericEntries[i]
-      if (!seriesMap[keyA]) continue
-      if (isSeriesComplete(sA)) continue
-      for (let j = i + 1; j < numericEntries.length; j++) {
-        const [keyB, sB] = numericEntries[j]
-        if (!seriesMap[keyB]) continue
-        if (isSeriesComplete(sB)) continue
-        if (sA.games[0]?.tournament !== sB.games[0]?.tournament) continue
-        const teamsA = [sA.games[0].radiantTeam, sA.games[0].direTeam].sort().join('|')
-        const teamsB = [sB.games[0].radiantTeam, sB.games[0].direTeam].sort().join('|')
-        if (teamsA !== teamsB) continue
-        if (sA.games.length + sB.games.length > maxGamesForSeries(sA.seriesType)) continue
-        const allTimes = [...sA.games, ...sB.games].map(g => g.startTime)
-        if (Math.max(...allTimes) - Math.min(...allTimes) > FOUR_HOURS) continue
-        for (const g of sB.games) sA.games.push(g)
-        if (sB.startTime > sA.startTime) sA.startTime = sB.startTime
-        delete seriesMap[keyB]
-        mergedAny = true
-        break outer
-      }
+  const stubKeys = Object.keys(seriesMap).filter(k => /^\d+$/.test(k))
+  const parent = stubKeys.map((_, i) => i)
+  function find(i) {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]] // path halving
+      i = parent[i]
     }
+    return i
+  }
+  const agg = stubKeys.map(k => seriesMap[k])
+
+  for (let i = 0; i < stubKeys.length; i++) {
+    for (let j = i + 1; j < stubKeys.length; j++) {
+      const rootA = find(i)
+      const rootB = find(j)
+      if (rootA === rootB) continue
+      const sA = agg[rootA]
+      const sB = agg[rootB]
+      if (isSeriesComplete(sA) || isSeriesComplete(sB)) continue
+      if (sA.games[0]?.tournament !== sB.games[0]?.tournament) continue
+      const teamsA = [sA.games[0].radiantTeam, sA.games[0].direTeam].sort().join('|')
+      const teamsB = [sB.games[0].radiantTeam, sB.games[0].direTeam].sort().join('|')
+      if (teamsA !== teamsB) continue
+      if (sA.games.length + sB.games.length > maxGamesForSeries(sA.seriesType)) continue
+      const allTimes = [...sA.games, ...sB.games].map(g => g.startTime)
+      if (Math.max(...allTimes) - Math.min(...allTimes) > FOUR_HOURS) continue
+
+      const [keep, drop] = rootA < rootB ? [rootA, rootB] : [rootB, rootA]
+      for (const g of agg[drop].games) agg[keep].games.push(g)
+      if (agg[drop].startTime > agg[keep].startTime) agg[keep].startTime = agg[drop].startTime
+      parent[drop] = keep
+    }
+  }
+
+  for (let i = 0; i < stubKeys.length; i++) {
+    if (find(i) !== i) delete seriesMap[stubKeys[i]]
   }
 
   return seriesMap

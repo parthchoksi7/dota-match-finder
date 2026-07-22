@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, useReducer } from "react"
 import SearchBar from "./components/SearchBar"
 import MatchList from "./components/MatchList"
 import HomeFeed, { FEED_ERROR_ID } from "./components/HomeFeed"
@@ -10,7 +10,9 @@ import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestio
 import ManageTeamsModal, { MANAGE_TEAMS_OPEN_EVENT } from "./components/ManageTeamsModal"
 import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, resolveHeroByName } from "./api"
 import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary, resolvableStoredMain } from "./vodStreams"
+import { prefetchMatchStreams as prefetchMatchStreamsCache, clearVodPrefetchCache } from "./vodPrefetchCache"
 import SiteHeader from "./components/SiteHeader"
+import NowWatchingBar from "./components/NowWatchingBar"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
@@ -134,6 +136,12 @@ async function resolveMatchStreams(match, allMatches) {
   }
 }
 
+// Warms the VOD cache for a match via the unchanged (LOCKED) resolveMatchStreams above —
+// see vodPrefetchCache.js for the caching/invalidation contract and its rationale.
+function prefetchMatchStreams(match, allMatches) {
+  return prefetchMatchStreamsCache(match, allMatches, resolveMatchStreams)
+}
+
 function usePullToRefresh(onRefresh) {
   const [pullDistance, setPullDistance] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -208,6 +216,33 @@ function usePullToRefresh(onRefresh) {
   return { pullDistance, refreshing, THRESHOLD }
 }
 
+// useReducer pilot for the async-cluster pattern (owner-only draft-posts feature). If this
+// holds up well it's the template for the summary and redditPosts clusters (pending-refactors #11).
+const initialXPostsState = {
+  open: false,
+  series: null,
+  posts: null,
+  summaryPost: null,
+  seriesImageUrl: null,
+  loading: false,
+  error: null,
+}
+
+function xPostsReducer(state, action) {
+  switch (action.type) {
+    case 'open':
+      return { ...initialXPostsState, open: true, series: action.series, loading: true }
+    case 'success':
+      return { ...state, posts: action.posts, summaryPost: action.summaryPost, seriesImageUrl: action.seriesImageUrl, loading: false }
+    case 'error':
+      return { ...state, error: action.error, loading: false }
+    case 'close':
+      return { ...state, open: false }
+    default:
+      return state
+  }
+}
+
 function App() {
   const [allMatches, setAllMatches] = useState([])
   const [nextMatchId, setNextMatchId] = useState(null)
@@ -219,6 +254,11 @@ function App() {
   const [searched, setSearched] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState(null)
   const [drawerSource, setDrawerSource] = useState('unknown')
+  // "Now Watching" sticky bar (pending-refactors #10) — snapshots the fully-resolved
+  // selectedMatch when its drawer closes, so Watch stays reachable without the drawer's
+  // blocking backdrop while the fan keeps scrolling the feed.
+  const [lastViewedMatch, setLastViewedMatch] = useState(null)
+  const [nowWatchingDismissed, setNowWatchingDismissed] = useState(false)
   const [error, setError] = useState(null)
   const [summary, setSummary] = useState(null)
   const [summaryMatchId, setSummaryMatchId] = useState(null)
@@ -248,6 +288,12 @@ function App() {
   // Bumped whenever the live sheet is dismissed or swapped to a different series, so a replay
   // fetch that resolves afterward can tell it's stale and skip opening MatchDrawer.
   const liveReplayTokenRef = useRef(0)
+  // Bumped on every handleSelectMatch call, so a slow (cold cache) resolveMatchStreams response
+  // for an earlier click can tell it's been superseded by a later selection and skip clobbering
+  // selectedMatch back to the older match. Same staleness-guard pattern as liveReplayTokenRef —
+  // needed once VOD pre-fetch (pending-refactors #5) makes "click A (slow), click B (instant)"
+  // a realistic ordering instead of a rare one.
+  const selectMatchTokenRef = useRef(0)
   // ?live=<psSeriesId> restore-on-refresh target. Captured ONCE at mount (see the effect below)
   // — NOT re-derived from window.location.search on every poll, because handleSelectLiveMatch
   // itself writes ?live= on every open (including a plain click), and re-reading the live URL
@@ -268,13 +314,7 @@ function App() {
   // Search overlay
   const [searchOpen, setSearchOpen] = useState(false)
 
-  const [xPostsOpen, setXPostsOpen] = useState(false)
-  const [xPostsSeries, setXPostsSeries] = useState(null)
-  const [xPosts, setXPosts] = useState(null)
-  const [xPostsSummaryPost, setXPostsSummaryPost] = useState(null)
-  const [xPostsSeriesImageUrl, setXPostsSeriesImageUrl] = useState(null)
-  const [xPostsLoading, setXPostsLoading] = useState(false)
-  const [xPostsError, setXPostsError] = useState(null)
+  const [xPostsState, dispatchXPosts] = useReducer(xPostsReducer, initialXPostsState)
 
   const [redditPostsOpen, setRedditPostsOpen] = useState(false)
   const [redditPostsSeries, setRedditPostsSeries] = useState(null)
@@ -468,6 +508,7 @@ function App() {
   }, [])
 
   const refreshAll = useCallback(() => {
+    clearVodPrefetchCache()
     return Promise.all([loadMatches(), fetchLiveData(), fetchJustEnded()])
   }, [loadMatches, fetchLiveData, fetchJustEnded])
 
@@ -729,6 +770,7 @@ function App() {
 
   async function handleSearch(query) {
     setLoading(true)
+    selectMatchTokenRef.current++ // invalidate any in-flight prefetchMatchStreams resolution
     setSelectedMatch(null)
     const trimmed = query.trim()
     const q = trimmed.toLowerCase()
@@ -760,6 +802,7 @@ function App() {
   function handleClearSearch() {
     setSearched(false)
     setSearchQuery("")
+    selectMatchTokenRef.current++ // invalidate any in-flight prefetchMatchStreams resolution
     setSelectedMatch(null)
     setError(null)
     setLiveQuery('')
@@ -781,12 +824,14 @@ function App() {
   }
 
   async function handleSelectMatch(match, source = 'homepage_feed') {
+    const myToken = ++selectMatchTokenRef.current
     setDrawerSource(source)
     setSummary(null)
     setSummaryMatchId(null)
     setSummaryError(null)
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
+    setNowWatchingDismissed(false)
 
     if (match.unplayed) {
       setSelectedMatch(match)
@@ -806,7 +851,15 @@ function App() {
     if (match.seriesId && !match._skipExpand) setExpandedSeriesId(String(match.seriesId))
     setSelectedMatch({ ...match, loadingVod: true })
 
-    const { url, channel, allVods, otherStreams } = await resolveMatchStreams(match, allMatches)
+    let result
+    try {
+      result = await prefetchMatchStreams(match, allMatches)
+    } catch {
+      // Falls through to "No VOD found" in the drawer rather than leaving loadingVod stuck true.
+      result = { url: null, channel: null, allVods: [], otherStreams: [] }
+    }
+    if (selectMatchTokenRef.current !== myToken) return // superseded by a newer selection — drop this stale result
+    const { url, channel, allVods, otherStreams } = result
     setSelectedMatch({ ...match, loadingVod: false, url, channel, allVods, otherStreams })
   }
 
@@ -907,13 +960,7 @@ function App() {
   }
 
   async function handleDraftPosts(series) {
-    setXPostsSeries(series)
-    setXPosts(null)
-    setXPostsSummaryPost(null)
-    setXPostsSeriesImageUrl(null)
-    setXPostsError(null)
-    setXPostsLoading(true)
-    setXPostsOpen(true)
+    dispatchXPosts({ type: 'open', series })
 
     try {
       const gameIds = series.games.map(g => g.id)
@@ -972,13 +1019,9 @@ function App() {
       }
 
       const data = await res.json()
-      setXPosts(data.posts)
-      setXPostsSummaryPost(data.summaryPost || null)
-      setXPostsSeriesImageUrl(seriesImageUrl)
+      dispatchXPosts({ type: 'success', posts: data.posts, summaryPost: data.summaryPost || null, seriesImageUrl })
     } catch (err) {
-      setXPostsError(err?.message || 'Failed to generate posts')
-    } finally {
-      setXPostsLoading(false)
+      dispatchXPosts({ type: 'error', error: err?.message || 'Failed to generate posts' })
     }
   }
 
@@ -1042,6 +1085,12 @@ function App() {
   function dismissPanel() {
     const scrollY = window.scrollY
     const targetSeriesId = expandedSeriesId
+    if (selectedMatch && !selectedMatch.unplayed && !selectedMatch.loadingVod) {
+      setLastViewedMatch(selectedMatch)
+    }
+    // Invalidates a still-in-flight prefetchMatchStreams resolution for the match being
+    // dismissed, so it can't land afterward and silently reopen the drawer the user just closed.
+    selectMatchTokenRef.current++
     setSelectedMatch(null)
     setSummary(null)
     setSummaryMatchId(null)
@@ -1138,6 +1187,8 @@ function App() {
             key={game.id}
             type="button"
             onClick={() => handleSelectMatch(game, 'game_switcher')}
+            onMouseEnter={() => { if (game.id !== selectedMatch?.id) prefetchMatchStreams(game, allMatches).catch(() => {}) }}
+            onTouchStart={() => { if (game.id !== selectedMatch?.id) prefetchMatchStreams(game, allMatches).catch(() => {}) }}
             className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors ${
               game.id === selectedMatch?.id
                 ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
@@ -1196,6 +1247,14 @@ function App() {
         }}
       />
 
+      {!selectedMatch && lastViewedMatch && !nowWatchingDismissed && (
+        <NowWatchingBar
+          match={lastViewedMatch}
+          spoilerFree={spoilerFree}
+          onReopen={() => handleSelectMatch(lastViewedMatch, 'now_watching_bar')}
+          onDismiss={() => setNowWatchingDismissed(true)}
+        />
+      )}
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
         {initialLoading && (
@@ -1475,14 +1534,14 @@ function App() {
       />
 
       <XPostsModal
-        open={xPostsOpen}
-        onClose={() => setXPostsOpen(false)}
-        series={xPostsSeries}
-        posts={xPosts}
-        summaryPost={xPostsSummaryPost}
-        seriesImageUrl={xPostsSeriesImageUrl}
-        loading={xPostsLoading}
-        error={xPostsError}
+        open={xPostsState.open}
+        onClose={() => dispatchXPosts({ type: 'close' })}
+        series={xPostsState.series}
+        posts={xPostsState.posts}
+        summaryPost={xPostsState.summaryPost}
+        seriesImageUrl={xPostsState.seriesImageUrl}
+        loading={xPostsState.loading}
+        error={xPostsState.error}
       />
 
       <RedditPostsModal

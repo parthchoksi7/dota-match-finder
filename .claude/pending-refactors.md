@@ -55,22 +55,18 @@ Exempt from RICE: work that literally cannot start yet.
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
 | 1 | `font-display: swap` for Barlow font | 5 | 2 | 90% | 0.5 | **18.0** |
-| 2 | `GoldGraph` event-jump URL mis-parses a bare-digit `?t=` timestamp | 2 | 3 | 80% | 0.5 | **9.6** |
-| 3 | Expand touch targets on icon buttons nested in clickable rows | 4 | 2 | 80% | 1 | **6.4** |
-| 3 | VOD pre-fetch in background | 4 | 2 | 80% | 1 | **6.4** |
-| 5 | Add Sentry error monitoring | 5 | 4 | 90% | 3 | **6.0** |
-| 6 | Batch push-subscriber KV reads in `sendPushNotificationsForMatches` | 4 | 4 | 80% | 3 | **4.3** |
-| 7 | Replace O(n²) series merge with union-find | 5 | 2 | 90% | 3 | **3.0** |
-| 8 | Sticky "Now Watching" panel | 4 | 3 | 70% | 3 | **2.8** |
-| 9 | App.jsx state machine for async clusters (`useReducer`) | 3 | 3 | 70% | 3 | **2.1** |
-| 9 | Guard against unmemoized-hook-driven infinite fetch loops on admin pages | 1 | 3 | 70% | 1 | **2.1** |
-| 11 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
-| 12 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
-| 13 | Recent / popular search suggestions | 3 | 2 | 60% | 3 | **1.2** |
-| 13 | "Has VOD" filter | 3 | 2 | 60% | 3 | **1.2** |
-| 13 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
-| 16 | Verify "OG" PS↔OD name mapping when next active | 1 | 2 | 50% | 1 | **1.0** |
-| 17 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
+| 5 | VOD pre-fetch in background | 4 | 2 | 80% | 1 | **6.4** |
+| 7 | Add Sentry error monitoring | 5 | 4 | 90% | 3 | **6.0** |
+| 8 | Batch push-subscriber KV reads in `sendPushNotificationsForMatches` | 4 | 4 | 80% | 3 | **4.3** |
+| 21 | Dead `FormatTooltip` component in `TournamentHub.jsx` | 1 | 1 | 90% | 0.25 | **3.6** |
+| 13 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
+| 14 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
+| 15 | Extract shared floating tooltip/popover component | 3 | 2 | 70% | 3 | **1.4** |
+| 16 | Recent / popular search suggestions | 3 | 2 | 60% | 3 | **1.2** |
+| 16 | "Has VOD" filter | 3 | 2 | 60% | 3 | **1.2** |
+| 16 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
+| 19 | Verify "OG" PS↔OD name mapping when next active | 1 | 2 | 50% | 1 | **1.0** |
+| 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
 
 ---
 
@@ -78,80 +74,63 @@ Exempt from RICE: work that literally cannot start yet.
 - **What:** Add `font-display: swap` and `<link rel="preconnect">` to the Google Fonts import to avoid layout shift on first load.
 - **Why it's #1:** Every page load, near-zero effort, and directly helps Core Web Vitals (CLS) — which ties into the SEO/GEO growth work.
 
-### 2. `GoldGraph`'s event-jump URL builder mis-parses a bare-digit `?t=` timestamp
-- **What:** Spotted during the 2026-07-20 Kick-primary-promotion review. `GoldGraph.jsx`'s `buildEventUrl(vodUrl, eventTimeSecs)` reads the existing `?t=` param and regexes out an `XhYmZs`-suffixed duration (Twitch's format). `api/pipeline/_vod-urls.js` can also produce a manually-timestamped YouTube `main`/`others` entry (`kind: 'start_point'`) whose `?t=` is a bare digit count (e.g. `?t=827`, no unit suffix) — the admin VOD-URL tool writes these. For that shape, the regex fails to match any suffix, `baseSecs` silently defaults to `0`, and the resulting Roshan/rax-marker WATCH link lands at `eventTimeSecs` into the VOD instead of `827 + eventTimeSecs` — wrong point, no error shown.
-- **Pre-existing, not introduced by the Kick fix:** this path was already reachable before 2026-07-20 (a non-expired start-point main was never source-gated), just apparently never hit in practice. The Kick change didn't touch `GoldGraph.jsx` or this parsing.
-- **Fix:** extend `buildEventUrl`'s regex to also accept a bare digit `?t=` value (treat it as raw seconds), or normalize both `_vod-urls.js` and the admin tool to always emit the `XhYmZs` suffixed form.
-
-### 3. Expand touch targets on icon buttons nested in clickable rows
-- **What:** Outcome of the 2026-07-20 mobile touch-target audit (the audit itself is closed — see the archive). Every remaining sub-44px control falls into one shape: a small icon button that sits *inside* a larger clickable row and calls `e.stopPropagation()`. Confirmed offenders: `LiveMatchRow.jsx` watch buttons (`w-7 h-7` = 28px, and the two `sm:hidden` ones are mobile-only by definition), `CompactSeriesRow.jsx` watch buttons (28px), `MatchCard.jsx` follow stars (`p-0.5` + `w-3.5` = 18px), `MatchDrawer.jsx` follow stars (`p-1` + `w-4` = 24px), `TournamentHub.jsx` + `TournamentDetail.jsx` format-info "i" badges (`w-3.5 h-3.5` = 14px).
-- **Why it wasn't fixed in the audit pass:** the obvious fix (grow the box, or add a `before:` pseudo-element hit area) makes the child steal taps from the row it sits in — a fan aiming at the row to open the drawer would hit Watch instead. That is a worse regression than the small target. Fixing this properly needs a design decision about the row anatomy (e.g. give the row a fixed ≥56px height so a 44px child fits without overlap, or move the action out of the row), which is why it is its own scored item rather than a loose end.
-- **Not offenders (verified 2026-07-20, don't re-audit these):** `MatchCard` game rows (`min-h-[44px]`), `BottomTabBar` tabs (`min-h-[56px]`), `SettingsSheet` rows (`min-h-[44px]`), `SearchBar` input + submit + both clear buttons (fixed 2026-07-20), `StreamPicker` rows (`min-h-[44px]`).
-
-### 3. VOD pre-fetch in background
+### 5. VOD pre-fetch in background
 - **What:** When a user clicks a game row, start resolving the VOD before the drawer finishes opening. Currently the "Finding VOD…" spinner only starts after the drawer is open.
 - **2026-07-20 attempt reverted — read before retrying.** A first pass (5-min TTL promise cache around `resolveMatchStreams` + sibling pre-warm on drawer open) was built, then reverted on independent review, for two separate reasons:
   1. **Governance:** `resolveMatchStreams` is the entry point to the LOCKED VOD Replay System (`.claude/claude_instructions_template.md`). The owner had not pre-approved a change there; asked mid-session, the owner chose to defer rather than approve blind. **Any future attempt needs owner sign-off on the specific diff before it lands, not after.**
-  2. **Correctness, found by the independent reviewer before that governance question was even raised** — keep these in mind for the next attempt, they are not solved by simply re-applying the old diff:
-     - A cache entry keyed only by `match.id` silently ignores that `resolveMatchStreams`'s result depends on `allMatches` too (sibling set determines `preferredChannel`). `handleLoadMore` / `handleSearchLoadMore` / a feed refresh can grow `allMatches` mid-session; a 5-min-old cache entry computed from a smaller sibling set can serve a strictly worse ("No VOD found") result than a fresh resolve would. Key needs to account for this, or the TTL needs to be short enough that it doesn't matter, or the cache needs invalidating on `allMatches` growth.
-     - Pull-to-refresh (`usePullToRefresh` / `loadMatches`) doesn't clear the cache — it's the user's only recovery gesture for a bad VOD result, and a module-level cache surviving a refresh defeats it.
-     - `handleSelectMatch` has no request-token / staleness guard on `setSelectedMatch`, unlike every other async-then-setState path in this codebase (`MatchDrawer`'s `cancelled` flag, `statsMatchId` guard, `liveReplayTokenRef`). Cache + prefetch make "click A (slow, cold), click B (instant, warm)" the common case instead of the rare one, so a stale A response landing after B commits and clobbering `selectedMatch` back to A becomes a real risk, not a theoretical one — add the same token-guard pattern before shipping this.
-     - Sibling prefetch fired the full resolution chain (Supabase read + stream-map fetch + Helix VOD lookup) for every sibling on every drawer open, gated on nothing — not on the switcher being visible, not on a hover/dwell signal, no cancellation on dismiss. For a BO5 that's up to 4 extra chains per open, unconditionally. If prefetch ships, gate it on some intent signal (hover/touchstart per the original item title, or at minimum only prefetch the adjacent game, not all siblings) rather than firing eagerly on every open.
-  - Analytics (`replay_source`) moving out of `resolveMatchStreams` into the caller is fine on its own and can be kept in a future attempt — it was the cache/prefetch mechanics that were the problem, not the analytics relocation.
+  2. **Correctness, found by the independent reviewer before that governance question was even raised.**
+- **2026-07-21 attempt — implemented, awaiting owner sign-off on the diff before it's considered landed.** `src/vodPrefetchCache.js` (new file) wraps the unchanged `resolveMatchStreams` in a client-side promise cache; `App.jsx` calls it from `handleSelectMatch` and from `onMouseEnter`/`onTouchStart` on the game-switcher chips. All 3 previously-identified correctness gaps addressed in this pass:
+     - Cache entries are invalidated once `allMatches.length` has grown past what was recorded at write time (sibling-set growth can only make a stale entry worse, never better).
+     - `clearVodPrefetchCache()` is called from `refreshAll` (pull-to-refresh's handler), so a refresh always gets a clean slate.
+     - `selectMatchTokenRef` (same pattern as the existing `liveReplayTokenRef`) guards every `setSelectedMatch` call following an async resolution — bumped in `handleSelectMatch`, `dismissPanel`, `handleSearch`, and `handleClearSearch` — so a stale in-flight resolution from a superseded/dismissed selection can no longer clobber `selectedMatch`.
+     - Sibling prefetch is gated on hover/touchstart on a game-switcher chip (not fired unconditionally for every sibling on drawer open), and skips the already-selected game.
+  - Regression tests: `src/__tests__/vod-prefetch-cache.test.js` (9 cases covering cache hits, `allMatches`-growth invalidation, TTL expiry, rejected-resolution eviction, and pull-to-refresh clearing).
+  - Analytics (`replay_source`) stayed inside `resolveMatchStreams`, unchanged.
 
-### 5. Add Sentry error monitoring
+### 7. Add Sentry error monitoring
 - **Files:** `api/_shared.js`, all handler files, `vite.config.js`
 - **What:** `npm install @sentry/node @sentry/vite-plugin`. Initialize in `_shared.js` (server) and `src/main.jsx` (browser). Replace `trackError()` Redis telemetry with `Sentry.captureException()`. Set up a Sentry project alert for error rate spikes.
 - **Why:** The homegrown Redis error list (`monitor:errors:{date}`, capped at 100, 3-day TTL) has no alerting, no stack traces, and no release tracking. You only see errors if you actively check the KV key. Sentry free tier: 5,000 errors/month.
 - **Risk:** Low — additive. `trackError()` can be removed after Sentry is verified working.
 - **Dependencies:** Requires Sentry account + `SENTRY_DSN` env var.
 
-### 6. Batch push-subscriber KV reads in `sendPushNotificationsForMatches`
+### 8. Batch push-subscriber KV reads in `sendPushNotificationsForMatches`
 - **What:** `api/live-matches.js` `sendPushNotificationsForMatches()` does sequential per-team / per-user `kv.get()` calls inside nested loops (`push:team:*`, `push:sent:*`, `push:sub:*`). This runs on the `?cron=1` capture path, now firing every 10 min. Fine at today's subscriber count, but it scales linearly with subscribers and is the most likely cause of a future `maxDuration` timeout on that path (a stopgap `maxDuration: 30` was added Jun 20). A timeout here risks the whole capture cron, not just push delivery. Replace the per-user gets with `kv.mget()` batches.
 
-### 7. Replace O(n²) series merge with union-find
-- **Files:** `src/utils.js` (`groupIntoSeries`, third pass, lines 163–190)
-- **What:** The `while(mergedAny) + break outer` restart loop is O(n²·m) in the worst case. Replace with a path-compressed union-find (disjoint set union) that finds merge candidates in a single pass: O(n²) one pass to build the merge set + O(n·α(n)) for union operations ≈ effectively O(n²) total but with no restart penalty.
-- **Why it's not higher:** At current scale (~50–100 matches per page) this is negligible — Impact is capped at 2 until scale changes. At 10x scale (500+ matches in a tournament view + multi-page load-more), revisit — the restart loop starts accumulating and Impact should be re-scored upward.
-- **Risk:** Medium — the series merge algorithm is subtle and has existing tests. Must keep all current test cases passing. Run `vitest run` before and after.
-- **Dependencies:** None — isolated to `src/utils.js`.
+### 21. Dead `FormatTooltip` component in `TournamentHub.jsx`
+- **What:** Found while fixing pending-refactors #5 (touch targets) — `FormatTooltip` (`TournamentHub.jsx:33`, a format-info "i" badge + tooltip, sibling to `TournamentDetail.jsx`'s live `StageInfoTooltip`) is declared but never rendered anywhere in the file (confirmed via `grep -n "FormatTooltip" TournamentHub.jsx` — only the declaration itself matches). Not caught by ESLint's `no-unused-vars`, which doesn't flag unreferenced top-level function declarations the way it flags unused variables. Its touch-target sizing was fixed for consistency alongside the live `StageInfoTooltip` (in case it gets wired up later), but that fix currently has no live effect since nothing renders it.
+- **Fix:** either wire it up somewhere in `TournamentHub.jsx` (find the format label it was presumably meant to annotate) or delete it outright.
 
-### 8. Sticky "Now Watching" panel
-- **What:** Keep the match detail panel (currently a drawer) sticky below the header on scroll so Watch / Summary actions stay visible while browsing the match list.
-
-### 9. App.jsx state machine for async clusters
-- **File:** `src/App.jsx:134-194`
-- **What:** Replace the 5-state summary cluster (`summary`, `summaryMatchId`, `summaryError`, `summaryErrorMatchId`, `summaryLoading`) with a `useReducer`. Same for xPosts and redditPosts clusters.
-- Start with the xPosts cluster (fully self-contained, no external callers) as a pilot.
-
-### 9. Guard against unmemoized-hook-driven infinite fetch loops on internal/admin pages
-- **What:** Root-caused 2026-07-19 while diagnosing a Fluid Active CPU spike on Jun 21 (~38 min in one day vs. a ~5–7 min/day baseline — 75% of the Hobby plan's 4h/month budget was consumed by the time this was investigated). `AdminVodUrlsPage.jsx`'s `useAdminToken()` returned `save`/`clear` without `useCallback` before commit `67652354` (2026-06-21), so `load`'s `useCallback([clear])` got a new identity every render, retriggering the `useEffect([token, days, load])` — an unthrottled fetch loop against `/api/pipeline?type=vod-urls` (a Supabase query grouping up to 5,000 rows) for ~11 hours while the tab was open. Already fixed same-day, but `react-hooks/exhaustive-deps` (enabled at `recommended` in `eslint.config.js`) doesn't catch this class of bug — it verifies listed deps are complete, not that a custom hook's *returned* functions are stable. Add either (a) a small circuit breaker / minimum-interval guard on admin-page polling fetches, or (b) an audit of other custom hooks returning callbacks (grep for hook results used inside another hook's dependency array) to confirm none share this footgun.
-- **Why it's not higher:** Dev-only surface (hidden, token-gated admin page, never linked from the product) — no customer impact. Scored on cost/reliability risk alone: the Hobby-plan Fluid CPU budget is a hard metered cap, this class of bug has no alerting today, and it would only be caught by manually checking the Vercel usage dashboard — same way this one was.
-
-### 11. URL query-param rewrite boilerplate duplicated four times in App.jsx
+### 13. URL query-param rewrite boilerplate duplicated four times in App.jsx
 - **What:** Flagged in the `?live=` URL-persistence review (2026-07-17). The `new URLSearchParams(window.location.search)` → mutate → `window.history.replaceState(null, '', pathname + '?' + qs + hash)` pattern is hand-rolled in four places: the manage-teams effect, the `?m=` push-landing strip effect, `handleSelectLiveMatch` (sets `?live=`), and `closeLiveSeriesSheet` (clears `?live=`). A small shared `setUrlParam(key, value)` / `removeUrlParam(key)` helper would remove the duplication. Purely a simplification — no correctness issue in any of the four call sites.
 
-### 12. verify-prod od-consistency check miscalibrated for round-robin group stages
+### 14. verify-prod od-consistency check miscalibrated for round-robin group stages
 - **What:** `scripts/verify-prod.mjs`'s od-consistency check (`maxExpected = effectiveSeries * 5`) uses `finishedSeries` from the bracket API as the fallback denominator when `totalStandingWins <= finishedSeries * 3`. For a BO2 round-robin group stage (e.g. EWC 2026 Group A), `finishedSeries` (bracket-only) stayed at 3 all day while the actual completed-game count climbed to 18 as more round-robin series finished — the bracket API doesn't track round-robin completions the way it tracks elimination-bracket ones, so the denominator never grows with real progress. Failed a 2026-07-07 deploy verification for reasons unrelated to that deploy (confirmed: the deploy's actual target — 4 previously-unmatched EWC series — was independently verified archived correctly via direct `match_stream_history` inspection). Needs a group-stage-aware denominator (e.g. count distinct series_id in OD's own game list) instead of relying on the bracket API for formats that don't use single-elimination brackets.
 
-### 13. Recent / popular search suggestions
+### 15. Extract shared floating tooltip/popover component
+- **What:** Found via the 2026-07-21 design consistency audit (full writeup: `.claude/design-consistency-audit-2026-07.md`). At least 9 call sites hand-roll their own floating tooltip/popover instead of sharing one: `ItemSlot.jsx:86`, `PlayerStatsSection.jsx:55`, `PlayerStatsSection.jsx:99`, `GameIndicators.jsx:34`, `LiveGoldGraph.jsx:229`, `GoldGraph.jsx:484`, `GoldGraph.jsx:637`, `TournamentHub.jsx:73`, `TournamentDetail.jsx:253`. They split into two unreconciled families: a dark-only family (`bg-gray-900`/`bg-gray-950`, no theme awareness) with inconsistent radius (`rounded-md` vs `rounded` vs `rounded-lg`) and shadow (`shadow-xl` vs `shadow-lg` vs `shadow-2xl`) between members; and a theme-aware "roster card" family (`TournamentHub.jsx` and `TournamentDetail.jsx`) that is otherwise a near-identical copy-paste of each other except for a hardcoded width (`w-64` vs `w-72`).
+- **Why it happened:** `Sheet.jsx`'s own header comment documents this exact failure mode occurring once already — `MatchDrawer` and `LiveSeriesSheet` independently hand-coded a byte-identical backdrop/panel before it was extracted (see the "Unify the match-sheet shell" entry in Completed Archive). The tooltip layer is the same pattern repeating one level down.
+- **Fix:** Extract a `FloatingTooltip`/`Popover` component covering position-clamping, theme-aware background, and a single radius/shadow pair; migrate the 9 call sites.
+- **Why it's not higher:** No user-facing bug today — purely a maintenance/drift risk that compounds the longer it sits.
+
+### 16. Recent / popular search suggestions
 - **What:** Show up to 5 recent searches (localStorage) and a few suggested queries ("Team Liquid", "DreamLeague") in the search overlay before the user types anything.
 
-### 13. "Has VOD" filter
+### 16. "Has VOD" filter
 - **What:** Post-search filter chip to narrow results to games that have a confirmed VOD link. Complements the existing All/BO1/BO3/BO5 series type filter.
 
-### 13. Move push subscriptions from KV to Supabase
+### 16. Move push subscriptions from KV to Supabase
 - **What:** Design a `push_subscriptions` table in Supabase: `(id UUID PK, user_id TEXT UNIQUE, endpoint TEXT, p256dh TEXT, auth TEXT, teams TEXT[], updated_at TIMESTAMPTZ)`. Migrate the push-subscribe write path in `live-matches.js` to Supabase upsert. Migrate the notification send path to query Supabase by team name instead of KV `push:team:{name}` index.
 - **Expected benefit:** Proper relational data model. No more 30-day TTL expiry silently deleting subscriptions. Queryable: you can count subscribers per team, identify expired subscriptions, and analyze notification delivery rates.
 - **Risk:** Medium — requires a migration of existing KV subscriptions, a new Supabase table, and updating both the subscribe and send paths. Supabase is already integrated (articles table), so no new credentials needed.
 - **Dependencies:** Server-derived userId fix — **done** (see Completed Archive). Unblocked.
 - **Sequence:** Design schema → dual-write (KV + Supabase) → verify parity → cut over read path to Supabase → deprecate KV push keys.
 
-### 16. Verify "OG" PS↔OD name mapping when next active
+### 19. Verify "OG" PS↔OD name mapping when next active
 - **What:** 2026-07-07 tier-1 team-name scrub (see `CONTEXT.md` `TEAM_NAME_ALIAS_GROUPS`) couldn't confirm PandaScore's team search for "OG" — their 2-char name makes PS's search return noise, so their real PS team id was never found. Revisit once OG has a live/recent match to check both providers' actual match-time naming — add to `TEAM_NAME_ALIAS_GROUPS` only if a real divergence shows up.
 - **Note:** Confidence is 50% and this is opportunistic — do it whenever OG next plays, don't go looking for a reason to schedule it.
 
-### 17. Full TypeScript migration
+### 20. Full TypeScript migration
 - **What:** Phase 1 (jsconfig + checkJs, 1 week): enable `checkJs: true`, fix all implicit any errors in `_shared.js` and `api.js`. Phase 2 (rename to .ts, 1–2 weeks): start with `_shared.ts`, `_kv.ts`, then API handlers, then React components. Phase 3: CI enforcement (`tsc --noEmit` in GitHub Actions).
 - **Expected benefit:** Compiles away an entire category of bugs (wrong property name, null not handled, wrong function signature). Required for sustainable multi-engineer development. Makes the PS↔OD bridge contract machine-checkable. Enables IDE autocomplete on the complex PandaScore and OpenDota object shapes.
 - **Risk:** Medium — edge middleware (`middleware.js`) has edge runtime constraints that limit which Node.js types are available. React 19 is fully TypeScript-compatible. Vercel serverless functions support TypeScript natively.
@@ -161,6 +140,15 @@ Exempt from RICE: work that literally cannot start yet.
 ---
 
 ## Completed Archive
+
+~~`GoldGraph`'s event-jump URL builder mis-parses a bare-digit `?t=` timestamp~~ ✅ Done (2026-07-21) — `buildEventUrl` now detects a pure-digit `?t=` value and treats it as raw seconds instead of falling through the `XhYmZs` regex to a silent `baseSecs = 0`. Regression tests in `__tests__/gold-graph-event-url.test.js`.
+~~Yellow "Champion" label conflicts with the reserved-color rule~~ ✅ Done (2026-07-21) — recolored all three (`TournamentCard.jsx`, `TournamentDetail.jsx`, `TournamentHub.jsx`) from `text-yellow-600 dark:text-yellow-400` to `text-amber-600 dark:text-amber-400`, matching the existing Grand Final trophy-badge convention. `DESIGN_GUIDELINES.md` updated: added an explicit "Personal / highlighted" amber palette row and a note on the yellow-400 rule documenting the resolution.
+~~Unify the match-sheet shell between `MatchDrawer` and `LiveSeriesSheet`~~ ✅ Done (2026-07-21) — `Sheet.jsx` now exports canonical `SHEET_WIDTH` (`sm:w-[480px] lg:w-[520px]`) and `SHEET_PADDING` (`px-4 sm:px-5`) constants; both sheets, plus `SeriesLivePulse.jsx`'s internal padding, now import and use them instead of hardcoding their own values. `MatchDrawer`'s `GoldGraph` full-bleed wrapper and `GoldGraph.jsx`'s own header padding updated to track `SHEET_PADDING` at each breakpoint (`-ml-4 sm:-ml-5` / `pl-4 sm:pl-5`) so the bleed still lands on the true panel edge. `DESIGN_GUIDELINES.md` updated with the shared-constant contract and the corrected (previously stale) bleed-margin documentation.
+~~Expand touch targets on icon buttons nested in clickable rows~~ ✅ Done (2026-07-21) — direction chosen: fixed-height row + real (non-pseudo-element) padding growth, so the enlarged hit area is honest layout space, not an invisible overlay. `LiveMatchRow`/`CompactSeriesRow` watch/replay buttons grown `w-7 h-7`→`w-11 h-11` with their rows' `min-h` bumped to match (desktop untouched via `sm:` overrides); `MatchCard`/`MatchDrawer` follow stars grown via `p-[15px]`/`p-[14px]` (icon glyph size unchanged); `TournamentHub`/`TournamentDetail` info badges restructured into an outer 44px `<button>` wrapping a small `aria-hidden` visual circle, using `group`/`group-hover:` to preserve the hover state. Caught and fixed a real regression along the way: the wider watch buttons started overlapping `LiveMatchRow`/`CompactSeriesRow`'s centered format-label (its `max-w` reservation assumed the old 28px size) — both now compute a wider reservation (dynamically, for `LiveMatchRow`'s 1-vs-2-button case). Verified visually at 375px/900px, light/dark, via a temporary local preview route (not committed).
+~~Replace O(n²) series merge with union-find~~ ✅ Done (2026-07-21) — `buildSeriesGroups`'s third pass replaced with a path-compressed union-find over the numeric series-stub entries: one forward pass evaluates each pair once against its root's *current* aggregate (so growth-tightened constraints are still respected), no restart-the-whole-scan penalty. Union always keeps the smaller original index as root, preserving the old "earliest entry is canonical" id behavior. All 116 existing `utils.test.js` cases pass unchanged, including the 3-way split-series merge and the max-games-capacity guard.
+~~Sticky "Now Watching" panel~~ ✅ Done (2026-07-21) — scoped to a sticky mini status bar (not a full persistent side panel — the RICE Effort=3 estimate didn't support a bigger rearchitecture, and the existing Sheet/drawer overlay pattern needed to stay untouched). New `NowWatchingBar.jsx`, mounted in `App.jsx` below `SiteHeader`: snapshots the resolved `selectedMatch` into `lastViewedMatch` when the drawer closes (`dismissPanel`), shows a compact "Now Viewing" row + Watch button (reads the already-resolved `allVods[0]`, never re-resolves) + dismiss. `CONTEXT.md`, `DESIGN_GUIDELINES.md`, `AboutPage.jsx`, `ReleaseNotesPage.jsx` updated.
+~~App.jsx state machine for async clusters~~ ✅ Done (2026-07-21) — xPosts cluster (the specified pilot) converted from 7 separate `useState` calls to one `useReducer` (`xPostsReducer`/`initialXPostsState`, actions `open`/`success`/`error`/`close`). summary and redditPosts clusters intentionally left as-is — pilot only, per the item's own instruction to start with xPosts before deciding whether to extend the pattern.
+~~Guard against unmemoized-hook-driven infinite fetch loops on internal/admin pages~~ ✅ Done (2026-07-21) — took option (b), audited every custom hook in `src/` for the returned-callback-instability footgun (only 4 hooks exist total). Found a live near-miss: `AdminCoveragePage.jsx`'s `useAdminToken()` had the exact pre-fix shape (`save`/`clear` not wrapped in `useCallback`) plus a `load` `useCallback` that referenced `clear` without listing it as a dependency — one `exhaustive-deps`-driven "fix" away from reproducing the Jun 21 incident. Fixed to match the already-corrected `AdminVodUrlsPage.jsx` pattern. No other admin page or hook shared the footgun.
 
 ~~Mobile touch target audit~~ ✅ Done (2026-07-20) — audited every `<button>`/`<a>` in `src/` against the 44px floor. `MatchCard` rows, `BottomTabBar`, `SettingsSheet` rows and `StreamPicker` rows already passed (the item's guess about `MatchCard` was wrong). `SearchBar`'s two clear buttons genuinely failed: the full-size one (absolutely positioned, no layout cost) grown to `w-11 h-11`; the compact one (inline in a tight header row) grown via `min-h-[44px]` + `px-2.5` only — DESIGN_GUIDELINES specifies a min-*height* floor, not min-width, and matching width to height there would have narrowed the search input. Remaining failures are all icon-buttons nested inside clickable rows, split out as its own scored item (#3) because fixing them needs a row-anatomy design decision, not padding.
 ~~`seriesMatchMap` can overwrite on colliding null/0/undefined `seriesId` keys~~ ✅ Done (2026-07-20) — `App.jsx`'s `seriesMatchMap` is now keyed by each game's own `id` instead of its raw `seriesId`, so two orphan games from unrelated series can no longer collide on one key. Both `seriesGames` and the `seriesMatches` prop now derive from a single `selectedSeriesIds` lookup. A secondary `seriesIdToIds` index (truthy seriesId only, so it can't reintroduce the null/0/undefined collision) was added as a fallback for the id-primary lookup: `fetchAppMatchFromOpenDota` (shared-URL / live-series-replay open paths) returns a standalone match that is never inserted into `allMatches`, so its own id can never be a key in the primary map even though its siblings are — independent review caught that the id-only version silently dropped the game switcher on that path, which the seriesId fallback restores. Regression tests added in `utils.test.js` for both the collision fix and the fallback.

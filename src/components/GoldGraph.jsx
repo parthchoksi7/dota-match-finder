@@ -205,13 +205,22 @@ function resolveCollisions(markers) {
   return markers.map((m, i) => ({ ...m, stemMultiplier: mults[i], xOffset: xOffsets[i] }))
 }
 
-// Adds event.time seconds to an existing Twitch VOD URL's ?t= offset
-function buildEventUrl(vodUrl, eventTimeSecs) {
+// Adds event.time seconds to an existing Twitch VOD URL's ?t= offset.
+// `?t=` is usually Twitch's XhYmZs format, but api/pipeline/_vod-urls.js and the
+// admin VOD-URL tool can also write a bare digit count (e.g. `?t=827`, no unit suffix)
+// for a manually-timestamped start point — treat that shape as raw seconds.
+export function buildEventUrl(vodUrl, eventTimeSecs) {
   try {
     const url = new URL(vodUrl)
     const t = url.searchParams.get('t') || '0s'
-    const m = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/)
-    const baseSecs = (parseInt(m?.[1] || 0) * 3600) + (parseInt(m?.[2] || 0) * 60) + parseInt(m?.[3] || 0)
+    const bareDigits = /^\d+$/.test(t)
+    let baseSecs
+    if (bareDigits) {
+      baseSecs = parseInt(t, 10)
+    } else {
+      const m = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/)
+      baseSecs = (parseInt(m?.[1] || 0) * 3600) + (parseInt(m?.[2] || 0) * 60) + parseInt(m?.[3] || 0)
+    }
     const total = baseSecs + eventTimeSecs
     const h = Math.floor(total / 3600)
     const min = Math.floor((total % 3600) / 60)
@@ -461,9 +470,10 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   return (
     <>
       {/* Team labels + current gold diff — HTML row so the SVG can be full-bleed.
-          pl-5 aligns RADIANT with drawer content; pr-0 lets DIRE sit at the wrapper's
-          right edge (which is the content boundary when the wrapper is -ml-5). */}
-      <div className="flex items-center justify-between pl-5 pr-0 mb-1.5">
+          pl-4 sm:pl-5 aligns RADIANT with the drawer's SHEET_PADDING at each breakpoint;
+          pr-0 lets DIRE sit at the wrapper's right edge (the content boundary when the
+          wrapper is -ml-4 sm:-ml-5). */}
+      <div className="flex items-center justify-between pl-4 sm:pl-5 pr-0 mb-1.5">
         <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(34,197,94)' }}>
           RADIANT
         </span>
