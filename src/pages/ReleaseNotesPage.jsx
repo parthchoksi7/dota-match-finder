@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 21, 2026",
+    tag: "fix",
+    title: "Grand Final trophy badge now shows on the match page and in search",
+    desc: "The homepage list already flagged a Grand Final with an amber badge, but opening the match itself showed no indicator at all, and the same badge never appeared in search results even though it was built. Both now show the 🏆 Grand Final badge, and it stays accurate for older matches instead of quietly disappearing after a couple weeks.",
+  },
+  {
+    date: "July 21, 2026",
     tag: "improvement",
     title: "Easier to tap the search clear button on mobile",
     desc: "The × button that clears your search was smaller than it should be on a phone screen. It's now sized to the same comfortable tap target as every other button on the site.",
