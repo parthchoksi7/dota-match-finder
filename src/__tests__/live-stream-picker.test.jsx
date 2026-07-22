@@ -52,9 +52,9 @@ describe('LiveStreamPicker', () => {
     expect(trackEvent).toHaveBeenCalledTimes(1)
   })
 
-  it('never shows a from-stream-start marker or deep-link glyph (no VOD-timestamp concept live)', () => {
+  it('never shows a channel-link marker or deep-link glyph (no VOD-timestamp concept live)', () => {
     render(<LiveStreamPicker streams={[RU_STREAM]} matchId="1" />)
-    expect(screen.queryByText(/From stream start/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Channel link/)).not.toBeInTheDocument()
     expect(document.querySelector('svg[viewBox="0 0 12 12"]')).not.toBeInTheDocument()
   })
 

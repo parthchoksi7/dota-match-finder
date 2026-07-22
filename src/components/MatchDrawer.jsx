@@ -418,7 +418,7 @@ function MatchDrawer({
                       )}
                       {isOtherSource && (
                         <span className={`text-[10px] font-medium uppercase tracking-wide ${badgeClass}`}>
-                          From stream start
+                          Channel link
                         </span>
                       )}
                     </a>

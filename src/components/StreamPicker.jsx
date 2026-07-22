@@ -21,7 +21,7 @@ function StreamRow({ stream, matchId }) {
   const lang = stream.language ? stream.language.toUpperCase() : null
   const ariaLabel = `Watch${lang ? ` in ${lang}` : ""} on ${label}` +
     (stream.official === false ? ", co-stream" : "") +
-    (stream.deep_link ? "" : ", from stream start")
+    (stream.deep_link ? "" : ", channel link")
   return (
     <a
       href={stream.url}
@@ -56,7 +56,7 @@ function StreamRow({ stream, matchId }) {
       )}
       {!stream.deep_link && (
         <span className="ml-auto flex-shrink-0 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
-          From stream start
+          Channel link
         </span>
       )}
     </a>

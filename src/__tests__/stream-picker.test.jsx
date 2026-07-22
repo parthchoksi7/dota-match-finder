@@ -4,7 +4,7 @@
  *
  * Render modes: null for no streams, inline row for exactly one, collapsed
  * count pill for two or more. Rows carry the language chip, CO-STREAM badge
- * (unofficial only), and the "from stream start" honesty marker.
+ * (unofficial only), and the "channel link" honesty marker.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -55,15 +55,15 @@ describe('StreamPicker', () => {
     expect(trackEvent).toHaveBeenCalledTimes(1)
   })
 
-  it('marks non-deep-link rows with the from-stream-start marker and no play glyph', () => {
+  it('marks non-deep-link rows with the channel-link marker and no play glyph', () => {
     render(<StreamPicker streams={[ES_PAGE]} matchId="1" />)
-    expect(screen.getByText('From stream start')).toBeInTheDocument()
+    expect(screen.getByText('Channel link')).toBeInTheDocument()
     expect(document.querySelector('svg[viewBox="0 0 12 12"]')).not.toBeInTheDocument()
   })
 
   it('marks deep-link rows with the play glyph and no marker', () => {
     render(<StreamPicker streams={[RU_VOD]} matchId="1" />)
-    expect(screen.queryByText('From stream start')).not.toBeInTheDocument()
+    expect(screen.queryByText('Channel link')).not.toBeInTheDocument()
     expect(document.querySelector('svg[viewBox="0 0 12 12"]')).toBeInTheDocument()
   })
 
@@ -99,6 +99,6 @@ describe('StreamPicker', () => {
 
   it('exposes an accessible label describing language, channel, and start-point honesty', () => {
     render(<StreamPicker streams={[ES_PAGE]} matchId="1" />)
-    expect(screen.getByRole('link')).toHaveAttribute('aria-label', 'Watch in ES on caster_es, co-stream, from stream start')
+    expect(screen.getByRole('link')).toHaveAttribute('aria-label', 'Watch in ES on caster_es, co-stream, channel link')
   })
 })

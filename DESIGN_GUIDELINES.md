@@ -451,12 +451,12 @@ Used in the match drawer's "Watch Full Match Replay" section to surface every re
 - Play glyph (purple, `w-3 h-3`) only when `deep_link: true` — signals the link jumps to the game start
 - Channel label: `text-xs font-semibold text-purple-700 dark:text-purple-400 truncate` (purple = watch action)
 - "Co-stream" badge (`text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-600`) only when `official === false` — official is the default state, not a feature
-- "From stream start" marker (right-aligned, same tertiary style) whenever `deep_link` is false — never let a user expect a timestamp jump that won't happen
+- "Channel link" marker (right-aligned, same tertiary style) whenever `deep_link` is false — it's a plain channel/stream page, not a timestamped deep link, so never word it as if the moment (or even the VOD itself) will be found automatically
 - The primary button shows a language chip (`bg-white/20`) when the primary broadcast is non-English, and a Co-stream badge in the rare case no official stream exists
 
 **Analytics:** `stream_picker_expand { matchId, count }` on expand only; row clicks fire `vod_click` with `language`, `official`, `kind`, `from_picker: true`.
 
-**Live sibling**: `src/components/LiveStreamPicker.jsx` (used in the Live Series Companion's live-game section) follows the exact same structure rules (0/1/≥2, language chip, Co-stream badge, shared `streamLabel` export from `StreamPicker.jsx`) but drops the play glyph and "from stream start" marker entirely — there is no VOD timestamp concept for a live stream, every row is just "watch live now." Do not conflate the two components; a live stream and a VOD replay are different states with different honesty markers (same "two distinct shapes for two distinct states" rule as the score row below). Analytics: `live_stream_picker_expand { matchId, count }`; row clicks fire `live_match_watch` with `source: 'live_series_sheet'`, `from_picker: true`.
+**Live sibling**: `src/components/LiveStreamPicker.jsx` (used in the Live Series Companion's live-game section) follows the exact same structure rules (0/1/≥2, language chip, Co-stream badge, shared `streamLabel` export from `StreamPicker.jsx`) but drops the play glyph and "channel link" marker entirely — there is no VOD timestamp concept for a live stream, every row is just "watch live now." Do not conflate the two components; a live stream and a VOD replay are different states with different honesty markers (same "two distinct shapes for two distinct states" rule as the score row below). Analytics: `live_stream_picker_expand { matchId, count }`; row clicks fire `live_match_watch` with `source: 'live_series_sheet'`, `from_picker: true`.
 
 ### Scrollable tournament chip picker
 
