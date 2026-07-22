@@ -59,6 +59,7 @@ Exempt from RICE: work that literally cannot start yet.
 | 7 | Add Sentry error monitoring | 5 | 4 | 90% | 3 | **6.0** |
 | 8 | Batch push-subscriber KV reads in `sendPushNotificationsForMatches` | 4 | 4 | 80% | 3 | **4.3** |
 | 21 | Dead `FormatTooltip` component in `TournamentHub.jsx` | 1 | 1 | 90% | 0.25 | **3.6** |
+| 22 | Extract shared `isGrandFinal(bracketRound)` helper | 2 | 1 | 90% | 0.5 | **3.6** |
 | 13 | URL query-param rewrite boilerplate (4x in App.jsx) | 2 | 1 | 100% | 1 | **2.0** |
 | 14 | verify-prod od-consistency check miscalibrated for round-robin | 2 | 3 | 90% | 3 | **1.8** |
 | 15 | Extract shared floating tooltip/popover component | 3 | 2 | 70% | 3 | **1.4** |
@@ -100,6 +101,10 @@ Exempt from RICE: work that literally cannot start yet.
 ### 21. Dead `FormatTooltip` component in `TournamentHub.jsx`
 - **What:** Found while fixing pending-refactors #5 (touch targets) — `FormatTooltip` (`TournamentHub.jsx:33`, a format-info "i" badge + tooltip, sibling to `TournamentDetail.jsx`'s live `StageInfoTooltip`) is declared but never rendered anywhere in the file (confirmed via `grep -n "FormatTooltip" TournamentHub.jsx` — only the declaration itself matches). Not caught by ESLint's `no-unused-vars`, which doesn't flag unreferenced top-level function declarations the way it flags unused variables. Its touch-target sizing was fixed for consistency alongside the live `StageInfoTooltip` (in case it gets wired up later), but that fix currently has no live effect since nothing renders it.
 - **Fix:** either wire it up somewhere in `TournamentHub.jsx` (find the format label it was presumably meant to annotate) or delete it outright.
+
+### 22. Extract shared `isGrandFinal(bracketRound)` helper
+- **What:** The regex `/^(grand )?finals?$/i.test(g.bracketRound || '')` is hand-copied at four call sites: `HomeFeed.jsx` (x3, lines ~461/581/618), `MatchList.jsx` (added 2026-07-21), and `MatchDrawer.jsx` (added 2026-07-21, singular form against `match.bracketRound` rather than `.some()` over `series.games`). All four must stay byte-identical or the "Grand Final" badge silently diverges between the homepage feed, search results, and the match detail drawer. `api/tournament-detail.js` and `src/pages/TournamentDetail.jsx` separately use a looser `.includes('grand final')` check for the bracket-view page label — worth reconciling in the same pass if the anchored regex turns out to be too strict for real PandaScore name variants (see `parseBracketRound()` in `api/_shared.js`, which returns the raw decorated string when PandaScore's match name has extra words before the colon, e.g. `"Dota 2 Champions Grand Final: A vs B"` — the anchored regex won't match that, `.includes()` would).
+- **Fix:** Add `isGrandFinal(bracketRound)` to `src/utils.js`, replace all four call sites, add a unit test. Low urgency — no known live divergence yet, just duplication risk.
 
 ### 13. URL query-param rewrite boilerplate duplicated four times in App.jsx
 - **What:** Flagged in the `?live=` URL-persistence review (2026-07-17). The `new URLSearchParams(window.location.search)` → mutate → `window.history.replaceState(null, '', pathname + '?' + qs + hash)` pattern is hand-rolled in four places: the manage-teams effect, the `?m=` push-landing strip effect, `handleSelectLiveMatch` (sets `?live=`), and `closeLiveSeriesSheet` (clears `?live=`). A small shared `setUrlParam(key, value)` / `removeUrlParam(key)` helper would remove the duplication. Purely a simplification — no correctness issue in any of the four call sites.

@@ -4,8 +4,8 @@
  * returning { formats, brackets } keyed by OpenDota match ID.
  *
  * Tests focus on the transformation logic — KV result splitting, map building,
- * missing-ID detection, and PS fallback bracket population — without exercising
- * the network layer.
+ * missing-ID detection, PS fallback bracket population, and the Supabase
+ * match_stream_history.bracket_round fallback — without exercising the network layer.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -195,6 +195,83 @@ describe('match-enrichment: PS fallback population', () => {
     ]
     applyPsFallback(psMatches, missingSet, brackets)
     expect(brackets).toEqual({})
+  })
+})
+
+// ── Supabase bracket_round fallback ──────────────────────────────────────────
+// match_stream_history.bracket_round is written permanently by api/match-streams.js
+// the first time a match's stream resolves, so it survives long after the 14-day
+// bracket:match KV TTL and the 7-day PS lookback (above) both expire. Replicates
+// the loop from the handler: for each still-missing id after KV + PS fallback,
+// apply any Supabase row found for it.
+
+function applySupabaseFallback(rows, brackets) {
+  for (const row of (rows || [])) {
+    const id = String(row.od_match_id)
+    brackets[id] = row.bracket_round
+  }
+  return brackets
+}
+
+describe('match-enrichment: Supabase bracket_round fallback', () => {
+  it('fills brackets from Supabase rows for still-missing ids', () => {
+    const brackets = { '111': 'Upper Bracket Final' }
+    const rows = [{ od_match_id: 222, bracket_round: 'Grand Final' }]
+    applySupabaseFallback(rows, brackets)
+    expect(brackets).toEqual({ '111': 'Upper Bracket Final', '222': 'Grand Final' })
+  })
+
+  it('handles multiple Supabase rows in one pass', () => {
+    const brackets = {}
+    const rows = [
+      { od_match_id: 111, bracket_round: 'Grand Final' },
+      { od_match_id: 222, bracket_round: 'Lower Bracket Final' },
+    ]
+    applySupabaseFallback(rows, brackets)
+    expect(brackets).toEqual({ '111': 'Grand Final', '222': 'Lower Bracket Final' })
+  })
+
+  it('handles null/empty rows gracefully', () => {
+    const brackets = { '111': 'Grand Final' }
+    applySupabaseFallback(null, brackets)
+    applySupabaseFallback([], brackets)
+    expect(brackets).toEqual({ '111': 'Grand Final' })
+  })
+
+  it('converts numeric od_match_id to a string key matching the ids array format', () => {
+    const brackets = {}
+    const rows = [{ od_match_id: 8904012666, bracket_round: 'Grand Final' }]
+    applySupabaseFallback(rows, brackets)
+    expect(brackets['8904012666']).toBe('Grand Final')
+  })
+
+  it('computes stillMissing (post-KV, post-PS) correctly before the Supabase query', () => {
+    const ids = ['111', '222', '333']
+    const brackets = { '111': 'Grand Final' } // only 111 resolved by KV/PS so far
+    const stillMissing = ids.filter(id => !brackets[id])
+    expect(stillMissing).toEqual(['222', '333'])
+  })
+
+  it('converts string ids to numbers for the Supabase .in() filter', () => {
+    const stillMissing = ['111', '222']
+    expect(stillMissing.map(Number)).toEqual([111, 222])
+  })
+
+  it('skips the Supabase query entirely when nothing is still missing', () => {
+    const ids = ['111']
+    const brackets = { '111': 'Grand Final' }
+    const stillMissing = ids.filter(id => !brackets[id])
+    expect(stillMissing).toHaveLength(0)
+  })
+
+  it('excludes non-numeric ids so they cannot turn into NaN inside .in()', () => {
+    // A malformed id reaching stillMissing.map(Number) would produce NaN, which would
+    // corrupt the whole `.in('od_match_id', [...])` batch query, not just the bad id.
+    const ids = ['111', 'not-a-real-id', '222']
+    const brackets = {}
+    const stillMissing = ids.filter(id => !brackets[id] && /^\d+$/.test(id))
+    expect(stillMissing).toEqual(['111', '222'])
+    expect(stillMissing.map(Number).some(Number.isNaN)).toBe(false)
   })
 })
 

@@ -1,4 +1,5 @@
 import { kv } from '../_kv.js'
+import { getSupabaseAdmin } from '../_supabase.js'
 import { parseBracketRound, PANDASCORE_BASE, createLogger } from '../_shared.js'
 
 // ── match-enrichment mode ────────────────────────────────────────────────────
@@ -49,6 +50,35 @@ export default async function handleMatchEnrichment(req, res) {
       }
     } catch (err) {
       log.warn('PS fallback failed', { error: err?.message })
+    }
+  }
+  // Supabase fallback: bracket_round is written permanently to match_stream_history
+  // (api/match-streams.js and api/live-matches.js, both upsert it while a match is
+  // being captured) so it survives long after the 14-day bracket:match KV TTL and the
+  // 7-day PS lookback both expire. Only numeric ids are queryable as od_match_id — filter
+  // before the Supabase call so a malformed id in the request can't turn into NaN inside
+  // `.in()` and break the batch lookup for every other id alongside it.
+  const stillMissing = ids.filter(id => !brackets[id] && /^\d+$/.test(id))
+  if (stillMissing.length > 0) {
+    try {
+      const { data, error } = await getSupabaseAdmin()
+        .from('match_stream_history')
+        .select('od_match_id, bracket_round')
+        .in('od_match_id', stillMissing.map(Number))
+        .not('bracket_round', 'is', null)
+      if (error) {
+        log.warn('Supabase bracket_round fallback failed', { error: error.message })
+      } else if (data) {
+        const writes = []
+        for (const row of data) {
+          const id = String(row.od_match_id)
+          brackets[id] = row.bracket_round
+          writes.push(kv.set(`bracket:match:${id}`, row.bracket_round, { ex: 14 * 24 * 3600 }).catch(() => {}))
+        }
+        if (writes.length) await Promise.allSettled(writes)
+      }
+    } catch (err) {
+      log.warn('Supabase bracket_round fallback failed', { error: err?.message })
     }
   }
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')

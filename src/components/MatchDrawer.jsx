@@ -186,6 +186,13 @@ function MatchDrawer({
   const otherStreams = match.otherStreams || []
   const gameLabel = gameNumber && seriesMatches > 1 ? (spoilerFree ? "Game " + gameNumber : "Game " + gameNumber + " of " + seriesMatches) : null
   const hideScore = spoilerFree && !scoreRevealed
+  // Checks only this game's own bracketRound (unlike HomeFeed/MatchList, which check
+  // `.some()` across every game in the series) — the drawer shows one specific game, so
+  // its own enrichment result is the correct source. Siblings normally share the same
+  // value (they resolve to the same PandaScore series-level match), but if this game's
+  // own PS fuzzy-match/enrichment missed while a sibling's succeeded, the badge can
+  // legitimately differ between two games of the same grand-final series.
+  const isGrandFinal = /^(grand )?finals?$/i.test(match.bracketRound || '')
 
   const radiantNameColor = (!hideScore && match.radiantWin) || hideScore
     ? 'text-gray-900 dark:text-white'
@@ -208,6 +215,11 @@ function MatchDrawer({
             {gameLabel && (
               <span className="text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                 {gameLabel}
+              </span>
+            )}
+            {isGrandFinal && (
+              <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                <span aria-hidden>🏆</span> Grand Final
               </span>
             )}
           </div>

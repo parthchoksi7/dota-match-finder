@@ -41,7 +41,19 @@ function MatchList({ matches, onSelect, onDraftPosts, onDraftRedditPosts, loadin
         {series.length} series ({totalGames} games)
       </p>
       {series.map((s) => (
-        <MatchCard key={s.id} series={s} onSelectGame={onSelect} onDraftPosts={onDraftPosts} onDraftRedditPosts={onDraftRedditPosts} defaultExpanded={false} spoilerFree={spoilerFree} followedTeams={followedTeams} onToggleFollow={onToggleFollow} expandedSeriesId={expandedSeriesId} />
+        <MatchCard
+          key={s.id}
+          series={s}
+          onSelectGame={onSelect}
+          onDraftPosts={onDraftPosts}
+          onDraftRedditPosts={onDraftRedditPosts}
+          defaultExpanded={false}
+          spoilerFree={spoilerFree}
+          followedTeams={followedTeams}
+          onToggleFollow={onToggleFollow}
+          expandedSeriesId={expandedSeriesId}
+          isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+        />
       ))}
     </div>
   )

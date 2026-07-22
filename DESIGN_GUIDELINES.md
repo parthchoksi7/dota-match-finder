@@ -181,13 +181,14 @@ When TournamentHub is expanded inline within a tournament card, it uses `hideSta
 - The persistent calendar icon in the filter bar (links to /calendar) gives first-time users a route to calendar features without expanding any tournament
 
 ### Grand Final match cards
-- Detected when `series.tournament.toLowerCase().includes('grand final')`
+- Detection is bracketRound-based, not tournament-name-based: `series.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))`, matching "Final", "Finals", "Grand Final", "Grand Finals" (case-insensitive) but not e.g. "Upper Bracket Final". `bracketRound` comes from `parseBracketRound()` (`api/_shared.js`) parsing PandaScore's match name, enriched onto match objects client-side. Computed independently at each call site today (`HomeFeed.jsx`, `MatchList.jsx`, and the singular form in `MatchDrawer.jsx`) — see `.claude/pending-refactors.md` #22 for the not-yet-done shared-helper extraction.
 - Card background: `bg-amber-50/60 dark:bg-amber-950/20`
 - Card border: `border-amber-500/70 dark:border-amber-500/60`, hover: `hover:border-amber-500 dark:hover:border-amber-400`
 - Internal dividers: `border-amber-200 dark:border-amber-800/50`
 - Trophy badge in the tournament header row: trophy emoji + "Grand Final" label in `text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wide`
 - Do NOT animate-pulse the card border or background
 - **Amber on dark backgrounds**: always use `dark:border-l-amber-400` (not amber-500/60) for left-border row indicators. The lighter, brighter amber-400 at full opacity is the only shade that reads against dark gray at the 2px border width. Opacity variants of amber-500 disappear.
+- **Match drawer (MatchDrawer)**: the trophy badge only (no amber card background/border — the drawer is a full-panel sheet, not a list card, so the "Personal/highlighted" amber card treatment above doesn't apply the same way). Rendered inline in the header meta row, next to the `Game X of Y` pill: `<span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"><span aria-hidden>🏆</span> Grand Final</span>`.
 
 ### Match drawer — score section layout
 
