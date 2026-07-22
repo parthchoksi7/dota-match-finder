@@ -12,7 +12,6 @@ import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, f
 import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary, resolvableStoredMain } from "./vodStreams"
 import { prefetchMatchStreams as prefetchMatchStreamsCache, clearVodPrefetchCache } from "./vodPrefetchCache"
 import SiteHeader from "./components/SiteHeader"
-import NowWatchingBar from "./components/NowWatchingBar"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
@@ -254,11 +253,6 @@ function App() {
   const [searched, setSearched] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState(null)
   const [drawerSource, setDrawerSource] = useState('unknown')
-  // "Now Watching" sticky bar (pending-refactors #10) — snapshots the fully-resolved
-  // selectedMatch when its drawer closes, so Watch stays reachable without the drawer's
-  // blocking backdrop while the fan keeps scrolling the feed.
-  const [lastViewedMatch, setLastViewedMatch] = useState(null)
-  const [nowWatchingDismissed, setNowWatchingDismissed] = useState(false)
   const [error, setError] = useState(null)
   const [summary, setSummary] = useState(null)
   const [summaryMatchId, setSummaryMatchId] = useState(null)
@@ -831,7 +825,6 @@ function App() {
     setSummaryError(null)
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
-    setNowWatchingDismissed(false)
 
     if (match.unplayed) {
       setSelectedMatch(match)
@@ -1085,9 +1078,6 @@ function App() {
   function dismissPanel() {
     const scrollY = window.scrollY
     const targetSeriesId = expandedSeriesId
-    if (selectedMatch && !selectedMatch.unplayed && !selectedMatch.loadingVod) {
-      setLastViewedMatch(selectedMatch)
-    }
     // Invalidates a still-in-flight prefetchMatchStreams resolution for the match being
     // dismissed, so it can't land afterward and silently reopen the drawer the user just closed.
     selectMatchTokenRef.current++
@@ -1246,15 +1236,6 @@ function App() {
           trackEvent("spoiler_free_toggle", { enabled: next, source })
         }}
       />
-
-      {!selectedMatch && lastViewedMatch && !nowWatchingDismissed && (
-        <NowWatchingBar
-          match={lastViewedMatch}
-          spoilerFree={spoilerFree}
-          onReopen={() => handleSelectMatch(lastViewedMatch, 'now_watching_bar')}
-          onDismiss={() => setNowWatchingDismissed(true)}
-        />
-      )}
 
       <main className="max-w-3xl mx-auto px-4 py-6 sm:py-8 flex flex-col gap-6 flex-1 w-full pb-20 md:pb-8">
         {initialLoading && (

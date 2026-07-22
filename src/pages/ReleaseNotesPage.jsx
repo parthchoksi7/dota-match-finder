@@ -5,12 +5,6 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 21, 2026",
-    tag: "new",
-    title: "A \"Now Viewing\" bar keeps Watch one tap away while you browse",
-    desc: "Close a match's details and a compact sticky bar stays put at the top of the page with that match's teams and a Watch button, so you can keep scrolling the match list without losing your spot. Dismiss it any time with the ×.",
-  },
-  {
-    date: "July 21, 2026",
     tag: "improvement",
     title: "Easier to tap the search clear button on mobile",
     desc: "The × button that clears your search was smaller than it should be on a phone screen. It's now sized to the same comfortable tap target as every other button on the site.",

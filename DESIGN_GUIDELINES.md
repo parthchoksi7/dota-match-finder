@@ -82,6 +82,7 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 ### Rules
 - Never introduce a new spacing value without checking the scale above first
 - Touch targets minimum `min-h-[44px]` on all interactive elements
+- **Exception**: `CompactSeriesRow`'s mobile and desktop replay buttons are intentionally `w-7 h-7` (28px), below the 44px floor. A 2026-07-21 audit briefly grew them to `w-11 h-11` for touch-target compliance, but the larger purple square read as visually oversized against the row's compact type scale and was reverted same-day per direct owner feedback. Don't re-apply the 44px floor here without discussing the tradeoff first.
 
 ---
 
@@ -595,18 +596,6 @@ Fixed-bottom tab bar shown on mobile (`md:hidden`). Lives in `src/components/Bot
 - Increase the tab count beyond 4 (5 is the absolute max in industry research; we use 3)
 - Show on desktop (`md:hidden` is non-negotiable)
 - Animate the bar on scroll - it's always-visible
-
-### Now Watching bar (sticky mini status bar)
-
-Sticky bar shown on the homepage feed once a match's drawer has been viewed and dismissed, so its Watch action stays one tap away while the fan keeps scrolling the match list — without reopening the full drawer (and its blocking backdrop). Lives in `src/components/NowWatchingBar.jsx`, mounted in `App.jsx` directly below `SiteHeader`.
-
-- Container: `sticky top-0 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800` — no shadow (drawer-only exception), no blur
-- Content row: `max-w-3xl mx-auto px-4 py-2 min-h-[44px] flex items-center gap-3`
-- Left (tap to reopen the drawer): `NOW VIEWING` tertiary label + `TEAM A vs TEAM B` in display font, truncating as one unit; winner/loser color follows the same rule as the drawer's names row, including the spoiler-free "both teams get winner color" case
-- Watch button (`bg-purple-700`, matches Watch/VOD button pattern): only rendered when a VOD has already resolved (`match.allVods[0]` present) — mirrors the "0 vods → no picker chrome" rule; opens the primary VOD directly in a new tab, same as the drawer's own Watch button
-- Dismiss (✕): `p-2 -m-1 text-gray-400`, same treatment as the spoiler-free/calendar nudge dismiss buttons
-- Appears only when no drawer is currently open and the bar hasn't been dismissed for the current selection; reselecting any match (including the same one) clears a prior dismissal
-- Does not perform its own VOD resolution — only reads the `allVods` already produced by `resolveMatchStreams` when the drawer was open (see VOD Replay System in `.claude/claude_instructions_template.md`)
 
 ### Settings sheet (consolidated settings)
 
