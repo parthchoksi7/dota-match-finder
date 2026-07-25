@@ -1,10 +1,10 @@
 # Live Story R4 — Objective / Map State — Implementation Plan
 
-**Status:** Ready for build (Phase A is freeze-safe and shippable now; UI phases gated behind the EWC freeze + `spectate-owner`)
-**Last Updated:** 2026-07-19
+**Status:** Phase A shipped. **Phase B (R4.0 decode gate) RESOLVED 2026-07-24** — tower-count decode confirmed (46/47 exact both sides against real ground truth); barracks confirmed NOT decodable, so **Phase E is cut**. Phase C (decoder + read API) is next; still gated behind the EWC freeze lifting + `spectate-owner` for the UI phases. See the R4.0 finding in `CONTEXT.md` (search "R4.0 decode spike") for the verified bit layout and formula.
+**Last Updated:** 2026-07-24
 **Spec:** `.claude/specs/live-story-r4-objective-map-state.md` (read first — R4.0 gate, R4.1 MVP, R4.2 decode-gated, R4.3 polish; MVP = R4.0 + R4.1).
 **Format basis:** `.claude/specs/live-story-implementation-plan.md` (the R1/R2 plan this team executed cleanly).
-**Scope:** R4.0 (verification gate) + R4.1 (tower readout + spectators) as R4 v1. R4.2 (barracks) is a **conditional** phase downstream of R4.0's finding. R4.3 excluded.
+**Scope:** R4.0 (verification gate, DONE) + R4.1 (tower readout + spectators) as R4 v1. R4.2 (barracks) is **cut** — R4.0 found barracks are not represented in `building_state`. R4.3 excluded.
 
 ---
 
@@ -39,7 +39,7 @@ R1/R2's stakes/momentum were computed *client-side* from already-public pulse fi
 3. **Omit-on-low-confidence.** Silence beats a wrong "9 towers" or a false "MEGA CREEPS." The confidence gate is authoritative and server-side.
 4. **Never touch the LOCKED VOD cache** (`cacheRunningStreams`, `live:game:` KV, `stream:match:`). R4 is additive columns on `live_game_map` + read-only decode, exactly like the hero-id/player-name migrations.
 5. **No new Vercel function** (12-cap) — R4 rides `?mode=live-game-pulse` and adds one `_`-prefixed shared lib (not counted).
-6. **R4.2 is conditional, not committed** — its existence depends on R4.0 finding barracks in `building_state`.
+6. ~~**R4.2 is conditional, not committed**~~ **R4.2 is cut** — R4.0 (2026-07-24) confirmed barracks are NOT in `building_state` (see CONTEXT.md). This constraint held; the condition resolved negative.
 
 ---
 
@@ -71,7 +71,11 @@ Store raw; **no decode at capture** (store-raw-filter-at-read, the table's conve
 
 ## Phase B — R4.0 verification spike (produces the layout OR the "not viable" verdict)
 
-**Goal:** a confirmed `building_state` bit-layout (written to CONTEXT.md as decoder constants) or an explicit partial/negative verdict. **Hard gate for Phases C/D/E.**
+**RESOLVED 2026-07-24.** Full finding + verified formula in `CONTEXT.md` (search "R4.0 decode spike"). Summary: tower-count decode confirmed (`standingTowers = clamp(4 - raw, 0, 3)` per lane, 46/47 exact on both sides against real `building_kill` ground truth across 47 games / 885 points); barracks confirmed **not** decodable from `building_state` (direct disproof, not absence of evidence — see CONTEXT.md). **Phase C is unblocked; Phase E is cut.**
+
+The methodology that actually worked differed from the plan below: B1's originally-planned aggregate popcount/subset-diff against `live_game_map`'s latest-snapshot rows produced only an inconclusive signal (2026-07-20 attempt). The crack came from diffing the *dense per-game timeseries* that had been passively accreting in `live_game_gold` since 2026-07-21 (see CONTEXT.md's `live_game_gold` entry) against exact per-lane `building_kill` timestamps — a per-lane, per-lane-bit correlation, not an aggregate count. B2 (live flip-confirmation via `--watch`) was effectively superseded by this — the passive timeseries already contains the flip data B2 was designed to manually collect. The original B1–B3 plan is kept below for the historical record; treat CONTEXT.md as authoritative over it.
+
+**Goal (original):** a confirmed `building_state` bit-layout (written to CONTEXT.md as decoder constants) or an explicit partial/negative verdict. **Hard gate for Phases C/D/E.**
 
 **B1. Static bulk diff (uses the Phase A corpus)** — `scripts/verify-building-state.mjs` (new; mirrors the existing one-off `scripts/probe-od-match.mjs`):
 - Pull completed games that have a captured `building_state` in `live_game_map` (Supabase read), filter to those OD has since indexed.
@@ -84,7 +88,7 @@ Store raw; **no decode at capture** (store-raw-filter-at-read, the table's conve
 
 **B3. Deliverable** — a CONTEXT.md addendum with the verified constants (bit positions per building, max valid mask, building count) formatted like the `team === 0/1` finding, OR an explicit verdict: e.g. "towers+ancient decodable at offsets X; **barracks NOT present** → R4.2 cut from live." This deliverable *is* the gate: Phase C cannot start without it.
 
-**Acceptance:** the subset invariant holds across ≥5 completed EWC games under a single bit-map, AND one live flip is confirmed bit-exact. If neither holds, R4 stops at "spectators-only" (see Phase D note).
+**Acceptance:** the subset invariant holds across ≥5 completed EWC games under a single bit-map, AND one live flip is confirmed bit-exact. If neither holds, R4 stops at "spectators-only" (see Phase D note). **Met and exceeded** — 47 games, not 5; exact-match rate 46/47 both sides, not just a subset invariant.
 
 **Rollback:** N/A (analysis only, no shipped code).
 
@@ -96,18 +100,23 @@ Store raw; **no decode at capture** (store-raw-filter-at-read, the table's conve
 
 **C1. Pure decoder** — `api/_buildingState.js` (new shared lib):
 ```js
-// Constants from the R4.0 (Phase B) verified layout — NOT from docs.
+// Constants from the R4.0 (Phase B) verified layout, confirmed 2026-07-24 — NOT from docs.
+// See CONTEXT.md "R4.0 decode spike" for the corpus (47 games/885 points) and match rate (46/47).
 export function decodeBuildingState(mask) -> {
-  rt, dt,            // standing tower count per side
-  rr, dr,            // standing rax per side — ONLY if Phase B proved barracks present; else omitted
+  rt, dt,            // standing tower count per lane-summed side: clamp(4 - raw, 0, 3) per lane, summed/reported per lane
+  // rr, dr (rax) OMITTED — Phase B directly disproved barracks are represented in this field
+  // (same raw ceiling reached with 0 vs 2 barracks destroyed in the same game — not just unresolved, ruled out).
   confidence: 'high' | 'low'
 }
 ```
+**Bit layout (verified):** side A (Radiant) = bits `0-2`/`3-5`/`6-8` (top/mid/bot lane counters); side B (Dire) = bits `16-18`/`19-21`/`22-24`, mirrored +16. Bits `9-10`/`25-26` are an unidentified "extra" field per side — do not decode them (doesn't correlate with any known event; see CONTEXT.md); leaving them unread is safe since they don't overlap the lane bits.
+
 **Confidence gate (`'low'` → caller omits `objectives` entirely):**
 - `mask` null / 0 / non-finite → low.
 - `mask` exceeds the verified max valid mask (`2^maxBits - 1`) → low. **This is the patch-safety net:** if a patch widens/shifts the layout, the value overflows the known mask and the decoder fails safe to omit rather than render garbage.
 - decoded standing-count out of range (> the building maximum, or an impossible per-side split) → low.
 - Note: ancient/tier-4s still standing is EXPECTED (the game leaves `/live` when the ancient falls), so "ancient up" is never itself a low-confidence signal.
+- **New from the crack:** a lone/single-corroboration reading is the one confirmed failure mode (the corpus's single miss was a 1-sample game with an implausible first-poll value) — the confidence gate should treat a `building_state` read with no prior reading to corroborate it as lower-confidence, not treat every reading as independently trustworthy.
 - Pure + unit-tested against the real captured samples Phase B collected (house pattern — `computeMomentum`, `mapLiveGamesToRows`, `computePoints` are all pure+tested).
 
 **C2. Read** — `api/_handlers/liveGamePulse.js`, in `resolvePulse()`:
@@ -143,9 +152,9 @@ export function decodeBuildingState(mask) -> {
 
 ---
 
-## Phase E — Barracks / mega-creeps (CONDITIONAL on Phase B; only if barracks proven present)
+## Phase E — Barracks / mega-creeps — CUT (Phase B disproved barracks presence, 2026-07-24)
 
-Only executed if R4.0 found barracks bits in `building_state`. Adds `rr`/`dr` to the decoder output (C1), a `Rax 6·2` readout + a terminal `MEGA CREEPS` chip to `ObjectiveRow` (D1), sharing the single row (`Towers 9·4 · Rax 6·2`), same confidence gate and spoiler gate. If Phase B found barracks absent (the strong hypothesis), **this phase does not run** — barracks state is documented as a post-game-only enrichment for the future `/match/:id`, and R4 v1 ships tower + spectators only.
+**Does not run.** R4.0 didn't just fail to find barracks bits — it directly disproved them: in match `8907114935`, the top lane hit `building_state`'s max value with zero barracks destroyed while the mid lane hit the same max value with both barracks destroyed (see CONTEXT.md). A `Rax 6·2` readout / `MEGA CREEPS` chip cannot be built from this field. Barracks state remains a post-game-only enrichment via `barracks_status_radiant/dire` for the future `/match/:id`; R4 v1 ships tower + spectators only, as the spec's "strong hypothesis" anticipated.
 
 ---
 
@@ -170,24 +179,24 @@ Only executed if R4.0 found barracks bits in `building_state`. Adds `rr`/`dr` to
 ## Sequencing & dependencies
 
 ```
-Phase A (capture, freeze-safe, SHIP NOW during EWC)
+Phase A (capture, freeze-safe, SHIP NOW during EWC)  ── DONE 2026-07-19
         │  accretes the corpus
         ▼
-Phase B (R4.0 spike: static subset-diff + live flip-check)  ── HARD GATE ──┐
-        │  produces verified bit-layout OR "not viable" verdict            │
+Phase B (R4.0 spike)  ── HARD GATE ──┐  ── RESOLVED 2026-07-24 (via the live_game_gold timeseries, not the originally-planned static/watch approach)
+        │  tower decode confirmed (46/47 exact); barracks confirmed absent
         ▼                                                                  │
-Phase C (decoder + read, owner-payload-gated)                              │
+Phase C (decoder + read, owner-payload-gated)  ← NEXT                      │
         ▼                                                                  │
-Phase D (objective row UI, owner→public)  ◄── falls back to spectators-only if B negative
+Phase D (objective row UI, owner→public)                                   │
         │
-        ├─► Phase E (barracks) — ONLY if B proved barracks present
+        ╳  Phase E (barracks) — CUT, B disproved barracks presence
         ▼
 Phase F (telemetry, QA, public launch — after EWC freeze lifts)
 ```
 
-- **A is independently shippable now** and de-risks everything (proves capture + builds the verification dataset during the best-possible window).
-- **B is the hard gate** — no decoder/UI without its verdict. B depends on A's corpus (for the static diff) but its live-flip check reads `/live` directly and can run the moment a live game is up.
-- C→D→F are sequential. E branches off B's finding.
+- **A is independently shippable now** and de-risks everything (proves capture + builds the verification dataset during the best-possible window). Done.
+- **B is the hard gate** — no decoder/UI without its verdict. Resolved; see CONTEXT.md for the finding.
+- C→D→F are sequential and now unblocked. E is cut, not merely deferred.
 - Every phase is independently revertible; A–C are invisible to non-owners until D drops the gate.
 
 ## Files touched
@@ -209,13 +218,13 @@ Phase F (telemetry, QA, public launch — after EWC freeze lifts)
 
 ## Explicitly out of scope
 
-R4.3 (per-lane map, `THRONE EXPOSED`/high-ground drama flags). R4.2 if Phase B finds barracks absent. The row-level "heating up" badge on `LiveMatchRow` (separate spec — joins live telemetry into the ambient feed). Win-probability, per-player net worth, Roshan/Aegis state (not in `/live`). The downstream `/match/:id` objective enrichment (durable citation play — future).
+R4.3 (per-lane map, `THRONE EXPOSED`/high-ground drama flags). R4.2/barracks — cut, Phase B confirmed absent (not a hedge anymore). The row-level "heating up" badge on `LiveMatchRow` (separate spec — joins live telemetry into the ambient feed). Win-probability, per-player net worth, Roshan/Aegis state (not in `/live`). The downstream `/match/:id` objective enrichment (durable citation play — future).
 
 ---
 
 ## Risks & sequencing issues the product plan didn't anticipate
 
-1. **`live_game_map` is upsert-only → there is no `building_state` timeseries.** The spec's R4.0 "cross-check ≥1 game where a tower fell during the capture window (two consecutive captures)" cannot be done from `live_game_map` (each capture overwrites the row). Resolved in the plan by splitting the spike: the **static** layout confirmation uses the latest-snapshot corpus (subset-diff against post-game truth), and the **dynamic** flip confirmation uses a standalone `/live` poller (`--watch`) that never touches Supabase. Do NOT "fix" this by appending `building_state` to `live_game_gold` — the live feature wants only the latest state, and the poller covers the flip-check without a schema change.
+1. **`live_game_map` is upsert-only → there is no `building_state` timeseries. RESOLVED THE OPPOSITE WAY this section originally recommended.** The spec's R4.0 "cross-check ≥1 game where a tower fell during the capture window" can't be done from `live_game_map` (each capture overwrites the row). This section originally said: split the spike into a static latest-snapshot diff plus a standalone `--watch` poller, and explicitly **"do NOT fix this by appending `building_state` to `live_game_gold`."** That call was reversed on 2026-07-21 — `building_state` *was* added to `live_game_gold`'s per-capture append (see CONTEXT.md) — and it's precisely that passive timeseries (885 points/47 games by 07-24, accreted from ordinary traffic with zero extra effort) that cracked the decode, where the originally-planned static/watch approach had stalled at "inconclusive." Lesson for future spikes in this codebase: prefer riding an existing append-only table over building bespoke one-off collection tooling, even when the immediate feature doesn't need the timeseries itself.
 
 2. **The static diff must use monotonic-subset matching, not exact equality.** Because the last live capture precedes true game-end by ~60–110s (the game leaves `/live` when the ancient falls) and buildings only ever fall, the post-game standing set is a *subset* of the last-capture standing set — never guaranteed equal. A verification script that expects `live_final == post_game_final` would false-negative on essentially every game. The subset invariant is the correct, falsifiable test. (Detailed in B1.)
 

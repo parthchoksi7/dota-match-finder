@@ -24,22 +24,32 @@
  *     catch individual bit transitions. This is the only way to observe which bit(s) move
  *     when a specific tower falls — a single end-state snapshot cannot disentangle that.
  *
- * Findings so far (2026-07-20, EPL Masters 2026 — INCONCLUSIVE, decoder NOT justified):
- *   - Capture is proven end-to-end: real building_state + spectators land in live_game_map
- *     from live tier-1 games (verified against 6 EPL Masters rows).
- *   - The naive hypothesis "popcount(building_state) == count of towers destroyed" FAILS:
- *     it matched only 2 of 5 completed+indexed games (8==8, 14==14) and missed the other
- *     three badly (9 vs 15, 18 vs 19, 7 vs 13). So set bits are NOT a straightforward
- *     one-per-destroyed-tower (or one-per-standing) flag.
- *   - A live --watch session showed NON-monotonic single-bit transitions (bit 0->1, then
- *     6->7, one bit turning off as an adjacent one turns on, at ~10-13 min game time). That
- *     is inconsistent with any per-building destroyed/standing bitmask (buildings don't
- *     un-destroy). building_state likely packs something more structured (e.g. a small
- *     per-lane progress field), not a flat bitmask.
- *   - CONCLUSION: the encoding is NOT decoded. DO NOT ship a decoder. R4.1's tower readout
- *     is blocked until the bit structure is cracked (needs many more --watch samples with
- *     flips correlated to broadcast-confirmed building kills). spectators (no decode) is
- *     independently usable now. See .claude/specs/live-story-r4-*.md and CONTEXT.md.
+ * Findings — RESOLVED 2026-07-24 (superseding the 2026-07-20 "inconclusive" pass below).
+ *
+ * First pass (2026-07-20, EPL Masters, via this script's static mode): capture proven
+ * end-to-end, but the naive "popcount == towers destroyed" hypothesis failed (5/16 games),
+ * and a --watch session caught non-monotonic single-bit transitions inconsistent with any
+ * flat per-building bitmask. That ruled out the flat-mask model without replacing it.
+ *
+ * The actual crack did NOT come from this script. It came from offline analysis of the
+ * dense per-game `building_state` timeseries that accretes passively in `live_game_gold`
+ * (added 2026-07-21, see CONTEXT.md) — 885 points across 47 games by 2026-07-24. Diffing
+ * consecutive points showed the bits cluster into two 9-bit blocks (bits 0-8, bits 16-24,
+ * gap at 11-15) that are each three independent 3-bit binary counters (one per lane), not
+ * one-hot flags — the earlier "non-monotonic flip" was that counter incrementing.
+ *
+ * CONFIRMED: standingTowers = clamp(4 - raw, 0, 3) per lane (bits 0-2/3-5/6-8 = Radiant
+ * top/mid/bot; bits 16-18/19-21/22-24 = Dire, mirrored +16). Verified 46/47 exact on BOTH
+ * sides against real OD building_kill timestamps across all 47 games. Barracks are
+ * confirmed NOT decodable from this field (disproved, not just unresolved — see CONTEXT.md).
+ * Bits 9-10/25-26 remain an unidentified "extra" field per side, doesn't overlap the lane
+ * bits, not investigated further (out of R4.1 scope). Full writeup: CONTEXT.md, search
+ * "R4.0 decode spike". Phase C (the shipped decoder, `api/_buildingState.js`) is next and
+ * not yet built as of this writing.
+ *
+ * This script (static popcount diff + --watch flip logger) is kept for reference/future
+ * spikes but was NOT the tool that solved this one — the passive live_game_gold timeseries
+ * was. See risk #1 in .claude/specs/live-story-r4-implementation-plan.md for that lesson.
  */
 
 import { createClient } from '@supabase/supabase-js'

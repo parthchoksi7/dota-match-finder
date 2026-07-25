@@ -17,6 +17,8 @@
 
 **Strong hypothesis the spike must resolve (NOT a fact):** 24 significant bits ≈ 12 buildings/side (11 towers + 1 ancient) with **no barracks** in this field. If true, "mega creeps / rax down" is **not derivable from `building_state` alone** and would need `barracks_status` (only in the post-game payload, absent from `/live`). This single unknown determines R4's ceiling — see §Data Feasibility and §Detailed Requirements (R4.2 gate).
 
+> **RESOLVED 2026-07-24:** the "no barracks" half of this hypothesis is confirmed — by direct disproof, not just failure to find a signal (see `CONTEXT.md`, "R4.0 decode spike"). The bit-count model above wasn't quite right either (it's two 9-bit per-lane-counter blocks, not 11-bit flat masks), but the practical conclusion — barracks aren't in this field, tower state is — holds. R4.2 is cut; R4.1's tower decode is confirmed viable (46/47 exact match rate against real ground truth).
+
 ---
 
 # Feature Summary
@@ -341,9 +343,9 @@ Per `.claude/ai_discoverability.md`:
 
 # Open Questions
 
-1. **Barracks in `building_state`?** — the single ceiling-setting unknown. Resolved by R4.0; everything R4.2 promises depends on the answer. (Strong hypothesis: no. Must verify.)
-2. **Spectator count in spoiler-free?** — lean hide for v1 (§Spoiler Policy). Confirm we're OK suppressing a signal that arguably doesn't reveal the winner, in exchange for airtight spoiler-safety.
-3. **Decode server-side or client-side?** — /cto's call; either way the decoder is pure + unit-tested. Server-side keeps the client dumb and the confidence gate authoritative; client-side keeps the pulse payload one field smaller.
-4. **Confidence heuristic** — what exactly makes a decode "low confidence" (implausible set-bit count? a value exceeding the max valid mask?). Needs a concrete rule from R4.0's findings; possibly a `/dota_data_scientist` validation pass against the captured sample set.
-5. **"High ground threatened" in R4.1 or R4.3?** — depends on whether R4.0 proves tier-3 granularity is as reliable as raw count. If yes, it's a cheap high-value add to R4.1; if not, it waits for R4.3.
-6. **Owner-flag launch during EWC tail vs. wait for post-EWC?** — confirm the freeze-window handling (capture now, UI behind flag or after freeze).
+1. ~~**Barracks in `building_state`?**~~ **RESOLVED 2026-07-24 (R4.0): NO** — confirmed absent, not just unverified (disproof, not absence of evidence: the same raw ceiling value occurs with 0 barracks destroyed in one lane and 2 destroyed in another lane of the same game). R4.2 is cut. Full finding in `CONTEXT.md` ("R4.0 decode spike").
+2. **Spectator count in spoiler-free?** — moot: `spectators` was shipped and reverted the same day (2026-07-20, unrelated to spoiler policy) — OD `/live`'s count is DotaTV-only and misrepresents the real (Twitch/Kick/YouTube-majority) audience. Not part of R4 v1 regardless of spoiler placement.
+3. **Decode server-side or client-side?** — still open, now answerable: server-side, per the implementation plan's D1 decision (pulse returns a decoded object, never the raw mask).
+4. ~~**Confidence heuristic**~~ **Answered by R4.0's finding**: implausible mask (exceeds max valid bits) → low confidence; additionally, a reading with no prior poll to corroborate it is a real observed failure mode (the corpus's one miss was a single-sample game with an implausible first-poll value) and should also lower confidence. See the implementation plan's C1.
+5. **"High ground threatened" in R4.1 or R4.3?** — R4.0 gives exact per-lane standing-tower *count* (0-3), not which specific tier — reliable enough to say "0 standing" (high ground lost) but not to assert which tiers specifically fell if towers were killed out of order (rare but possible). Reasonable to treat "count reached 0" as "high ground threatened" for R4.1 with that caveat noted, rather than deferring to R4.3.
+6. **Owner-flag launch during EWC tail vs. wait for post-EWC?** — still open; unrelated to the decode finding, a calendar/freeze-status call.
