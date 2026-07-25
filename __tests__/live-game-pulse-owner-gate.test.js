@@ -7,6 +7,9 @@
  * skipped — unlike shapeGoldHistory (a truly pure helper, tested unmocked in the sibling
  * live-game-pulse-history.test.js), the property under test ("isOwner actually gates the field")
  * can only be observed by exercising resolvePulse itself.
+ *
+ * `objectives` (R4 Phase C, added 2026-07-24) is gated the same way and tested alongside history
+ * below — same rationale, same D3 payload-gating decision, same "never reach a non-owner" property.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -73,6 +76,9 @@ function liveGameMapRow(overrides = {}) {
     radiant_hero_ids: [1, 2, 3, 4, 5],
     dire_hero_ids: [6, 7, 8, 9, 10],
     captured_at: '2026-07-17T00:10:00.000Z',
+    // A real captured sample (scripts/building-state-samples.jsonl) that decodes 'high'
+    // confidence, full board both sides — see __tests__/building-state.test.js for the decode.
+    building_state: 4784201,
     ...overrides,
   }
 }
@@ -130,5 +136,37 @@ describe('resolvePulse — owner gate', () => {
     const owner = await resolvePulse(String(OD_MATCH_ID), true, log)
     expect(owner.pulse.matchId).toBe(nonOwner.pulse.matchId)
     expect(owner.pulse.radiantLead).toBe(nonOwner.pulse.radiantLead)
+  })
+})
+
+describe('resolvePulse — objectives gate (R4 Phase C)', () => {
+  it('isOwner=false: the resolved pulse has no `objectives` key at all, even though building_state decodes fine', async () => {
+    const { pulse } = await resolvePulse(String(OD_MATCH_ID), false, log)
+    expect('objectives' in pulse).toBe(false)
+  })
+
+  it('isOwner=true with a decodable building_state: pulse includes objectives with the decoded counts', async () => {
+    const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
+    expect(pulse.objectives).toEqual({ rt: 9, dt: 9 })
+  })
+
+  it('isOwner=true but building_state is null (never captured): objectives is omitted, pulse still resolves', async () => {
+    setLiveGameMapRows([liveGameMapRow({ building_state: null })])
+    const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
+    expect(pulse).not.toBeNull()
+    expect(pulse.matchId).toBe(String(OD_MATCH_ID))
+    expect('objectives' in pulse).toBe(false)
+  })
+
+  it('isOwner=true but building_state exceeds the verified max mask (a hypothetical patch shift): objectives is omitted, not a garbage count', async () => {
+    setLiveGameMapRows([liveGameMapRow({ building_state: 2 ** 30 })])
+    const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
+    expect('objectives' in pulse).toBe(false)
+  })
+
+  it('isOwner=true and building_state comes back as a STRING (bigint columns can be string-serialized by PostgREST, same class as od_match_id elsewhere in this file): still decodes correctly, not silently omitted', async () => {
+    setLiveGameMapRows([liveGameMapRow({ building_state: '4784201' })])
+    const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
+    expect(pulse.objectives).toEqual({ rt: 9, dt: 9 })
   })
 })

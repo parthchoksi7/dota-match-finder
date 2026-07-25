@@ -1,6 +1,6 @@
 # Live Story R4 — Objective / Map State — Implementation Plan
 
-**Status:** Phase A shipped. **Phase B (R4.0 decode gate) RESOLVED 2026-07-24** — tower-count decode confirmed (46/47 exact both sides against real ground truth); barracks confirmed NOT decodable, so **Phase E is cut**. Phase C (decoder + read API) is next; still gated behind the EWC freeze lifting + `spectate-owner` for the UI phases. See the R4.0 finding in `CONTEXT.md` (search "R4.0 decode spike") for the verified bit layout and formula.
+**Status:** Phase A shipped. **Phase B (R4.0 decode gate) RESOLVED 2026-07-24** — tower-count decode confirmed (46/47 exact both sides against real ground truth); barracks confirmed NOT decodable, so **Phase E is cut**. **Phase C (decoder + read API) SHIPPED 2026-07-24** — `api/_buildingState.js` + owner-payload-gated `pulse.objectives`, see CONTEXT.md "R4 Phase C". Phase D (frontend `ObjectiveRow`) is next; still gated behind the EWC freeze lifting + `spectate-owner`. See the R4.0 finding in `CONTEXT.md` (search "R4.0 decode spike") for the verified bit layout and formula.
 **Last Updated:** 2026-07-24
 **Spec:** `.claude/specs/live-story-r4-objective-map-state.md` (read first — R4.0 gate, R4.1 MVP, R4.2 decode-gated, R4.3 polish; MVP = R4.0 + R4.1).
 **Format basis:** `.claude/specs/live-story-implementation-plan.md` (the R1/R2 plan this team executed cleanly).
@@ -96,7 +96,9 @@ The methodology that actually worked differed from the plan below: B1's original
 
 ## Phase C — Decoder + read API (post-freeze / behind owner gate)
 
-**Goal:** the pulse returns a trustworthy decoded `objectives` object, owner-gated during verification.
+**SHIPPED 2026-07-24.** Full detail in `CONTEXT.md` ("R4 Phase C"). `spectators` from the original C2 text below was deliberately NOT wired up — that call was already made and reversed on 2026-07-20 (see the R4.0 finding); Phase C doesn't reopen it, tower objectives only. One real bug caught in independent review before shipping: `building_state` is a `bigint` column and needs `Number(...)` coercion (PostgREST can string-serialize bigints) — a first pass omitted it, which would have silently kept `objectives` permanently low-confidence with no error. Fixed + regression-tested.
+
+**Goal (original):** the pulse returns a trustworthy decoded `objectives` object, owner-gated during verification.
 
 **C1. Pure decoder** — `api/_buildingState.js` (new shared lib):
 ```js
@@ -125,7 +127,7 @@ export function decodeBuildingState(mask) -> {
 - `pulse.objectives`: **payload-gated behind `isOwner` during the window** (D3), attached only when `isOwner` and `decodeBuildingState(row.building_state).confidence === 'high'`. Wrap in its own try/catch like the `history` enrichment (a decode/read hiccup must never turn a resolved pulse into `{pulse:null}`).
 - Cache interaction: `objectives` rides the existing 15s pulse cache under the `:owner`-suffixed key (unchanged mechanism). Building state changes on the order of minutes; 15s staleness is negligible against the ~60–110s capture floor — no new cache concern.
 
-**C3. Client fetch flag** — `src/api.js` `fetchLiveGamePulse` already sends `owner=1` unconditionally (per CONTEXT.md, an inert leftover that's now load-bearing again) — so `objectives` will reach owners with no client change. Confirm this at build time.
+**C3. Client fetch flag** — `src/api.js` `fetchLiveGamePulse` already sends `owner=1` unconditionally (per CONTEXT.md, an inert leftover that's now load-bearing again) — so `objectives` will reach owners with no client change. **Confirmed 2026-07-24**: `SeriesLivePulse.jsx:135` calls `fetchLiveGamePulse(psMatchId, true)`, hardcoded — zero client changes were needed.
 
 **Acceptance:** `GET /api/tournaments?mode=live-game-pulse&id=<psId>&owner=1` on a live game returns `pulse.objectives` with plausible tower counts + `pulse.spectators`; the same call without `owner=1` returns neither `objectives` (gated) — `spectators` may still return (it's public). A low-confidence mask returns no `objectives`. Non-owner public pulse is byte-identical to today except `spectators`.
 
@@ -185,9 +187,9 @@ Phase A (capture, freeze-safe, SHIP NOW during EWC)  ── DONE 2026-07-19
 Phase B (R4.0 spike)  ── HARD GATE ──┐  ── RESOLVED 2026-07-24 (via the live_game_gold timeseries, not the originally-planned static/watch approach)
         │  tower decode confirmed (46/47 exact); barracks confirmed absent
         ▼                                                                  │
-Phase C (decoder + read, owner-payload-gated)  ← NEXT                      │
+Phase C (decoder + read, owner-payload-gated)  ── SHIPPED 2026-07-24       │
         ▼                                                                  │
-Phase D (objective row UI, owner→public)                                   │
+Phase D (objective row UI, owner→public)  ← NEXT                           │
         │
         ╳  Phase E (barracks) — CUT, B disproved barracks presence
         ▼

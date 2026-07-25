@@ -2,6 +2,7 @@ import { kv } from '../_kv.js'
 import { getSupabaseAdmin } from '../_supabase.js'
 import { createLogger, validateId, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S } from '../_shared.js'
 import { fetchPsMatchDetail, beginAtToUnix, shapeLiveGameMapRows } from './liveSeriesGames.js'
+import { decodeBuildingState } from '../_buildingState.js'
 
 // Phase 2 — live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
 // game to its OpenDota telemetry (gold lead, kill score, live draft) via live_game_map — the
@@ -70,7 +71,7 @@ export async function resolvePulse(pandaId, isOwner, log) {
 
     const { data, error } = await getSupabaseAdmin()
       .from('live_game_map')
-      .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, radiant_hero_ids, dire_hero_ids, radiant_player_names, dire_player_names, captured_at')
+      .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time, radiant_hero_ids, dire_hero_ids, radiant_player_names, dire_player_names, captured_at, building_state')
       .gte('start_time', beginAtUnix - OD_MATCH_TIME_WINDOW_S)
       .lte('start_time', beginAtUnix + OD_MATCH_TIME_WINDOW_S)
     if (error || !data || data.length === 0) return { pulse: null }
@@ -120,6 +121,19 @@ export async function resolvePulse(pandaId, isOwner, log) {
         }
       } catch (err) {
         log.warn('live_game_gold history read threw', { error: err?.message })
+      }
+
+      // Live Story R4 (Phase C), same owner-payload gate and rationale as `history` above —
+      // decode is server-side and confidence-gated (api/_buildingState.js), so `objectives` is
+      // attached only when both isOwner AND the decode is 'high' confidence; a 'low' decode
+      // (missing/implausible building_state) omits the field entirely rather than shipping a
+      // guessed count. No extra I/O here: building_state already rode the main select above.
+      // building_state is a bigint column (same class as od_match_id, coerced the same way
+      // elsewhere in this file/liveSeriesGames.js) -- PostgREST can hand bigint back as a
+      // string, and decodeBuildingState's Number.isFinite gate does not coerce.
+      const decoded = decodeBuildingState(Number(row.building_state))
+      if (decoded.confidence === 'high') {
+        pulse.objectives = { rt: decoded.rt, dt: decoded.dt }
       }
     }
 

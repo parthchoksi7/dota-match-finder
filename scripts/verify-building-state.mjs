@@ -44,8 +44,8 @@
  * confirmed NOT decodable from this field (disproved, not just unresolved — see CONTEXT.md).
  * Bits 9-10/25-26 remain an unidentified "extra" field per side, doesn't overlap the lane
  * bits, not investigated further (out of R4.1 scope). Full writeup: CONTEXT.md, search
- * "R4.0 decode spike". Phase C (the shipped decoder, `api/_buildingState.js`) is next and
- * not yet built as of this writing.
+ * "R4.0 decode spike". Phase C (the decoder, `api/_buildingState.js`, wired into
+ * liveGamePulse.js's owner-gated `pulse.objectives`) shipped 2026-07-24.
  *
  * This script (static popcount diff + --watch flip logger) is kept for reference/future
  * spikes but was NOT the tool that solved this one — the passive live_game_gold timeseries
