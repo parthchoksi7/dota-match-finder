@@ -126,10 +126,44 @@ const GLOSSARY_TERMS_SSR = [
 
 const GLOSSARY_TERM_MAP_SSR = Object.fromEntries(GLOSSARY_TERMS_SSR.map(t => [t.id, t]))
 
-// Hero slug → OpenDota hero ID map (source: GET /api/heroes, ~1x per year when new hero ships)
-const HERO_ID_MAP = {"antimage":1,"axe":2,"bane":3,"bloodseeker":4,"crystal_maiden":5,"drow_ranger":6,"earthshaker":7,"juggernaut":8,"mirana":9,"morphling":10,"nevermore":11,"phantom_lancer":12,"puck":13,"pudge":14,"razor":15,"sand_king":16,"storm_spirit":17,"sven":18,"tiny":19,"vengefulspirit":20,"windrunner":21,"zuus":22,"kunkka":23,"lina":25,"lion":26,"shadow_shaman":27,"slardar":28,"tidehunter":29,"witch_doctor":30,"lich":31,"riki":32,"enigma":33,"tinker":34,"sniper":35,"necrolyte":36,"warlock":37,"beastmaster":38,"queenofpain":39,"venomancer":40,"faceless_void":41,"skeleton_king":42,"death_prophet":43,"phantom_assassin":44,"pugna":45,"templar_assassin":46,"viper":47,"luna":48,"dragon_knight":49,"dazzle":50,"rattletrap":51,"leshrac":52,"furion":53,"life_stealer":54,"dark_seer":55,"clinkz":56,"omniknight":57,"enchantress":58,"huskar":59,"night_stalker":60,"broodmother":61,"bounty_hunter":62,"weaver":63,"jakiro":64,"batrider":65,"chen":66,"spectre":67,"ancient_apparition":68,"doom_bringer":69,"ursa":70,"spirit_breaker":71,"gyrocopter":72,"alchemist":73,"invoker":74,"silencer":75,"obsidian_destroyer":76,"lycan":77,"brewmaster":78,"shadow_demon":79,"lone_druid":80,"chaos_knight":81,"meepo":82,"treant":83,"ogre_magi":84,"undying":85,"rubick":86,"disruptor":87,"nyx_assassin":88,"naga_siren":89,"keeper_of_the_light":90,"wisp":91,"visage":92,"slark":93,"medusa":94,"troll_warlord":95,"centaur":96,"magnataur":97,"shredder":98,"bristleback":99,"tusk":100,"skywrath_mage":101,"abaddon":102,"elder_titan":103,"legion_commander":104,"techies":105,"ember_spirit":106,"earth_spirit":107,"abyssal_underlord":108,"terrorblade":109,"phoenix":110,"oracle":111,"winter_wyvern":112,"arc_warden":113,"monkey_king":114,"dark_willow":119,"pangolier":120,"grimstroke":121,"hoodwink":123,"void_spirit":126,"snapfire":128,"mars":129,"ringmaster":131,"dawnbreaker":135,"marci":136,"primal_beast":137,"muerta":138,"kez":145,"largo":155}
-// Inverted map: OpenDota hero ID → slug (for picks_bans hero_id lookups on match pages)
-const HERO_SLUG_BY_ID = Object.fromEntries(Object.entries(HERO_ID_MAP).map(([slug, id]) => [id, slug]))
+// Hero data for SSR (slug/id/real display name), fetched from our own cached OpenDota proxy —
+// NOT derived from the Valve internal hero key. A prior version hardcoded a slug→id map and
+// title-cased the slug for the display name (e.g. "nevermore" -> "Nevermore"), which is wrong
+// for every hero whose internal key predates a since-renamed public name (Nevermore is Shadow
+// Fiend, Necrolyte is Necrophos, Rattletrap is Clockwerk, Skeleton King is Wraith King, Doom
+// Bringer is Doom, Obsidian Destroyer is Outworld Destroyer, Abyssal Underlord is Underlord,
+// Furion is Nature's Prophet, Wisp is Io, Zuus is Zeus, Windrunner is Windranger, and more) —
+// roughly a third of the roster. This fetches OpenDota's `localized_name` instead, the same
+// source of truth the client's fetchHeroes() (src/api.js) already uses, so SSR titles/meta/
+// JSON-LD and the client never disagree on a hero's name.
+let _heroSsrCache = null
+// Test-only: clears the module-level cache so each test starts from a clean slate.
+export function _resetHeroSsrCache() { _heroSsrCache = null }
+export async function getHeroDataSSR(origin) {
+  if (_heroSsrCache) return _heroSsrCache
+  const empty = { bySlug: {}, byId: {} }
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 2000)
+    const res = await fetch(`${origin}/api/tournaments?mode=heroes-proxy`, { signal: controller.signal }).catch(() => null)
+    clearTimeout(timer)
+    if (!res?.ok) return empty
+    const heroes = await res.json().catch(() => null)
+    if (!Array.isArray(heroes)) return empty
+    const bySlug = {}, byId = {}
+    for (const h of heroes) {
+      const slug = (h.name || '').replace('npc_dota_hero_', '')
+      if (!slug || h.id == null) continue
+      const entry = { id: h.id, name: h.localized_name || slug }
+      bySlug[slug] = entry
+      byId[h.id] = entry
+    }
+    _heroSsrCache = { bySlug, byId }
+    return _heroSsrCache
+  } catch {
+    return empty
+  }
+}
 
 // Article metadata is now served dynamically from /api/pipeline?type=articles (Supabase).
 // The functions below fetch from that endpoint with a short timeout.
@@ -730,7 +764,7 @@ async function fetchMatchHistoryRow(matchId) {
   }
 }
 
-async function handleMatch(url) {
+export async function handleMatch(url) {
   const pathPart = url.pathname.replace('/match/', '').split('/')[0]
   const matchIdMatch = pathPart.match(/(\d+)$/)
   const matchId = matchIdMatch ? matchIdMatch[1] : null
@@ -911,10 +945,11 @@ async function handleMatch(url) {
   let playerHtml = ''
   try {
     const od = odData
+    const { byId: heroById } = await getHeroDataSSR(url.origin)
     if (od?.picks_bans?.length) {
       const picks = od.picks_bans.filter(pb => pb.is_pick).sort((a, b) => a.order - b.order)
-      const radiantPicks = picks.filter(pb => pb.team === 0).map(pb => heroSlugToDisplayName(HERO_SLUG_BY_ID[pb.hero_id] || '')).filter(Boolean)
-      const direPicks = picks.filter(pb => pb.team === 1).map(pb => heroSlugToDisplayName(HERO_SLUG_BY_ID[pb.hero_id] || '')).filter(Boolean)
+      const radiantPicks = picks.filter(pb => pb.team === 0).map(pb => heroById[pb.hero_id]?.name || '').filter(Boolean)
+      const direPicks = picks.filter(pb => pb.team === 1).map(pb => heroById[pb.hero_id]?.name || '').filter(Boolean)
       const radiantName = od.radiant_name || 'Radiant'
       const direName = od.dire_name || 'Dire'
       if (radiantPicks.length || direPicks.length) {
@@ -928,7 +963,7 @@ async function handleMatch(url) {
     }
     if (od?.players?.length) {
       const rows = od.players.map(p => {
-        const heroName = heroSlugToDisplayName(HERO_SLUG_BY_ID[p.hero_id] || '')
+        const heroName = heroById[p.hero_id]?.name || ''
         const name = escapeHtml(p.personaname || p.name || 'Unknown')
         return `<tr><td style="padding:3px 8px">${name}</td><td style="padding:3px 8px">${escapeHtml(heroName)}</td><td style="padding:3px 8px">${p.kills}/${p.deaths}/${p.assists}</td><td style="padding:3px 8px">${p.gold_per_min ?? '—'}</td></tr>`
       }).join('')
@@ -1331,7 +1366,7 @@ async function handleArticleDetail(url) {
 
 // ─── /heroes ─────────────────────────────────────────────────────────────────
 
-function heroSlugToDisplayName(slug) {
+export function heroSlugToDisplayName(slug) {
   // e.g. "anti_mage" → "Anti Mage", "keeper_of_the_light" → "Keeper Of The Light"
   return (slug || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
@@ -1365,11 +1400,15 @@ async function handleHeroes(url) {
   return buildResponse(url, title, description, canonical, DEFAULT_OG_IMAGE, jsonLd, rootContent)
 }
 
-async function handleHeroDetail(url) {
+export async function handleHeroDetail(url) {
   const slug = url.pathname.replace('/heroes/', '').split('/')[0]
   if (!slug) return new Response(null, { status: 302, headers: { Location: `${BASE_URL}/heroes` } })
 
-  const displayName = heroSlugToDisplayName(slug)
+  const { bySlug } = await getHeroDataSSR(url.origin)
+  const heroInfo = bySlug[slug]
+  // Falls back to a title-cased slug only if the heroes-proxy fetch failed — best-effort so
+  // the page still renders, but real localized_name is preferred whenever it's available.
+  const displayName = heroInfo?.name || heroSlugToDisplayName(slug)
   const canonical = `${BASE_URL}/heroes/${slug}`
   const title = `${displayName} Pro Matches — Tier 1 VODs & Drafts | Spectate Esports`
   const description = `Recent Tier 1 professional Dota 2 matches where ${displayName} was picked. Includes Twitch VOD links timestamped to game start, full hero draft, and match results.`
@@ -1377,7 +1416,7 @@ async function handleHeroDetail(url) {
   // Fetch top-10 recent tier-1 matches for this hero
   let heroMatchListHtml = ''
   try {
-    const heroId = HERO_ID_MAP[slug]
+    const heroId = heroInfo?.id
     if (heroId) {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 3000)
