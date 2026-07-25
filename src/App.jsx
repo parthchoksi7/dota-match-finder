@@ -1538,6 +1538,7 @@ function App() {
       {selectedLiveSeries && !selectedMatch && (
         <LiveSeriesSheet
           match={selectedLiveSeries}
+          isOwner={isOwner}
           onDismiss={closeLiveSeriesSheet}
           onReplay={handleLiveSeriesReplay}
           loadingGameId={liveReplayLoadingId}

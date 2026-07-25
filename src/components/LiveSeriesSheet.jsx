@@ -52,7 +52,7 @@ function defaultPosition(match) {
 // currently running game's live pulse) via a chip switcher, so a fan reaches "what's happening
 // now" without scrolling past every earlier game first. `initialGamePosition` lets a future
 // per-game entry point open the sheet pre-scoped to a specific game; no caller passes it today.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, isOwner }) {
   // Recover OD match_ids for finished games the live feed returned without one, so their draft
   // strips can render.
   const [resolvedIds, setResolvedIds] = useState({})
@@ -263,6 +263,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
             </div>
             <SeriesLivePulse
               psMatchId={match.id}
+              isOwner={isOwner}
               spoilerFree={spoilerFree}
               seriesLabel={match.seriesLabel}
               seriesScore={match.seriesScore}

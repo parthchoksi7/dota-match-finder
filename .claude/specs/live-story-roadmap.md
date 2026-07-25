@@ -8,26 +8,18 @@ This replaces the remaining-scope content that was spread across `live-story.md`
 
 ---
 
-## Priority 1 — R4 Phase D: Objective Row UI (ship next, lowest remaining effort)
+## Priority 1 — R4 Phase D: Objective Row UI
 
-**Why first:** the hard part is done. The decode (Phase B) and the owner-gated read API (Phase C) both shipped 2026-07-24 — this is UI wiring against an already-working, already-tested backend field, not new risk surface. Closes out a feature that's ~80% complete rather than opening a new one.
+**BUILT 2026-07-25, owner-gated only — awaiting owner verification before public launch.** `ObjectiveRow` (inline in `SeriesLivePulse.jsx`) renders `Towers {rt} · {dt}` directly under the momentum band, above `LiveGoldGraph`, when `isOwner && showLiveStory && pulse.objectives` — `isOwner` is a newly-threaded prop (`App.jsx` → `LiveSeriesSheet.jsx` → `SeriesLivePulse.jsx`), an explicit frontend gate layered on top of the API's existing owner gate (defense-in-depth, not the only thing preventing public visibility). Visual spec: `DESIGN_GUIDELINES.md` "Objective row." Tests: `src/__tests__/series-live-pulse-objectives.test.jsx` (owner gate, spoiler gate, objectives-absent, name-fallback, pre-resolve states).
 
-**Gate:** EWC 2026 Tier-1 freeze must lift (or ship owner-gated-only during the freeze tail with explicit owner approval) before the public flip — per the standing freeze-discipline rule, never flip a public UI flag mid-Tier-1-event.
+**Gate before going public:** EWC 2026 Tier-1 freeze must lift (or explicit owner approval during the freeze tail) — per the standing freeze-discipline rule, never flip a public UI flag mid-Tier-1-event. Verify on a real live game in owner mode first (that's the point of this build).
 
-**What ships:**
-- `ObjectiveRow` element in `SeriesLivePulse.jsx`, placed directly under the momentum band, above `LiveGoldGraph` (state-read surfaces grouped together, ahead of the net-worth *history* graph).
-- One line, `tabular-nums`, green Radiant / red Dire (reuse `GoldGraph`'s convention, no new palette): `Towers 9·4` style, uppercase micro-label (`OBJECTIVES` or `MAP`).
-- Renders only when `pulse.objectives` is present — the server already handles confidence-gating and owner-gating, so a non-owner or low-confidence payload simply has no field to render; no new frontend gate logic needed.
-- Spoiler-free: include inside the existing `showLiveStory = !spoilerFree` block (objective state reveals who's winning, same rule as score/momentum/graph).
-- Retain-last-known: keys off the same `pulse` object the block already retains via `nextPulseState` — no separate stale timer.
-- `aria-label` summarizing state ("Objectives: {teamA} 9 towers, {teamB} 4 towers"), never icon-only.
-- Real 400px mobile viewport check (one line, no horizontal scroll) per the deployment checklist.
-- Owner→public launch: since `objectives` is already payload-gated to owners (Phase C), going public is a **one-line server-side change** (drop the `isOwner` guard in `liveGamePulse.js`) — no new frontend flag needed, mirrors exactly how `history` will eventually go public.
+**Going public is a one-line change** — drop the `isOwner &&` in `SeriesLivePulse.jsx` (the API's own `isOwner` gate in `liveGamePulse.js` also needs dropping at the same time, or the field never reaches non-owners regardless of the frontend flag) — not a redesign.
 
-**Also needed for launch (not yet done):**
-- GA4 events: `live_map_state_shown` ({ confidence }), `live_map_state_omitted` (the key decoder-reliability proxy — watch this after any Dota patch, a step-change means the bit layout moved and Phase B needs re-running).
-- `DESIGN_GUIDELINES.md` entry for the objective/map-state row (hand to `/ux-design`).
-- Decoder unit tests already exist (`__tests__/building-state.test.js`) — add a frontend snapshot test for the row's render/omit/spoiler states (house pattern, mirrors the graph/momentum tests).
+**Still not done, needed before the public flip:**
+- GA4 events: `live_map_state_shown` ({ confidence }), `live_map_state_omitted` (the key decoder-reliability proxy — watch this after any Dota patch, a step-change means the bit layout moved and Phase B needs re-running). Deliberately skipped in the 2026-07-25 build — not needed for owner-only verification, and the `omitted` event in particular needs a design decision about how the client would even distinguish "not owner" from "low confidence" from "draft phase" (today they're all indistinguishable — the field is just absent).
+- About page + Release Notes entries (skip while owner-gated, per the Owner-Only Features convention in `.claude/claude_instructions_template.md` — add both at the same time as the public flip).
+- Real 400px mobile viewport check on an actual live game (per the deployment checklist) — not yet done against production data, only unit-tested.
 - About page + Release Notes entries once public (skip while owner-gated, per the Owner-Only Features convention).
 
 **Effort:** S. **Risk:** Low — the only new frontend logic is a presence check and a spoiler gate, both existing patterns in the same file.

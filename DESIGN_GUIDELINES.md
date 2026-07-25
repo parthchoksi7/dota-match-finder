@@ -772,6 +772,16 @@ Two surfaces inside the running-game block of `SeriesLivePulse.jsx`. Both are bu
 - **Partial-history honesty:** if the first captured point isn't near kickoff (`t > 90`), render a `Since MM:SS — full trend after the game ends` caption rather than implying the line covers the whole game.
 - `role="img"` + a trend `aria-label` ("Net worth trend, trending up"). GA: `live_gold_scrub { source }`.
 
+### Objective row (`SeriesLivePulse.jsx`, R4 — owner-only during verification)
+
+Compact one-line tower-count readout, placed directly under the momentum band and above `LiveGoldGraph` — the two other "state read" surfaces sit together, ahead of the graph's *history*. Sourced from `pulse.objectives = { rt, dt }` (decoded server-side, `api/_buildingState.js`), which is only present at all when confidence is high — the row has no separate loading/low-confidence state to design because an absent field already means "don't render."
+
+- Tertiary label `Towers` (`text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500`) — same style as the "Picks" label above the draft grid, not a new label treatment.
+- Value: `{rt} · {dt}`, `text-xs font-bold tabular-nums`, Radiant count in `text-green-600 dark:text-green-500`, Dire count in `text-red-600 dark:text-red-500` (the exact team-name color pair the Picks section headers already use) — plain colored text, not a chip/pill, matching how the momentum band and lead badges render colored text directly rather than boxing every colored value.
+- No barracks/rax slot exists or is planned in this row — confirmed not decodable from the source field (see `CONTEXT.md`, "R4.0 decode spike"). Don't leave visual room for a second stat that will never arrive.
+- `aria-label` on the wrapping `<p>` states the full sentence ("Objectives: {team} N towers standing, {team} N towers standing"); the visible spans are `aria-hidden` so assistive tech reads the sentence once, not the raw glyphs.
+- Gated by `isOwner && showLiveStory` (spoiler-free hides it, same rule as momentum/stakes/graph) — explicitly owner-only right now, independent of the fact that the API already only returns `objectives` for owner requests. Going public later is a one-line change (drop the `isOwner &&`), not a redesign.
+
 ### Live draft rows (`SeriesLivePulse.jsx` `DraftPickRow`)
 - **Same row shape as `DraftDisplay`'s spoiler-free row** (do NOT design a separate pattern — mirror it so the two never drift): two columns headed by the team name (`text-[10px] font-semibold uppercase tracking-widest`, green-600/red-600), then per-pick rows — `flex items-center gap-2 px-2 py-1.5 rounded border`, side-tinted (`bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50` / red), a 32px hero icon (`w-8 h-8 rounded-sm`), and the hero name (`font-semibold text-xs truncate min-w-0`).
 - **Deliberately omits per-player KDA and player IGN.** OD `/live` carries no per-player kills/deaths/assists (only the team-level score, shown in the score row), and player names aren't captured yet. The row is the same shape a future IGN/stat slot attaches to — not a dead end.

@@ -122,7 +122,7 @@ function DraftPickRow({ heroKey, heroName, playerName, side }) {
 // `true` below always requests `history` from the pulse endpoint (api/_handlers/liveGamePulse.js
 // still checks its own `&owner=1` query param, which this satisfies unconditionally now that the
 // surface is public — left as-is server-side since it's harmless and already tested).
-export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams }) {
+export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
 
@@ -231,6 +231,21 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
           </span>
           <span className="ml-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-600 normal-case tracking-normal">
             game time {formatClock(pulse.gameTime)}
+          </span>
+        </p>
+      )}
+      {isOwner && showLiveStory && pulse.objectives && (
+        <p
+          className="mb-1.5 flex items-baseline gap-1.5"
+          aria-label={`Objectives: ${pulse.radiantName || 'Radiant'} ${pulse.objectives.rt} towers standing, ${pulse.direName || 'Dire'} ${pulse.objectives.dt} towers standing`}
+        >
+          <span aria-hidden="true" className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+            Towers
+          </span>
+          <span aria-hidden="true" className="text-xs font-bold tabular-nums">
+            <span className="text-green-600 dark:text-green-500">{pulse.objectives.rt}</span>
+            <span className="mx-1 text-gray-400 dark:text-gray-600">·</span>
+            <span className="text-red-600 dark:text-red-500">{pulse.objectives.dt}</span>
           </span>
         </p>
       )}
