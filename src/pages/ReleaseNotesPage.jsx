@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 25, 2026",
+    tag: "fix",
+    title: "Fixed wrong hero names on hero pages and match pages",
+    desc: "Hero pages and the hero draft/stats tables on match pages could show an outdated internal name instead of a hero's real name for roughly a third of the roster (for example Shadow Fiend showed as \"Nevermore\", Windranger as \"Windrunner\"). This affected the page content seen by search engines, social link previews, and AI crawlers. Hero names now always match the real, current name.",
+  },
+  {
     date: "July 21, 2026",
     tag: "fix",
     title: "Grand Final trophy badge now shows on the match page and in search",
