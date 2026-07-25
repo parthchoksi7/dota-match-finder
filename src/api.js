@@ -498,13 +498,21 @@ export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesSta
 let heroCache = null
 let heroFetchPromise = null
 
+// Test-only: clears the in-memory cache so each test starts cold.
+export function _resetHeroCacheForTests() {
+  heroCache = null
+  heroFetchPromise = null
+}
+
 export async function fetchHeroes() {
   if (heroCache) return heroCache
   try {
     const cached = localStorage.getItem(STORAGE_KEYS.HEROES)
     if (cached) {
       const { ts, data } = JSON.parse(cached)
-      if (Date.now() - ts < 24 * 3600 * 1000) {
+      // A previously-poisoned empty entry (see the empty-map guard below) must not be
+      // trusted just because it's within the TTL window — fall through and refetch.
+      if (Date.now() - ts < 24 * 3600 * 1000 && data && Object.keys(data).length > 0) {
         heroCache = data
         return heroCache
       }
@@ -526,6 +534,14 @@ export async function fetchHeroes() {
         key: h.name.replace('npc_dota_hero_', '')
       }
     }
+    // ?mode=heroes-proxy fails open with `[]` (HTTP 200) whenever OpenDota itself is down or
+    // rate-limited, indistinguishable here from a real empty list. Caching that as fact would
+    // lock every hero name/icon to the "Hero {id}" + blank-placeholder fallback for this
+    // browser for a full 24h, even after OpenDota recovers a moment later. Only a non-empty
+    // map is trustworthy enough to cache; an empty one is returned as-is for this call only,
+    // so the very next fetchHeroes() call retries the network instead of reading a poisoned
+    // cache (same fail-open-without-caching pattern as fetchTier1Teams() below).
+    if (Object.keys(map).length === 0) return map
     heroCache = map
     try {
       localStorage.setItem(STORAGE_KEYS.HEROES, JSON.stringify({ ts: Date.now(), data: heroCache }))

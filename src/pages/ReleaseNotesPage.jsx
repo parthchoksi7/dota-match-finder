@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "July 25, 2026",
     tag: "fix",
+    title: "Fixed hero names and icons sometimes showing as blank placeholders",
+    desc: "A brief hiccup fetching hero data could get remembered as \"there are no heroes\" for up to 24 hours, so every hero in a draft or player list showed as generic text like \"Hero 119\" next to an empty colored box instead of the hero's name and icon. Hero data is no longer cached when the fetch comes back empty, so a retry on the very next match you open recovers immediately instead of staying broken for the rest of the day.",
+  },
+  {
+    date: "July 25, 2026",
+    tag: "fix",
     title: "Fixed wrong hero names on hero pages and match pages",
     desc: "Hero pages and the hero draft/stats tables on match pages could show an outdated internal name instead of a hero's real name for roughly a third of the roster (for example Shadow Fiend showed as \"Nevermore\", Windranger as \"Windrunner\"). This affected the page content seen by search engines, social link previews, and AI crawlers. Hero names now always match the real, current name.",
   },

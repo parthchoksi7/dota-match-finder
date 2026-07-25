@@ -149,7 +149,14 @@ export async function getHeroDataSSR(origin) {
     clearTimeout(timer)
     if (!res?.ok) return empty
     const heroes = await res.json().catch(() => null)
-    if (!Array.isArray(heroes)) return empty
+    // ?mode=heroes-proxy fails open with `200` + `[]` whenever OpenDota itself is down or
+    // rate-limited (api/tournaments.js) — indistinguishable here from a real empty list.
+    // _heroSsrCache has no TTL and this Edge Middleware instance can stay warm across many
+    // requests, so caching an empty result would silently regress every /heroes/:slug and
+    // /match/:slug render back to the wrong slug-derived name for as long as the instance
+    // lives, well after OpenDota recovers. Only a non-empty payload is cached; an empty/
+    // invalid one is returned as-is for this request only, so the next request retries.
+    if (!Array.isArray(heroes) || heroes.length === 0) return empty
     const bySlug = {}, byId = {}
     for (const h of heroes) {
       const slug = (h.name || '').replace('npc_dota_hero_', '')

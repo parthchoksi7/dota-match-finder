@@ -89,6 +89,32 @@ describe('getHeroDataSSR', () => {
     expect(byId).toEqual({})
   })
 
+  // api/tournaments.js's ?mode=heroes-proxy responds 200 + `[]` (not a non-2xx status) whenever
+  // OpenDota itself is down or rate-limited — this is the realistic production failure shape,
+  // and the one that must NOT be cached: _heroSsrCache has no TTL, so caching an empty result
+  // here would silently regress every hero page/match page back to the wrong slug-derived name
+  // for as long as the warm instance lives, well after OpenDota recovers.
+  it('does not cache a 200-ok-but-empty-array response (the real heroes-proxy failure shape)', async () => {
+    installFetchMock([['mode=heroes-proxy', () => mockResponse({ body: [] })]])
+    const { bySlug, byId } = await getHeroDataSSR('https://example.com')
+    expect(bySlug).toEqual({})
+    expect(byId).toEqual({})
+  })
+
+  it('retries on the next call after a 200-empty-array response, instead of serving a poisoned cache once OpenDota recovers', async () => {
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce(mockResponse({ body: [] })) // OpenDota down on first attempt
+      .mockResolvedValueOnce(mockResponse({ body: HEROES_PROXY_FIXTURE })) // recovered
+    global.fetch = fetchSpy
+
+    const first = await getHeroDataSSR('https://example.com')
+    expect(first.bySlug).toEqual({})
+
+    const second = await getHeroDataSSR('https://example.com')
+    expect(second.bySlug.nevermore).toEqual({ id: 11, name: 'Shadow Fiend' })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
   it('caches a successful result so a second call does not refetch', async () => {
     const fetchSpy = vi.fn(() => Promise.resolve(mockResponse({ body: HEROES_PROXY_FIXTURE })))
     global.fetch = fetchSpy
