@@ -49,7 +49,7 @@
  *
  * This script (static popcount diff + --watch flip logger) is kept for reference/future
  * spikes but was NOT the tool that solved this one — the passive live_game_gold timeseries
- * was. See risk #1 in .claude/specs/live-story-r4-implementation-plan.md for that lesson.
+ * was. See the "recurring lessons" section of .claude/specs/live-story-shipped.md for that lesson.
  */
 
 import { createClient } from '@supabase/supabase-js'
