@@ -282,6 +282,11 @@ function App() {
   // Bumped whenever the live sheet is dismissed or swapped to a different series, so a replay
   // fetch that resolves afterward can tell it's stale and skip opening MatchDrawer.
   const liveReplayTokenRef = useRef(0)
+  // PandaScore id of the live series a MatchDrawer game was reached FROM (via the live sheet's
+  // finished-game tap-through) - lets the drawer's game switcher offer a tab back to the live
+  // game, since that game has no OD id yet and can't be one of `seriesGames`. Cleared whenever
+  // the drawer is dismissed or a fresh, unrelated match/series is opened.
+  const [returnToLiveSeriesId, setReturnToLiveSeriesId] = useState(null)
   // Bumped on every handleSelectMatch call, so a slow (cold cache) resolveMatchStreams response
   // for an earlier click can tell it's been superseded by a later selection and skip clobbering
   // selectedMatch back to the older match. Same staleness-guard pattern as liveReplayTokenRef —
@@ -825,6 +830,11 @@ function App() {
     setSummaryError(null)
     setSummaryErrorMatchId(null)
     setSummaryLoading(false)
+    // 'game_switcher' and 'live_series_replay' stay within the same series a "return to live"
+    // tab might already be tracking - any other source is a fresh, unrelated selection.
+    if (source !== 'game_switcher' && source !== 'live_series_replay') {
+      setReturnToLiveSeriesId(null)
+    }
 
     if (match.unplayed) {
       setSelectedMatch(match)
@@ -937,6 +947,7 @@ function App() {
     if (liveReplayLoadingId) return // a replay fetch is already in flight — ignore extra clicks
     trackEvent('live_series_replay', { odMatchId })
     const token = ++liveReplayTokenRef.current
+    const psSeriesId = selectedLiveSeries?.id ?? null
     setLiveReplayLoadingId(odMatchId)
     try {
       const match = await fetchAppMatchFromOpenDota(odMatchId)
@@ -949,12 +960,31 @@ function App() {
       // into one render: no frame where neither is mounted (which used to flash the bare
       // homepage while the fetch above was in flight).
       closeLiveSeriesSheet()
+      // Remember which live series this game came from so the drawer's switcher can offer a
+      // tab straight back to it (that game has no OD id yet, so it can never be a `seriesGames`
+      // entry the switcher already knows how to render).
+      setReturnToLiveSeriesId(psSeriesId)
       handleSelectMatch(match, 'live_series_replay')
     } catch {
       // silently fail — sheet stays open
     } finally {
       if (liveReplayTokenRef.current === token) setLiveReplayLoadingId(null)
     }
+  }
+
+  // Reverse of handleLiveSeriesReplay: jump from a MatchDrawer game back to the live series it
+  // came from, via the switcher's live tab. Reuses handleSelectLiveMatch rather than restoring
+  // stale sheet state, so it picks up whatever `liveMatches` currently has for that series.
+  function handleReturnToLiveSeries() {
+    if (!returnToLiveSeriesId) return
+    setSelectedMatch(null)
+    setSummary(null)
+    setSummaryMatchId(null)
+    setSummaryError(null)
+    setSummaryErrorMatchId(null)
+    setCachedSummaryForSelected(null)
+    setCopyFeedback(null)
+    handleSelectLiveMatch(returnToLiveSeriesId)
   }
 
   async function handleDraftPosts(series) {
@@ -1093,6 +1123,7 @@ function App() {
     setSummaryErrorMatchId(null)
     setCachedSummaryForSelected(null)
     setCopyFeedback(null)
+    setReturnToLiveSeriesId(null)
     window.history.replaceState(null, "", "/")
     setTimeout(() => {
       if (targetSeriesId) {
@@ -1171,7 +1202,18 @@ function App() {
     : null
   const seriesGames = selectedSeriesIds ? orderSeriesGames(selectedSeriesIds, allMatches) : []
 
-  const gameSwitcher = seriesGames.length > 1 ? (
+  // The still-running game of the live series this drawer's game was reached from, if any - it
+  // has no OD id yet so it can never appear in `seriesGames` above. Surfacing it as an extra
+  // switcher tab is what lets a fan get back to "G2" after tapping into a finished "G1" from the
+  // live sheet, instead of the switcher silently having no way back to what's actually live.
+  const returnToLiveMatch = returnToLiveSeriesId
+    ? liveMatches.find(m => String(m.id) === String(returnToLiveSeriesId))
+    : null
+  const returnToLiveGame = returnToLiveMatch
+    ? (returnToLiveMatch.games || []).find(g => g.status === 'running')
+    : null
+
+  const gameSwitcher = (seriesGames.length > 1 || returnToLiveGame) ? (
     <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
       {seriesGames.map((game, idx) => {
         const winner = !spoilerFree
@@ -1199,6 +1241,16 @@ function App() {
           </button>
         )
       })}
+      {returnToLiveGame && (
+        <button
+          type="button"
+          onClick={handleReturnToLiveSeries}
+          className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden="true" />
+          G{returnToLiveGame.position}
+        </button>
+      )}
     </div>
   ) : null
 
