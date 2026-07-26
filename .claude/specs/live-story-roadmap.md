@@ -1,8 +1,9 @@
 # Live Story — Remaining Scope & Roadmap
 
 **Status:** Active planning reference — prioritized.
-**Last consolidated:** 2026-07-25
+**Last consolidated:** 2026-07-26
 **Companion doc:** `live-story-shipped.md` (everything already live). Full technical grounding for the shipped foundation this roadmap builds on: `CONTEXT.md`.
+**Independent corroboration (2026-07-26):** a fan-need discovery pass (`/dota_pm`, "list your unmet needs as a Tier-1 fan") independently surfaced Priority 1, 2a, 2b, and three Priority-3 items (Roshan timer, live event markers, public pick'em) below as top unmet needs — external validation, not new information, except where noted inline. Everything that pass surfaced outside Live Story's scope is tracked in `.claude/product-backlog.md` instead, to keep one canonical home per item.
 
 This replaces the remaining-scope content that was spread across `live-story.md` (§R3/R4), `live-story-v1.1-remaining-scope.md`, `live-story-v1.1-implementation-plan.md`, and `live-story-r4-implementation-plan.md`'s unfinished phases. Those files are deleted; what was still actionable in them is preserved below.
 
@@ -60,6 +61,8 @@ Per the original spec's own words, this is the strongest discovery-layer play: i
 
 **Why it's not further along:** it's architecturally distinct from everything above — it means joining live telemetry (`live_game_map`/`live_game_gold`) into `live-matches.js`'s row rendering, the first time live telemetry crosses from the companion sheet into the ambient feed. Data-freshness-for-a-list-of-N-rows is a different problem than data-freshness-for-one-open-sheet, and deserves its own product spec rather than being bolted onto this roadmap.
 
+**Corroborated by fan-need research (2026-07-26):** independently identified as the top unmet need for a fan managing multiple simultaneous live games (cross-referenced, not duplicated, in `.claude/product-backlog.md`). One clarification worth carrying into the eventual spec: the per-game telemetry itself (`radiant_lead`/`radiant_score`/`dire_score`/`game_time`/`building_state`) is *already* captured for every live tier-1 game by the existing capture cron, not just the one game a fan has an open sheet for — so the "new architectural surface" is specifically the cross-game query + new feed-row UI, not new data collection.
+
 **Recommendation carried forward unchanged:** commission a dedicated PM spec for this before any engineering plan is written, in parallel with or immediately after whichever of R3/R4-Phase-D ships next. Don't build it blind off a paragraph of prior reasoning.
 
 **Effort:** M–L (new architectural surface). **Risk:** design risk (needs its own product thinking), not build risk.
@@ -73,7 +76,7 @@ None of these have a specific trigger pulling them forward. Revisit if a specifi
 - **Trained live win-probability model** — replace the qualitative momentum bands (`EVEN`/`AHEAD`/`FAR_AHEAD`) with a real model once enough labeled live→final data exists.
 - **Per-player net worth bars** via Steam `GetRealtimeStats` — new third-party dependency, new ingestion; `server_steam_id` is already captured and ready for this.
 - **Notable-event markers on the live graph** — reuse the existing post-game indicator detection (Roshan/Rampage/Rapier/teamfight) as live markers on `LiveGoldGraph`, the way `GoldGraph` already does post-game.
-- **Roshan / Aegis timers** — inferred, harder; not directly exposed by `/live`. Investigate feasibility separately.
+- **Roshan / Aegis timers** — inferred, harder; not directly exposed by `/live`. Investigate feasibility separately. Best untried lead (2026-07-26): the per-player net-worth bullet above already has `server_steam_id` captured and unused — worth checking whether Valve's `GetRealtimeStats` exposes Roshan state via that same path before assuming this needs a wholly new data source. Unconfirmed either way — public API docs don't settle it, and nobody on this project has spiked it yet.
 - **Public live pick'em** — the pre-match prediction poll is owner-only today; a public live "who wins?" is a retention hook, deserves its own spec.
 - **Feed live telemetry into the durable post-match `/match/:id` + AI-intelligence page** — the citation-asset play ("the game broke open when the second rax fell at 38:00" as an evergreen, citable fact). Ties into the AI-match-intelligence work; not urgent since the raw data (`live_game_gold`, decoded objectives) already accrues and isn't going anywhere.
 - **"Gold" vs. "Net Worth" label reconciliation** — the live surface says Net Worth, the post-game `GoldGraph` still says Gold. Small, cosmetic, low priority; revisit only if it causes real user confusion.

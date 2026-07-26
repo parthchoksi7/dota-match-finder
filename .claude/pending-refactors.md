@@ -56,7 +56,6 @@ Exempt from RICE: work that literally cannot start yet.
 |---|---|---|---|---|---|---|
 | 1 | `font-display: swap` for Barlow font | 5 | 2 | 90% | 0.5 | **18.0** |
 | 6 | Extract shared `GameSwitcher` component | 3 | 3 | 90% | 1 | **8.1** |
-| 5 | VOD pre-fetch in background | 4 | 2 | 80% | 1 | **6.4** |
 | 7 | Add Sentry error monitoring | 5 | 4 | 90% | 3 | **6.0** |
 | 8 | Batch push-subscriber KV reads in `sendPushNotificationsForMatches` | 4 | 4 | 80% | 3 | **4.3** |
 | 21 | Dead `FormatTooltip` component in `TournamentHub.jsx` | 1 | 1 | 90% | 0.25 | **3.6** |
@@ -81,19 +80,6 @@ Exempt from RICE: work that literally cannot start yet.
 - **Fix:** Extract `src/components/GameSwitcher.jsx` — a presentational component taking `tabs: [{ key, label, sublabel?, isLive?, isActive, onClick }]` and `disabled`, rendering the segmented-control visual treatment (chosen as canonical — it's the pattern `DESIGN_GUIDELINES.md` already documents for "switching between views within a contained component," and it already carries the richer team-name label). Refactor both `LiveSeriesSheet.jsx` and `App.jsx`'s `gameSwitcher` construction to build a `tabs` array and render through it, instead of each hand-writing its own `<button>` markup. Correct `DESIGN_GUIDELINES.md`'s "Source/account picker chips" entry, which currently (incorrectly) cross-references the Live Series Companion's game switcher as a second use of that pattern — remove that line and note `GameSwitcher.jsx` under the segmented-control entry instead.
 - **A quick visual-parity patch (not the full extraction) landed 2026-07-26** to stop the bleeding in the meantime — see the corresponding Completed Archive entry once done. This item is the follow-up: the two implementations still need to become one file so they can't drift again.
 - **Full spec:** produced via `/ux-design` 2026-07-26 (conversation history), covering the canonical-style verdict and per-state behavior.
-
-### 5. VOD pre-fetch in background
-- **What:** When a user clicks a game row, start resolving the VOD before the drawer finishes opening. Currently the "Finding VOD…" spinner only starts after the drawer is open.
-- **2026-07-20 attempt reverted — read before retrying.** A first pass (5-min TTL promise cache around `resolveMatchStreams` + sibling pre-warm on drawer open) was built, then reverted on independent review, for two separate reasons:
-  1. **Governance:** `resolveMatchStreams` is the entry point to the LOCKED VOD Replay System (`.claude/claude_instructions_template.md`). The owner had not pre-approved a change there; asked mid-session, the owner chose to defer rather than approve blind. **Any future attempt needs owner sign-off on the specific diff before it lands, not after.**
-  2. **Correctness, found by the independent reviewer before that governance question was even raised.**
-- **2026-07-21 attempt — implemented, awaiting owner sign-off on the diff before it's considered landed.** `src/vodPrefetchCache.js` (new file) wraps the unchanged `resolveMatchStreams` in a client-side promise cache; `App.jsx` calls it from `handleSelectMatch` and from `onMouseEnter`/`onTouchStart` on the game-switcher chips. All 3 previously-identified correctness gaps addressed in this pass:
-     - Cache entries are invalidated once `allMatches.length` has grown past what was recorded at write time (sibling-set growth can only make a stale entry worse, never better).
-     - `clearVodPrefetchCache()` is called from `refreshAll` (pull-to-refresh's handler), so a refresh always gets a clean slate.
-     - `selectMatchTokenRef` (same pattern as the existing `liveReplayTokenRef`) guards every `setSelectedMatch` call following an async resolution — bumped in `handleSelectMatch`, `dismissPanel`, `handleSearch`, and `handleClearSearch` — so a stale in-flight resolution from a superseded/dismissed selection can no longer clobber `selectedMatch`.
-     - Sibling prefetch is gated on hover/touchstart on a game-switcher chip (not fired unconditionally for every sibling on drawer open), and skips the already-selected game.
-  - Regression tests: `src/__tests__/vod-prefetch-cache.test.js` (9 cases covering cache hits, `allMatches`-growth invalidation, TTL expiry, rejected-resolution eviction, and pull-to-refresh clearing).
-  - Analytics (`replay_source`) stayed inside `resolveMatchStreams`, unchanged.
 
 ### 7. Add Sentry error monitoring
 - **Files:** `api/_shared.js`, all handler files, `vite.config.js`
