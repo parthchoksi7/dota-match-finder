@@ -857,7 +857,12 @@ function App() {
   }
 
   function handleOpenSeries(series) {
-    handleSelectMatch(series.games[0])
+    // A decided series has no "live" game to default to, so land on the game that actually
+    // ended it (the last one played) instead of always G1 — games are startTime-ascending
+    // (see groupIntoSeries), so that's the last entry. Games in progress still open on G1,
+    // since that's the earliest still-relevant game to a fan checking in on it.
+    const target = isSeriesComplete(series) ? series.games[series.games.length - 1] : series.games[0]
+    handleSelectMatch(target)
   }
 
   async function handleSummarize(match) {

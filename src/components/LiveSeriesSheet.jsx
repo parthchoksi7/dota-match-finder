@@ -149,8 +149,22 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
                 type="button"
                 disabled={!!loadingGameId}
                 onClick={() => {
-                  setPinnedPosition(tab.position)
                   trackEvent('live_series_tab_click', { position: tab.position, status: tab.kind })
+                  // A finished game whose OD match id has already resolved gets the same full
+                  // MatchDrawer treatment as a genuinely completed series' game (score, VOD
+                  // buttons, draft breakdown) instead of this sheet's abbreviated summary row -
+                  // reuses the exact row-click path (onReplay) rather than duplicating that view
+                  // here. Still-indexing games (no matchId yet) fall through to the inline
+                  // "Stats indexing" placeholder via pinnedPosition, same as clicking the row.
+                  if (tab.kind === 'finished') {
+                    const finishedGame = finishedGames.find(g => g.position === tab.position)
+                    const gameMatchId = finishedGame && (finishedGame.matchId || resolvedIds[finishedGame.position] || null)
+                    if (gameMatchId && onReplay) {
+                      onReplay(gameMatchId)
+                      return
+                    }
+                  }
+                  setPinnedPosition(tab.position)
                 }}
                 aria-current={isActive ? 'true' : undefined}
                 className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${

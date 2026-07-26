@@ -40,13 +40,38 @@ describe('LiveSeriesSheet game switcher', () => {
     expect(screen.getByRole('button', { name: 'G2' })).toHaveAttribute('aria-current', 'true')
   })
 
-  it('switches to a finished game on tab click and fires the tab-click event', () => {
+  it('opens the full match drawer directly when a finished game with a resolved OD id is tapped', () => {
+    // A finished game whose OD match is already indexed should get the same full-drawer
+    // treatment as a genuinely completed series' game, not this sheet's abbreviated summary.
+    const onReplay = vi.fn()
     render(
-      <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
+      <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={onReplay} loadingGameId={null} spoilerFree={false} />
     )
     fireEvent.click(screen.getByRole('button', { name: 'G1' }))
     expect(trackEvent).toHaveBeenCalledWith('live_series_tab_click', { position: 1, status: 'finished' })
-    expect(screen.getByRole('button', { name: /Game 1/ })).toBeInTheDocument()
+    expect(onReplay).toHaveBeenCalledWith('od1')
+    // The sheet itself stays pinned on the live game — G1 didn't switch it to the summary view.
+    expect(screen.getByText(/Live pulse/)).toBeInTheDocument()
+  })
+
+  it('falls back to the inline summary for a finished game with no resolved OD id yet', () => {
+    const unresolvedMatch = {
+      ...match,
+      games: [
+        { position: 1, status: 'finished', winnerName: 'Team Falcons' },
+        { position: 2, status: 'running' },
+      ],
+    }
+    const onReplay = vi.fn()
+    render(
+      <LiveSeriesSheet match={unresolvedMatch} onDismiss={() => {}} onReplay={onReplay} loadingGameId={null} spoilerFree={false} />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'G1' }))
+    expect(onReplay).not.toHaveBeenCalled()
+    // No matchId yet, so the row isn't clickable and shows the winner name plus the
+    // "Stats indexing" placeholder instead of a draft strip.
+    expect(screen.getByText('Team Falcons')).toBeInTheDocument()
+    expect(screen.getByText('Stats indexing')).toBeInTheDocument()
     expect(screen.queryByText(/Live pulse/)).not.toBeInTheDocument()
   })
 
@@ -97,16 +122,26 @@ describe('LiveSeriesSheet game switcher', () => {
   })
 
   it('does NOT auto-follow a newly-live game once the fan has manually picked a tab', () => {
+    // G1 has no resolved OD id here so the click pins the inline summary instead of shortcutting
+    // to onReplay - keeps this test isolated to pin/auto-follow behavior, not the replay handoff
+    // covered above.
+    const unresolvedMatch = {
+      ...match,
+      games: [
+        { position: 1, status: 'finished', winnerName: 'Team Falcons' },
+        { position: 2, status: 'running' },
+      ],
+    }
     const { rerender } = render(
-      <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
+      <LiveSeriesSheet match={unresolvedMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
     )
     fireEvent.click(screen.getByRole('button', { name: 'G1' }))
     expect(screen.getByRole('button', { name: 'G1' })).toHaveAttribute('aria-current', 'true')
 
     const g3LiveMatch = {
-      ...match,
+      ...unresolvedMatch,
       games: [
-        { position: 1, status: 'finished', matchId: 'od1', winnerName: 'Team Falcons' },
+        { position: 1, status: 'finished', winnerName: 'Team Falcons' },
         { position: 2, status: 'finished', matchId: 'od2', winnerName: 'Xtreme Gaming' },
         { position: 3, status: 'running' },
       ],
