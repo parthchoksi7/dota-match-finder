@@ -1,9 +1,12 @@
 /**
- * Coverage for the R4 objective row in SeriesLivePulse.jsx (owner-only during verification —
- * see DESIGN_GUIDELINES.md "Objective row"). The row renders only when ALL of these hold:
- * isOwner, spoiler-free is off, and the resolved pulse carries `objectives` (server already
- * confidence-gates that field, so its mere presence is sufficient — no separate low-confidence
- * state to test here, same reasoning as `series-live-pulse-watch.test.jsx`'s sibling surfaces).
+ * Coverage for the R4 tower map (DotaMinimap) rendering inside SeriesLivePulse.jsx
+ * (owner-only during verification — see DESIGN_GUIDELINES.md "Tower map"). The map renders
+ * only when ALL of these hold: isOwner, spoiler-free is off, and the resolved pulse carries
+ * `objectives` (server already confidence-gates that field, so its mere presence is
+ * sufficient — no separate low-confidence state to test here, same reasoning as
+ * `series-live-pulse-watch.test.jsx`'s sibling surfaces). DotaMinimap's own rendering details
+ * (marker count, destroyed-state, the unknown-data caption) are covered in
+ * `dota-minimap.test.jsx` — this file only tests the gating that decides whether it mounts.
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
@@ -59,37 +62,33 @@ async function renderPulse(pulse, propOverrides = {}) {
   return result
 }
 
-describe('SeriesLivePulse — objective row (owner-only)', () => {
-  it('renders the tower counts when isOwner, not spoiler-free, and objectives is present', async () => {
-    await renderPulse(pulseWith({ objectives: { rt: 9, dt: 4 } }))
-    const row = screen.getByLabelText('Objectives: Team Lynx 9 towers standing, KW 4 towers standing')
-    expect(row).toHaveTextContent('9')
-    expect(row).toHaveTextContent('4')
+const OBJECTIVES = { radiant: [3, 3, 3], dire: [1, 3, 2] }
+
+describe('SeriesLivePulse — tower map gating (owner-only)', () => {
+  it('renders the map when isOwner, not spoiler-free, and objectives is present', async () => {
+    await renderPulse(pulseWith({ objectives: OBJECTIVES }))
+    expect(screen.getByRole('img', { name: /Team Lynx:/ })).toBeInTheDocument()
+    expect(screen.getByText(/barracks, base towers & ancient status unknown/i)).toBeInTheDocument()
   })
 
-  it('falls back to Radiant/Dire in the aria-label when team names are missing', async () => {
-    await renderPulse(pulseWith({ radiantName: null, direName: null, objectives: { rt: 3, dt: 7 } }))
-    expect(screen.getByLabelText('Objectives: Radiant 3 towers standing, Dire 7 towers standing')).toBeInTheDocument()
-  })
-
-  it('renders nothing when objectives is absent (low-confidence or not-yet-decoded, indistinguishable to the client)', async () => {
+  it('renders nothing map-related when objectives is absent (low-confidence or not-yet-decoded, indistinguishable to the client)', async () => {
     await renderPulse(pulseWith())
-    expect(screen.queryByText('Towers')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })
 
   it('renders nothing when isOwner is false, even though objectives is present (API already gates this, frontend gate is defense-in-depth)', async () => {
-    await renderPulse(pulseWith({ objectives: { rt: 9, dt: 4 } }), { isOwner: false })
-    expect(screen.queryByText('Towers')).not.toBeInTheDocument()
+    await renderPulse(pulseWith({ objectives: OBJECTIVES }), { isOwner: false })
+    expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })
 
   it('renders nothing in spoiler-free mode, even for an owner with objectives present', async () => {
-    await renderPulse(pulseWith({ objectives: { rt: 9, dt: 4 } }), { spoilerFree: true })
-    expect(screen.queryByText('Towers')).not.toBeInTheDocument()
+    await renderPulse(pulseWith({ objectives: OBJECTIVES }), { spoilerFree: true })
+    expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })
 
   it('does not render before the pulse resolves', async () => {
     fetchLiveGamePulse.mockResolvedValue(null)
     await act(async () => { render(<SeriesLivePulse {...baseProps} />) })
-    expect(screen.queryByText('Towers')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })
 })

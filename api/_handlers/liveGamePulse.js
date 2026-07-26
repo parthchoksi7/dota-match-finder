@@ -133,7 +133,11 @@ export async function resolvePulse(pandaId, isOwner, log) {
       // string, and decodeBuildingState's Number.isFinite gate does not coerce.
       const decoded = decodeBuildingState(Number(row.building_state))
       if (decoded.confidence === 'high') {
-        pulse.objectives = { rt: decoded.rt, dt: decoded.dt }
+        // Per-lane [top, mid, bot] standing-tower counts (0-3 each) — deliberately no
+        // barracks/tier-4/Ancient fields; those are not derivable from this data source (see
+        // api/_buildingState.js). Never add them here even as null placeholders — the frontend
+        // map (DotaMinimap.jsx) treats their absence as "draw nothing," not "draw destroyed."
+        pulse.objectives = { radiant: decoded.radiant, dire: decoded.dire }
       }
     }
 

@@ -3,6 +3,7 @@ import { fetchLiveGamePulse, fetchHeroes } from '../api'
 import { trackEvent } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
 import HeroIcon from './HeroIcon'
+import DotaMinimap from './DotaMinimap'
 import LiveGoldGraph from './LiveGoldGraph'
 import SeriesScoreRow from './SeriesScoreRow'
 import LiveStreamPicker from './LiveStreamPicker'
@@ -235,19 +236,12 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
         </p>
       )}
       {isOwner && showLiveStory && pulse.objectives && (
-        <p
-          className="mb-1.5 flex items-baseline gap-1.5"
-          aria-label={`Objectives: ${pulse.radiantName || 'Radiant'} ${pulse.objectives.rt} towers standing, ${pulse.direName || 'Dire'} ${pulse.objectives.dt} towers standing`}
-        >
-          <span aria-hidden="true" className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-            Towers
-          </span>
-          <span aria-hidden="true" className="text-xs font-bold tabular-nums">
-            <span className="text-green-600 dark:text-green-500">{pulse.objectives.rt}</span>
-            <span className="mx-1 text-gray-400 dark:text-gray-600">·</span>
-            <span className="text-red-600 dark:text-red-500">{pulse.objectives.dt}</span>
-          </span>
-        </p>
+        <DotaMinimap
+          radiant={pulse.objectives.radiant}
+          dire={pulse.objectives.dire}
+          radiantName={pulse.radiantName}
+          direName={pulse.direName}
+        />
       )}
       {showLiveStory && <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />}
       {!spoilerFree && (hasScore || leadMag || clock) && (

@@ -46,17 +46,22 @@ const DIRE_LANE_STARTS = [16, 19, 22]
 const MAX_VALID_BIT = 26
 const MAX_VALID_MASK = 2 ** (MAX_VALID_BIT + 1) - 1
 
-// decodeBuildingState(mask) -> { rt, dt, confidence }
-// rt/dt: total standing towers (0-9) for Radiant/Dire, or null when confidence is 'low'.
-// confidence: 'high' | 'low' — caller must omit the objectives readout entirely on 'low',
-// never render a partial/guessed count (the R4 spec's "silence beats a wrong count" rule).
+// decodeBuildingState(mask) -> { radiant: [top, mid, bot], dire: [top, mid, bot], confidence }
+// Each lane value is the count of STANDING towers (0-3) in that lane, ordered top/mid/bot.
+// null (both arrays) when confidence is 'low' — caller must omit the objectives readout
+// entirely on 'low', never render a partial/guessed count (the R4 spec's "silence beats a
+// wrong count" rule).
+//
+// Deliberately does NOT return barracks, tier-4 ("base") tower, or Ancient state — none of
+// that is derivable from this field (see the header comment above; the barracks disproof is
+// documented in CONTEXT.md). A caller must never backfill or assume a value for those.
 export function decodeBuildingState(mask) {
   if (!Number.isFinite(mask) || mask <= 0 || mask > MAX_VALID_MASK) {
-    return { rt: null, dt: null, confidence: 'low' }
+    return { radiant: null, dire: null, confidence: 'low' }
   }
 
-  const rt = RADIANT_LANE_STARTS.reduce((sum, start) => sum + laneStanding(laneField(mask, start)), 0)
-  const dt = DIRE_LANE_STARTS.reduce((sum, start) => sum + laneStanding(laneField(mask, start)), 0)
+  const radiant = RADIANT_LANE_STARTS.map(start => laneStanding(laneField(mask, start)))
+  const dire = DIRE_LANE_STARTS.map(start => laneStanding(laneField(mask, start)))
 
-  return { rt, dt, confidence: 'high' }
+  return { radiant, dire, confidence: 'high' }
 }

@@ -145,9 +145,14 @@ describe('resolvePulse — objectives gate (R4 Phase C)', () => {
     expect('objectives' in pulse).toBe(false)
   })
 
-  it('isOwner=true with a decodable building_state: pulse includes objectives with the decoded counts', async () => {
+  it('isOwner=true with a decodable building_state: pulse includes objectives with the decoded per-lane counts', async () => {
     const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
-    expect(pulse.objectives).toEqual({ rt: 9, dt: 9 })
+    expect(pulse.objectives).toEqual({ radiant: [3, 3, 3], dire: [3, 3, 3] })
+  })
+
+  it('objectives never carries a barracks/tier-4/Ancient field — those are not decodable and must never appear even as null', async () => {
+    const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
+    expect(Object.keys(pulse.objectives).sort()).toEqual(['dire', 'radiant'])
   })
 
   it('isOwner=true but building_state is null (never captured): objectives is omitted, pulse still resolves', async () => {
@@ -167,6 +172,6 @@ describe('resolvePulse — objectives gate (R4 Phase C)', () => {
   it('isOwner=true and building_state comes back as a STRING (bigint columns can be string-serialized by PostgREST, same class as od_match_id elsewhere in this file): still decodes correctly, not silently omitted', async () => {
     setLiveGameMapRows([liveGameMapRow({ building_state: '4784201' })])
     const { pulse } = await resolvePulse(String(OD_MATCH_ID), true, log)
-    expect(pulse.objectives).toEqual({ rt: 9, dt: 9 })
+    expect(pulse.objectives).toEqual({ radiant: [3, 3, 3], dire: [3, 3, 3] })
   })
 })

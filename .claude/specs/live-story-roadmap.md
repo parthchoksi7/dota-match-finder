@@ -8,21 +8,25 @@ This replaces the remaining-scope content that was spread across `live-story.md`
 
 ---
 
-## Priority 1 — R4 Phase D: Objective Row UI
+## Priority 1 — R4 Phase D: Tower Map UI
 
-**BUILT 2026-07-25, owner-gated only — awaiting owner verification before public launch.** `ObjectiveRow` (inline in `SeriesLivePulse.jsx`) renders `Towers {rt} · {dt}` directly under the momentum band, above `LiveGoldGraph`, when `isOwner && showLiveStory && pulse.objectives` — `isOwner` is a newly-threaded prop (`App.jsx` → `LiveSeriesSheet.jsx` → `SeriesLivePulse.jsx`), an explicit frontend gate layered on top of the API's existing owner gate (defense-in-depth, not the only thing preventing public visibility). Visual spec: `DESIGN_GUIDELINES.md` "Objective row." Tests: `src/__tests__/series-live-pulse-objectives.test.jsx` (owner gate, spoiler gate, objectives-absent, name-fallback, pre-resolve states).
+**BUILT 2026-07-25 as a text row, REDESIGNED 2026-07-26 into a schematic SVG map — owner-gated only, awaiting owner verification before public launch.** `DotaMinimap.jsx` (new component) renders a tower map directly under the momentum band, above `LiveGoldGraph`, when `isOwner && showLiveStory && pulse.objectives` — same three-way gate as the original text row. `isOwner` is a frontend prop threaded `App.jsx` → `LiveSeriesSheet.jsx` → `SeriesLivePulse.jsx`, layered on top of the API's existing owner gate (defense-in-depth, not the only thing preventing public visibility). The decoder (`api/_buildingState.js`) was widened the same day from an aggregate `{rt, dt}` to per-lane `{radiant: [top,mid,bot], dire: [top,mid,bot]}` so the map knows which lane, not just a total. Visual spec: `DESIGN_GUIDELINES.md` "Tower map." Tests: `src/__tests__/dota-minimap.test.jsx`, `src/__tests__/series-live-pulse-objectives.test.jsx`.
+
+**Why the redesign:** the owner reviewed the shipped text row and asked for an actual map visualization, referencing a Dota minimap with building markers. Two follow-up owner challenges during the build were taken seriously and re-verified rather than dismissed: (1) whether barracks state is really undecodable — re-confirmed via a wider empirical re-check (see `CONTEXT.md`, "Re-verification 2026-07-26"); (2) whether a real Valve map texture could be sourced — no reliable/licensed path found, so the map is a hand-drawn SVG schematic, not a texture.
+
+**The "unknown data" constraint is load-bearing, not cosmetic.** The map draws exactly 18 tower markers (9 per side) and nothing else — no barracks, tier-4/"base" tower, or Ancient marker exists anywhere in `DotaMinimap.jsx`'s code, under any input. A caption ("Towers only — barracks, base towers & Ancient status unknown") renders unconditionally alongside the map — same guard clause covers both, so there's no way for the map to show without it. Any future touch to this component must preserve that property; it's the reason showing a partial map is honest rather than misleading.
 
 **Gate before going public:** EWC 2026 Tier-1 freeze must lift (or explicit owner approval during the freeze tail) — per the standing freeze-discipline rule, never flip a public UI flag mid-Tier-1-event. Verify on a real live game in owner mode first (that's the point of this build).
 
 **Going public is a one-line change** — drop the `isOwner &&` in `SeriesLivePulse.jsx` (the API's own `isOwner` gate in `liveGamePulse.js` also needs dropping at the same time, or the field never reaches non-owners regardless of the frontend flag) — not a redesign.
 
 **Still not done, needed before the public flip:**
-- GA4 events: `live_map_state_shown` ({ confidence }), `live_map_state_omitted` (the key decoder-reliability proxy — watch this after any Dota patch, a step-change means the bit layout moved and Phase B needs re-running). Deliberately skipped in the 2026-07-25 build — not needed for owner-only verification, and the `omitted` event in particular needs a design decision about how the client would even distinguish "not owner" from "low confidence" from "draft phase" (today they're all indistinguishable — the field is just absent).
+- GA4 events: `live_map_state_shown` ({ confidence }), `live_map_state_omitted` (the key decoder-reliability proxy — watch this after any Dota patch, a step-change means the bit layout moved and Phase B needs re-running). Deliberately skipped so far — not needed for owner-only verification, and the `omitted` event in particular needs a design decision about how the client would even distinguish "not owner" from "low confidence" from "draft phase" (today they're all indistinguishable — the field is just absent).
 - About page + Release Notes entries (skip while owner-gated, per the Owner-Only Features convention in `.claude/claude_instructions_template.md` — add both at the same time as the public flip).
-- Real 400px mobile viewport check on an actual live game (per the deployment checklist) — not yet done against production data, only unit-tested.
-- About page + Release Notes entries once public (skip while owner-gated, per the Owner-Only Features convention).
+- Real 400px mobile viewport check on an actual live game (per the deployment checklist) — not yet done against production data, only unit-tested. Worth a specific look now given the map is a bigger visual element than the text row was.
+- A real minimap texture, if a licensed/reliable source is ever found — the schematic is a deliberate substitution, not the end state, if that constraint changes.
 
-**Effort:** S. **Risk:** Low — the only new frontend logic is a presence check and a spoiler gate, both existing patterns in the same file.
+**Effort:** M (up from S — the redesign added a new component + a decoder shape change). **Risk:** Low-Medium — the main risk (implying knowledge of barracks/Ancient we don't have) is the thing most rigorously tested and reviewed; residual risk is mainly visual/UX polish, not correctness.
 
 ---
 
