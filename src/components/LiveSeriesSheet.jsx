@@ -138,46 +138,51 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
         </button>
       </div>
 
-      {/* Game switcher */}
+      {/* Game switcher — segmented-control treatment, matching MatchDrawer's game switcher
+          (App.jsx `gameSwitcher`) so the same series doesn't visually change controls as a fan
+          moves between this sheet and the drawer. Tracked for full unification into one shared
+          component in .claude/pending-refactors.md #6; this pass only aligns the visual styling. */}
       {gameTabs.length > 1 && (
-        <div className={`flex-shrink-0 flex gap-1.5 overflow-x-auto ${SHEET_PADDING} pt-2 pb-1 border-b border-gray-100 dark:border-gray-900`} style={{ scrollbarWidth: 'none' }}>
-          {gameTabs.map(tab => {
-            const isActive = tab.position === selectedPosition
-            return (
-              <button
-                key={tab.position}
-                type="button"
-                disabled={!!loadingGameId}
-                onClick={() => {
-                  trackEvent('live_series_tab_click', { position: tab.position, status: tab.kind })
-                  // A finished game whose OD match id has already resolved gets the same full
-                  // MatchDrawer treatment as a genuinely completed series' game (score, VOD
-                  // buttons, draft breakdown) instead of this sheet's abbreviated summary row -
-                  // reuses the exact row-click path (onReplay) rather than duplicating that view
-                  // here. Still-indexing games (no matchId yet) fall through to the inline
-                  // "Stats indexing" placeholder via pinnedPosition, same as clicking the row.
-                  if (tab.kind === 'finished') {
-                    const finishedGame = finishedGames.find(g => g.position === tab.position)
-                    const gameMatchId = finishedGame && (finishedGame.matchId || resolvedIds[finishedGame.position] || null)
-                    if (gameMatchId && onReplay) {
-                      onReplay(gameMatchId)
-                      return
+        <div className={`flex-shrink-0 overflow-x-auto ${SHEET_PADDING} pt-2 pb-1.5 border-b border-gray-100 dark:border-gray-900`} style={{ scrollbarWidth: 'none' }}>
+          <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
+            {gameTabs.map(tab => {
+              const isActive = tab.position === selectedPosition
+              return (
+                <button
+                  key={tab.position}
+                  type="button"
+                  disabled={!!loadingGameId}
+                  onClick={() => {
+                    trackEvent('live_series_tab_click', { position: tab.position, status: tab.kind })
+                    // A finished game whose OD match id has already resolved gets the same full
+                    // MatchDrawer treatment as a genuinely completed series' game (score, VOD
+                    // buttons, draft breakdown) instead of this sheet's abbreviated summary row -
+                    // reuses the exact row-click path (onReplay) rather than duplicating that view
+                    // here. Still-indexing games (no matchId yet) fall through to the inline
+                    // "Stats indexing" placeholder via pinnedPosition, same as clicking the row.
+                    if (tab.kind === 'finished') {
+                      const finishedGame = finishedGames.find(g => g.position === tab.position)
+                      const gameMatchId = finishedGame && (finishedGame.matchId || resolvedIds[finishedGame.position] || null)
+                      if (gameMatchId && onReplay) {
+                        onReplay(gameMatchId)
+                        return
+                      }
                     }
-                  }
-                  setPinnedPosition(tab.position)
-                }}
-                aria-current={isActive ? 'true' : undefined}
-                className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isActive
-                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-transparent hover:border-gray-300 dark:hover:border-gray-700'
-                }`}
-              >
-                {tab.kind === 'live' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden="true" />}
-                G{tab.position}
-              </button>
-            )
-          })}
+                    setPinnedPosition(tab.position)
+                  }}
+                  aria-current={isActive ? 'true' : undefined}
+                  className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isActive
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  {tab.kind === 'live' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden="true" />}
+                  G{tab.position}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 

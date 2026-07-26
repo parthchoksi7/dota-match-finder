@@ -55,6 +55,7 @@ Exempt from RICE: work that literally cannot start yet.
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
 | 1 | `font-display: swap` for Barlow font | 5 | 2 | 90% | 0.5 | **18.0** |
+| 6 | Extract shared `GameSwitcher` component | 3 | 3 | 90% | 1 | **8.1** |
 | 5 | VOD pre-fetch in background | 4 | 2 | 80% | 1 | **6.4** |
 | 7 | Add Sentry error monitoring | 5 | 4 | 90% | 3 | **6.0** |
 | 8 | Batch push-subscriber KV reads in `sendPushNotificationsForMatches` | 4 | 4 | 80% | 3 | **4.3** |
@@ -74,6 +75,12 @@ Exempt from RICE: work that literally cannot start yet.
 ### 1. `font-display: swap` for Barlow font
 - **What:** Add `font-display: swap` and `<link rel="preconnect">` to the Google Fonts import to avoid layout shift on first load.
 - **Why it's #1:** Every page load, near-zero effort, and directly helps Core Web Vitals (CLS) — which ties into the SEO/GEO growth work.
+
+### 6. Extract shared `GameSwitcher` component
+- **What:** `LiveSeriesSheet.jsx`'s inline game-switcher chips (lines ~142-168) and `App.jsx`'s inline `gameSwitcher` segmented-control JSX (feeding `MatchDrawer`, lines ~1199-1250) are two independently hand-written implementations of the same job — letting a fan pick which game of a series they're looking at. They've drifted visually (different container, border, and active-state treatment; one shows team names, one doesn't) despite two prior fixes to the underlying default-game and "return to live" logic, because those fixes only patched behavior inside each separate file, never the fact that there are two files. Flagged after the 3rd round of user feedback specifically about this inconsistency (2026-07-26 UX audit).
+- **Fix:** Extract `src/components/GameSwitcher.jsx` — a presentational component taking `tabs: [{ key, label, sublabel?, isLive?, isActive, onClick }]` and `disabled`, rendering the segmented-control visual treatment (chosen as canonical — it's the pattern `DESIGN_GUIDELINES.md` already documents for "switching between views within a contained component," and it already carries the richer team-name label). Refactor both `LiveSeriesSheet.jsx` and `App.jsx`'s `gameSwitcher` construction to build a `tabs` array and render through it, instead of each hand-writing its own `<button>` markup. Correct `DESIGN_GUIDELINES.md`'s "Source/account picker chips" entry, which currently (incorrectly) cross-references the Live Series Companion's game switcher as a second use of that pattern — remove that line and note `GameSwitcher.jsx` under the segmented-control entry instead.
+- **A quick visual-parity patch (not the full extraction) landed 2026-07-26** to stop the bleeding in the meantime — see the corresponding Completed Archive entry once done. This item is the follow-up: the two implementations still need to become one file so they can't drift again.
+- **Full spec:** produced via `/ux-design` 2026-07-26 (conversation history), covering the canonical-style verdict and per-state behavior.
 
 ### 5. VOD pre-fetch in background
 - **What:** When a user clicks a game row, start resolving the VOD before the drawer finishes opening. Currently the "Finding VOD…" spinner only starts after the drawer is open.
