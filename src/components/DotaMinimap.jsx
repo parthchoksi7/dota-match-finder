@@ -17,26 +17,34 @@
 // Hand-placed marker positions on a 0-300 viewBox, ordered [T1, T2, T3] = [outermost, middle,
 // innermost/base-adjacent] per lane per side. Radiant base sits bottom-left, Dire top-right —
 // top lane runs up Radiant's left flank then along the top edge; bot lane runs along the
-// bottom then up Dire's right flank; mid is the direct diagonal. This ordering matters: tower
-// destruction is assumed to proceed T1 -> T2 -> T3 (true in the vast majority of games; a rare
+// bottom then up Dire's right flank; mid is the direct diagonal. Getting the DIRECTION right
+// per side is easy to flip by accident (caught in review 2026-07-27: Dire's top/bot lanes had
+// T1/T3 swapped, drawing its towers in mirror-reversed order from Radiant's) — the rule is
+// always "index 0 is farthest from that SIDE'S OWN base," not "farthest from the map center."
+// Destruction is assumed to proceed T1 -> T2 -> T3 (true in the vast majority of games; a rare
 // backdoor-style exception isn't modeled), so "N standing" always means the N INNERMOST
 // entries in this array are up and the rest are down.
-const TOWER_POSITIONS = {
+// Exported so the regression test can validate the geometry directly against the data the
+// component actually renders, not a hand-copied duplicate that could silently drift out of sync.
+export const TOWER_POSITIONS = {
   top: {
-    radiant: [[35, 100], [35, 160], [35, 220]],
-    dire: [[220, 35], [160, 35], [100, 35]],
+    radiant: [[35, 95], [35, 155], [35, 215]],
+    dire: [[95, 35], [155, 35], [215, 35]],
   },
   mid: {
-    radiant: [[145, 155], [115, 185], [85, 215]],
-    dire: [[155, 145], [185, 115], [215, 85]],
+    // Wider gap between the two sides' outermost (T1) towers than a naive midpoint split —
+    // otherwise the two closest markers visually collide right where the river crosses.
+    radiant: [[135, 165], [105, 195], [75, 225]],
+    dire: [[165, 135], [195, 105], [225, 75]],
   },
   bot: {
-    radiant: [[220, 265], [160, 265], [100, 265]],
-    dire: [[265, 100], [265, 160], [265, 220]],
+    radiant: [[215, 265], [155, 265], [95, 265]],
+    dire: [[265, 215], [265, 155], [265, 95]],
   },
 }
 const LANE_KEYS = ['top', 'mid', 'bot']
 const LANE_LABELS = { top: 'top', mid: 'mid', bot: 'bot' }
+export const BASE_POSITIONS = { radiant: [30, 270], dire: [270, 30] }
 
 // Which of the 3 [T1,T2,T3]-ordered positions are destroyed, given a standing count (0-3).
 // standing=2 -> the single OUTERMOST tower (index 0) is destroyed, the 2 innermost stand.
@@ -56,14 +64,12 @@ export function buildMinimapAriaLabel(radiant, dire, radiantName, direName) {
     `Barracks, base towers, and Ancient status are not known and are not shown.`
 }
 
+// Diamond marker (rotated square) — reads as a distinct "structure" glyph rather than a plain
+// data-viz dot, closer to the icon language real map overlays use for buildings.
 function TowerMarker({ x, y, destroyed, side }) {
-  const size = 10
-  const fill = destroyed
-    ? 'transparent'
-    : side === 'radiant' ? '#22c55e' : '#ef4444'
-  const stroke = destroyed
-    ? (side === 'radiant' ? '#4b5563' : '#4b5563')
-    : side === 'radiant' ? '#16a34a' : '#dc2626'
+  const size = 9
+  const fill = destroyed ? 'transparent' : side === 'radiant' ? '#22c55e' : '#ef4444'
+  const stroke = destroyed ? '#57534e' : side === 'radiant' ? '#16a34a' : '#dc2626'
   return (
     <rect
       x={x - size / 2}
@@ -74,8 +80,29 @@ function TowerMarker({ x, y, destroyed, side }) {
       fill={fill}
       stroke={stroke}
       strokeWidth={destroyed ? 1 : 1.5}
-      opacity={destroyed ? 0.5 : 1}
+      opacity={destroyed ? 0.55 : 1}
+      transform={`rotate(45 ${x} ${y})`}
     />
+  )
+}
+
+// Matches TowerMarker's actual shape (rotated square) so the legend illustrates what's really
+// drawn on the map, not a plain square standing in for a diamond.
+function LegendSwatch({ destroyed, label }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <svg width={10} height={10} viewBox="0 0 10 10" aria-hidden="true">
+        <rect
+          x={1} y={1} width={8} height={8} rx={1}
+          fill={destroyed ? 'transparent' : '#9ca3af'}
+          stroke="#6b7280"
+          strokeWidth={1}
+          opacity={destroyed ? 0.55 : 1}
+          transform="rotate(45 5 5)"
+        />
+      </svg>
+      <span className="text-[9px] text-gray-400 dark:text-gray-600">{label}</span>
+    </span>
   )
 }
 
@@ -88,18 +115,31 @@ export default function DotaMinimap({ radiant, dire, radiantName, direName }) {
   const ariaLabel = buildMinimapAriaLabel(radiant, dire, radiantName, direName)
 
   return (
-    <div className="mb-1.5">
-      <svg viewBox="0 0 300 300" role="img" aria-label={ariaLabel} className="w-full max-w-[240px] mx-auto block">
-        {/* Base corners */}
-        <circle cx={30} cy={270} r={12} fill="#22c55e" opacity={0.25} />
-        <circle cx={270} cy={30} r={12} fill="#ef4444" opacity={0.25} />
-        <text x={30} y={288} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#22c55e">RAD</text>
-        <text x={270} y={20} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#ef4444">DIRE</text>
+    <div className="mb-1.5 border border-gray-200 dark:border-gray-800 rounded bg-gray-50 dark:bg-gray-950 p-2.5">
+      <div className="flex items-center justify-center gap-3 mb-1.5">
+        <LegendSwatch destroyed={false} label="Standing" />
+        <LegendSwatch destroyed label="Destroyed" />
+      </div>
 
-        {/* Lane guide lines, faint — orientation only, not data */}
-        <polyline points="30,270 35,160 35,35 160,35 270,30" fill="none" stroke="#374151" strokeOpacity={0.3} strokeWidth={1} />
-        <line x1={30} y1={270} x2={270} y2={30} stroke="#374151" strokeOpacity={0.3} strokeWidth={1} />
-        <polyline points="30,270 160,265 265,265 265,160 270,30" fill="none" stroke="#374151" strokeOpacity={0.3} strokeWidth={1} />
+      <svg viewBox="0 0 300 300" role="img" aria-label={ariaLabel} className="w-full max-w-[240px] mx-auto block">
+        {/* River — flat two-tone stroke (no gradient) crossing near the map's center, distinct
+            from the tan lane roads below both in color and in curve (real Dota's river runs
+            roughly perpendicular to mid lane, not parallel to it). Decorative/orientation only. */}
+        <path d="M -5 112 C 95 148, 205 148, 305 188" fill="none" stroke="#1e3a5f" strokeOpacity={0.55} strokeWidth={9} strokeLinecap="round" />
+        <path d="M -5 112 C 95 148, 205 148, 305 188" fill="none" stroke="#3b6493" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round" />
+
+        {/* Lane roads — thicker, warm-toned strokes so they read as paths, not debug lines */}
+        <polyline points="30,270 35,155 35,32 155,32 270,30" fill="none" stroke="#8a7a63" strokeOpacity={0.4} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points="30,270 105,195 195,105 270,30" fill="none" stroke="#8a7a63" strokeOpacity={0.4} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points="30,270 155,265 268,265 268,155 270,30" fill="none" stroke="#8a7a63" strokeOpacity={0.4} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Base markers — layered rings instead of a flat dot, still flat colors (no gradient) */}
+        <circle cx={30} cy={270} r={16} fill="#22c55e" opacity={0.12} />
+        <circle cx={30} cy={270} r={10} fill="#22c55e" opacity={0.3} stroke="#16a34a" strokeWidth={1.5} />
+        <circle cx={270} cy={30} r={16} fill="#ef4444" opacity={0.12} />
+        <circle cx={270} cy={30} r={10} fill="#ef4444" opacity={0.3} stroke="#dc2626" strokeWidth={1.5} />
+        <text x={30} y={291} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#22c55e">RAD</text>
+        <text x={270} y={17} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#ef4444">DIRE</text>
 
         {LANE_KEYS.map(lane => {
           const rFlags = destroyedFlags(radiant[LANE_KEYS.indexOf(lane)])
@@ -116,7 +156,8 @@ export default function DotaMinimap({ radiant, dire, radiantName, direName }) {
           )
         })}
       </svg>
-      <p className="text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 mt-1">
+
+      <p className="text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 mt-1.5">
         Towers only — barracks, base towers &amp; Ancient status unknown
       </p>
     </div>
