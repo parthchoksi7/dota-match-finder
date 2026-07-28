@@ -153,7 +153,7 @@ export default async function handler(req, res) {
       return res.status(200).json(miss)
     } catch (err) {
       log.error('twitch-vod fetch failed', { error: err?.message })
-      await trackError('/api/match-streams', 502, err?.message)
+      await trackError('/api/match-streams', 502, err?.message, err)
       return res.status(502).json({ error: 'Twitch VOD fetch failed' })
     }
   }

@@ -102,6 +102,36 @@ describe('SettingsSheet - spoiler row', () => {
   })
 })
 
+describe('SettingsSheet - stream language row', () => {
+  it('defaults to no preference', async () => {
+    render(<SettingsSheet />)
+    await openSheet()
+    expect(screen.getByLabelText('Preferred stream language')).toHaveValue('')
+  })
+
+  it('persists a selected language', async () => {
+    render(<SettingsSheet />)
+    await openSheet()
+    fireEvent.change(screen.getByLabelText('Preferred stream language'), { target: { value: 'ru' } })
+    expect(localStorage.getItem('stream-language')).toBe('ru')
+  })
+
+  it('clears the stored key when returning to no preference', async () => {
+    localStorage.setItem('stream-language', 'ru')
+    render(<SettingsSheet />)
+    await openSheet()
+    fireEvent.change(screen.getByLabelText('Preferred stream language'), { target: { value: '' } })
+    expect(localStorage.getItem('stream-language')).toBeNull()
+  })
+
+  it('reflects a stored language', async () => {
+    localStorage.setItem('stream-language', 'zh')
+    render(<SettingsSheet />)
+    await openSheet()
+    expect(screen.getByLabelText('Preferred stream language')).toHaveValue('zh')
+  })
+})
+
 describe('SettingsSheet - theme row', () => {
   it('renders all three theme options', async () => {
     render(<SettingsSheet />)

@@ -17,7 +17,13 @@ vi.mock('../src/api', async (importOriginal) => {
     fetchHeroes: vi.fn().mockResolvedValue({}),
   }
 })
-vi.mock('../src/utils', () => ({ trackEvent: vi.fn() }))
+// Spread the real module rather than stubbing a single export: SeriesLivePulse also pulls
+// getStreamLanguage/pickPreferredStream from utils. These tests set no stream-language
+// preference, so the real helpers resolve to "no preference" and the row renders as it does today.
+vi.mock('../src/utils', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, trackEvent: vi.fn() }
+})
 import { trackEvent } from '../src/utils'
 
 const baseProps = {
@@ -75,6 +81,8 @@ describe('SeriesLivePulse watch links', () => {
       teamB: 'Xtreme Gaming',
       tournament: 'Test Cup',
       source: 'live_series_sheet',
+      // false: no preference is set here, so nothing was promoted into the primary slot.
+      preferred_language_match: false,
     })
   })
 
@@ -86,6 +94,7 @@ describe('SeriesLivePulse watch links', () => {
       teamB: 'Xtreme Gaming',
       tournament: 'Test Cup',
       source: 'live_series_sheet',
+      preferred_language_match: false,
     })
   })
 

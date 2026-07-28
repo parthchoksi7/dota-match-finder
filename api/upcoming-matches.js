@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     return res.status(200).json(payload)
 
   } catch (err) {
-    await trackError('/api/upcoming-matches', 500, err?.message)
+    await trackError('/api/upcoming-matches', 500, err?.message, err)
     log.error('upcoming matches fetch failed', { error: err?.message })
     return res.status(500).json({ error: 'Failed to fetch upcoming matches', message: err?.message })
   }

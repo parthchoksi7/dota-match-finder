@@ -1,8 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import * as Sentry from '@sentry/browser'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import './index.css'
+
+// No-ops (SDK stays disabled, nothing is sent) when VITE_SENTRY_DSN is unset — same
+// "silently disabled if missing" convention as the other optional integrations in this app.
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.MODE,
+  tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
+})
 import App from './App.jsx'
 import AboutPage from './pages/AboutPage.jsx'
 import ReleaseNotesPage from './pages/ReleaseNotesPage.jsx'

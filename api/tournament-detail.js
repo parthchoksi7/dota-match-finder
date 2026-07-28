@@ -134,7 +134,7 @@ async function handleHeroes(req, res) {
     return res.status(200).json(payload)
   } catch (err) {
     console.error(JSON.stringify({ level: 'error', endpoint: '/api/tournament-detail', msg: 'heroes error', error: err?.message, ts: Date.now() }))
-    await trackError('/api/tournament-detail?mode=heroes', 500, err?.message)
+    await trackError('/api/tournament-detail?mode=heroes', 500, err?.message, err)
     return res.status(500).json({ error: 'Failed to fetch hero stats' })
   }
 }
@@ -531,7 +531,7 @@ export default async function handler(req, res) {
       return await handleSeriesDetail(req, res, token)
     } catch (err) {
       log.error('series detail error', { error: err?.message })
-      await trackError('/api/tournament-detail', 500, err?.message)
+      await trackError('/api/tournament-detail', 500, err?.message, err)
       return res.status(500).json({ error: 'Failed to fetch tournament details', message: err?.message })
     }
   }
@@ -682,7 +682,7 @@ export default async function handler(req, res) {
     return res.status(200).json(payload)
   } catch (err) {
     log.error('tournament detail error', { error: err?.message })
-    await trackError('/api/tournament-detail', 500, err?.message)
+    await trackError('/api/tournament-detail', 500, err?.message, err)
     return res.status(500).json({ error: 'Failed to fetch tournament detail' })
   }
 }

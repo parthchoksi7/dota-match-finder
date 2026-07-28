@@ -28,6 +28,97 @@ export const STORAGE_KEYS = {
   TIER1_TEAMS:              "spectate-tier1-teams-v1",
   HAS_VISITED:              "spectate-has-visited",
   SPOILER_NUDGE_DISMISSED:  "spoiler-nudge-dismissed",
+  STREAM_LANGUAGE:          "stream-language",
+}
+
+// Selectable broadcast languages, derived from the language codes PandaScore actually emits
+// across stored match_stream_history.streams_json (sampled 2026-07-27: en, ru, uk, zh, es, th,
+// tl, fr, pt, vi) — not a guessed list. Ordered by real stream volume so the common choices sit
+// at the top of the picker. Labels are endonyms: a Russian speaker scans for "Русский", not
+// "Russian". Codes only, never flags — flags ≠ languages (RU serves all of CIS, ES serves
+// LATAM + Spain), the same rule DESIGN_GUIDELINES applies to the stream picker's chips.
+export const STREAM_LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "ru", label: "Русский" },
+  { code: "uk", label: "Українська" },
+  { code: "zh", label: "中文" },
+  { code: "es", label: "Español" },
+  { code: "th", label: "ไทย" },
+  { code: "tl", label: "Filipino" },
+  { code: "fr", label: "Français" },
+  { code: "pt", label: "Português" },
+  { code: "vi", label: "Tiếng Việt" },
+]
+
+/** Current preferred broadcast language code, or null for "no preference" (the default). */
+export function getStreamLanguage() {
+  if (typeof window === "undefined") return null
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.STREAM_LANGUAGE)
+    return STREAM_LANGUAGES.some(l => l.code === v) ? v : null
+  } catch {
+    return null
+  }
+}
+
+// Ranks two streams of the same language against each other. A deep-linked replay (a real
+// jump-to-the-moment VOD) beats an official channel link, because landing on the exact moment is
+// worth more to a fan than the broadcast's officialness; `main` only breaks remaining ties. Live
+// streams carry no deep_link/main at all, so on that surface this collapses to official-first.
+function streamRank(s) {
+  return (s.deep_link ? 4 : 0) + (s.official ? 2 : 0) + (s.main ? 1 : 0)
+}
+
+// Two entries point at the same broadcast. PandaScore occasionally lists one channel twice —
+// dual-language rows sharing a raw_url, or the same channel under twitch.tv/x and www.twitch.tv/x
+// (documented in api/pipeline/_vod-urls.js dedupStreams). The replay surface receives streams
+// already deduped server-side, but the live surface reads normalizeAllStreams output raw, so
+// removing the promoted stream by object identity alone would leave its twin behind as a second
+// link to the same place.
+function sameStream(a, b) {
+  if (a === b) return true
+  if (!a || !b) return false
+  const ua = (a.url || a.raw_url || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').toLowerCase()
+  const ub = (b.url || b.raw_url || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').toLowerCase()
+  if (ua && ua === ub) return true
+  return !!(a.source && a.channel && a.source === b.source &&
+    String(a.channel).toLowerCase() === String(b.channel).toLowerCase())
+}
+
+/**
+ * Splits a stream list around a fan's preferred broadcast language.
+ * Returns { preferred, rest } — `preferred` is the best stream in that language (or null), and
+ * `rest` preserves the input order minus that entry and any duplicate of it.
+ *
+ * A null/absent `preferredLang`, or no stream in that language, returns { preferred: null } and
+ * the list untouched — so "my language isn't broadcast for this match" degrades to whatever the
+ * surface's existing default already is. That default is deliberately NOT hardcoded English:
+ * getTwitchStreams (api/_shared.js) prefers an English official stream only when one exists and
+ * otherwise falls back to any official stream, so a CIS/Chinese-only event still leads with its
+ * own broadcast. There is no separate English fallback branch here by design.
+ *
+ * `incumbentLanguages` are the languages already holding the surface's primary slot(s). If the
+ * fan's language is among them there is nothing to fix, so nothing is promoted — otherwise a
+ * co-stream page would be promoted OVER an official broadcast that was already in the right
+ * language, which on the replay surface can mean burying a real timestamped VOD under a bare
+ * channel link. Callers pass what they know; a language the provider never reported is simply
+ * absent, and the worst case degrades to today's promote-anyway behavior.
+ */
+export function pickPreferredStream(streams, preferredLang, incumbentLanguages = []) {
+  const list = Array.isArray(streams) ? streams : []
+  if (!preferredLang) return { preferred: null, rest: list }
+  // Array check, not just the `= []` default: that default only fires for `undefined`, so a
+  // caller passing an explicit null would throw here.
+  if (Array.isArray(incumbentLanguages) && incumbentLanguages.includes(preferredLang)) {
+    return { preferred: null, rest: list }
+  }
+  let preferred = null
+  for (const s of list) {
+    if (s?.language !== preferredLang) continue
+    if (!preferred || streamRank(s) > streamRank(preferred)) preferred = s
+  }
+  if (!preferred) return { preferred: null, rest: list }
+  return { preferred, rest: list.filter(s => !sameStream(s, preferred)) }
 }
 
 /**
@@ -101,6 +192,12 @@ export function formatDuration(isoTimeStr) {
 const SERIES_LABELS = { 0: "BO1", 1: "BO3", 2: "BO5", 3: "BO2" }
 export function getSeriesLabel(seriesType) {
   return SERIES_LABELS[seriesType] ?? ""
+}
+
+// Must stay byte-identical across call sites so the "Grand Final" badge agrees between
+// the homepage feed, search results, and the match detail drawer.
+export function isGrandFinal(bracketRound) {
+  return /^(grand )?finals?$/i.test(bracketRound || '')
 }
 
 /**

@@ -59,7 +59,7 @@ export default async function handleHeroMatches(req, res) {
     return res.status(200).json(result)
   } catch (err) {
     console.error('[hero-matches] Explorer error:', err?.message)
-    await trackError('/api/tournaments?mode=hero-matches', 500, err?.message)
+    await trackError('/api/tournaments?mode=hero-matches', 500, err?.message, err)
     return res.status(500).json({ error: 'Hero match lookup failed', message: err?.message })
   }
 }

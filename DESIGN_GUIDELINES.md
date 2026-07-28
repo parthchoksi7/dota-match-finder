@@ -262,6 +262,7 @@ Two distinct tab patterns exist - use the right one for the context:
 - Inactive: `text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300`
 - No red indicator - the filled background IS the active indicator
 - Use when: switching between views within a contained component
+- **Also used for**: the Live Series Companion's and match drawer's game switcher (`GameSwitcher.jsx`, shared by `LiveSeriesSheet.jsx` and `App.jsx`'s `gameSwitcher` → `MatchDrawer`) — same active/inactive treatment, plus a `disabled:opacity-50 disabled:cursor-not-allowed` state (chips are disabled while a tap-through replay fetch is in flight, so a fan can't switch tabs mid-transition) and a small `w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse` live dot prepended to whichever chip represents the currently-running (or "return to live") game.
 
 **Source/account picker chips** (horizontal scrollable pill row for switching between external content sources, e.g. Social Feed account switcher):
 - Container: `flex gap-2 overflow-x-auto scrollbar-none pb-0.5 -mx-1 px-1`
@@ -443,7 +444,7 @@ Used when a flex-wrap toolbar (e.g. TournamentBar) needs to represent a collapse
 Used in the match drawer's "Watch Full Match Replay" section to surface every recorded stream for a game (all languages, official + co-streams) below the primary official VOD button. Component: `src/components/StreamPicker.jsx`; data arrives as `match.otherStreams` (already sorted server-side: official → resolved start points → EN → language A-Z).
 
 **Structure:**
-- The primary official stream stays in the existing purple VOD button — the picker never contains it, and `allVods[0]` (GoldGraph anchor, Copy VOD link) is never a picker entry
+- The primary official stream stays in the existing purple VOD button — the picker never contains it. The GoldGraph anchor and Copy VOD link read `resolvedVods[0]`, the resolver's own timestamped VOD, which is never a picker entry (see "Preferred stream language" below — a promoted stream can sit ahead of it in the button row, but must never become the timestamp anchor)
 - 0 other streams → no picker chrome at all
 - Exactly 1 other stream → rendered directly as one inline row, no pill (count-pill rule above)
 - ≥2 → collapsed inline count pill (`{n} more streams` + chevron, `aria-expanded`), expanding a vertical `space-y-1.5` list in place; collapsed by default, state resets per game
@@ -459,6 +460,23 @@ Used in the match drawer's "Watch Full Match Replay" section to surface every re
 **Analytics:** `stream_picker_expand { matchId, count }` on expand only; row clicks fire `vod_click` with `language`, `official`, `kind`, `from_picker: true`.
 
 **Live sibling**: `src/components/LiveStreamPicker.jsx` (used in the Live Series Companion's live-game section) follows the exact same structure rules (0/1/≥2, language chip, Co-stream badge, shared `streamLabel` export from `StreamPicker.jsx`) but drops the play glyph and "channel link" marker entirely — there is no VOD timestamp concept for a live stream, every row is just "watch live now." Do not conflate the two components; a live stream and a VOD replay are different states with different honesty markers (same "two distinct shapes for two distinct states" rule as the score row below). Analytics: `live_stream_picker_expand { matchId, count }`; row clicks fire `live_match_watch` with `source: 'live_series_sheet'`, `from_picker: true`.
+
+### Preferred stream language (primary-slot promotion)
+
+When a fan has set a stream language (`SettingsSheet` → Display → Stream language), their language takes the **primary watch slot** on both surfaces. `pickPreferredStream` (`utils.js`) selects it; the surface renders it first.
+
+**Promotion rules (identical on live and replay):**
+- The promoted stream renders **first** in the watch-button row, in the surface's filled primary treatment, carrying the same language chip (`bg-white/20`) and Co-stream badge rules as any other primary button
+- The previous default is **demoted, never hidden** — it drops to an outline treatment (`border border-gray-300 dark:border-gray-700` + purple label) in the same row. Three filled buttons would leave the row with no primary at all, and removing the official broadcast to make room for a co-stream is never acceptable
+- The promoted stream is removed from the picker below it, so it never appears twice — matched by normalized URL, not object identity, since PandaScore lists one channel twice as dual-language rows
+- **Nothing is promoted when the primary is already in the fan's language.** Promoting a co-stream over an already-correct official broadcast is a downgrade, not a fix
+- No preference, or no stream in that language → the row renders exactly as it does today. **Never substitute English as a fallback** — the surface's existing default already handles regional-only events correctly
+- The promoted live button carries a language chip for **every** language including English, matching the picker rows below it (the replay surface's primary keeps its existing non-English-only chip rule)
+- A promotion must never remove a state the fan would otherwise get: on replay, the no-replay notice and "Search Twitch" link still render when the resolver found no VOD
+
+**Replay-only honesty rule:** a promoted stream with `deep_link: false` keeps the **"Channel link" marker** even in the primary button. Most PandaScore stream pages carry no VOD timestamp, and the whole point of the primary purple button elsewhere is "this jumps to the moment" — a fan must never be led to expect a timestamped replay and land on a bare channel. Scope this marker to the promoted entry only: the resolver's own VOD entries carry no `deep_link` field at all, so treating its absence as "not deep-linked" would wrongly brand a genuine timestamped VOD.
+
+**Analytics:** `stream_language_pref_set { language, source }` on the setting; `from_preference: true` on a promoted-stream click; `preferred_language_match` on the demoted default buttons.
 
 ### Scrollable tournament chip picker
 
@@ -502,8 +520,6 @@ Used when a section can display content for one of N items and N is variable (e.
   - Different orgs, each unique → league name only: `ESL`, `PGL`, `DreamLeague`
   - Mixed (same org appears multiple times with different regions) → `"League Region"`: `ESL WEU`, `ESL EEU`
 - Do NOT use this pattern for fixed-count tab bars (2–4 items) — use the segmented control pattern instead
-
-**Also used for**: the Live Series Companion's game switcher (`G1`/`G2`/... chips in `LiveSeriesSheet.jsx`) — same variable-N rationale (a BO3 vs a late BO5 has a different chip count), same active/inactive treatment, plus a `disabled:opacity-50 disabled:cursor-not-allowed` state (chips are disabled while a tap-through replay fetch is in flight, so a fan can't switch tabs mid-transition) and a small `w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse` live dot prepended to whichever chip represents the currently-running game.
 
 ### Game indicators (GameIndicators component)
 
@@ -793,6 +809,67 @@ A schematic (not a licensed reproduction of Valve's minimap texture — no relia
 - **Deliberately omits per-player KDA and player IGN.** OD `/live` carries no per-player kills/deaths/assists (only the team-level score, shown in the score row), and player names aren't captured yet. The row is the same shape a future IGN/stat slot attaches to — not a dead end.
 - A hero whose name hasn't resolved yet (hero map still loading, or `hero_id` 0 in draft phase) degrades to icon-only (placeholder tile + no label) — never a broken image or a raw "Hero 155".
 - Renders regardless of spoiler-free (a draft is pre-outcome, same rule as `DraftDisplay` and the finished-game strip).
+
+---
+
+## Glanceable live score — browser tab title, PWA badge, score notification
+
+Three surfaces that render a running game's state **outside the app's own chrome**, for a fan who
+isn't looking at the site. All formatting lives in `src/utils/liveScore.js`; the server-side push
+copy imports the same module, so the two can't drift. Spec: `.claude/specs/glanceable-live-score-spec.md`.
+
+These are the only places in the product where layout is not ours to control — the browser truncates
+the tab, the OS truncates the notification. Ordering is therefore a **design decision, not a
+formatting detail**.
+
+### Browser tab title (`useLiveScoreTabTitle`, in `SeriesLivePulse.jsx`)
+
+```
+24-19 Tundra v BetBoom · Tundra +2.4k
+```
+
+- **Score first.** A browser tab shows ~12-18 characters. `24-19 Tundr…` still answers the question;
+  `Tundra vs Bet…` does not. Do not "fix" this into name-first for consistency with the notification
+  title — the two have different truncation budgets, and this ordering is the whole point.
+- **The first score belongs to the first-listed name.** That ordering IS the attribution, which is
+  what keeps a title truncated at any point unambiguous. Never insert anything between them.
+- **Gold lead last**, attributed to a named side (`Tundra +2.4k`), never a bare `+2.4k` — same
+  attribution rule as the score row's gold micro-label. Losing it to truncation costs precision, not
+  meaning.
+- Team names go through `shortTeamName()` (strips `Team `, ` Esports`, ` Gaming`, ` Club`). Org
+  boilerplate is pure noise at this character budget.
+- **No kill score → return null and leave the title alone.** Never a fabricated `0-0` — same rule as
+  `SeriesGameScore` and the draft strip's "Stats indexing" fallback.
+- **Spoiler-free suppresses it unconditionally.** No opt-in, no override. Unlike the score
+  notification, the tab title is a passive surface the fan never consented to.
+- Restore the captured original title exactly on unmount. A score that outlives its live game is
+  worse than no score.
+
+### PWA icon badge
+
+- Counts live series involving a **followed** team only. A badge means "something of yours is
+  happening"; with zero follows there is nothing of yours, so no badge.
+- A badge is a count, not a result — spoiler-free does **not** suppress it.
+- Never badge with anything other than a count. The Badging API renders a number or a bare dot
+  depending on platform, so any meaning beyond magnitude is lost.
+
+### Live-score notification
+
+- **The one alert type that carries a result, and therefore the one that defaults OFF.** Every other
+  push type (`soon`/`live`/`replay`) stays spoiler-safe and defaults on. Do not relax that rule for
+  them, and do not flip this one's default.
+- Title is **name-first** (`Tundra 24-19 BetBoom`) — a notification title has ~35 characters, so it
+  can use the natural reading order rather than the tab's truncation-first one.
+- Body clauses (`Game 2 · BO3 1-0 · Tundra +2.4k · 32 min`) are each dropped independently when their
+  source is missing. A sparse pulse produces a shorter honest line, never a placeholder.
+- **One constant `tag` per series + `silent: true`.** Each send replaces the previous notification in
+  place. That in-place update is what makes a stream of these read as a glanceable score rather than
+  a stack of alerts, and silence is what keeps an ambient update from interrupting like a kickoff
+  alert. Do not add `renotify`.
+- Its settings row lives in the existing "Customize alerts" nested panel (see "Nested settings row"
+  above) — no new pattern. When spoiler-free is on, the caveat rides in the row's **sublabel**, in the
+  ordinary tertiary style; do not invent a warning color for it. Red and amber both already mean
+  something else, and the copy carries the message on its own.
 
 ---
 

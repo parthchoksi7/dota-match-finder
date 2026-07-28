@@ -297,7 +297,7 @@ Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringi
 
     return res.status(200).json({ summary: text })
   } catch (error) {
-    await trackError('/api/summarize', 500, error?.message)
+    await trackError('/api/summarize', 500, error?.message, error)
     log.error('summarize error', { error: error?.message })
     return res.status(500).json({
       error: 'Failed to generate summary',

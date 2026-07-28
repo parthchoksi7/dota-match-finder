@@ -1,5 +1,5 @@
 import MatchCard from "./MatchCard"
-import { groupIntoSeries } from "../utils"
+import { groupIntoSeries, isGrandFinal } from "../utils"
 
 function MatchList({ matches, onSelect, onDraftPosts, onDraftRedditPosts, loading, onClearSearch, spoilerFree = false, followedTeams, onToggleFollow, expandedSeriesId }) {
 
@@ -52,7 +52,7 @@ function MatchList({ matches, onSelect, onDraftPosts, onDraftRedditPosts, loadin
           followedTeams={followedTeams}
           onToggleFollow={onToggleFollow}
           expandedSeriesId={expandedSeriesId}
-          isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+          isGrandFinal={s.games.some(g => isGrandFinal(g.bracketRound))}
         />
       ))}
     </div>

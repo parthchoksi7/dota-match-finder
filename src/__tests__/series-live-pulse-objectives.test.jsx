@@ -33,7 +33,13 @@ vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, fetchLiveGamePulse: vi.fn(), fetchHeroes: vi.fn().mockResolvedValue({}) }
 })
-vi.mock('../utils', () => ({ trackEvent: vi.fn() }))
+// Spread the real module rather than stubbing a single export: SeriesLivePulse also pulls
+// getStreamLanguage/pickPreferredStream from utils, and a bare stub silently makes those
+// undefined at render time.
+vi.mock('../utils', async (importOriginal) => {
+  const real = await importOriginal()
+  return { ...real, trackEvent: vi.fn() }
+})
 import { fetchLiveGamePulse } from '../api'
 
 const baseProps = {

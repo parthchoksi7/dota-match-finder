@@ -4,6 +4,7 @@ import MatchList from "./components/MatchList"
 import HomeFeed, { FEED_ERROR_ID } from "./components/HomeFeed"
 import MatchDrawer from "./components/MatchDrawer"
 import LiveSeriesSheet from "./components/LiveSeriesSheet"
+import GameSwitcher from "./components/GameSwitcher"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
@@ -15,6 +16,7 @@ import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
+import { countFollowedLive } from "./utils/liveScore"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 
 const JUST_ENDED_ENABLED = true
@@ -69,6 +71,29 @@ function getMatchIdFromUrl() {
   const hashMatch = hash?.match(/^#match-(\d+)/)
   if (hashMatch) return hashMatch[1]
   return null
+}
+
+function replaceUrlWithParams(params) {
+  const qs = params.toString()
+  window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash)
+}
+
+// Sets a single query param (creating or overwriting it) and rewrites the URL in place.
+function setUrlParam(key, value) {
+  const params = new URLSearchParams(window.location.search)
+  params.set(key, value)
+  replaceUrlWithParams(params)
+}
+
+// Removes one or more query params and rewrites the URL in place. No-ops (no history write)
+// if none of the given keys are present.
+function removeUrlParam(keyOrKeys) {
+  const params = new URLSearchParams(window.location.search)
+  const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys]
+  const hadAny = keys.some(k => params.has(k))
+  if (!hadAny) return
+  for (const k of keys) params.delete(k)
+  replaceUrlWithParams(params)
 }
 
 async function resolveMatchStreams(match, allMatches) {
@@ -272,6 +297,9 @@ function App() {
   const [justEndedSeries, setJustEndedSeries] = useState([])
   const allMatchesRef = useRef([])
   const lastPsGamesRef = useRef([])
+  // Last badge count actually reported to GA — the badge effect runs on every 2-min live poll,
+  // so only transitions are worth an event.
+  const lastBadgeCountRef = useRef(null)
 
   // Mid-series side sheet (PS data while series is running)
   const [selectedLiveSeries, setSelectedLiveSeries] = useState(null)
@@ -537,6 +565,33 @@ function App() {
     return () => { clearInterval(liveInterval); clearInterval(justEndedInterval) }
   }, [loadMatches, fetchLiveData, fetchJustEnded])
 
+  // PWA icon badge: how many of the fan's followed teams are playing right now. A badge means
+  // "something of YOURS is happening", so it's gated on follows — a fan with none never sees one.
+  // Recomputed off the ambient 2-min live poll. The API is a no-op in a plain browser tab (it
+  // only paints on an installed app icon), so setAppBadge/clearAppBadge below are feature-detected
+  // and try/caught rather than gated on display-mode — an uninstalled visitor costs nothing, and
+  // an installed one works without a separate code path. The `pwa_badge_set` GA event, however,
+  // IS gated on standalone display-mode: `setAppBadge` exists in most Chromium tabs whether or not
+  // the site is installed, so without this check the event would fire on nearly every visit and
+  // every live/follow transition for uninstalled visitors, polluting the metric this event exists
+  // to measure (badge usage among installed users).
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('setAppBadge' in navigator)) return
+    const count = countFollowedLive(liveMatches, followedTeams)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+    if (isStandalone && count !== lastBadgeCountRef.current) {
+      lastBadgeCountRef.current = count
+      trackEvent('pwa_badge_set', { count })
+    }
+    try {
+      if (count > 0) navigator.setAppBadge(count).catch(() => {})
+      else navigator.clearAppBadge().catch(() => {})
+    } catch { /* unsupported or blocked — badge is a bonus, never a hard dependency */ }
+    // Deliberately no cleanup: the badge describes live state, not this component's lifetime.
+    // Clearing it on unmount would wipe it when the fan client-side-navigates to /news while
+    // their team is still playing, which is exactly when the badge is doing its job.
+  }, [liveMatches, followedTeams])
+
   // Build tournament name → ID map for inline TournamentHub expand.
   // Store both the raw PandaScore name AND the display-transformed name so that
   // upcoming-matches.js's buildTournamentName output ("DreamLeague S29") matches
@@ -583,9 +638,7 @@ function App() {
       const params = new URLSearchParams(window.location.search)
       if (params.get('manage-teams') === '1') {
         setManageTeamsOpen(true)
-        params.delete('manage-teams')
-        const qs = params.toString()
-        window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash)
+        removeUrlParam('manage-teams')
       }
     } catch {}
     return () => window.removeEventListener(MANAGE_TEAMS_OPEN_EVENT, onOpen)
@@ -612,12 +665,12 @@ function App() {
     const m = params.get('m')
     if (!fromPush && !m) return
     if (fromPush) {
-      trackEvent('push_opened', { type: params.get('pt') || 'unknown', matchId: m || getMatchIdFromUrl() || null })
+      // `live` is the score alert's landing param (it deep-links straight into the companion
+      // sheet rather than the ?m= feed highlight), so it's the match id for that type.
+      trackEvent('push_opened', { type: params.get('pt') || 'unknown', matchId: m || params.get('live') || getMatchIdFromUrl() || null })
     }
     if (m) setPushTargetId(m)
-    params.delete('m'); params.delete('from'); params.delete('pt')
-    const qs = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash)
+    removeUrlParam(['m', 'from', 'pt'])
   }, [])
 
   // Land the push target once live/upcoming data arrives: open the mid-series sheet when
@@ -925,9 +978,7 @@ function App() {
     setSelectedLiveSeries(match)
     // Persist so a refresh (or a shared link) restores the same sheet — live series have no
     // dedicated URL like completed matches do (/match/:id).
-    const params = new URLSearchParams(window.location.search)
-    params.set('live', String(match.id))
-    window.history.replaceState(null, '', window.location.pathname + '?' + params.toString() + window.location.hash)
+    setUrlParam('live', String(match.id))
   }
 
   function closeLiveSeriesSheet() {
@@ -936,11 +987,7 @@ function App() {
     liveReplayTokenRef.current++
     setLiveReplayLoadingId(null)
     setSelectedLiveSeries(null)
-    const params = new URLSearchParams(window.location.search)
-    if (!params.has('live')) return
-    params.delete('live')
-    const qs = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash)
+    removeUrlParam('live')
   }
 
   async function handleLiveSeriesReplay(odMatchId) {
@@ -1214,44 +1261,25 @@ function App() {
     : null
 
   const gameSwitcher = (seriesGames.length > 1 || returnToLiveGame) ? (
-    <div className="inline-flex rounded bg-gray-100 dark:bg-gray-900 p-0.5 gap-0.5">
-      {seriesGames.map((game, idx) => {
-        const winner = !spoilerFree
-          ? (game.radiantWin ? game.radiantTeam : game.direTeam)
-          : null
-        return (
-          <button
-            key={game.id}
-            type="button"
-            onClick={() => handleSelectMatch(game, 'game_switcher')}
-            onMouseEnter={() => { if (game.id !== selectedMatch?.id) prefetchMatchStreams(game, allMatches).catch(() => {}) }}
-            onTouchStart={() => { if (game.id !== selectedMatch?.id) prefetchMatchStreams(game, allMatches).catch(() => {}) }}
-            className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors ${
-              game.id === selectedMatch?.id
-                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            G{idx + 1}
-            {winner && (
-              <span className="font-normal text-gray-500 dark:text-gray-500 min-w-0 max-w-[80px] truncate">
-                {winner}
-              </span>
-            )}
-          </button>
-        )
-      })}
-      {returnToLiveGame && (
-        <button
-          type="button"
-          onClick={handleReturnToLiveSeries}
-          className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded transition-colors text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden="true" />
-          G{returnToLiveGame.position}
-        </button>
-      )}
-    </div>
+    <GameSwitcher
+      tabs={[
+        ...seriesGames.map((game, idx) => ({
+          key: game.id,
+          label: `G${idx + 1}`,
+          sublabel: !spoilerFree ? (game.radiantWin ? game.radiantTeam : game.direTeam) : null,
+          isActive: game.id === selectedMatch?.id,
+          onClick: () => handleSelectMatch(game, 'game_switcher'),
+          onMouseEnter: () => { if (game.id !== selectedMatch?.id) prefetchMatchStreams(game, allMatches).catch(() => {}) },
+          onTouchStart: () => { if (game.id !== selectedMatch?.id) prefetchMatchStreams(game, allMatches).catch(() => {}) },
+        })),
+        ...(returnToLiveGame ? [{
+          key: 'return-to-live',
+          label: `G${returnToLiveGame.position}`,
+          isLive: true,
+          onClick: handleReturnToLiveSeries,
+        }] : []),
+      ]}
+    />
   ) : null
 
   function getShareUrl(match) {

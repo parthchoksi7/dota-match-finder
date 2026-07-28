@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 27, 2026",
+    tag: "new",
+    title: "Check the live score at a glance, without opening the site",
+    desc: "Three ways to keep an eye on a live match while you're doing something else. While a live series companion is open, your browser tab title becomes the running game's kill score and gold lead, so a background tab answers \"what's the score\" without switching to it. If you've installed the app, its icon now carries a count of how many of your followed teams are playing right now. And there's a new opt-in Live score alert: turn it on under Customize alerts and you'll get a notification with the kill score and gold lead while your team plays, updating in place rather than stacking up. It's off by default, and it's the only alert that ever shows a score, so spoiler-free viewers are never surprised by one.",
+    items: [
+      "Tab title shows the live score only while a live series companion is open, and is restored the moment you close it",
+      "Tab title is disabled entirely in spoiler-free mode",
+      "Live score alerts are off by default and can be turned on under Customize alerts in Settings or My Teams",
+      "Tapping a Live score alert opens the live series companion for that match",
+    ],
+  },
+  {
     date: "July 25, 2026",
     tag: "fix",
     title: "Fixed hero names and icons sometimes showing as blank placeholders",

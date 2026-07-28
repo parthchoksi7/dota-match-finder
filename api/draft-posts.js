@@ -294,7 +294,7 @@ async function runDailyDigest(req, res) {
   try {
     matches = await fetchTodayMatches(token)
   } catch (err) {
-    await trackError('/api/draft-posts?type=digest', 502, err?.message)
+    await trackError('/api/draft-posts?type=digest', 502, err?.message, err)
     return res.status(502).json({ error: err.message })
   }
   if (matches.length === 0) return res.status(200).json({ posted: false, reason: 'No tier-1 matches today' })
@@ -375,7 +375,7 @@ async function runMatchPoll(req, res) {
   try {
     matches = await fetchPollWindowMatches(token)
   } catch (err) {
-    await trackError('/api/draft-posts?type=poll', 502, err?.message)
+    await trackError('/api/draft-posts?type=poll', 502, err?.message, err)
     return res.status(502).json({ error: err.message })
   }
   if (matches.length === 0) return res.status(200).json({ posted: 0, reason: 'No eligible matches in window' })
@@ -796,7 +796,7 @@ Return ONLY a valid JSON object, no explanation, no markdown:
       return res.status(200).json({ posts, summaryPost })
     }
   } catch (err) {
-    await trackError('/api/draft-posts', 500, err?.message)
+    await trackError('/api/draft-posts', 500, err?.message, err)
     console.error(JSON.stringify({ level: 'error', endpoint: '/api/draft-posts', msg: 'draft posts error', error: err?.message, ts: Date.now() }))
     return res.status(500).json({ error: 'Failed to generate posts', message: err?.message })
   }

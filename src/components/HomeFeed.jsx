@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime, isTeamFollowed } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime, isTeamFollowed, isGrandFinal } from '../utils'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -458,7 +458,7 @@ function HomeFeed({
                   spoilerFree={spoilerFree}
                   followedTeams={followedTeams}
                   onToggleFollow={onToggleFollow}
-                  isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                  isGrandFinal={s.games.some(g => isGrandFinal(g.bracketRound))}
                   bracketRound={s.games[0]?.bracketRound}
                   isFollowedMatch
                 />
@@ -578,7 +578,7 @@ function HomeFeed({
                           spoilerFree={spoilerFree}
                           followedTeams={followedTeams}
                           onToggleFollow={onToggleFollow}
-                          isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                          isGrandFinal={s.games.some(g => isGrandFinal(g.bracketRound))}
                           bracketRound={s.games[0]?.bracketRound}
                           isFollowedMatch={isTeamFollowed(followedTeams, s.games[0]?.radiantTeam, s.games[0]?.direTeam)}
                         />
@@ -615,7 +615,7 @@ function HomeFeed({
                       spoilerFree={spoilerFree}
                       followedTeams={followedTeams}
                       onToggleFollow={onToggleFollow}
-                      isGrandFinal={s.games.some(g => /^(grand )?finals?$/i.test(g.bracketRound || ''))}
+                      isGrandFinal={s.games.some(g => isGrandFinal(g.bracketRound))}
                       bracketRound={s.games[0]?.bracketRound}
                       isFollowedMatch={isFollowedMatch}
                     />

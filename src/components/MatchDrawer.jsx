@@ -6,7 +6,7 @@ import StreamPicker, { streamLabel } from "./StreamPicker"
 import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
 import { useEffect, useMemo, useState } from "react"
-import { formatDuration, trackEvent } from "../utils"
+import { formatDuration, trackEvent, isGrandFinal as checkIsGrandFinal, getStreamLanguage, pickPreferredStream } from "../utils"
 
 function formatGameTime(seconds) {
   if (seconds == null || seconds < 0) return null
@@ -61,6 +61,8 @@ function MatchDrawer({
   const [statsMatchId, setStatsMatchId] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [seriesHighlight, setSeriesHighlight] = useState(null)
+  // Read once per mount; the drawer remounts on open, which is when a preference change lands.
+  const [streamLanguage] = useState(getStreamLanguage)
 
   useEffect(() => {
     if (!match?.id || match.unplayed) return
@@ -182,8 +184,21 @@ function MatchDrawer({
 
   const displaySummary = summary || cachedSummary
   const twitchHref = twitchSearchHref || "https://www.twitch.tv/search?term=dota%202"
-  const allVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])
-  const otherStreams = match.otherStreams || []
+  const resolvedVods = match.allVods || (match.url ? [{ url: match.url, channel: match.channel }] : [])
+  const allOtherStreams = match.otherStreams || []
+  // A fan's preferred-language stream takes the primary slot here too, rendered ahead of the
+  // resolved VOD button. Unlike the live surface, that promoted stream is often NOT deep-linked
+  // (PandaScore stream pages carry no VOD timestamp), so it keeps the same "Channel link" honesty
+  // marker StreamPicker uses — a fan must never think they're getting a jump-to-the-moment replay
+  // and land on a bare channel instead. `_preferred` scopes that marker to the promoted entry:
+  // findTwitchVod's own allVods entries have no deep_link field at all, and inferring one from
+  // its absence would wrongly brand a real timestamped VOD as a channel link.
+  const { preferred: preferredStream, rest: otherStreams } = pickPreferredStream(
+    allOtherStreams,
+    streamLanguage,
+    resolvedVods.map(v => v.language).filter(Boolean),
+  )
+  const allVods = preferredStream ? [{ ...preferredStream, _preferred: true }, ...resolvedVods] : resolvedVods
   const gameLabel = gameNumber && seriesMatches > 1 ? (spoilerFree ? "Game " + gameNumber : "Game " + gameNumber + " of " + seriesMatches) : null
   const hideScore = spoilerFree && !scoreRevealed
   // Checks only this game's own bracketRound (unlike HomeFeed/MatchList, which check
@@ -192,7 +207,7 @@ function MatchDrawer({
   // value (they resolve to the same PandaScore series-level match), but if this game's
   // own PS fuzzy-match/enrichment missed while a sibling's succeeded, the badge can
   // legitimately differ between two games of the same grand-final series.
-  const isGrandFinal = /^(grand )?finals?$/i.test(match.bracketRound || '')
+  const isGrandFinal = checkIsGrandFinal(match.bracketRound)
 
   const radiantNameColor = (!hideScore && match.radiantWin) || hideScore
     ? 'text-gray-900 dark:text-white'
@@ -382,24 +397,45 @@ function MatchDrawer({
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
                 {allVods.map((vod, i) => {
-                  const isYouTube = vod.source === 'youtube'
+                  // The LOCKED resolver's own entries carry no `source` at all — api/match-streams.js
+                  // returns { url, channel, startedAt }, and the match.url fallback shape above is
+                  // narrower still — so source is derived from the URL when absent. Without this a
+                  // genuine timestamped Twitch VOD from the KV/Helix path falls through to the
+                  // "unknown third source" branch and renders green with a "Channel link" marker,
+                  // advertising a bare channel page when the link actually jumps to the moment.
+                  const source = vod.source ||
+                    (/(^|\/\/)(www\.)?twitch\.tv\//.test(vod.url || '') ? 'twitch'
+                      : /(youtube\.com|youtu\.be)\//.test(vod.url || '') ? 'youtube'
+                      : null)
+                  const isYouTube = source === 'youtube'
                   // Non-Twitch, non-YouTube primary (e.g. Kick) — an official broadcast
                   // that has no timestamp-offset resolver, so it links to the stream/VOD
                   // page rather than a deep-linked moment. streamLabel() derives a name
                   // from the URL host (reused from StreamPicker's "others" rows).
-                  const isOtherSource = !isYouTube && vod.source !== 'twitch'
+                  const isOtherSource = !isYouTube && source !== 'twitch'
                   const label = isOtherSource
                     ? streamLabel(vod)
                     : (VOD_CHANNEL_LABELS[vod.channel] || vod.channel || (isYouTube ? "Watch on YouTube" : "Watch on Twitch"))
-                  const btnClass = isYouTube
+                  // Once a preferred-language stream holds the primary slot, the resolved VOD
+                  // buttons drop to an outline treatment — three filled buttons would leave the
+                  // row with no primary at all. Without a preference they keep today's fill.
+                  const demoted = !!preferredStream && !vod._preferred
+                  const btnClass = demoted
+                    ? "inline-flex items-center gap-2 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-purple-700 dark:text-purple-400 text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
+                    : isYouTube
                     ? "inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
                     : isOtherSource
                     ? "inline-flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
                     : "inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded transition-colors"
-                  const badgeClass = isOtherSource || isYouTube ? "text-white/70" : "text-purple-200"
+                  const badgeClass = demoted
+                    ? "text-gray-400 dark:text-gray-600"
+                    : isOtherSource || isYouTube ? "text-white/70" : "text-purple-200"
+                  // The promoted stream is usually a PandaScore stream page with no VOD timestamp;
+                  // say so rather than let it read as a jump-to-the-moment replay.
+                  const showChannelLink = isOtherSource || (vod._preferred && !vod.deep_link)
                   return (
                     <a
-                      key={i}
+                      key={`${vod._preferred ? 'p' : 'v'}-${vod.url || i}`}
                       href={vod.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -414,11 +450,13 @@ function MatchDrawer({
                         direTeam: match.direTeam,
                         tournament: match.tournament,
                         spoilerFreeMode: spoilerFree,
+                        from_preference: !!vod._preferred,
+                        preferred_language_match: !!preferredStream,
                       })}
                       className={btnClass}
                     >
                       {vod.language && vod.language !== 'en' && (
-                        <span className="px-1 py-0.5 rounded bg-white/20 text-[10px] font-bold uppercase leading-none">
+                        <span className={`px-1 py-0.5 rounded text-[10px] font-bold uppercase leading-none ${demoted ? "border border-gray-300 dark:border-gray-700 text-gray-500" : "bg-white/20"}`}>
                           {vod.language.toUpperCase()}
                         </span>
                       )}
@@ -428,7 +466,7 @@ function MatchDrawer({
                           Co-stream
                         </span>
                       )}
-                      {isOtherSource && (
+                      {showChannelLink && (
                         <span className={`text-[10px] font-medium uppercase tracking-wide ${badgeClass}`}>
                           Channel link
                         </span>
@@ -437,15 +475,41 @@ function MatchDrawer({
                   )
                 })}
               </div>
+              {/* A promoted stream can be the ONLY button here, on a match the resolver found no
+                  VOD for. Promotion must not swallow that fact: the honesty copy and the Search
+                  Twitch escape hatch below still render, so setting a language preference never
+                  costs a fan something they'd have been given without one. */}
+              {resolvedVods.length === 0 && (
+                <p className="text-xs text-gray-400 dark:text-gray-600">
+                  No replay found for the official broadcast — may not be published yet or was not
+                  on a tracked channel.
+                </p>
+              )}
               <StreamPicker streams={otherStreams} matchId={match.id} />
               <div className="flex gap-4 pt-1">
-                <button
-                  type="button"
-                  onClick={onCopyVod}
-                  className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
-                >
-                  {copyFeedback === "vod" ? "Copied!" : "Copy VOD link"}
-                </button>
+                {/* Gated on resolvedVods: onCopyVod copies the resolver's match.url, which is
+                    absent when this section is only rendering because a preferred-language stream
+                    was promoted into an otherwise VOD-less match. */}
+                {resolvedVods.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={onCopyVod}
+                    className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 underline underline-offset-2 transition-colors"
+                  >
+                    {copyFeedback === "vod" ? "Copied!" : "Copy VOD link"}
+                  </button>
+                )}
+                {resolvedVods.length === 0 && (
+                  <a
+                    href={twitchHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackEvent("twitch_search_click", { matchId: match.id })}
+                    className="text-xs text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-wider"
+                  >
+                    Search Twitch
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={onCopyLink}
@@ -570,13 +634,16 @@ function MatchDrawer({
               {/* Cancels the scroll body's own SHEET_PADDING left inset at each breakpoint so the
                   SVG bleeds to the true panel edge — must track SHEET_PADDING's px-4/px-5 values. */}
               <div className="-ml-4 sm:-ml-5">
+                {/* vodUrl uses resolvedVods, not allVods: the gold-graph markers deep-link to a
+                    timestamp inside the VOD, so they must use the resolver's timestamped URL even
+                    when a preferred-language channel link holds the primary watch slot above. */}
                 <GoldGraph
                   radiantGoldAdv={currentStats?.radiantGoldAdv}
                   radiantName={match.radiantTeam}
                   direName={match.direTeam}
                   loading={statsLoading}
                   events={currentStats?.events}
-                  vodUrl={allVods[0]?.url}
+                  vodUrl={resolvedVods[0]?.url}
                 />
               </div>
             </div>

@@ -177,8 +177,9 @@ describe('ManageTeamsModal - customize alerts', () => {
 
     expect(screen.getByRole('switch', { name: 'Live alerts' })).toHaveAttribute('aria-checked', 'false')
     const stored = JSON.parse(localStorage.getItem('spectate-push-prefs'))
-    expect(stored.types).toEqual({ soon: true, live: false, replay: true })
-    expect(updatePushPrefs).toHaveBeenCalledWith(['Team Liquid'], expect.objectContaining({ types: { soon: true, live: false, replay: true } }))
+    // score is the one type that defaults off (it's the only alert carrying a live result).
+    expect(stored.types).toEqual({ soon: true, live: false, replay: true, score: false })
+    expect(updatePushPrefs).toHaveBeenCalledWith(['Team Liquid'], expect.objectContaining({ types: { soon: true, live: false, replay: true, score: false } }))
   })
 
   it('turning on Quiet hours reveals start/end pickers pre-filled with the default window, and persists', () => {

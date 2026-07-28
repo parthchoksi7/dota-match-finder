@@ -174,7 +174,7 @@ export default async function handleTournamentPlayers(req, res) {
     return res.status(200).json(payload)
   } catch (err) {
     console.error('tournament-players error:', err?.message)
-    await trackError('/api/tournaments?mode=tournament-players', 500, err?.message)
+    await trackError('/api/tournaments?mode=tournament-players', 500, err?.message, err)
     res.setHeader('Cache-Control', 'public, s-maxage=60')
     return res.status(200).json({ stats: emptyStats, gameCount: 0 })
   }

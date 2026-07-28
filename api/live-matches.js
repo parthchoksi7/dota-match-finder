@@ -8,6 +8,9 @@ import { getSupabaseAdmin } from './_supabase.js'
 // import server-side: seriesLogic.js has zero dependencies, unlike src/utils.js which pulls
 // in @vercel/analytics (browser-oriented; do not import utils.js itself from here).
 import { isSeriesComplete } from '../src/seriesLogic.js'
+// Same zero-browser-dependency rule as seriesLogic.js above. Owns the live-score copy shared
+// with the client's tab title, so the two can never drift.
+import { formatScoreHeadline, formatScoreDetail, scoreSignature, shouldSendScorePing } from '../src/utils/liveScore.js'
 
 const KV_KEY = 'dota2:live_matches_v4'
 const TTL = 60 * 2 // 2 minutes
@@ -30,7 +33,8 @@ if (process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp, resolveFollowedTeamName, sendGa4Event } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp, resolveFollowedTeamName, sendGa4Event, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S } from './_shared.js'
+import { shapeLiveGameMapRows, beginAtToUnix } from './_handlers/liveSeriesGames.js'
 
 
 
@@ -256,6 +260,10 @@ async function cacheRunningStreams(rawMatches) {
  *   - replay    → the completed-match page (?spoilers=off). The warm-streams hook sets
  *                 match.id to the series' anchor OpenDota match id (min game id), so the
  *                 URL resolves to a real completed match; opts.matchId can override it.
+ *   - score     → the ONE deliberate exception to the spoiler rule above, and the only type
+ *                 that defaults OFF (see normalizePrefs): a fan only ever receives it after
+ *                 explicitly enabling an alert whose label says it carries the live score.
+ *                 Lands on ?live=<seriesId>, which opens the live companion sheet directly.
  */
 export function buildPushPayload(type, match, opts = {}) {
   const teams = `${match.teamA} vs ${match.teamB}`
@@ -263,6 +271,23 @@ export function buildPushPayload(type, match, opts = {}) {
   // from=push&pt=<type> is the open-attribution signal: the client tracks push_opened on
   // load and strips the params. This is how CTR is measured — a SW has no window.gtag.
   switch (type) {
+    case 'score': {
+      // A constant tag per series (not per send) is what makes a stream of these read as one
+      // updating widget rather than a stack of six notifications; `silent` keeps an ambient
+      // score update from interrupting like a kickoff alert does.
+      const detail = formatScoreDetail(opts.pulse, {
+        seriesLabel: match.seriesLabel,
+        seriesScore: match.seriesScore,
+        gamePosition: opts.gamePosition,
+      })
+      return {
+        title: formatScoreHeadline(opts.pulse) || teams,
+        body: detail || stakes,
+        url: `/?live=${match.id}&from=push&pt=score`,
+        tag: `score-${match.id}`,
+        silent: true,
+      }
+    }
     case 'soon':
       return { title: `${teams} starts soon`, body: `${stakes} • catch the draft`, url: `/?m=${match.id}&from=push&pt=soon`, tag: `soon-${match.id}` }
     case 'live':
@@ -278,6 +303,10 @@ export function buildPushPayload(type, match, opts = {}) {
  * Normalizes a stored (or incoming) prefs object into a canonical shape.
  * Defaults are permissive: all notification types ON, no quiet hours — so existing
  * subscribers (who predate the prefs key) and tz-less clients keep receiving alerts.
+ *
+ * `score` inverts that default and requires an explicit true. It is the only type whose copy
+ * contains a live result, so opting IN has to be a deliberate act — a permissive default would
+ * retroactively start pushing scores to every existing subscriber, including spoiler-free ones.
  */
 export function normalizePrefs(raw) {
   let p = raw
@@ -286,7 +315,7 @@ export function normalizePrefs(raw) {
   const t = p.types && typeof p.types === 'object' ? p.types : {}
   return {
     tz: typeof p.tz === 'string' ? p.tz : null,
-    types: { soon: t.soon !== false, live: t.live !== false, replay: t.replay !== false },
+    types: { soon: t.soon !== false, live: t.live !== false, replay: t.replay !== false, score: t.score === true },
     quietStart: Number.isInteger(p.quietStart) ? p.quietStart : null,
     quietEnd: Number.isInteger(p.quietEnd) ? p.quietEnd : null,
   }
@@ -314,7 +343,7 @@ export function inQuietHours(prefs, nowMs) {
  * per-user prefs (type toggle + quiet hours) and per-(type,series,user) dedup. Uses
  * batched kv.mget instead of per-user gets (pending-refactors #161). Returns count sent.
  */
-async function dispatchPush(match, { type, dedupPrefix, dedupTtl }) {
+async function dispatchPush(match, { type, dedupPrefix, dedupTtl, payloadOpts }) {
   if (!process.env.VAPID_PRIVATE_KEY) return 0
   const teams = [match.teamA, match.teamB].filter(t => t && t !== 'TBD')
   if (teams.length === 0) return 0
@@ -331,11 +360,13 @@ async function dispatchPush(match, { type, dedupPrefix, dedupTtl }) {
     kv.mget(...ids.map(id => `push:prefs:${id}`)).catch(() => []),
   ])
 
-  const payload = JSON.stringify(buildPushPayload(type, match))
+  const payload = JSON.stringify(buildPushPayload(type, match, payloadOpts))
   const now = Date.now()
   const ops = []
   ids.forEach((userId, i) => {
-    if (sentVals[i]) return                       // already notified for this series
+    // For one-shot types this is "already notified for this series"; for the recurring score
+    // ping the same key is a per-user cooldown whose TTL is the minimum gap between sends.
+    if (sentVals[i]) return
     const subRaw = subVals[i]
     if (!subRaw) return
     const prefs = normalizePrefs(prefVals[i])
@@ -369,6 +400,114 @@ async function sendPushForMatches(matches, opts) {
   if (!process.env.VAPID_PRIVATE_KEY) return 0
   let sent = 0
   for (const match of matches) sent += await dispatchPush(match, opts).catch(() => 0)
+  return sent
+}
+
+// ── Live-score ping (glanceable live score, 2026-07-27) ──────────────────────────────────────
+// Cooldown sits just under the 15-min cron cadence so an ordinary tick is never skipped by clock
+// drift, while still bounding a subscriber to ~4 score alerts/hour on one series. The per-series
+// signature only has to outlive a single game, not the whole series.
+const SCORE_COOLDOWN_S = 14 * 60
+const SCORE_SIGNATURE_TTL_S = 4 * 3600
+
+/**
+ * The currently-running game of each PandaScore series, in the shape the OD correlation needs.
+ * Pure; exported for unit testing.
+ */
+export function collectRunningGames(rawMatches) {
+  const out = []
+  for (const m of rawMatches || []) {
+    const running = (m.games || []).find(g => g.status === 'running')
+    if (!running) continue
+    const startedAt = beginAtToUnix(running.begin_at)
+    if (!startedAt) continue
+    // Both names are required for the same reason the pulse resolver requires them: without a
+    // pair to disambiguate on, a same-window live_game_map hit degrades to pure nearest-time and
+    // could bind an unrelated game — which here would mean pushing the wrong team's score.
+    const names = (m.opponents || []).map(o => o?.opponent?.name).filter(Boolean)
+    if (names.length < 2) continue
+    out.push({ seriesId: m.id, startedAt, position: running.position, opponents: m.opponents })
+  }
+  return out
+}
+
+/**
+ * Correlates each running game to its live_game_map row, reusing the canonical
+ * findOdMatchByTime() rather than reimplementing PS↔OD matching. Returns a Map of
+ * PandaScore series id → { pulse, gamePosition }. A game that doesn't correlate is simply
+ * absent — an unresolved game stays unresolved rather than risking a wrong score in a push.
+ * Pure; exported for unit testing.
+ */
+export function correlateLiveScores(runningGames, rows) {
+  const shaped = shapeLiveGameMapRows(rows)
+  const byId = new Map((rows || []).map(r => [Number(r.od_match_id), r]))
+  const out = new Map()
+  for (const g of runningGames) {
+    const hit = findOdMatchByTime(shaped, g.startedAt, g.opponents)
+    if (!hit) continue
+    const row = byId.get(Number(hit.match_id))
+    if (!row) continue
+    out.set(g.seriesId, {
+      gamePosition: g.position,
+      pulse: {
+        radiantName: row.radiant_name,
+        direName: row.dire_name,
+        radiantScore: row.radiant_score,
+        direScore: row.dire_score,
+        radiantLead: row.radiant_lead,
+        gameTime: row.game_time,
+      },
+    })
+  }
+  return out
+}
+
+/**
+ * Sends the opt-in live-score ping for every running series a subscriber follows. Runs on the
+ * existing cron=1 tick — no new endpoint, no new schedule, no extra PandaScore call: `rawMatches`
+ * is the array that path already fetched, and the pulse read is one batched Supabase query.
+ *
+ * Additive read + send only. Touches no stream-cache key, no VOD path, and nothing the
+ * locked replay system depends on.
+ */
+async function sendScorePings(rawMatches, mapped, log) {
+  if (!process.env.VAPID_PRIVATE_KEY) return 0
+  const runningGames = collectRunningGames(rawMatches)
+  if (runningGames.length === 0) return 0
+
+  const minStart = Math.min(...runningGames.map(g => g.startedAt)) - OD_MATCH_TIME_WINDOW_S
+  const maxStart = Math.max(...runningGames.map(g => g.startedAt)) + OD_MATCH_TIME_WINDOW_S
+  const { data, error } = await getSupabaseAdmin()
+    .from('live_game_map')
+    .select('od_match_id, start_time, radiant_name, dire_name, radiant_lead, radiant_score, dire_score, game_time')
+    .gte('start_time', minStart)
+    .lte('start_time', maxStart)
+  if (error) { log.warn('live_game_map read failed', { error: error.message }); return 0 }
+  if (!data?.length) return 0
+
+  const scores = correlateLiveScores(runningGames, data)
+  if (scores.size === 0) return 0
+
+  const byId = new Map(mapped.map(m => [m.id, m]))
+  let sent = 0
+  for (const [seriesId, { pulse, gamePosition }] of scores) {
+    const match = byId.get(seriesId)
+    if (!match) continue
+    // "Has anything worth re-notifying about changed" is a fact about the GAME, not about any
+    // one subscriber, so it costs one KV round trip per series instead of one per subscriber.
+    const sigKey = `push:score:sig:${seriesId}`
+    const prevSig = await kv.get(sigKey).catch(() => null)
+    if (!shouldSendScorePing(pulse, prevSig)) continue
+    sent += await dispatchPush(match, {
+      type: 'score',
+      dedupPrefix: 'push:sent:score',
+      dedupTtl: SCORE_COOLDOWN_S,
+      payloadOpts: { pulse, gamePosition },
+    }).catch(err => { log.warn('score ping failed', { seriesId, error: err?.message }); return 0 })
+    // Written even when 0 subscribers matched: the signature tracks the game's state, not
+    // delivery, and rewriting it keeps the next tick's comparison meaningful.
+    await kv.set(sigKey, scoreSignature(pulse), { ex: SCORE_SIGNATURE_TTL_S }).catch(() => {})
+  }
   return sent
 }
 
@@ -493,6 +632,7 @@ export default async function handler(req, res) {
           soon: inTypes.soon ?? prevPrefs.types.soon,
           live: inTypes.live ?? prevPrefs.types.live,
           replay: inTypes.replay ?? prevPrefs.types.replay,
+          score: inTypes.score ?? prevPrefs.types.score,
         },
         quietStart: incoming.quietStart !== undefined ? incoming.quietStart : prevPrefs.quietStart,
         quietEnd: incoming.quietEnd !== undefined ? incoming.quietEnd : prevPrefs.quietEnd,
@@ -592,8 +732,12 @@ export default async function handler(req, res) {
       // key as before (push:sent:{id}); buildPushPayload now deep-links to /?m=<id>.
       await sendPushForMatches(mappedForPush, { type: 'live', dedupPrefix: 'push:sent', dedupTtl: 24 * 3600 })
         .catch(err => log.warn('push error', { error: err?.message }))
-      log.info('cron complete', { written })
-      return res.status(200).json({ written })
+      // Opt-in live-score ping. Runs after the stream capture and the now-live send, and its
+      // failure must never fail either of them.
+      const scoresSent = await sendScorePings(tier1, mappedForPush, log)
+        .catch(err => { log.warn('score ping error', { error: err?.message }); return 0 })
+      log.info('cron complete', { written, scoresSent })
+      return res.status(200).json({ written, scoresSent })
     } catch (err) {
       await trackError('/api/live-matches', 500, err?.message)
       log.error('cron error', { error: err?.message })

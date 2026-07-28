@@ -77,7 +77,12 @@ self.addEventListener('push', event => {
       icon: '/pwa-192.jpg',
       badge: '/favicon.png',
       // tag collapses a repeat of the same (type, series) into one entry instead of stacking.
+      // For the recurring live-score ping the tag is constant per series, so each send REPLACES
+      // the previous one — that in-place update is what makes it read as a glanceable score
+      // rather than a stack of alerts. renotify stays false (the default) for the same reason.
       ...(data.tag ? { tag: data.tag } : {}),
+      // An ambient score update shouldn't interrupt like a kickoff alert does.
+      ...(data.silent ? { silent: true } : {}),
       data: { url: data.url ?? '/' },
     })
   )

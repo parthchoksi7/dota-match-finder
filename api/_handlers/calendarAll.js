@@ -55,7 +55,7 @@ export default async function handleCalendarAll(req, res) {
       try { await kv.set(cacheKey, { allSeries, allMatches }, { ex: CAL_MATCHES_TTL }) } catch (err) { console.warn('KV write:', err?.message) }
     } catch (err) {
       console.error('calendar-all error:', err?.message)
-      await trackError('/api/tournaments', 500, err?.message)
+      await trackError('/api/tournaments', 500, err?.message, err)
       return res.status(500).send(`Failed to fetch tournament data: ${err.message}`)
     }
   }

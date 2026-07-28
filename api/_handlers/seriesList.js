@@ -13,7 +13,7 @@ export default async function handleSeriesList(req, res) {
     return res.status(200).json(data)
   } catch (err) {
     console.error('Series list error:', err?.message || err)
-    await trackError('/api/tournaments', 500, err?.message)
+    await trackError('/api/tournaments', 500, err?.message, err)
     return res.status(500).json({ error: 'Failed to fetch tournament data', message: err?.message })
   }
 }

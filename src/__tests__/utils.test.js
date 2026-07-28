@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, isGrandFinal, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -150,6 +150,44 @@ describe('getSeriesLabel', () => {
   it('returns empty string for unknown seriesType', () => {
     expect(getSeriesLabel(99)).toBe('')
     expect(getSeriesLabel(undefined)).toBe('')
+  })
+})
+
+// ── isGrandFinal ───────────────────────────────────────────────────────────
+
+describe('isGrandFinal', () => {
+  it('matches "Grand Final"', () => {
+    expect(isGrandFinal('Grand Final')).toBe(true)
+  })
+
+  it('matches "Final" without the "Grand" prefix', () => {
+    expect(isGrandFinal('Final')).toBe(true)
+  })
+
+  it('matches "Finals" (plural)', () => {
+    expect(isGrandFinal('Finals')).toBe(true)
+  })
+
+  it('is case-insensitive', () => {
+    expect(isGrandFinal('grand final')).toBe(true)
+    expect(isGrandFinal('GRAND FINALS')).toBe(true)
+  })
+
+  it('does not match other bracket rounds', () => {
+    expect(isGrandFinal('Upper Bracket Semifinal')).toBe(false)
+    expect(isGrandFinal('Lower Bracket Final Round')).toBe(false)
+  })
+
+  it('does not match a decorated string with extra words before the round', () => {
+    // e.g. parseBracketRound() in api/_shared.js can return this shape when
+    // PandaScore's match name has extra words before the colon.
+    expect(isGrandFinal('Dota 2 Champions Grand Final: A vs B')).toBe(false)
+  })
+
+  it('returns false for null/undefined/empty input', () => {
+    expect(isGrandFinal(null)).toBe(false)
+    expect(isGrandFinal(undefined)).toBe(false)
+    expect(isGrandFinal('')).toBe(false)
   })
 })
 

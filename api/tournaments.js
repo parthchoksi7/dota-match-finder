@@ -180,7 +180,7 @@ export default async function handler(req, res) {
     })
   } catch (err) {
     log.error('fetch failed', { error: err?.message })
-    await trackError('/api/tournaments', 500, err?.message)
+    await trackError('/api/tournaments', 500, err?.message, err)
     return res.status(500).json({ error: 'Failed to fetch tournament data', message: err?.message })
   }
 }

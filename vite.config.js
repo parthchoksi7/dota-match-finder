@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 export default defineConfig({
   plugins: [
@@ -29,7 +30,20 @@ export default defineConfig({
         globIgnores: ['**/logo*.png', '**/og-image.png'],
       },
     }),
+    // Uploads source maps so Sentry can de-minify stack traces — only runs when the auth
+    // token is present (a CI/local build without it just skips this plugin, no build failure).
+    ...(process.env.SENTRY_AUTH_TOKEN ? [sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      // Maps are uploaded to Sentry for de-minifying stack traces, then deleted from the
+      // build output so they're never shipped/publicly servable from production.
+      sourcemaps: { filesToDeleteAfterUpload: ['dist/**/*.map'] },
+    })] : []),
   ],
+  build: {
+    sourcemap: !!process.env.SENTRY_AUTH_TOKEN,
+  },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -21,6 +21,8 @@
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",
     "@resvg/resvg-js": "^2.6.2",
+    "@sentry/browser": "^10.68.0",
+    "@sentry/node": "^10.68.0",
     "@supabase/supabase-js": "^2.107.0",
     "@upstash/redis": "^1.36.3",
     "@vercel/analytics": "^1.6.1",
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@sentry/vite-plugin": "^5.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.7",

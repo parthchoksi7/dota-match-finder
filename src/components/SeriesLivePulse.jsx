@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchLiveGamePulse, fetchHeroes } from '../api'
-import { trackEvent } from '../utils'
+import { trackEvent, getStreamLanguage, pickPreferredStream } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
+import { formatGoldMagnitude, formatLiveScoreTitle } from '../utils/liveScore'
 import HeroIcon from './HeroIcon'
 import DotaMinimap from './DotaMinimap'
 import LiveGoldGraph from './LiveGoldGraph'
 import SeriesScoreRow from './SeriesScoreRow'
 import LiveStreamPicker from './LiveStreamPicker'
+import { streamLabel } from './StreamPicker'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
 import { SHEET_PADDING } from './Sheet'
 
@@ -33,14 +35,41 @@ export function nextPulseState(freshPulse, prevPulse, now = Date.now()) {
   return null
 }
 
-// Absolute gold-lead magnitude with a leading "+", e.g. 2540 -> "+2.5k", -300 -> "+300". The
-// sign is NOT encoded here: the caller attributes the lead by placing this badge next to the
-// leading team's name (radiant if radiantLead > 0, else dire), so it always reads as a positive
-// "ahead by" amount tied to a named team — never a bare "+500" a viewer can't attribute.
-export function formatGoldMagnitude(lead) {
-  if (!Number.isFinite(lead) || lead === 0) return null
-  const abs = Math.abs(lead)
-  return '+' + (abs >= 1000 ? (abs / 1000).toFixed(1) + 'k' : String(abs))
+// Moved to src/utils/liveScore.js (2026-07-27) so the server-side live-score push copy and the
+// client surfaces share one implementation. Re-exported here because this was its original home
+// and existing importers/tests reference it from this module.
+export { formatGoldMagnitude }
+
+// Mirrors the running game's score into the browser tab title while the companion is open — the
+// glanceable surface for a fan who keeps the site in a background tab. Captures the document's
+// own title at first render and restores it on unmount (sheet closed, series switched, game
+// finished), so a stale score can never outlive the live game it described.
+//
+// Unconditionally suppressed in spoiler-free mode: unlike the score push, which is an explicit
+// opt-in, the tab title is a passive surface the fan never consented to.
+function useLiveScoreTabTitle(pulse, spoilerFree) {
+  const originalTitleRef = useRef(typeof document === 'undefined' ? null : document.title)
+  const trackedRef = useRef(false)
+
+  useEffect(() => () => {
+    if (typeof document !== 'undefined' && originalTitleRef.current !== null) {
+      document.title = originalTitleRef.current
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const title = spoilerFree ? null : formatLiveScoreTitle(pulse)
+    if (!title) {
+      if (originalTitleRef.current !== null) document.title = originalTitleRef.current
+      return
+    }
+    document.title = title
+    if (!trackedRef.current) {
+      trackedRef.current = true
+      trackEvent('live_tab_title_active')
+    }
+  }, [pulse, spoilerFree])
 }
 
 export function formatClock(gameTime) {
@@ -123,9 +152,16 @@ function DraftPickRow({ heroKey, heroName, playerName, side }) {
 // `true` below always requests `history` from the pulse endpoint (api/_handlers/liveGamePulse.js
 // still checks its own `&owner=1` query param, which this satisfies unconditionally now that the
 // surface is public — left as-is server-side since it's harmless and already tested).
-export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams }) {
+export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
+  // Read once per mount rather than per render — this component re-renders on every 20s poll,
+  // and the sheet remounts when reopened, which is when a preference change should take effect.
+  const [streamLanguage] = useState(getStreamLanguage)
+
+  // Called before every early return below — the tab title must keep tracking (and restoring)
+  // even in the states where this component renders nothing.
+  useLiveScoreTabTitle(pulse, spoilerFree)
 
   useEffect(() => {
     if (!psMatchId) return
@@ -151,18 +187,66 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
   // a fan shouldn't wait on the 20s live-data poll just to get a link to the stream.
   const twitchUrl = streams?.[0]?.url || null
   const twitchLabel = streams?.[0]?.label || null
-  const hasWatchLinks = !!(twitchUrl || youtubeStream || (otherStreams && otherStreams.length > 0))
+  // A fan's preferred-language stream takes the primary slot: rendered first, in the same purple
+  // treatment as the default watch buttons. The defaults are NOT hidden — they demote to the rest
+  // of the row — so promoting a co-stream never costs the fan access to the official broadcast.
+  // No match (or no preference) returns preferred=null and leaves the row exactly as it is today.
+  const { preferred: preferredStream, rest: restStreams } = pickPreferredStream(otherStreams, streamLanguage, primaryLanguages)
+  // Unlike the replay surface, the chip shows for EVERY language including English — the
+  // LiveStreamPicker rows below have no 'en' exclusion either, so suppressing it here would make
+  // a promoted EN co-stream the only stream on the surface without a language marker.
+  const preferredLangChip = preferredStream?.language ? preferredStream.language.toUpperCase() : null
+  // Three identical filled buttons would leave no primary at all, so the defaults drop to an
+  // outline treatment once a preferred-language stream occupies the primary slot. Without a
+  // preference they keep today's filled purple exactly.
+  const demotedWatchClass = preferredStream
+    ? 'border border-gray-300 dark:border-gray-700 text-purple-700 dark:text-purple-400 hover:border-gray-400 dark:hover:border-gray-600'
+    : 'bg-purple-700 hover:bg-purple-800 text-white'
+  const hasWatchLinks = !!(twitchUrl || youtubeStream || preferredStream || (restStreams && restStreams.length > 0))
   const watchLinks = hasWatchLinks && (
     <div className="mb-2">
-      {(twitchUrl || youtubeStream) && (
+      {(twitchUrl || youtubeStream || preferredStream) && (
         <div className="flex items-center gap-2 flex-wrap mb-2">
+          {preferredStream && (
+            <a
+              href={preferredStream.raw_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Watch live${preferredStream.language ? ` in ${preferredStream.language.toUpperCase()}` : ''} on ${streamLabel({ ...preferredStream, url: preferredStream.raw_url })}${preferredStream.official === false ? ', co-stream' : ''}`}
+              onClick={() => trackEvent('live_match_watch', {
+                matchId: psMatchId,
+                channel: preferredStream.channel,
+                language: preferredStream.language,
+                official: preferredStream.official,
+                teamA,
+                teamB,
+                tournament,
+                source: 'live_series_sheet',
+                from_preference: true,
+              })}
+              className="focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse flex-shrink-0" aria-hidden="true" />
+              {preferredLangChip && (
+                <span className="px-1 py-0.5 rounded bg-white/20 text-[10px] font-bold uppercase leading-none">
+                  {preferredLangChip}
+                </span>
+              )}
+              Watch · {streamLabel({ ...preferredStream, url: preferredStream.raw_url })}
+              {preferredStream.official === false && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-white/70">
+                  Co-stream
+                </span>
+              )}
+            </a>
+          )}
           {twitchUrl && (
             <a
               href={twitchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackEvent('live_match_watch', { channel: twitchLabel, teamA, teamB, tournament, source: 'live_series_sheet' })}
-              className="focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+              onClick={() => trackEvent('live_match_watch', { channel: twitchLabel, teamA, teamB, tournament, source: 'live_series_sheet', preferred_language_match: !!preferredStream })}
+              className={`focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-colors whitespace-nowrap ${demotedWatchClass}`}
             >
               <TwitchIcon />
               Watch{twitchLabel ? ` · ${twitchLabel}` : ''}
@@ -173,8 +257,8 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
               href={youtubeStream}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackEvent('live_match_watch_youtube', { teamA, teamB, tournament, source: 'live_series_sheet' })}
-              className="focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded bg-purple-700 hover:bg-purple-800 text-white transition-colors whitespace-nowrap"
+              onClick={() => trackEvent('live_match_watch_youtube', { teamA, teamB, tournament, source: 'live_series_sheet', preferred_language_match: !!preferredStream })}
+              className={`focus-ring inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-colors whitespace-nowrap ${demotedWatchClass}`}
             >
               <YouTubeIcon />
               Watch on YouTube
@@ -182,7 +266,7 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
           )}
         </div>
       )}
-      {otherStreams && otherStreams.length > 0 && <LiveStreamPicker streams={otherStreams} matchId={psMatchId} />}
+      {restStreams && restStreams.length > 0 && <LiveStreamPicker streams={restStreams} matchId={psMatchId} />}
     </div>
   )
 

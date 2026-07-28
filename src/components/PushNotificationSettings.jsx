@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { trackEvent } from "../utils"
+import { trackEvent, STORAGE_KEYS } from "../utils"
 import { isPushSupported, getPushPermission, subscribeToPush, needsIOSInstall, updatePushPrefs } from "../utils/push"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
 
@@ -25,7 +25,9 @@ const PUSH_PRIMER_DISMISSED_KEY = 'spectate-push-primer-dismissed'
 // round trip. Per-browser, like followedTeams and the flags above — the subscription
 // endpoint these sync to is itself per-browser, so there's no cross-device state to reconcile.
 const PUSH_PREFS_KEY = 'spectate-push-prefs'
-const DEFAULT_PREFS = { types: { soon: true, live: true, replay: true }, quietStart: null, quietEnd: null }
+// `score` is the one type that defaults OFF, mirroring normalizePrefs() server-side: it is the
+// only alert whose copy carries a live result, so receiving one has to be a deliberate choice.
+const DEFAULT_PREFS = { types: { soon: true, live: true, replay: true, score: false }, quietStart: null, quietEnd: null }
 // Pre-filled the first time a user turns quiet hours on — matches the original Phase 1
 // design intent (.claude/push-phase1-plan.md), not a server-enforced default.
 const DEFAULT_QUIET_START = 23 // 11 PM
@@ -104,6 +106,11 @@ export default function PushNotificationSettings({ followedTeams = [], source, o
   })
   const [prefs, setPrefs] = useState(loadStoredPrefs)
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  // Read directly rather than plumbed through both parents: spoiler-free is a per-browser
+  // localStorage flag, and this is the one place a push pref has to acknowledge it.
+  const spoilerFreeOn = (() => {
+    try { return localStorage.getItem(STORAGE_KEYS.SPOILER_FREE) === 'true' } catch { return false }
+  })()
 
   useEffect(() => {
     if (testState !== 'sent' && testState !== 'failed') return
@@ -365,6 +372,16 @@ export default function PushNotificationSettings({ followedTeams = [], source, o
                       { key: 'soon', label: 'Starting soon', sublabel: 'A few minutes before kickoff' },
                       { key: 'live', label: 'Live', sublabel: 'When your team goes live' },
                       { key: 'replay', label: 'Replay ready', sublabel: 'When the VOD is available' },
+                      {
+                        key: 'score',
+                        label: 'Live score',
+                        // The caveat rides in the sublabel rather than a new colored warning
+                        // treatment: spoiler-free and score alerts genuinely contradict each
+                        // other, and the fan should read that before flipping the toggle.
+                        sublabel: spoilerFreeOn
+                          ? 'Kill score and gold lead during the game. Spoiler-free is on. These alerts still show the score'
+                          : 'Kill score and gold lead during the game',
+                      },
                     ].map(({ key, label, sublabel }) => (
                       <div key={key} className="flex items-center justify-between gap-2">
                         <div className="min-w-0">

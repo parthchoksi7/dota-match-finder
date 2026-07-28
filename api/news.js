@@ -524,7 +524,7 @@ export default async function handler(req, res) {
     try {
       result = await fetchAndCacheNews(game)
     } catch (err) {
-      await trackError('/api/news', 500, err?.message)
+      await trackError('/api/news', 500, err?.message, err)
       log.error('ingestion failed', { error: err?.message })
       return res.status(200).json({
         articles: [],

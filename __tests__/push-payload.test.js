@@ -64,9 +64,12 @@ describe('buildPushPayload', () => {
 })
 
 describe('normalizePrefs', () => {
-  it('null/undefined → permissive defaults (all types on, no quiet hours)', () => {
+  // `score` is the deliberate exception to the permissive default — it is the only type whose
+  // copy carries a live result, so it must never be on for a subscriber who didn't ask.
+  // See __tests__/push-score-ping.test.js for its own coverage.
+  it('null/undefined → permissive defaults (all types on except score, no quiet hours)', () => {
     const p = normalizePrefs(null)
-    expect(p).toEqual({ tz: null, types: { soon: true, live: true, replay: true }, quietStart: null, quietEnd: null })
+    expect(p).toEqual({ tz: null, types: { soon: true, live: true, replay: true, score: false }, quietStart: null, quietEnd: null })
   })
 
   it('parses a JSON-string value', () => {
@@ -78,7 +81,7 @@ describe('normalizePrefs', () => {
 
   it('only explicit false disables a type; non-integer quiet hours → null', () => {
     const p = normalizePrefs({ types: { soon: false, replay: true }, quietStart: '9', quietEnd: 8 })
-    expect(p.types).toEqual({ soon: false, live: true, replay: true })
+    expect(p.types).toEqual({ soon: false, live: true, replay: true, score: false })
     expect(p.quietStart).toBe(null) // '9' is not an integer
     expect(p.quietEnd).toBe(8)
   })

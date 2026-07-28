@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { HorizontalBracket, BracketFlatView, formatScheduledTime } from './BracketView'
 import { trackEvent, toTitleCase, getLeagueLabel, buildTournamentName, getTournamentFormatKey, getStageFormatConfig, getAdvancementType } from '../utils'
 import CalendarSubscribeModal from './CalendarSubscribeModal'
@@ -6,85 +6,6 @@ import HighlightsTab from './HighlightsTab'
 import { fetchTournamentPlayers, fetchHeroes } from '../api'
 
 const ALL_TOURNAMENTS_URL = 'https://spectateesports.live/api/tournaments?mode=calendar-all'
-
-const FORMAT_DESCRIPTIONS = {
-  'Swiss': {
-    short: 'Swiss',
-    desc: 'Each team plays a set number of rounds. After each round, teams with similar records are matched against each other. No team is eliminated early — everyone plays all rounds, and final standings determine who advances.',
-  },
-  'Double Elimination': {
-    short: 'Double Elimination',
-    desc: 'Two brackets: Upper and Lower. Losing in the Upper Bracket drops you to the Lower Bracket. A second loss anywhere eliminates you. The Lower Bracket winner faces the Upper Bracket winner in the Grand Final.',
-  },
-  'Single Elimination': {
-    short: 'Single Elimination',
-    desc: 'Straightforward knockout format. One loss and you\'re out. Faster, but less forgiving — a bad day ends your run.',
-  },
-  'Group Stage': {
-    short: 'Group Stage',
-    desc: 'Teams are divided into groups and play matches within their group. Top teams from each group advance to the next stage.',
-  },
-  'Bracket': {
-    short: 'Bracket',
-    desc: 'A bracket-style elimination format where teams play head-to-head matches, with losers being eliminated.',
-  },
-}
-
-function FormatTooltip({ format }) {
-  const [pos, setPos] = useState(null)
-  const btnRef = useRef(null)
-  const tooltipRef = useRef(null)
-  const info = FORMAT_DESCRIPTIONS[format]
-  if (!info) return null
-
-  function open(e) {
-    e.stopPropagation()
-    const r = btnRef.current.getBoundingClientRect()
-    setPos({ top: r.bottom + 6, left: r.left })
-  }
-
-  useEffect(() => {
-    if (!pos) return
-    function handler(e) {
-      if (
-        btnRef.current && !btnRef.current.contains(e.target) &&
-        tooltipRef.current && !tooltipRef.current.contains(e.target)
-      ) setPos(null)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [pos])
-
-  return (
-    <span className="inline-flex items-center">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={open}
-        aria-label={`What is ${format}?`}
-        className="group inline-flex items-center justify-center p-[15px] rounded-full"
-      >
-        <span
-          aria-hidden="true"
-          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 group-hover:border-gray-600 dark:group-hover:border-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors leading-none font-bold"
-          style={{ fontSize: '9px' }}
-        >
-          i
-        </span>
-      </button>
-      {pos && (
-        <div
-          ref={tooltipRef}
-          className="fixed z-[9999] w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-xl p-3"
-          style={{ top: pos.top, left: Math.min(pos.left, window.innerWidth - 272) }}
-        >
-          <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{info.short}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{info.desc}</p>
-        </div>
-      )}
-    </span>
-  )
-}
 
 function cleanTournamentName(name) {
   return toTitleCase(

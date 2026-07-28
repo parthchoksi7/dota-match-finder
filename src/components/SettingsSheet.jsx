@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { trackEvent, STORAGE_KEYS, getFollowedTeams } from "../utils"
+import { trackEvent, STORAGE_KEYS, getFollowedTeams, STREAM_LANGUAGES, getStreamLanguage } from "../utils"
 import { SHOW_EVENT as PWA_SHOW_EVENT } from "./InstallPrompt"
 import { isPushSupported } from "../utils/push"
 import { MANAGE_TEAMS_OPEN_EVENT } from "./ManageTeamsModal"
@@ -37,6 +37,8 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
     document.documentElement.classList.toggle("dark", theme === "dark")
   }, [theme])
 
+  const [streamLanguage, setStreamLanguage] = useState(() => getStreamLanguage() || "")
+
   const pushSupported = isPushSupported()
 
   useEffect(() => {
@@ -57,6 +59,15 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
   function selectTheme(next) {
     trackEvent("theme_toggle", { theme: next, source: "settings_sheet" })
     setTheme(next)
+  }
+
+  function selectStreamLanguage(next) {
+    setStreamLanguage(next)
+    try {
+      if (next) localStorage.setItem(STORAGE_KEYS.STREAM_LANGUAGE, next)
+      else localStorage.removeItem(STORAGE_KEYS.STREAM_LANGUAGE)
+    } catch {}
+    trackEvent("stream_language_pref_set", { language: next || "none", source: "settings_sheet" })
   }
 
   function handleInstall() {
@@ -136,6 +147,28 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Stream language sits in Display because it changes what a fan SEES first, not what
+              they're notified about. "No preference" is the default and is byte-for-byte today's
+              behavior — it never forces English, it just declines to override whichever stream the
+              surface already leads with (see pickPreferredStream in utils.js). */}
+          <div className="flex items-center justify-between gap-2 px-2 py-3 min-h-[44px]">
+            <span className="flex flex-col min-w-0">
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">Stream language</span>
+              <span className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">Shown first when available</span>
+            </span>
+            <select
+              aria-label="Preferred stream language"
+              value={streamLanguage}
+              onChange={e => selectStreamLanguage(e.target.value)}
+              className="flex-shrink-0 max-w-[45%] px-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-gray-500 dark:focus:border-gray-500"
+            >
+              <option value="">No preference</option>
+              {STREAM_LANGUAGES.map(l => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
           </div>
 
           <SettingsGroupLabel>Stay updated</SettingsGroupLabel>

@@ -77,4 +77,40 @@ describe('PushNotificationSettings', () => {
     render(<PushNotificationSettings followedTeams={[]} source="test" />)
     expect(() => fireEvent.click(screen.getByRole('button', { name: /add to home screen/i }))).not.toThrow()
   })
+
+  // Live score is the only alert type carrying a result, so its default and its interaction
+  // with spoiler-free mode are the parts worth pinning down.
+  describe('Live score alerts', () => {
+    function openCustomize() {
+      render(<PushNotificationSettings followedTeams={['Team Liquid']} source="test" />)
+      fireEvent.click(screen.getByText('Customize alerts'))
+    }
+
+    it('is off by default, unlike every other type', () => {
+      openCustomize()
+      expect(screen.getByRole('switch', { name: 'Live score alerts' })).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByRole('switch', { name: 'Starting soon alerts' })).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it('opting in persists score: true and syncs to the server', () => {
+      openCustomize()
+      fireEvent.click(screen.getByRole('switch', { name: 'Live score alerts' }))
+
+      expect(screen.getByRole('switch', { name: 'Live score alerts' })).toHaveAttribute('aria-checked', 'true')
+      expect(JSON.parse(localStorage.getItem('spectate-push-prefs')).types.score).toBe(true)
+      expect(trackEvent).toHaveBeenCalledWith('push_prefs_type_toggle', { type: 'score', enabled: true })
+    })
+
+    it('warns that these alerts still show scores when spoiler-free is on', () => {
+      localStorage.setItem('spoilerFree', 'true')
+      openCustomize()
+      expect(screen.getByText(/spoiler-free is on\. these alerts still show the score/i)).toBeInTheDocument()
+    })
+
+    it('shows no spoiler warning when spoiler-free is off', () => {
+      openCustomize()
+      expect(screen.queryByText(/spoiler-free is on/i)).not.toBeInTheDocument()
+      expect(screen.getByText('Kill score and gold lead during the game')).toBeInTheDocument()
+    })
+  })
 })

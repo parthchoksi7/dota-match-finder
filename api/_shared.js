@@ -5,6 +5,16 @@
  */
 
 import { Redis } from '@upstash/redis'
+import * as Sentry from '@sentry/node'
+
+// Runs once per cold start, the first time any handler imports this module. No-ops (SDK stays
+// disabled, nothing is sent) when SENTRY_DSN is unset — same "silently disabled if missing"
+// convention as the other optional integrations in this file (GA4, CURRENTS_API_KEY, IndexNow).
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.VERCEL_ENV || 'development',
+  tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
+})
 // normalizeTeamName/teamPairMatch/teamPairScore/namesAlias live in src/teamMatching.js
 // (zero-import, so it's also safe to import client-side — see src/utils.js's re-export for
 // the favorites-highlight comparisons in HomeFeed.jsx). Imported (not just re-exported)
@@ -800,9 +810,21 @@ export async function sendGa4Event(name, params = {}, clientId = null) {
   } catch (_) {}
 }
 
-// Fire-and-forget error telemetry. Writes to a daily KV list capped at 100
-// entries with a 3-day TTL. Never throws or blocks the calling handler.
-export async function trackError(endpoint, statusCode, detail) {
+// Fire-and-forget error telemetry. Reports to Sentry (dashboard + alerting; no-ops without
+// SENTRY_DSN) and, unchanged, writes to a daily KV list capped at 100 entries with a 3-day TTL
+// (kept as the fallback for local `/api/monitor` inspection — not yet removed since it hasn't
+// been cross-checked against real Sentry captures in production; see pending-refactors #7).
+// Never throws or blocks the calling handler.
+//
+// `err`, when passed, is the actual caught exception — gives Sentry a real stack trace instead
+// of just the message. Optional because a few call sites only ever have a string (e.g. an
+// upstream API's own error-response body), never a genuine Error instance.
+export async function trackError(endpoint, statusCode, detail, err) {
+  try {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(detail).slice(0, 500)), {
+      tags: { endpoint, statusCode },
+    })
+  } catch (_) {}
   try {
     const client = _getMonitorKv()
     if (!client) return
