@@ -1,12 +1,23 @@
-// Live Story R4 Phase D — schematic tower map (owner-only during verification).
+// Live Story R4 Phase D — tower map over the real minimap texture (owner-only during verification).
 //
-// This is a SCHEMATIC, not a licensed reproduction of Valve's in-game minimap texture — see
-// .claude/specs/live-story-roadmap.md for why (no confirmed CDN source for the real texture,
-// and hotlinking a wiki-hosted image is fragile/patch-version-fragile). Lane geometry below is
-// a hand-placed approximation good enough to convey "which lane, which tier," not a
-// geographically accurate map.
+// Background is the actual Dota 2 minimap art (public/dota-minimap-7.40.webp, 512x512, self-hosted),
+// pulled from https://github.com/timkurvers/redota. That repo's own code is MIT-licensed, but its
+// README is explicit the map art itself is Valve IP, community-redrawn (7.40's image credited to a
+// specific Reddit contributor) — used here under the same fan-content norm every Dota stats site
+// already relies on for hero/item icons (this site already hotlinks those from Valve's own CDN).
+// Self-hosting (rather than hotlinking a wiki/community-hosted copy) avoids the "fragile,
+// patch-version-fragile" problem noted when this was first scoped — see .claude/specs/
+// live-story-roadmap.md and 2026-07-28 conversation history for the full sourcing/licensing
+// discussion before this shipped. One patch behind current (7.40 vs 7.41d) — accepted risk, since
+// 7.41 was a hero/item overhaul, not a map-terrain rework (those are rare); swap the asset and
+// MAP_TEXTURE_SRC together if a future patch does change the map.
 //
-// SCOPE, and this is load-bearing: only towers are ever drawn. `decodeBuildingState`
+// Replaces two earlier passes that didn't read as "Dota" to the owner: a text row (2026-07-25)
+// and an abstract axis-aligned SVG schematic (2026-07-26, restyled 2026-07-27, still "so bad").
+// Root cause diagnosed 2026-07-27: no amount of surface polish fixes a shape that doesn't match
+// the real map's geometry/orientation. A real texture sidesteps that entirely.
+//
+// SCOPE, still load-bearing: only towers are ever drawn. `decodeBuildingState`
 // (api/_buildingState.js) cannot determine barracks, tier-4 ("base") tower, or Ancient state —
 // confirmed by direct disproof, not just an unresolved signal (see CONTEXT.md, "R4.0 decode
 // spike"). This component must never draw a marker, icon, or implied state for any of those —
@@ -14,37 +25,33 @@
 // is not decorative; it is the thing preventing that misread, so it must never be removed or
 // visually de-emphasized below legibility.
 
-// Hand-placed marker positions on a 0-300 viewBox, ordered [T1, T2, T3] = [outermost, middle,
-// innermost/base-adjacent] per lane per side. Radiant base sits bottom-left, Dire top-right —
-// top lane runs up Radiant's left flank then along the top edge; bot lane runs along the
-// bottom then up Dire's right flank; mid is the direct diagonal. Getting the DIRECTION right
-// per side is easy to flip by accident (caught in review 2026-07-27: Dire's top/bot lanes had
-// T1/T3 swapped, drawing its towers in mirror-reversed order from Radiant's) — the rule is
-// always "index 0 is farthest from that SIDE'S OWN base," not "farthest from the map center."
-// Destruction is assumed to proceed T1 -> T2 -> T3 (true in the vast majority of games; a rare
-// backdoor-style exception isn't modeled), so "N standing" always means the N INNERMOST
-// entries in this array are up and the rest are down.
-// Exported so the regression test can validate the geometry directly against the data the
-// component actually renders, not a hand-copied duplicate that could silently drift out of sync.
+export const MAP_TEXTURE_SRC = '/dota-minimap-7.40.webp'
+export const MAP_VIEWBOX_SIZE = 512
+
+// Marker positions are visually estimated against the actual texture (traced along its visible
+// lane corridors) — there's no public per-patch tower world-coordinate table this could be
+// derived from instead. Ordered [T1, T2, T3] = [outermost, middle, innermost/base-adjacent] per
+// lane per side — same convention, and same "index 0 is farthest from that SIDE'S OWN base" rule,
+// as the schematic this replaces. Getting the direction right per side is easy to flip by
+// accident (it happened once already, 2026-07-27, on the previous schematic) — the regression
+// test asserts this property directly against these coordinates, not a hand-copied duplicate.
 export const TOWER_POSITIONS = {
   top: {
-    radiant: [[35, 95], [35, 155], [35, 215]],
-    dire: [[95, 35], [155, 35], [215, 35]],
+    radiant: [[110, 145], [85, 230], [78, 370]],
+    dire: [[160, 118], [270, 85], [380, 72]],
   },
   mid: {
-    // Wider gap between the two sides' outermost (T1) towers than a naive midpoint split —
-    // otherwise the two closest markers visually collide right where the river crosses.
-    radiant: [[135, 165], [105, 195], [75, 225]],
-    dire: [[165, 135], [195, 105], [225, 75]],
+    radiant: [[228, 280], [177, 331], [126, 382]],
+    dire: [[280, 228], [331, 177], [382, 126]],
   },
   bot: {
-    radiant: [[215, 265], [155, 265], [95, 265]],
-    dire: [[265, 215], [265, 155], [265, 95]],
+    radiant: [[410, 438], [300, 445], [175, 452]],
+    dire: [[440, 340], [445, 230], [450, 145]],
   },
 }
 const LANE_KEYS = ['top', 'mid', 'bot']
 const LANE_LABELS = { top: 'top', mid: 'mid', bot: 'bot' }
-export const BASE_POSITIONS = { radiant: [30, 270], dire: [270, 30] }
+export const BASE_POSITIONS = { radiant: [40, 468], dire: [468, 40] }
 
 // Which of the 3 [T1,T2,T3]-ordered positions are destroyed, given a standing count (0-3).
 // standing=2 -> the single OUTERMOST tower (index 0) is destroyed, the 2 innermost stand.
@@ -64,41 +71,48 @@ export function buildMinimapAriaLabel(radiant, dire, radiantName, direName) {
     `Barracks, base towers, and Ancient status are not known and are not shown.`
 }
 
-// Diamond marker (rotated square) — reads as a distinct "structure" glyph rather than a plain
-// data-viz dot, closer to the icon language real map overlays use for buildings.
+// Diamond marker (rotated square), white-stroked so it pops against the real texture's varied
+// terrain colors (a flat single background color no longer exists to design contrast against —
+// this is why standing towers are no longer just "team color," they need a border that works on
+// green grass AND dark rock alike). Destroyed markers are dashed and mostly transparent — visible
+// against any terrain without being mistaken for a standing tower, and the dash pattern itself
+// (not just opacity) gives a colorblind-safe second distinguishing cue.
 function TowerMarker({ x, y, destroyed, side }) {
-  const size = 9
-  const fill = destroyed ? 'transparent' : side === 'radiant' ? '#22c55e' : '#ef4444'
-  const stroke = destroyed ? '#57534e' : side === 'radiant' ? '#16a34a' : '#dc2626'
+  const size = 13
+  const fill = destroyed ? 'rgba(255,255,255,0.10)' : side === 'radiant' ? '#22c55e' : '#ef4444'
+  const stroke = destroyed ? 'rgba(255,255,255,0.8)' : '#ffffff'
   return (
     <rect
       x={x - size / 2}
       y={y - size / 2}
       width={size}
       height={size}
-      rx={1.5}
+      rx={2}
       fill={fill}
       stroke={stroke}
-      strokeWidth={destroyed ? 1 : 1.5}
-      opacity={destroyed ? 0.55 : 1}
+      strokeWidth={destroyed ? 1.25 : 2}
+      strokeDasharray={destroyed ? '2,2' : undefined}
       transform={`rotate(45 ${x} ${y})`}
     />
   )
 }
 
-// Matches TowerMarker's actual shape (rotated square) so the legend illustrates what's really
-// drawn on the map, not a plain square standing in for a diamond.
+// Legend swatches sit on the card's own flat background (bg-gray-50/bg-gray-950), not the
+// texture, so they keep the original theme-neutral gray rather than TowerMarker's white —
+// white-on-near-white would be unreadable in light mode here. Shape still matches TowerMarker's
+// (rotated square, same dash-for-destroyed treatment) so the legend illustrates what's really
+// drawn on the map.
 function LegendSwatch({ destroyed, label }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <svg width={10} height={10} viewBox="0 0 10 10" aria-hidden="true">
+      <svg width={12} height={12} viewBox="0 0 12 12" aria-hidden="true">
         <rect
-          x={1} y={1} width={8} height={8} rx={1}
+          x={1.5} y={1.5} width={9} height={9} rx={1.5}
           fill={destroyed ? 'transparent' : '#9ca3af'}
           stroke="#6b7280"
-          strokeWidth={1}
-          opacity={destroyed ? 0.55 : 1}
-          transform="rotate(45 5 5)"
+          strokeWidth={destroyed ? 1.25 : 1.5}
+          strokeDasharray={destroyed ? '2,2' : undefined}
+          transform="rotate(45 6 6)"
         />
       </svg>
       <span className="text-[9px] text-gray-400 dark:text-gray-600">{label}</span>
@@ -121,25 +135,18 @@ export default function DotaMinimap({ radiant, dire, radiantName, direName }) {
         <LegendSwatch destroyed label="Destroyed" />
       </div>
 
-      <svg viewBox="0 0 300 300" role="img" aria-label={ariaLabel} className="w-full max-w-[240px] mx-auto block">
-        {/* River — flat two-tone stroke (no gradient) crossing near the map's center, distinct
-            from the tan lane roads below both in color and in curve (real Dota's river runs
-            roughly perpendicular to mid lane, not parallel to it). Decorative/orientation only. */}
-        <path d="M -5 112 C 95 148, 205 148, 305 188" fill="none" stroke="#1e3a5f" strokeOpacity={0.55} strokeWidth={9} strokeLinecap="round" />
-        <path d="M -5 112 C 95 148, 205 148, 305 188" fill="none" stroke="#3b6493" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round" />
+      <svg
+        viewBox={`0 0 ${MAP_VIEWBOX_SIZE} ${MAP_VIEWBOX_SIZE}`}
+        role="img"
+        aria-label={ariaLabel}
+        className="w-full max-w-[240px] mx-auto block rounded overflow-hidden"
+      >
+        <image href={MAP_TEXTURE_SRC} x={0} y={0} width={MAP_VIEWBOX_SIZE} height={MAP_VIEWBOX_SIZE} preserveAspectRatio="xMidYMid slice" />
 
-        {/* Lane roads — thicker, warm-toned strokes so they read as paths, not debug lines */}
-        <polyline points="30,270 35,155 35,32 155,32 270,30" fill="none" stroke="#8a7a63" strokeOpacity={0.4} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points="30,270 105,195 195,105 270,30" fill="none" stroke="#8a7a63" strokeOpacity={0.4} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points="30,270 155,265 268,265 268,155 270,30" fill="none" stroke="#8a7a63" strokeOpacity={0.4} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
-
-        {/* Base markers — layered rings instead of a flat dot, still flat colors (no gradient) */}
-        <circle cx={30} cy={270} r={16} fill="#22c55e" opacity={0.12} />
-        <circle cx={30} cy={270} r={10} fill="#22c55e" opacity={0.3} stroke="#16a34a" strokeWidth={1.5} />
-        <circle cx={270} cy={30} r={16} fill="#ef4444" opacity={0.12} />
-        <circle cx={270} cy={30} r={10} fill="#ef4444" opacity={0.3} stroke="#dc2626" strokeWidth={1.5} />
-        <text x={30} y={291} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#22c55e">RAD</text>
-        <text x={270} y={17} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#ef4444">DIRE</text>
+        {/* Base labels — outlined text (paintOrder flips stroke behind fill) so they stay legible
+            against the texture underneath without a flat backing shape covering real map art. */}
+        <text x={BASE_POSITIONS.radiant[0]} y={BASE_POSITIONS.radiant[1] + 24} textAnchor="middle" fontSize={14} fontWeight="bold" fill="#22c55e" stroke="#0a1f0f" strokeWidth={3} paintOrder="stroke">RAD</text>
+        <text x={BASE_POSITIONS.dire[0]} y={BASE_POSITIONS.dire[1] - 12} textAnchor="middle" fontSize={14} fontWeight="bold" fill="#ef4444" stroke="#2a0a0a" strokeWidth={3} paintOrder="stroke">DIRE</text>
 
         {LANE_KEYS.map(lane => {
           const rFlags = destroyedFlags(radiant[LANE_KEYS.indexOf(lane)])

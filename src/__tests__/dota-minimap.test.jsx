@@ -1,5 +1,5 @@
 /**
- * Tests for DotaMinimap (Live Story R4 Phase D — schematic tower map, owner-only).
+ * Tests for DotaMinimap (Live Story R4 Phase D — tower map over the real minimap texture, owner-only).
  *
  * The one property this component must never violate: it draws towers ONLY, and it must
  * always carry a visible, explicit statement that barracks/base-tower/Ancient state is
@@ -61,9 +61,16 @@ describe('DotaMinimap — rendering', () => {
   it('marks a lane fully cleared (0 standing) by destroying all 3 markers for that lane/side, leaving the other lanes untouched', () => {
     const { container } = render(<DotaMinimap radiant={[0, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B" />)
     const mapSvg = container.querySelector('svg[role="img"]')
-    // 3 destroyed (opacity 0.55, transparent fill) + 15 standing (opacity 1, colored fill)
-    const destroyed = [...mapSvg.querySelectorAll('rect')].filter(r => r.getAttribute('opacity') === '0.55')
+    // Destroyed markers are dashed (stroke-dasharray) and near-transparent; standing ones are solid.
+    const destroyed = [...mapSvg.querySelectorAll('rect')].filter(r => r.getAttribute('stroke-dasharray') === '2,2')
     expect(destroyed).toHaveLength(3)
+  })
+
+  it('renders the real minimap texture as the map background, not a hand-drawn schematic', () => {
+    const { container } = render(<DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B" />)
+    const image = container.querySelector('svg[role="img"] image')
+    expect(image).not.toBeNull()
+    expect(image.getAttribute('href')).toBe('/dota-minimap-7.40.webp')
   })
 })
 
@@ -93,17 +100,20 @@ describe('TOWER_POSITIONS — geometry regression (caught 2026-07-27: Dire top/b
   // Distance-to-base alone can't catch an ENTIRE lane's array being swapped with a different
   // lane (e.g. top.dire and bot.dire contents exchanged) — that would still pass both tests
   // above, since each array would still be monotonic to its own base and closer to its own
-  // side. These assertions tie each lane to the fixed coordinate its actual drawn path holds
-  // constant along (see the <polyline> points in the component): Radiant top runs along x=35,
-  // Dire top along y=35, Radiant bot along y=265, Dire bot along x=265, and both mid arrays sit
-  // on the x+y=300 diagonal — so a cross-lane swap fails here even though it wouldn't above.
-  it('each lane/side\'s positions sit on the fixed coordinate its own drawn lane path holds constant (catches a whole-lane swap, not just a within-lane one)', () => {
-    for (const [x, y] of TOWER_POSITIONS.top.radiant) { expect(x).toBe(35) }
-    for (const [, y] of TOWER_POSITIONS.top.dire) { expect(y).toBe(35) }
-    for (const [, y] of TOWER_POSITIONS.bot.radiant) { expect(y).toBe(265) }
-    for (const [x] of TOWER_POSITIONS.bot.dire) { expect(x).toBe(265) }
-    for (const [x, y] of [...TOWER_POSITIONS.mid.radiant, ...TOWER_POSITIONS.mid.dire]) {
-      expect(x + y).toBeCloseTo(300, 0)
+  // side. Positions are now traced against the real texture's curved lane corridors (not fixed
+  // to a single axis the way the old schematic's straight polylines were), so this checks the
+  // one thing that's still cheap and robust to assert directly: no two lanes literally share a
+  // coordinate pair, which is what a copy-paste-style whole-lane swap would produce.
+  it('no lane shares an exact coordinate with another lane (catches copy-paste duplication across lanes)', () => {
+    const seen = new Set()
+    for (const lane of ['top', 'mid', 'bot']) {
+      for (const side of ['radiant', 'dire']) {
+        for (const pos of TOWER_POSITIONS[lane][side]) {
+          const key = pos.join(',')
+          expect(seen.has(key)).toBe(false)
+          seen.add(key)
+        }
+      }
     }
   })
 })
