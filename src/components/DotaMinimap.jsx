@@ -28,25 +28,34 @@
 export const MAP_TEXTURE_SRC = '/dota-minimap-7.40.webp'
 export const MAP_VIEWBOX_SIZE = 512
 
-// Marker positions are visually estimated against the actual texture (traced along its visible
-// lane corridors) — there's no public per-patch tower world-coordinate table this could be
-// derived from instead. Ordered [T1, T2, T3] = [outermost, middle, innermost/base-adjacent] per
-// lane per side — same convention, and same "index 0 is farthest from that SIDE'S OWN base" rule,
-// as the schematic this replaces. Getting the direction right per side is easy to flip by
-// accident (it happened once already, 2026-07-27, on the previous schematic) — the regression
+// Marker positions (2026-07-28) are derived from a labeled reference chart the owner supplied
+// (tower positions marked as yellow-circle icons), not eyeballed against this texture directly —
+// the texture itself turned out to have no distinct tower sprites baked in at all (confirmed by
+// zoomed inspection: the repeated fence icons are cliff/elevation ramps, not towers). The chart
+// also marks 4 additional yellow circles inside the two bases (2 per side) — those are tier-4/base
+// towers and are deliberately excluded here, same as everywhere else in this component; only the
+// 18 lane towers (9/side) are ever represented. 14 of those 18 were read directly off the chart;
+// the remaining 4 (one T1/T3 per lane/side — top.radiant T1, mid.dire T3, bot.radiant T3,
+// bot.dire T3) had no marked point in the chart and were extrapolated along the direction the
+// other two towers in that same lane/side already establish. All 18 were hand-verified against
+// both correctness properties below before shipping, not just assumed from the extrapolation.
+// Ordered [T1, T2, T3] = [outermost, middle,
+// innermost/base-adjacent] per lane per side — same convention, and same "index 0 is farthest
+// from that SIDE'S OWN base" rule, as every prior version of this map. Getting the direction right
+// per side is easy to flip by accident (it happened once already, 2026-07-27) — the regression
 // test asserts this property directly against these coordinates, not a hand-copied duplicate.
 export const TOWER_POSITIONS = {
   top: {
-    radiant: [[110, 145], [85, 230], [78, 370]],
-    dire: [[160, 118], [270, 85], [380, 72]],
+    radiant: [[37, 72], [36, 128], [35, 185]],
+    dire: [[65, 39], [157, 41], [273, 73]],
   },
   mid: {
-    radiant: [[228, 280], [177, 331], [126, 382]],
-    dire: [[280, 228], [331, 177], [382, 126]],
+    radiant: [[129, 193], [95, 224], [60, 271]],
+    dire: [[181, 157], [215, 117], [249, 77]],
   },
   bot: {
-    radiant: [[410, 438], [300, 445], [175, 452]],
-    dire: [[440, 340], [445, 230], [450, 145]],
+    radiant: [[267, 284], [154, 289], [40, 294]],
+    dire: [[286, 205], [286, 160], [286, 114]],
   },
 }
 const LANE_KEYS = ['top', 'mid', 'bot']
