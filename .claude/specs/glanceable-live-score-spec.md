@@ -50,14 +50,19 @@ round trip for a 1-second question.
 - Active **only** while `SeriesLivePulse` is mounted, i.e. the live-series companion is open on the running
   game. Closing the sheet, switching to a finished-game tab, or unmounting restores the original title exactly.
 - Format (truncation-first ordering — a browser tab shows ~12–18 chars):
-  `{killA}-{killB} {ShortA} v {ShortB} · {Leader} +{gold}`
-  e.g. `24-19 Tundra v BetBoom · Tundra +2.4k`
-  - **Kill score leads** so it survives truncation to `24-19 Tundr…`.
-  - The first score belongs to the first-listed name — the ordering is the attribution, so a truncated title is
-    never ambiguous about whose number is whose.
-  - Gold lead is last: losing it to truncation loses precision, never meaning.
-  - Team names are shortened (`Tundra Esports` → `Tundra`, `Team Falcons` → `Falcons`) — org boilerplate is
-    pure noise at this character budget.
+  `{killA}{(+gold)}-{killB}{(+gold)} {ShortA} v {ShortB}`
+  e.g. `24(+2.4k)-19 Tundra v BetBoom`
+  - **Kill score leads** so it survives truncation to `24(+2.4k)-1…`.
+  - **The gold lead is fused into the score group**, as a parenthetical on the leading side's own digit — NOT
+    a trailing clause. (Revised 2026-07-28: the original design put the gold lead last, `24-19 Tundra v BetBoom
+    · Tundra +2.4k`, reasoning that losing it to truncation "only" cost precision. In real use the tab truncates
+    before that trailing clause is ever visible, so the gold lead was routinely invisible — the opposite of the
+    intent. Moving it next to the score puts both glanceable numbers inside the part of the title that survives.)
+  - The first score belongs to the first-listed name, and the parenthetical inherits that same attribution — it
+    sits on whichever digit belongs to the side ahead, never a bare, unattributed `+2.4k`. That positional
+    attribution is what keeps a title truncated anywhere unambiguous.
+  - Team names are shortened (`Tundra Esports` → `Tundra`, `Team Falcons` → `Falcons`) and now sit last — the
+    part that's fine to lose once the score+gold group is visible.
 - Degrades in order: no gold lead → drop the suffix; no kill score → title untouched (never a fabricated `0-0`,
   same rule as `SeriesGameScore`); spoiler-free → title untouched.
 - Radiant/Dire naming comes from the pulse (`radiantName`/`direName`), not the series header — sides swap

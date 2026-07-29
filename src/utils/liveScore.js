@@ -59,20 +59,33 @@ function leadClause(pulse) {
   return `${pulse.radiantLead > 0 ? a : b} ${mag}`
 }
 
-// Browser tab title, e.g. "24-19 Tundra v BetBoom · Tundra +2.4k".
+// Browser tab title, e.g. "24(+2.4k)-19 Tundra v BetBoom".
 //
 // SCORE FIRST, deliberately: a browser tab shows ~12-18 characters, so the ordering here is a
-// truncation strategy. "24-19 Tundr…" still answers the question; "Tundra vs Bet…" does not.
-// The first score belongs to the first-listed name, which is what keeps a truncated title
-// unambiguous. The gold clause is last so losing it costs precision, never meaning.
+// truncation strategy. "24(+2.4k)-1…" still answers the question; "Tundra vs Bet…" does not.
+//
+// The gold lead is FUSED into the score itself, as a parenthetical on the leading side's own
+// digit, rather than a separate trailing clause. An earlier version appended it at the end
+// ("24-19 Tundra v BetBoom · Tundra +2.4k") — exactly the part a tab cuts first, so the gold
+// lead was routinely invisible even though the format was "designed" to survive truncation.
+// Moving it next to the score keeps the two genuinely glanceable numbers (kills, gold) inside
+// the part of the title that actually survives; the team names, now last, are the least
+// essential part once you already know which series you opened.
+//
+// Attribution is positional, same as the kill score itself: the parenthetical sits on
+// whichever digit belongs to the side that's ahead, so it never has to repeat a team name to
+// stay unambiguous.
 //
 // Returns null when there is no kill score yet — the caller then leaves the title untouched
 // rather than showing a fabricated "0-0" (same rule as SeriesGameScore).
 export function formatLiveScoreTitle(pulse) {
   if (!hasKills(pulse)) return null
   const { a, b } = sides(pulse)
-  const lead = leadClause(pulse)
-  return `${pulse.radiantScore}-${pulse.direScore} ${a} v ${b}${lead ? ` · ${lead}` : ''}`
+  const mag = formatGoldMagnitude(pulse?.radiantLead)
+  const radiantAhead = Number.isFinite(pulse?.radiantLead) && pulse.radiantLead > 0
+  const radiantSuffix = mag && radiantAhead ? `(${mag})` : ''
+  const direSuffix = mag && !radiantAhead ? `(${mag})` : ''
+  return `${pulse.radiantScore}${radiantSuffix}-${pulse.direScore}${direSuffix} ${a} v ${b}`
 }
 
 // Notification title, e.g. "Tundra 24-19 BetBoom". Name-first, unlike the tab title above:

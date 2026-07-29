@@ -823,19 +823,26 @@ formatting detail**.
 ### Browser tab title (`useLiveScoreTabTitle`, in `SeriesLivePulse.jsx`)
 
 ```
-24-19 Tundra v BetBoom · Tundra +2.4k
+24(+2.4k)-19 Tundra v BetBoom
 ```
 
-- **Score first.** A browser tab shows ~12-18 characters. `24-19 Tundr…` still answers the question;
+- **Score first.** A browser tab shows ~12-18 characters. `24(+2.4k)-1…` still answers the question;
   `Tundra vs Bet…` does not. Do not "fix" this into name-first for consistency with the notification
   title — the two have different truncation budgets, and this ordering is the whole point.
-- **The first score belongs to the first-listed name.** That ordering IS the attribution, which is
-  what keeps a title truncated at any point unambiguous. Never insert anything between them.
-- **Gold lead last**, attributed to a named side (`Tundra +2.4k`), never a bare `+2.4k` — same
-  attribution rule as the score row's gold micro-label. Losing it to truncation costs precision, not
-  meaning.
+- **The gold lead is fused into the score group, not appended after the names.** A first version
+  put it last (`24-19 Tundra v BetBoom · Tundra +2.4k`) on the theory that losing it to truncation
+  "only" cost precision — in practice the tab almost always truncates before that trailing clause is
+  ever visible, so the gold lead was routinely invisible in real use. It now sits as a parenthetical
+  directly on the leading side's own digit (`24(+2.4k)-19`), inside the part of the title that
+  actually survives truncation. **Do not move it back to a trailing clause.**
+- **The first score belongs to the first-listed name, and the parenthetical inherits that same
+  attribution** — it sits on whichever digit belongs to the side that's ahead, never as a bare,
+  unattributed `+2.4k` and never repeating the team name to stay unambiguous. That positional
+  attribution IS what keeps a title truncated at any point legible. Never insert anything between
+  the score group and the names.
 - Team names go through `shortTeamName()` (strips `Team `, ` Esports`, ` Gaming`, ` Club`). Org
-  boilerplate is pure noise at this character budget.
+  boilerplate is pure noise at this character budget, and names are now the LAST thing in the
+  title — the part that's fine to lose to truncation once you already know which series you opened.
 - **No kill score → return null and leave the title alone.** Never a fabricated `0-0` — same rule as
   `SeriesGameScore` and the draft strip's "Stats indexing" fallback.
 - **Spoiler-free suppresses it unconditionally.** No opt-in, no override. Unlike the score

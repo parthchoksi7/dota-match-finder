@@ -68,9 +68,9 @@ async function renderWithPulse(pulse, props = {}) {
 }
 
 describe('live score in the browser tab title', () => {
-  it('shows the running game score, gold lead first-listed team attributed', async () => {
+  it('shows the running game score, gold lead fused onto the leading side\'s digit', async () => {
     await renderWithPulse(pulseWith())
-    expect(document.title).toBe('24-19 Tundra v BetBoom · Tundra +2.4k')
+    expect(document.title).toBe('24(+2.4k)-19 Tundra v BetBoom')
   })
 
   it('restores the original title exactly when the companion closes', async () => {

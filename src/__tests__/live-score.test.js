@@ -76,18 +76,24 @@ describe('formatGoldMagnitude', () => {
 })
 
 describe('formatLiveScoreTitle', () => {
-  it('puts the score first so a truncated tab still answers the question', () => {
-    expect(formatLiveScoreTitle(PULSE)).toBe('24-19 Tundra v BetBoom · Tundra +2.4k')
-    // The load-bearing property: the first score belongs to the first-listed name, so cutting
-    // the title anywhere still attributes 24 to Tundra.
-    expect(formatLiveScoreTitle(PULSE).indexOf('24')).toBeLessThan(formatLiveScoreTitle(PULSE).indexOf('Tundra'))
+  it('fuses the gold lead into the score itself, on the leading side\'s own digit', () => {
+    expect(formatLiveScoreTitle(PULSE)).toBe('24(+2.4k)-19 Tundra v BetBoom')
   })
 
-  it('attributes the gold lead to the DIRE side when dire is ahead', () => {
-    expect(formatLiveScoreTitle({ ...PULSE, radiantLead: -3100 })).toBe('24-19 Tundra v BetBoom · BetBoom +3.1k')
+  it('puts the score group first so a truncated tab still answers the question', () => {
+    // The load-bearing property: the first score (and its parenthetical, when present)
+    // belongs to the first-listed name, so cutting the title anywhere after the score group
+    // never misattributes it. Team names, now last, are the part that's fine to lose.
+    const title = formatLiveScoreTitle(PULSE)
+    expect(title.indexOf('24')).toBeLessThan(title.indexOf('Tundra'))
+    expect(title.startsWith('24(+2.4k)-19')).toBe(true)
   })
 
-  it('drops the gold clause when the game is dead even', () => {
+  it('attaches the parenthetical to the DIRE digit when dire is ahead', () => {
+    expect(formatLiveScoreTitle({ ...PULSE, radiantLead: -3100 })).toBe('24-19(+3.1k) Tundra v BetBoom')
+  })
+
+  it('adds no parenthetical when the game is dead even', () => {
     expect(formatLiveScoreTitle({ ...PULSE, radiantLead: 0 })).toBe('24-19 Tundra v BetBoom')
     expect(formatLiveScoreTitle({ ...PULSE, radiantLead: null })).toBe('24-19 Tundra v BetBoom')
   })

@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 28, 2026",
+    tag: "fix",
+    title: "Gold lead now actually visible in the live tab title",
+    desc: "The tab title's gold lead was appended at the end (\"24-19 Tundra v BetBoom · Tundra +2.4k\"), which is exactly the part a browser tab cuts off first, so it was routinely invisible. It now sits right next to the score itself (\"24(+2.4k)-19 Tundra v BetBoom\") so both numbers survive truncation.",
+  },
+  {
+    date: "July 28, 2026",
+    tag: "fix",
+    title: "Reopening a live series companion now lands on the right game",
+    desc: "Clicking back into an in-progress series' companion could reopen Game 1 instead of the game currently being watched. It now always opens the most recently played game, live or just finished.",
+  },
+  {
     date: "July 27, 2026",
     tag: "new",
     title: "Check the live score at a glance, without opening the site",
