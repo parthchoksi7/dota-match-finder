@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import LiveGoldGraph, { computeTimeScaledPoints, computeTimeTicks } from '../components/LiveGoldGraph'
+import LiveGoldGraph, { computeTimeScaledPoints, computeTimeTicks, computeDisplayClocks } from '../components/LiveGoldGraph'
 
 function point(t, lead) {
   return { t, lead, rk: 0, dk: 0 }
@@ -59,8 +59,29 @@ describe('LiveGoldGraph — partial-history honesty label', () => {
   it('shows the "since" caption when the first captured point is well past kickoff', () => {
     const history = [point(600, 2000), point(660, 2500)]
     render(<LiveGoldGraph history={history} />)
-    expect(screen.getByText(/^Since 10:00/)).toBeInTheDocument()
+    expect(screen.getByText(/^Since 10m/)).toBeInTheDocument()
     expect(screen.getByText(/full trend after the game ends/)).toBeInTheDocument()
+  })
+})
+
+describe('computeDisplayClocks — rounds to the nearest minute, except colliding neighbors', () => {
+  it('rounds isolated points to whole minutes', () => {
+    expect(computeDisplayClocks([0, 599, 720])).toEqual(['0m', '10m', '12m'])
+  })
+
+  it('keeps exact m:ss for adjacent points that round to the same minute', () => {
+    // 345s (5:45) and 384s (6:24) both round to minute 6 — ambiguous, so both stay exact.
+    expect(computeDisplayClocks([0, 345, 384, 599])).toEqual(['0m', '5:45', '6:24', '10m'])
+  })
+
+  it('cascades the exact-format exception across a run of 3+ colliding points', () => {
+    // 355s, 360s, 365s all round to minute 6.
+    expect(computeDisplayClocks([355, 360, 365])).toEqual(['5:55', '6:00', '6:05'])
+  })
+
+  it('handles single- and empty-length input without throwing', () => {
+    expect(computeDisplayClocks([])).toEqual([])
+    expect(computeDisplayClocks([90])).toEqual(['2m'])
   })
 })
 

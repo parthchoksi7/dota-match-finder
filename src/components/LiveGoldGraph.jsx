@@ -56,6 +56,20 @@ export function computeTimeTicks(minT, maxT, stepS = 300) {
   return ticks
 }
 
+// Rounds each point's game time to the nearest whole minute for display (e.g. "9:59" -> "10m"),
+// since the exact second is more precision than a viewer scrubbing the graph needs. Exception: if
+// rounding two adjacent points would make them show the *same* minute (e.g. 5:45 and 6:24 both
+// round to 6), that pair keeps its exact m:ss time instead — otherwise scrubbing between two
+// distinct captures would look like no time passed at all. Exported for tests.
+export function computeDisplayClocks(times) {
+  const rounded = times.map(t => Math.round(t / 60))
+  return times.map((t, i) => {
+    const collides = (i > 0 && rounded[i] === rounded[i - 1]) ||
+      (i < times.length - 1 && rounded[i] === rounded[i + 1])
+    return collides ? formatClock(t) : `${rounded[i]}m`
+  })
+}
+
 function advColor(val) {
   return val > 0 ? 'rgb(34,197,94)' : val < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
 }
@@ -83,11 +97,15 @@ export default function LiveGoldGraph({ history, radiantName, direName }) {
   // since formatClock returns null for it). Memoized on the history prop so the derived pts/clean stay
   // reference-stable across the frequent hover/scrub re-renders within a poll — that keeps
   // nearestIndex's identity stable so the touch-listener effect doesn't re-subscribe on every render.
-  const { pts, clean } = useMemo(() => {
+  const { pts, clean, clockLabels } = useMemo(() => {
     const cleaned = (Array.isArray(history) ? history : [])
       .filter(h => h && Number.isFinite(h.t) && h.t >= 0 && Number.isFinite(h.lead))
       .sort((a, b) => a.t - b.t)
-    return { clean: cleaned, pts: cleaned.length >= 2 ? computeTimeScaledPoints(cleaned) : [] }
+    return {
+      clean: cleaned,
+      pts: cleaned.length >= 2 ? computeTimeScaledPoints(cleaned) : [],
+      clockLabels: computeDisplayClocks(cleaned.map(h => h.t)),
+    }
   }, [history])
 
   const nearestIndex = useCallback((svgX) => {
@@ -182,7 +200,7 @@ export default function LiveGoldGraph({ history, radiantName, direName }) {
   // A game whose first captured point isn't near kickoff started mid-graph (traffic-dependent
   // capture start) — say so rather than implying the trend covers the whole game.
   const partial = clean[0].t > 90
-  const sinceLabel = formatClock(clean[0].t)
+  const sinceLabel = clockLabels[0]
 
   function handleMouseMove(e) {
     const rect = svgRef.current?.getBoundingClientRect()
@@ -233,7 +251,7 @@ export default function LiveGoldGraph({ history, radiantName, direName }) {
               top: Math.max(8, hoverViewport.y - (hoverViewport.source === 'touch' ? 70 : 50)),
             }}
           >
-            <span className="text-gray-400 font-medium tabular-nums">{formatClock(hoverPt.t)}</span>
+            <span className="text-gray-400 font-medium tabular-nums">{clockLabels[hoverIdx]}</span>
             <span className="mx-1.5 text-gray-600">·</span>
             <span style={{ color: hoverColor }}>{formatHoverLabel(hoverPt.lead, radiantName, direName)}</span>
           </div>
