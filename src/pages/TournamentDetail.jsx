@@ -8,6 +8,7 @@ import RegionBreakdown from '../components/RegionBreakdown'
 import { HorizontalBracket } from '../components/BracketView'
 import StatusBadge from '../components/StatusBadge'
 import { trackEvent, formatDateRange, buildTournamentName, getTournamentFormatKey, getStageFormatConfig } from '../utils'
+import { TOOLTIP_PANEL, clampLeft } from '../components/FloatingTooltip'
 
 function getSeriesIdFromPath() {
   if (typeof window === 'undefined') return null
@@ -212,6 +213,9 @@ function getStageDescription(stageName, hasBracket) {
   return 'Tournament stage where teams compete for advancement.'
 }
 
+// Matches the popover's own `w-72`; used as the viewport clamp width.
+const STAGE_POPOVER_WIDTH = 288
+
 function StageInfoTooltip({ stageName, hasBracket }) {
   const [pos, setPos] = useState(null)
   const btnRef = useRef(null)
@@ -255,8 +259,8 @@ function StageInfoTooltip({ stageName, hasBracket }) {
       {pos && (
         <div
           ref={tooltipRef}
-          className="fixed z-[9999] w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-xl p-3"
-          style={{ top: pos.top, left: Math.min(pos.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - 288) }}
+          className={`fixed z-[9999] w-72 ${TOOLTIP_PANEL} p-3`}
+          style={{ top: pos.top, left: clampLeft(pos.left, STAGE_POPOVER_WIDTH) }}
         >
           <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{stageName}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">

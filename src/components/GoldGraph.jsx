@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { RoshanSvg, RampageSvg, RapierSvg, TeamFightSvg } from './GameIndicators'
 import { trackEvent } from '../utils'
+import { TOOLTIP_SURFACE, SCRUB_TOOLTIP_WIDTH, clampLeft, clampTop } from './FloatingTooltip'
 
 // SVG coordinate constants (viewBox: 480 × 160)
 const VW = 480
@@ -302,10 +303,11 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
     const markerVPY = svgRect.top + activeEvent.discY * (svgRect.height / VH)
     const tipW = tooltipRef.current.offsetWidth
     const flipLeft = (activeEvent.x - PL) / CW > 0.45
-    const left = flipLeft
-      ? Math.max(8, markerVPX - tipW)
-      : Math.min(window.innerWidth - tipW - 8, markerVPX + 4)
-    setTooltipFixed({ left, top: Math.max(8, markerVPY - 46) })
+    // Which side of the marker the card prefers depends on where in the graph it sits;
+    // clampLeft then applies BOTH bounds either way (each branch previously clamped only the
+    // edge it expected to hit, so a narrow viewport could push the other side off-screen).
+    const left = clampLeft(flipLeft ? markerVPX - tipW : markerVPX + 4, tipW)
+    setTooltipFixed({ left, top: clampTop(markerVPY - 46) })
   }, [activeEvent])
 
   const minuteFromSvgX = useCallback((svgX) => {
@@ -491,11 +493,11 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
       {/* Mobile scrub tooltip — same floating card as desktop, position:fixed above the thumb */}
       {hoverPt && hoverSourceRef.current === 'touch' && !activeEvent && hoverViewport && (
         <div
-          className="pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
+          className={`pointer-events-none z-50 ${TOOLTIP_SURFACE} text-xs font-semibold px-3 py-2 whitespace-nowrap`}
           style={{
             position: 'fixed',
-            left: Math.max(8, Math.min(window.innerWidth - 210, hoverViewport.x - 80)),
-            top: Math.max(8, hoverViewport.y - 70),
+            left: clampLeft(hoverViewport.x - 80, SCRUB_TOOLTIP_WIDTH),
+            top: clampTop(hoverViewport.y - 70),
           }}
         >
           <span className="text-gray-400 font-medium tabular-nums">{hoverMinute}m</span>
@@ -644,11 +646,11 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           viewport-clamped so it never clips at left/right edges regardless of screen width */}
       {hoverPt && hoverSourceRef.current === 'mouse' && !activeEvent && hoverViewport && (
         <div
-          className="pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
+          className={`pointer-events-none z-50 ${TOOLTIP_SURFACE} text-xs font-semibold px-3 py-2 whitespace-nowrap`}
           style={{
             position: 'fixed',
-            left: Math.max(8, Math.min(window.innerWidth - 210, hoverViewport.x - 80)),
-            top: Math.max(8, hoverViewport.y - 50),
+            left: clampLeft(hoverViewport.x - 80, SCRUB_TOOLTIP_WIDTH),
+            top: clampTop(hoverViewport.y - 50),
           }}
         >
           <span className="text-gray-400 font-medium tabular-nums">{hoverMinute}m</span>
@@ -678,24 +680,16 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
         return (
           <div
             ref={tooltipRef}
-            className="pointer-events-none z-[200] whitespace-nowrap"
+            // Surface comes from TOOLTIP_SURFACE; only the geometry stays inline, because
+            // useLayoutEffect writes the measured position directly. Event-chip colors below
+            // remain inline — they're per-event data, not design tokens.
+            className={`pointer-events-none z-[200] whitespace-nowrap ${TOOLTIP_SURFACE} inline-flex items-center gap-2 px-2.5 py-[7px] text-[13px] leading-none`}
             style={{
               // Off-screen until useLayoutEffect computes the clamped viewport position.
               // fixed escapes all overflow:hidden ancestors (drawer panel + scroll container).
               position: 'fixed',
               left: tooltipFixed?.left ?? -9999,
               top: tooltipFixed?.top ?? 0,
-              background: '#030712',
-              border: '1px solid #1f2937',
-              borderRadius: '4px',
-              padding: '7px 10px',
-              fontSize: '13px',
-              lineHeight: 1,
-              color: '#fff',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
             }}
           >
             <span style={{ color: activeEvent.chipColor, display: 'inline-flex' }}>

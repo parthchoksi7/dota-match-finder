@@ -13,6 +13,7 @@ Sentry.init({
   tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
 })
 import App from './App.jsx'
+import ErrorBoundary from './ErrorBoundary.jsx'
 import AboutPage from './pages/AboutPage.jsx'
 import ReleaseNotesPage from './pages/ReleaseNotesPage.jsx'
 import Tournaments from './pages/Tournaments.jsx'
@@ -57,7 +58,11 @@ function Root() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Root />
+    {/* Only Root is wrapped: FeedbackWidget stays outside so a crashed page still leaves the
+        user a way to report the crash, and Analytics/SpeedInsights keep reporting the session. */}
+    <ErrorBoundary>
+      <Root />
+    </ErrorBoundary>
     <FeedbackWidget />
     <Analytics />
     <SpeedInsights />

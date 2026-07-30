@@ -297,6 +297,46 @@ export async function fetchStoredReplay(odMatchId) {
   }
 }
 
+// Server caps ids per request; chunk to match. Module-level so status survives across
+// searches for the whole browser session — a game's replay availability doesn't change
+// while someone is searching.
+const REPLAY_STATUS_CHUNK = 200
+const _replayStatusCache = new Map()
+
+/**
+ * Bulk "does this game have a watchable replay" lookup for the search overlay's Has VOD filter.
+ * Returns a Map of odMatchId (as given) → boolean for every requested id.
+ *
+ * Reads the persisted vod-enrich output via `?type=replay-status`, NOT the locked per-match live
+ * resolver (`fetchMatchStreams`/`findTwitchVod`) — running that across a result set would mean
+ * two third-party calls per result. Only uncached ids go over the wire.
+ *
+ * Throws on request failure so the caller can revert the filter and leave results unfiltered
+ * rather than silently showing fewer games than exist.
+ */
+export async function fetchReplayStatus(matchIds) {
+  const ids = [...new Set((matchIds || []).map(String).filter(id => /^\d{1,20}$/.test(id)))]
+  const uncached = ids.filter(id => !_replayStatusCache.has(id))
+
+  for (let i = 0; i < uncached.length; i += REPLAY_STATUS_CHUNK) {
+    const chunk = uncached.slice(i, i + REPLAY_STATUS_CHUNK)
+    const res = await fetch(`/api/pipeline?type=replay-status&ids=${chunk.join(',')}`)
+    if (!res.ok) throw new Error(`replay-status failed: ${res.status}`)
+    const data = await res.json()
+    const available = new Set((data?.available || []).map(String))
+    // Cache the misses too — an id the server didn't return has no replay, and re-asking on
+    // every toggle would defeat the cache.
+    for (const id of chunk) _replayStatusCache.set(id, available.has(id))
+  }
+
+  return new Map(ids.map(id => [id, _replayStatusCache.get(id) === true]))
+}
+
+/** Test-only: drop the session replay-status cache. */
+export function _resetReplayStatusCacheForTests() {
+  _replayStatusCache.clear()
+}
+
 export async function fetchMatchSummary(matchId) {
   // Server fetches OpenDota itself (api/summarize.js) — not from the browser. OpenDota's Cloudflare
   // bot protection can 403 direct browser requests and drop the CORS header on that response, which

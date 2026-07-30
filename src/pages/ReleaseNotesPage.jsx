@@ -4,6 +4,18 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 29, 2026",
+    tag: "new",
+    title: "\"Has VOD\" search filter",
+    desc: "A new filter chip narrows search results to games with a confirmed, watchable replay. It sits next to the BO1/BO3/BO5 filter and can be combined with it, so you can search for a team and only see the series you can actually watch right now.",
+  },
+  {
+    date: "July 29, 2026",
+    tag: "fix",
+    title: "A rare page crash now shows a recovery screen instead of a blank page",
+    desc: "An unexpected error while rendering the page previously left a blank white screen with no way to recover except a hard refresh. It now shows a proper \"Something went wrong\" screen with a reload button.",
+  },
+  {
     date: "July 28, 2026",
     tag: "fix",
     title: "Gold lead now actually visible in the live tab title",

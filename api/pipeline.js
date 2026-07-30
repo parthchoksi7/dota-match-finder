@@ -8,6 +8,7 @@
  * GET  /api/pipeline?type=articles&mode=meta     → metadata only (no sections)
  * GET  /api/pipeline?type=articles&mode=slugs    → slugs + tournaments for sitemap
  * GET  /api/pipeline?type=trigger                → cron: generate topics + send to Telegram
+ * GET  /api/pipeline?type=replay-status&ids=1,2  → which of those od_match_ids have a replay
  * GET  /api/pipeline?type=vod-enrich             → cron: resolve twitch_vod_id/vod_offset_s for unresolved rows
  * POST /api/pipeline                             → Telegram webhook handler
  */
@@ -587,6 +588,55 @@ async function handleReplay(req, res) {
   return res.status(200).json(buildReplayResponse(row, vodByChannel))
 }
 
+// ── Bulk replay availability (Supabase source of truth) ─────────────────────
+// GET /api/pipeline?type=replay-status&ids=123,456  (public, cached)
+// Answers "which of these games have a watchable replay" for a whole list in ONE indexed
+// query. Powers the search overlay's "Has VOD" filter chip.
+//
+// Deliberately does NOT touch the live replay resolver (match-streams.js → Twitch Helix).
+// That chain is per-match and LOCKED; running it across a result set would mean 2N
+// third-party calls per search. This reads only the persisted vod-enrich output, so it
+// changes no cache key, TTL, lookup order, or channel-resolution logic.
+//
+// Returns only the ids that HAVE a replay. An absent id means "no replay, or not enriched
+// yet" — indistinguishable to a fan who wants to watch something right now, and treated
+// identically by the client.
+const REPLAY_STATUS_MAX_IDS = 200
+
+async function handleReplayStatus(req, res) {
+  const raw = String(req.query.ids || '').trim()
+  if (!raw) return res.status(400).json({ error: 'missing_ids' })
+
+  const ids = [...new Set(raw.split(',').map(s => s.trim()).filter(Boolean))]
+  // Reject the whole request on any malformed id rather than silently dropping it — a
+  // partial answer here reads to the client as "those games have no VOD", which is a lie.
+  if (ids.some(id => !/^\d{1,20}$/.test(id))) return res.status(400).json({ error: 'invalid_ids' })
+  if (ids.length > REPLAY_STATUS_MAX_IDS) return res.status(400).json({ error: 'too_many_ids', max: REPLAY_STATUS_MAX_IDS })
+
+  let rows
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('match_stream_history')
+      .select('od_match_id, twitch_vod_id, vod_available')
+      .in('od_match_id', ids.map(Number))
+    if (error) return res.status(500).json({ error: error.message })
+    rows = data || []
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || 'query failed' })
+  }
+
+  // Same predicate as buildReplayResponse()'s `replay_available` (minus the start_point
+  // branch, which needs the full row shape) — one definition of "has a VOD", not two.
+  const available = rows
+    .filter(r => !!r.twitch_vod_id || r.vod_available === true)
+    .map(r => r.od_match_id)
+
+  // Near-immutable once resolved; 5 min is short enough that a freshly enriched row shows up
+  // while a fan is still searching.
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400')
+  return res.status(200).json({ available })
+}
+
 // ── VOD enrichment cron ───────────────────────────────────────────────────────
 // GET /api/pipeline?type=vod-enrich  (Authorization: Bearer {CRON_SECRET})
 // Resolves twitch_vod_id / vod_offset_s for unresolved match_stream_history rows
@@ -699,6 +749,7 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && type === 'vod-urls') return handleVodUrls(req, res)
   if (req.method === 'GET' && type === 'replay') return handleReplay(req, res)
+  if (req.method === 'GET' && type === 'replay-status') return handleReplayStatus(req, res)
   if (req.method === 'GET' && type === 'vod-enrich') return handleVodEnrich(req, res)
   if (req.method === 'POST') return handleWebhook(req, res)
 

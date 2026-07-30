@@ -64,7 +64,7 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 - **Amber is the shared "personal/highlighted content" token** — My Teams card, Grand Final card, followed-row left borders, section-label left-accent, and tournament Champion labels all use it. Don't treat it as a free color for unrelated accents.
 - **Sky-50 / sky-950/20 tinted background** is reserved for the editorial card (`EditorialCard`) — the only tinted background in the feed. It signals "this is context, not a score." Do not use tinted backgrounds for other card types.
 - Light mode must use gray-900 (not gray-700) for primary text — never sacrifice contrast for softness
-- No gradients. No shadows except on the match drawer overlay.
+- No gradients. No shadows except on the match drawer overlay and the floating layer (tooltips, hover cards, popovers) — see "Floating layer" under Component Patterns. Elevation is what makes a floating element read as *above* the page, so it's a genuine exception, not drift.
 - Borders are always 1px, never 2px+, unless it's an active indicator underline
 
 ---
@@ -94,6 +94,32 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 - **Card background must be explicit**: `bg-white dark:bg-gray-950` on the card wrapper — do not rely on inheritance. Without an explicit background the card is transparent, which breaks segmented controls and other elements that use relative background steps (e.g. `dark:bg-gray-900` tab bar needs a `dark:bg-gray-950` card behind it to be visible).
 - Header background: `bg-gray-100 dark:bg-gray-900`
 - Section dividers: `border-t border-gray-100 dark:border-gray-900`
+
+### Floating layer (tooltips, hover cards, popovers)
+
+Everything that floats above the page pulls its surface from `src/components/FloatingTooltip.jsx`.
+Never hand-roll a floating card — that's what produced the three-radii/three-shadow drift the
+2026-07-21 audit found (`.claude/design-consistency-audit-2026-07.md` §3).
+
+**One radius/shadow pair for the whole layer:** `rounded-md shadow-xl`. A new floating element
+only has to pick a surface:
+
+| Constant | Surface | Use for |
+|---|---|---|
+| `TOOLTIP_SURFACE` | `bg-gray-900 dark:bg-gray-950` + `border-gray-700 dark:border-gray-800`, `text-white` | Transient hover readouts floating over dense content — graph crosshairs, item icons, indicator chips. Deliberately a **dark chip in both themes** (standard sports-UI treatment); this is not a missing `dark:` variant. |
+| `TOOLTIP_PANEL` | `bg-white dark:bg-gray-900` + `border-gray-200 dark:border-gray-700` | Click-opened informational popovers carrying body copy or links (e.g. the tournament stage-info card). Theme-aware, matches the card system. |
+
+**Geometry helpers** (don't re-inline the `Math.max`/`Math.min` sandwich):
+- `clampLeft(left, width)` / `clampTop(top)` — keep a floating element fully on screen, 8px margin (`TOOLTIP_EDGE_MARGIN`). Any `position: fixed` tooltip needs this: `fixed` is what lets it escape the drawer's `overflow-x-hidden`, and clamping is what stops it clipping at a screen edge.
+- `SCRUB_TOOLTIP_WIDTH` — clamp width for the compact graph-scrub readout.
+
+**Components:**
+- `HoverCard` — hover-delayed card anchored above its trigger. Owns the show/hide timers (120ms show so a mouse crossing a dense item row doesn't strobe, 80ms hide so travel onto the card doesn't dismiss it), the invisible hover bridge that makes that travel possible, timer cleanup on unmount, and `align="left" | "right" | "center"` for row-edge items. Used by `ItemSlot` and `PlayerStatsSection`'s consumed-upgrade icons.
+- `HoverCardTitle`, `WikiLink` — the title line and the Dota 2 Wiki footer row (divider + external link + `aria-label`) shared by both item hover cards.
+
+Use the raw `TOOLTIP_SURFACE` constant (not `HoverCard`) when the trigger already owns its own
+open/close mechanism — a portal-positioned tooltip, a caller-measured `fixed` position, or a
+pure-CSS `group-hover` label where a component's timers and re-renders would be disproportionate.
 
 ### Buttons
 | Variant | Classes |
@@ -536,8 +562,7 @@ Four icon chips that surface notable in-game events: Divine Rapier, 20K+ Gold Sw
 **Compact variant** (series rows, game rows in MatchCard):
 - Chip: `w-5 h-5 rounded-full flex items-center justify-center` with colored background
 - Icon: SVG at `w-3 h-3` (16x16 viewBox)
-- Tooltip: appears on hover using `group/indicator` scoped Tailwind — `absolute bottom-full left-1/2 -translate-x-1/2 mb-1` positioning, `z-10`, `text-[10px] whitespace-nowrap px-1.5 py-0.5 rounded bg-gray-900 text-white`
-- Wrapper: `relative group/indicator` so tooltip is scoped per chip
+- Tooltip: portal-rendered (`createPortal` to `document.body`) at a `position: fixed` coord measured from the trigger rect, so it escapes the row's overflow. Surface is `TOOLTIP_SURFACE` (see Floating layer) at `px-2.5 py-1.5 text-[11px] font-medium`, plus a 5px CSS-triangle arrow whose fill tracks the surface background (`border-b-gray-900 dark:border-b-gray-950`). `align="right"` pins it to the trigger's right edge for end-of-row chips.
 
 **Full variant** (MatchDrawer only):
 - Pill: `inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide` with colored border and text
@@ -735,7 +760,7 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - Loading: fragment with `h-5 mb-1.5` spacer + 160px `animate-pulse bg-gray-200 dark:bg-gray-800 rounded` skeleton.
 - Empty (< 2 data points): 160px `h-[160px]` div — "Gold data unavailable".
 - **Event markers**: See `## Game event markers` section below. Three types: Roshan kill, Rampage, Divine Rapier. Colored by side (#22c55e Radiant / #ef4444 Dire), not by event type.
-- **Hover tooltip** (desktop scrub): `position: fixed`, viewport-clamped via `Math.max(8, Math.min(window.innerWidth - 210, clientX - 80))` — escapes drawer's `overflow-x-hidden` so it never clips at left/right screen edges. Uses `hoverViewport` state (set on `mousemove`).
+- **Hover tooltip** (desktop scrub): `TOOLTIP_SURFACE` at `position: fixed`, viewport-clamped via `clampLeft(hoverViewport.x - 80, SCRUB_TOOLTIP_WIDTH)` / `clampTop(...)` (see Floating layer) — `fixed` escapes the drawer's `overflow-x-hidden`, clamping stops it clipping at left/right screen edges. Uses `hoverViewport` state (set on `mousemove`).
 - **Event tooltip**: `activeEvent` state. `position: fixed`, measured by `useLayoutEffect` after render. Shows: colored icon · event label · separator · subject · separator · minute · "WATCH" in amber.
 - **Click-to-VOD**: `buildEventUrl(vodUrl, event.time)` parses the Twitch `?t=` offset already in the VOD URL, adds `event.time` seconds, reformats to `Xh Ym Zs`, opens in new tab. No-op if no `vodUrl`.
 - Tooltip and click work on desktop hover/click. Touch devices get click-only (no hover tooltip).
@@ -751,7 +776,7 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - `w-6 h-6` (md, default) or `w-5 h-5` (sm). Always `rounded-sm`.
 - Empty slot (itemId=0 or name not found): `bg-gray-200 dark:bg-gray-800` placeholder, `aria-hidden="true"`.
 - CDN URL: `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/{name}_lg.png` with `loading="lazy"` and `onError` fallback to empty slot.
-- Tooltip: CSS hover tooltip via `group`/`group-hover:opacity-100` pattern. Wrapper div has `relative group`; no `overflow-hidden` (clips absolute-positioned tooltips). `rounded-sm` on the `<img>` directly.
+- Tooltip: wrap the `<img>` in `HoverCard` (see Floating layer) — it supplies the wrapper's `relative`, the hover delays, and the surface. Pass `align` from the slot's `edgePin` so the first slots in a row pin left instead of overflowing. Content is `HoverCardTitle` + an optional `Neutral item` line + `WikiLink`. Never add `overflow-hidden` to the wrapper (it clips the card); `rounded-sm` goes on the `<img>` directly.
 
 ---
 
@@ -930,7 +955,7 @@ A Dire Roshan kill during Radiant's gold lead renders a **red marker in the gree
 
 ### Tooltip structure
 
-Dark inline-styled card (#030712 bg, 1px #1f2937 border, 4px radius, `0 10px 30px rgba(0,0,0,0.55)` shadow):
+`TOOLTIP_SURFACE` (see Floating layer) at `inline-flex items-center gap-2 px-2.5 py-[7px] text-[13px] leading-none`. Only the measured `left`/`top` stay inline. The per-span colors below remain inline because they're per-event *data* (side color, chip color), not design tokens:
 
 ```
 [icon in sideColor]  [Event Label]  ·  [Subject]  ·  [Xm]  [WATCH?]
@@ -942,7 +967,7 @@ Dark inline-styled card (#030712 bg, 1px #1f2937 border, 4px radius, `0 10px 30p
 - **Minute**: `Math.floor(event.time / 60)` in tabular-nums, color #9ca3af
 - **WATCH**: amber `#f59e0b`, 11px, uppercase, shown only when `eventUrl` is non-null
 
-**Flip logic**: when `(markerX - PL) / CW > 0.60`, flip left with `translateX(-100%)`, otherwise offset 4px right.
+**Flip logic**: when `(markerX - PL) / CW > 0.45` the card prefers the marker's left side (`markerVPX - tipW`, using the width `useLayoutEffect` measured), otherwise it offsets 4px right. Either way the result goes through `clampLeft(..., tipW)`, so both bounds apply and a narrow viewport can't push the card off the opposite edge.
 
 ### CSS (index.css)
 

@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useState, useRef } from 'react'
+import { TOOLTIP_SURFACE } from './FloatingTooltip'
 
 /**
  * GameIndicators — icon chips for notable game events.
@@ -31,7 +32,7 @@ function Tooltip({ label, children, align = 'center' }) {
               ? { left: triggerRect.right, transform: 'translateX(-100%)' }
               : { left: triggerRect.left + triggerRect.width / 2, transform: 'translateX(-50%)' }),
           }}
-          className="pointer-events-none px-2.5 py-1.5 rounded-md bg-gray-950 text-white text-[11px] font-medium leading-snug whitespace-nowrap shadow-2xl"
+          className={`pointer-events-none ${TOOLTIP_SURFACE} px-2.5 py-1.5 text-[11px] font-medium leading-snug whitespace-nowrap`}
         >
           {label}
           <span
@@ -40,7 +41,8 @@ function Tooltip({ label, children, align = 'center' }) {
               bottom: '100%',
               ...(align === 'right' ? { right: '0.5rem' } : { left: '50%', transform: 'translateX(-50%)' }),
             }}
-            className="border-[5px] border-transparent border-b-gray-950"
+            // Arrow fill tracks TOOLTIP_SURFACE's background at both themes.
+            className="border-[5px] border-transparent border-b-gray-900 dark:border-b-gray-950"
           />
         </span>,
         document.body

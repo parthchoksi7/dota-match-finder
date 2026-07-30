@@ -9,7 +9,7 @@ import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
 import SearchSuggestions, { addRecentSearch } from "./components/SearchSuggestions"
 import ManageTeamsModal, { MANAGE_TEAMS_OPEN_EVENT } from "./components/ManageTeamsModal"
-import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, resolveHeroByName } from "./api"
+import { fetchProMatches, findTwitchVod, fetchMatchStreams, fetchMatchSummary, fetchStoredReplay, fetchReplayStatus, resolveHeroByName } from "./api"
 import { isVodExpired, degradeExpiredOthers, dedupOthersAgainstPrimary, resolvableStoredMain } from "./vodStreams"
 import { prefetchMatchStreams as prefetchMatchStreamsCache, clearVodPrefetchCache } from "./vodPrefetchCache"
 import SiteHeader from "./components/SiteHeader"
@@ -286,6 +286,13 @@ function App() {
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [cachedSummaryForSelected, setCachedSummaryForSelected] = useState(null)
   const [seriesFilter, setSeriesFilter] = useState("all")
+  // "Has VOD" search filter. Orthogonal to seriesFilter (composes with it), so it's its own
+  // toggle rather than a fifth value in that single-select group.
+  const [vodOnly, setVodOnly] = useState(false)
+  const [vodStatusLoading, setVodStatusLoading] = useState(false)
+  // od_match_id (string) → boolean. Merged by id, never replaced wholesale, so a response that
+  // lands after the query changed can't mis-filter the new result set.
+  const [vodStatus, setVodStatus] = useState({})
   const [copyFeedback, setCopyFeedback] = useState(null)
   const [expandedSeriesId, setExpandedSeriesId] = useState(null)
   const isOwner = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEYS.OWNER) === "true"
@@ -1201,10 +1208,75 @@ function App() {
         )
       : allMatches
 
-  const filteredMatches =
+  const typeFilteredMatches =
     seriesFilter === "all"
       ? searchResults
       : searchResults.filter(m => String(m.seriesType) === seriesFilter)
+
+  // A game with no result can't have a replay, so "Has VOD" also drops unplayed games rather
+  // than leaving them in as permanent non-matches.
+  const filteredMatches = vodOnly
+    ? typeFilteredMatches.filter(m => !m.unplayed && vodStatus[String(m.id)] === true)
+    : typeFilteredMatches
+
+  // Playable ids in the current type-filtered set. typeFilteredMatches is a plain .filter()
+  // result (a new array every render), so memoizing on it would never actually hit — the
+  // string join below is what gives the effect a value-stable dependency, not this array.
+  const vodCandidateIds = typeFilteredMatches.filter(m => !m.unplayed).map(m => String(m.id))
+  const vodCandidateKey = vodCandidateIds.join(",")
+
+  /**
+   * Resolves replay availability for any ids we don't already know, merging by id.
+   * Returns the merged status object, or null if the lookup failed.
+   *
+   * Lazy on purpose: most sessions never touch this filter, so charging every search a round
+   * trip for it would be the wrong trade. `fetchReplayStatus` caches misses as well as hits, so
+   * every requested id becomes "known" — that's what stops the effect below from re-requesting.
+   */
+  const ensureVodStatus = useCallback(async (ids) => {
+    const missing = ids.filter(id => !(id in vodStatus))
+    if (missing.length === 0) return vodStatus
+    setVodStatusLoading(true)
+    try {
+      const fetched = await fetchReplayStatus(missing)
+      const merged = { ...vodStatus }
+      for (const [id, hasVod] of fetched) merged[id] = hasVod
+      setVodStatus(merged)
+      return merged
+    } catch {
+      return null
+    } finally {
+      setVodStatusLoading(false)
+    }
+  }, [vodStatus])
+
+  // Keeps the filter correct as the result set grows (Load more) or the series-type filter
+  // widens — fetches only the delta, never a refetch.
+  useEffect(() => {
+    if (!vodOnly) return
+    ensureVodStatus(vodCandidateKey ? vodCandidateKey.split(",") : [])
+  }, [vodOnly, vodCandidateKey, ensureVodStatus])
+
+  const handleToggleVodOnly = useCallback(async () => {
+    if (vodOnly) {
+      setVodOnly(false)
+      trackEvent("vod_filter_toggle", { on: false, query: searchQuery })
+      return
+    }
+    const merged = await ensureVodStatus(vodCandidateIds)
+    // Leave results unfiltered on failure — showing fewer games than exist would misrepresent
+    // the archive as thinner than it is.
+    if (!merged) return
+    setVodOnly(true)
+    const after = vodCandidateIds.filter(id => merged[id] === true).length
+    trackEvent("vod_filter_toggle", {
+      on: true,
+      query: searchQuery,
+      resultsBefore: typeFilteredMatches.length,
+      resultsAfter: after,
+    })
+    if (after === 0) trackEvent("vod_filter_empty", { query: searchQuery, resultsBefore: typeFilteredMatches.length })
+  }, [vodOnly, ensureVodStatus, vodCandidateIds, typeFilteredMatches.length, searchQuery])
 
   const matchGameNumbers = {}
   // Built from buildSeriesGroups (not a naive raw-seriesId groupBy) so that games OD
@@ -1530,7 +1602,7 @@ function App() {
           {searched && (
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-3xl mx-auto px-3 pt-3 pb-20 flex flex-col gap-3 w-full">
-                {filteredMatches.length > 0 && (
+                {typeFilteredMatches.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-gray-500 dark:text-gray-600 uppercase tracking-widest">
                       Filter:
@@ -1553,20 +1625,56 @@ function App() {
                         {value === "all" ? "All" : value === "0" ? "BO1" : value === "1" ? "BO3" : "BO5"}
                       </button>
                     ))}
+                    {/* Orthogonal to series type (composes, doesn't replace it) — separated by a
+                        divider so that's visually clear. Purple matches the watch/VOD action
+                        color per DESIGN_GUIDELINES; this is the one chip that gates that action. */}
+                    <span className="w-px h-4 bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
+                    <button
+                      type="button"
+                      onClick={handleToggleVodOnly}
+                      disabled={vodStatusLoading}
+                      aria-pressed={vodOnly}
+                      className={
+                        "focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded transition-colors disabled:opacity-60 disabled:cursor-not-allowed " +
+                        (vodOnly
+                          ? "bg-purple-700 border-purple-700 text-white"
+                          : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500")
+                      }
+                    >
+                      {vodStatusLoading && (
+                        <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin flex-shrink-0" aria-hidden="true" />
+                      )}
+                      Has VOD
+                    </button>
                   </div>
                 )}
-                <MatchList
-                  matches={filteredMatches}
-                  onSelect={match => { handleSelectMatch(match, 'search'); setSearchOpen(false) }}
-                  onDraftPosts={isOwner ? handleDraftPosts : undefined}
-                  onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
-                  loading={loading}
-                  onClearSearch={handleClearSearch}
-                  spoilerFree={spoilerFree}
-                  followedTeams={followedTeams}
-                  onToggleFollow={handleToggleFollow}
-                  expandedSeriesId={expandedSeriesId}
-                />
+                {vodOnly && typeFilteredMatches.length > 0 && filteredMatches.length === 0 && !vodStatusLoading ? (
+                  <div className="flex flex-col items-center gap-2 py-10 text-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No results with a confirmed replay for this search.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setVodOnly(false)}
+                      className="focus-ring text-xs font-semibold uppercase tracking-widest text-purple-700 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors"
+                    >
+                      Clear Has VOD filter
+                    </button>
+                  </div>
+                ) : (
+                  <MatchList
+                    matches={filteredMatches}
+                    onSelect={match => { handleSelectMatch(match, 'search'); setSearchOpen(false) }}
+                    onDraftPosts={isOwner ? handleDraftPosts : undefined}
+                    onDraftRedditPosts={isOwner ? handleDraftRedditPosts : undefined}
+                    loading={loading}
+                    onClearSearch={handleClearSearch}
+                    spoilerFree={spoilerFree}
+                    followedTeams={followedTeams}
+                    onToggleFollow={handleToggleFollow}
+                    expandedSeriesId={expandedSeriesId}
+                  />
+                )}
                 {!loading && nextMatchId && (
                   <button
                     type="button"

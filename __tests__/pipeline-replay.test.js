@@ -192,3 +192,81 @@ describe('pipeline ?type=replay', () => {
     expect(res._body.error).toBe('connection refused')
   })
 })
+
+// pending-refactors #16 "Has VOD" filter — bulk replay availability lookup.
+// Deliberately does NOT touch the live resolver chain (match-streams.js/Helix); this only
+// reads the persisted match_stream_history columns already covered above.
+describe('pipeline ?type=replay-status', () => {
+  it('returns only ids passing the has-a-replay predicate, matching buildReplayResponse', async () => {
+    setSequence([{
+      data: [
+        { od_match_id: 1, twitch_vod_id: '900', vod_available: null },   // resolved VOD → yes
+        { od_match_id: 2, twitch_vod_id: null, vod_available: true },    // flagged available → yes
+        { od_match_id: 3, twitch_vod_id: null, vod_available: false },   // deleted/muted → no
+        { od_match_id: 4, twitch_vod_id: null, vod_available: null },    // not yet enriched → no
+      ],
+      error: null,
+    }])
+    const res = makeRes()
+    await handler(makeReq({ type: 'replay-status', ids: '1,2,3,4' }), res)
+    expect(res._status).toBe(200)
+    expect(res._body.available.sort()).toEqual([1, 2])
+    expect(res._headers['Cache-Control']).toBe('s-maxage=300, stale-while-revalidate=86400')
+  })
+
+  it('an id with no matching row is simply absent from `available` (not an error)', async () => {
+    setSequence([{ data: [], error: null }])
+    const res = makeRes()
+    await handler(makeReq({ type: 'replay-status', ids: '999' }), res)
+    expect(res._status).toBe(200)
+    expect(res._body.available).toEqual([])
+  })
+
+  it('dedupes ids before querying', async () => {
+    setSequence([{ data: [], error: null }])
+    const res = makeRes()
+    await handler(makeReq({ type: 'replay-status', ids: '1,1,1' }), res)
+    expect(res._status).toBe(200)
+    // Inspect the actual builder the handler queried against — calling mockFrom() again here
+    // would hand back a fresh, unrelated builder instance rather than the one `.in()` was
+    // called on.
+    const builder = mockFrom.mock.results[0].value
+    expect(builder.in).toHaveBeenCalledWith('od_match_id', [1])
+  })
+
+  it('returns 400 without touching Supabase when ids is missing', async () => {
+    setSequence([])
+    const res = makeRes()
+    await handler(makeReq({ type: 'replay-status' }), res)
+    expect(res._status).toBe(400)
+    expect(res._body).toEqual({ error: 'missing_ids' })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('rejects the whole request on any malformed id — no partial/silent drop', async () => {
+    setSequence([])
+    const res = makeRes()
+    await handler(makeReq({ type: 'replay-status', ids: '1,2,abc; drop table' }), res)
+    expect(res._status).toBe(400)
+    expect(res._body).toEqual({ error: 'invalid_ids' })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 over the id cap without touching Supabase', async () => {
+    setSequence([])
+    const res = makeRes()
+    const ids = Array.from({ length: 201 }, (_, i) => i + 1).join(',')
+    await handler(makeReq({ type: 'replay-status', ids }), res)
+    expect(res._status).toBe(400)
+    expect(res._body).toEqual({ error: 'too_many_ids', max: 200 })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the query errors', async () => {
+    setSequence([{ data: null, error: { message: 'connection refused' } }])
+    const res = makeRes()
+    await handler(makeReq({ type: 'replay-status', ids: '1' }), res)
+    expect(res._status).toBe(500)
+    expect(res._body.error).toBe('connection refused')
+  })
+})

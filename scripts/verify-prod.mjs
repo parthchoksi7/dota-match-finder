@@ -159,10 +159,11 @@ async function checkTournamentsApi() {
 //
 // Checks:
 //  1. If PS bracket shows finished series → OD game count must be > 0
-//  2. Game count must fall in [finishedSeries, finishedSeries * 5]
-//     (minimum 1 game per series, max 5 for a BO5)
-//  3. For group-stage tournaments (no bracket): game count > 0 if standings
-//     show any wins (i.e. at least one series has been played)
+//  2. Game count must not exceed seriesPlayed * 5 (max 5 games for a BO5), where
+//     seriesPlayed is the largest of the PS bracket count, the PS standings win
+//     count, and OD's own distinct-series count — see the comment on that check
+//     for why the most generous signal is the correct one
+//  3. Spectate's game count is cross-validated against OD's direct count
 
 // Inlined findLeague logic — mirrors api/_shared.js exactly.
 // Collects all candidates with ≥2 overlap, sorts by overlap (non-qualifier wins ties),
@@ -258,6 +259,7 @@ async function checkOdTournamentConsistency() {
 
   // Direct OD cross-check — always run so we can confirm OD has data.
   let odGameCount = null
+  let odSeriesCount = null
   let odLeagueName = null
   try {
     const odLeagues = await fetchJsonOptional('https://api.opendota.com/api/leagues', 'OD leagues list')
@@ -267,7 +269,15 @@ async function checkOdTournamentConsistency() {
         odLeagueName = found.name
         info(`OD league: "${found.name}" (id: ${found.leagueid})`)
         const matchList = await fetchJsonOptional(`https://api.opendota.com/api/leagues/${found.leagueid}/matches`, 'OD match list')
-        if (Array.isArray(matchList)) odGameCount = matchList.length
+        if (Array.isArray(matchList)) {
+          odGameCount = matchList.length
+          // Distinct series in OD's own game list, falling back to match_id for ungrouped
+          // games (series_id null/0) so each counts as its own series. Same grouping key as
+          // api/live-matches.js:557 and api/draft-posts.js:131.
+          odSeriesCount = new Set(matchList.map(m =>
+            (m.series_id && m.series_id !== 0) ? `s:${m.series_id}` : `m:${m.match_id}`
+          )).size
+        }
       } else {
         info(`findLeague() found no OD match for "${tournamentName}" (may be new or not yet indexed)`)
       }
@@ -276,7 +286,7 @@ async function checkOdTournamentConsistency() {
     info(`Direct OD check unavailable: ${err.message}`)
   }
 
-  if (odGameCount !== null) info(`OD direct game count: ${odGameCount}`)
+  if (odGameCount !== null) info(`OD direct game count: ${odGameCount} across ${odSeriesCount} distinct series`)
 
   // If the endpoint itself errored (e.g. 504 timeout), fetchJson already logged the
   // failure. Don't also fire the "OD has games but spectate shows 0" check — the 504
@@ -299,20 +309,34 @@ async function checkOdTournamentConsistency() {
   // and recent games in an ongoing tournament often aren't parsed yet. Having any
   // parsed games (> 0, already checked above) means the pipeline is working.
   //
-  // For group-stage-heavy tournaments (e.g. BLAST Slam Group Stage), totalStandingWins
-  // far exceeds finishedSeries (bracket only captures a few matches). In that case use
-  // standings wins as the denominator so group-stage game counts don't false-alarm.
+  // The denominator is the most GENEROUS plausible "series played so far" count, because this
+  // is only an overcounting guard — an under-counted denominator is what makes it false-alarm,
+  // and each available signal is blind to a different tournament format:
+  //   - finishedSeries (PS bracket)      blind to round-robin/group progress. The bracket API
+  //                                      doesn't track round-robin completions the way it tracks
+  //                                      elimination ones, so it flatlines while a group stage is
+  //                                      still playing out (EWC 2026 Group A: stuck at 3 all day
+  //                                      while real completed games climbed to 18 → false FAIL).
+  //   - totalStandingWins (PS standings) blind to bracket-only tournaments, which have no
+  //                                      standings rows at all.
+  //   - odSeriesCount (OD match list)    distinct series in OD's own game list — the only signal
+  //                                      that tracks round-robin progress. League-wide, so it can
+  //                                      overshoot a single-stage PS tournament; that only loosens
+  //                                      an upper bound, and the game-count cross-check below is
+  //                                      the tighter, real duplication detector. Null when OD is
+  //                                      unreachable, in which case the PS signals still apply.
   if (finishedSeries > 0 || totalStandingWins > 0) {
-    const effectiveSeries = totalStandingWins > finishedSeries * 3
-      ? totalStandingWins   // group-stage dominant: standings wins are the real count
-      : finishedSeries      // bracket dominant: use bracket count
-    const maxExpected = effectiveSeries * 5
+    const signals = [
+      { label: 'PS bracket finished series', value: finishedSeries },
+      { label: 'PS standings wins', value: totalStandingWins },
+      ...(odSeriesCount !== null ? [{ label: 'OD distinct series', value: odSeriesCount }] : []),
+    ]
+    const denom = signals.reduce((best, s) => (s.value > best.value ? s : best))
+    const maxExpected = denom.value * 5
     if (spectateGameCount > maxExpected) {
-      fail(`OD game count ${spectateGameCount} exceeds max of ${maxExpected} (${effectiveSeries} effective series × 5 games) — possible overcounting bug`)
-    } else if (finishedSeries > 0 && totalStandingWins <= finishedSeries * 3) {
-      pass(`${spectateGameCount} OD parsed games / ${finishedSeries} PS series (some games may be unparsed by OD)`)
+      fail(`OD game count ${spectateGameCount} exceeds max of ${maxExpected} (${denom.value} series × 5 games, denominator: ${denom.label}) — possible overcounting bug`)
     } else {
-      pass(`OD game count ${spectateGameCount} > 0 for group-stage tournament (${totalStandingWins} standings wins)`)
+      pass(`${spectateGameCount} OD parsed games ≤ ${maxExpected} max (${denom.value} series × 5, denominator: ${denom.label}; some games may be unparsed by OD)`)
     }
   }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { formatGold, formatHoverLabel } from './GoldGraph'
 import { formatClock } from './SeriesLivePulse'
 import { trackEvent } from '../utils'
+import { TOOLTIP_SURFACE, SCRUB_TOOLTIP_WIDTH, clampLeft, clampTop } from './FloatingTooltip'
 
 // Compact viewBox for the companion sheet — shorter than GoldGraph's full 160px drawer graph, but
 // carrying the same visual language (green/red area fill, dashed zero line, RADIANT/DIRE header,
@@ -244,11 +245,11 @@ export default function LiveGoldGraph({ history, radiantName, direName }) {
             Same dark card as GoldGraph's scrub tooltip. */}
         {hoverPt && hoverViewport && (
           <div
-            className="pointer-events-none z-50 bg-gray-900 dark:bg-gray-950 border border-gray-700 dark:border-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap"
+            className={`pointer-events-none z-50 ${TOOLTIP_SURFACE} text-xs font-semibold px-3 py-2 whitespace-nowrap`}
             style={{
               position: 'fixed',
-              left: Math.max(8, Math.min(window.innerWidth - 210, hoverViewport.x - 80)),
-              top: Math.max(8, hoverViewport.y - (hoverViewport.source === 'touch' ? 70 : 50)),
+              left: clampLeft(hoverViewport.x - 80, SCRUB_TOOLTIP_WIDTH),
+              top: clampTop(hoverViewport.y - (hoverViewport.source === 'touch' ? 70 : 50)),
             }}
           >
             <span className="text-gray-400 font-medium tabular-nums">{clockLabels[hoverIdx]}</span>

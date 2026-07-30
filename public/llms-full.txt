@@ -497,6 +497,14 @@ Permanent replay links for one professional game, served from SpectateEsports' o
 }
 ```
 
+### GET /api/pipeline?type=replay-status&ids={openDotaMatchId1},{openDotaMatchId2},...
+Bulk replay-availability check for up to 200 comma-separated OpenDota match IDs — answers "which of these games have a confirmed, watchable replay" in one call, without fetching each game's full replay-link record individually. An ID absent from the response means no replay is recorded yet (query the single-match `?type=replay` endpoint above for the full link once available). Cached 5 minutes.
+```json
+{
+  "available": ["number (OpenDota match ID)", "..."]
+}
+```
+
 ---
 
 ## Match URL Structure

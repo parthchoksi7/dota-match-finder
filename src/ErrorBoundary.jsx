@@ -1,4 +1,5 @@
 import { Component } from "react"
+import * as Sentry from "@sentry/browser"
 
 export default class ErrorBoundary extends Component {
   state = { hasError: false, error: null }
@@ -9,6 +10,9 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error("App error:", error, info)
+    // A caught render crash is exactly what Sentry should see. No-ops when VITE_SENTRY_DSN
+    // is unset (the SDK stays disabled), matching main.jsx's init convention.
+    Sentry.captureException(error, { extra: { componentStack: info?.componentStack } })
   }
 
   render() {
