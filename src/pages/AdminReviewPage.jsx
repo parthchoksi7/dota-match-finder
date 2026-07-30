@@ -38,9 +38,9 @@ function MatchHeader({ intel }) {
         {intel.tournament.name} · {intel.seriesType} · Patch {intel.patch}
       </div>
       <div className="flex items-center gap-4">
-        <span className="font-['Barlow_Condensed'] font-black text-3xl text-green-400">{winner.name}</span>
-        <span className="font-['Barlow_Condensed'] font-black text-xl text-gray-600">vs</span>
-        <span className="font-['Barlow_Condensed'] font-black text-3xl text-gray-500">{loser.name}</span>
+        <span className="font-black text-3xl text-green-400">{winner.name}</span>
+        <span className="font-black text-xl text-gray-600">vs</span>
+        <span className="font-black text-3xl text-gray-500">{loser.name}</span>
         <span className="ml-auto text-xs text-gray-500 tabular-nums">{intel.duration}</span>
       </div>
     </div>
@@ -177,7 +177,7 @@ function RejectModal({ onReject, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="font-['Barlow_Condensed'] font-black text-xl text-white uppercase mb-4">Reject — Select Reason</h2>
+        <h2 className="font-black text-xl text-white uppercase mb-4">Reject — Select Reason</h2>
         <div className="flex flex-col gap-2 mb-4">
           {REJECTION_REASONS.map(r => (
             <label key={r.value} className="flex items-start gap-3 cursor-pointer group">

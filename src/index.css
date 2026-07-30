@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 * {
-  font-family: 'Barlow', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .font-display {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .focus-ring:focus {

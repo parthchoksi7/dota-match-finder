@@ -63,7 +63,7 @@ function LoginGate({ onLogin }) {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
       <div className="w-full max-w-sm bg-gray-900 rounded-xl border border-gray-800 p-8">
-        <h1 className="font-['Barlow_Condensed'] font-black text-2xl text-white uppercase tracking-wide mb-6">
+        <h1 className="font-black text-2xl text-white uppercase tracking-wide mb-6">
           Coverage Admin
         </h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -123,7 +123,7 @@ function CreateJobModal({ token, onCreated, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="font-['Barlow_Condensed'] font-black text-xl text-white uppercase mb-4">Queue Match</h2>
+        <h2 className="font-black text-xl text-white uppercase mb-4">Queue Match</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-xs uppercase tracking-widest text-gray-500 block mb-1.5">Match ID</label>
@@ -191,7 +191,7 @@ function JobRow({ job, onAction }) {
   return (
     <tr className="border-b border-gray-800 hover:bg-gray-900/50 transition-colors">
       <td className="py-3 px-4">
-        <div className="font-['Barlow_Condensed'] font-bold text-white text-base leading-tight">{teamLabel}</div>
+        <div className="font-bold text-white text-base leading-tight">{teamLabel}</div>
         <div className="text-xs text-gray-500 mt-0.5 uppercase tracking-widest">{tournament}</div>
       </td>
       <td className="py-3 px-4">
@@ -290,7 +290,7 @@ export default function AdminCoveragePage() {
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
       <div className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="font-['Barlow_Condensed'] font-black text-2xl uppercase tracking-wide">
+        <h1 className="font-black text-2xl uppercase tracking-wide">
           Coverage Queue
         </h1>
         <div className="flex items-center gap-3">

@@ -7,6 +7,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+      },
       colors: {
         border: {
           DEFAULT: "rgb(31 41 55)",

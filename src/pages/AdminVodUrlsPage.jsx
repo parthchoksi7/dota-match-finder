@@ -50,7 +50,7 @@ function LoginGate({ onLogin }) {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
       <div className="w-full max-w-sm bg-gray-900 rounded-xl border border-gray-800 p-8">
-        <h1 className="font-['Barlow_Condensed'] font-black text-2xl text-white uppercase tracking-wide mb-1">
+        <h1 className="font-black text-2xl text-white uppercase tracking-wide mb-1">
           VOD URLs
         </h1>
         <p className="text-xs text-gray-500 mb-6">Internal stream-URL browser</p>
@@ -232,7 +232,7 @@ export default function AdminVodUrlsPage() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
-            <h1 className="font-['Barlow_Condensed'] font-black text-2xl uppercase tracking-wide">VOD URLs</h1>
+            <h1 className="font-black text-2xl uppercase tracking-wide">VOD URLs</h1>
             <p className="text-xs text-gray-500">
               {data ? `${data.series_count} series · ${data.row_count} games · last ${data.days}d` : 'Internal stream-URL browser'}
             </p>
