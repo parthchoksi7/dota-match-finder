@@ -80,23 +80,40 @@ export function buildMinimapAriaLabel(radiant, dire, radiantName, direName) {
 // green grass AND dark rock alike). Destroyed markers are dashed and mostly transparent — visible
 // against any terrain without being mistaken for a standing tower, and the dash pattern itself
 // (not just opacity) gives a colorblind-safe second distinguishing cue.
+//
+// A dark halo rect sits behind the white-stroked marker (same outline-behind-fill trick as the
+// RAD/DIRE base labels below) — a plain white stroke alone still washed out against light terrain
+// (grass, sand), so towers were hard to spot at a glance. Size bumped 13->16 for the same reason.
 function TowerMarker({ x, y, destroyed, side }) {
-  const size = 13
+  const size = 16
   const fill = destroyed ? 'rgba(255,255,255,0.10)' : side === 'radiant' ? '#22c55e' : '#ef4444'
-  const stroke = destroyed ? 'rgba(255,255,255,0.8)' : '#ffffff'
+  const stroke = destroyed ? 'rgba(255,255,255,0.85)' : '#ffffff'
   return (
-    <rect
-      x={x - size / 2}
-      y={y - size / 2}
-      width={size}
-      height={size}
-      rx={2}
-      fill={fill}
-      stroke={stroke}
-      strokeWidth={destroyed ? 1.25 : 2}
-      strokeDasharray={destroyed ? '2,2' : undefined}
-      transform={`rotate(45 ${x} ${y})`}
-    />
+    <g transform={`rotate(45 ${x} ${y})`}>
+      <rect
+        x={x - size / 2 - 1.5}
+        y={y - size / 2 - 1.5}
+        width={size + 3}
+        height={size + 3}
+        rx={2.5}
+        fill="none"
+        stroke="rgba(0,0,0,0.6)"
+        strokeWidth={destroyed ? 2 : 2.5}
+        strokeDasharray={destroyed ? '2,2' : undefined}
+      />
+      <rect
+        data-tower-marker="true"
+        x={x - size / 2}
+        y={y - size / 2}
+        width={size}
+        height={size}
+        rx={2}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={destroyed ? 1.5 : 2}
+        strokeDasharray={destroyed ? '2,2' : undefined}
+      />
+    </g>
   )
 }
 

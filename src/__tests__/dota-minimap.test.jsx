@@ -42,10 +42,10 @@ describe('DotaMinimap — rendering', () => {
 
   it('renders exactly 18 tower markers (9 per side) — never more, never a marker for barracks/base towers/Ancient', () => {
     const { container } = render(<DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B" />)
-    // Scoped to the map <svg> specifically — the legend swatches above it are also tiny <rect>-
-    // based <svg>s and must not be counted as tower markers.
+    // Scoped to rects tagged data-tower-marker: each TowerMarker also renders an untagged dark
+    // halo rect behind it for contrast against the texture, so a raw 'rect' count would double.
     const mapSvg = container.querySelector('svg[role="img"]')
-    expect(mapSvg.querySelectorAll('rect').length).toBe(18)
+    expect(mapSvg.querySelectorAll('rect[data-tower-marker]').length).toBe(18)
   })
 
   it('always renders the explicit "unknown" caption text, visibly, alongside the map', () => {
@@ -62,7 +62,9 @@ describe('DotaMinimap — rendering', () => {
     const { container } = render(<DotaMinimap radiant={[0, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B" />)
     const mapSvg = container.querySelector('svg[role="img"]')
     // Destroyed markers are dashed (stroke-dasharray) and near-transparent; standing ones are solid.
-    const destroyed = [...mapSvg.querySelectorAll('rect')].filter(r => r.getAttribute('stroke-dasharray') === '2,2')
+    // Scoped to data-tower-marker rects — the halo rect behind each marker is dashed too when
+    // destroyed, so counting all dashed rects would double this.
+    const destroyed = [...mapSvg.querySelectorAll('rect[data-tower-marker]')].filter(r => r.getAttribute('stroke-dasharray') === '2,2')
     expect(destroyed).toHaveLength(3)
   })
 
