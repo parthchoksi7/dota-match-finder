@@ -82,7 +82,10 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 ### Rules
 - Never introduce a new spacing value without checking the scale above first
 - Touch targets minimum `min-h-[44px]` on all interactive elements
-- **Exception**: `CompactSeriesRow`'s mobile and desktop replay buttons are intentionally `w-7 h-7` (28px), below the 44px floor. A 2026-07-21 audit briefly grew them to `w-11 h-11` for touch-target compliance, but the larger purple square read as visually oversized against the row's compact type scale and was reverted same-day per direct owner feedback. Don't re-apply the 44px floor here without discussing the tradeoff first.
+- **Exception — compact purple icon buttons (watch/replay actions in dense rows): always `w-7 h-7` (28px), on mobile AND desktop, never the 44px touch-target floor.** This has been re-broken twice by applying the 44px floor to a single new button instead of matching the row's existing icon size:
+  - `CompactSeriesRow`'s replay buttons: a 2026-07-21 audit grew them to `w-11 h-11` for touch-target compliance; the larger purple square read as visually oversized against the row's compact type scale and was reverted same-day.
+  - `LiveMatchRow`'s mobile-only Twitch/YouTube watch buttons (`sm:hidden`): shipped at `w-11 h-11` while the row's own desktop YouTube button sat right next to it at `w-7 h-7` — same oversized-square problem, caught and fixed 2026-07-30.
+  - **Rule going forward**: any new purple icon-only button added to a match row (live, compact series, or upcoming) must be `w-7 h-7` with the icon at `w-2.5 h-2.5` (see `TwitchIcon`/`YouTubeIcon` in `PlatformIcons.jsx`), matching every existing instance — do not size a new button to the 44px floor "for mobile" without checking what size the row's other icon buttons already use.
 
 ---
 
