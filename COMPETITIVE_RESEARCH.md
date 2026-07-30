@@ -3,7 +3,7 @@
 ## Summary
 No competitor combines timestamped VOD deep links with AI match summaries. That is the core moat of Spectate Esports.
 
-_Matrix last updated: June 2026._
+_Matrix last updated: July 2026._
 
 ---
 
@@ -44,25 +44,39 @@ _Matrix last updated: June 2026._
 - **Weaknesses:** No timestamps, no AI, mostly a news site not a tool
 - **Verdict:** Media competitor, not a product competitor
 
+### 6. BLAST.tv
+- **What it does:** Broadcaster-owned esports platform with per-tournament hubs (verified 2026-07-29 on its TI 2026 page: dates, bracket section, all 16 teams with logos, news) plus its **own Dota Fantasy product** at `/dota/fantasy`, behind accounts (login/signup)
+- **Data source:** Own broadcast operation + unknown provider
+- **Strengths:** Broadcaster-grade brand, user accounts, fantasy, editorial
+- **Weaknesses:** As of 2026-07-29 its TI 2026 page had no live scores and its FAQ still said broadcast channels were unannounced; no timestamped VOD deep links; no spectator-guidance layer
+- **Verdict:** The real threat on **fantasy/pick'em** — do not compete there. No overlap with the VOD-timestamp or watchability moat.
+
+### 7. rdy.gg
+- **What it does:** Multi-esport tournament coverage. Verified 2026-07-29 on its TI 2026 page: full schedule, live results, brackets for group stage + elimination round + playoffs, live standings, per-team map win rates, most-picked heroes, prize breakdown by stage, rosters linked to player pages, live streams, highlights, and filters by team/date/stage
+- **Data source:** Unknown (breadth suggests a commercial provider)
+- **Strengths:** The widest schedule/standings/stats coverage of any competitor checked; player pages (a gap in our own matrix)
+- **Weaknesses:** No timestamped VOD deep links, no AI summaries, no "which game is worth watching" signal
+- **Verdict:** Will out-cover us on **breadth**. Competing on schedule/bracket/standings completeness is a losing trade; our differentiation has to stay on spectator guidance and replay precision.
+
 ---
 
 ## Indirect Competitors (Stats & Analysis)
 
-### 6. STRATZ
+### 8. STRATZ
 - **What it does:** AI-powered Dota 2 stats platform with match predictions, draft analysis, personalized data visualizations, and an MVP metric called IMP
 - **Data source:** Valve's official Dota 2 API + own parsing
 - **Strengths:** Best-in-class Dota stats, AI predictions, draft analysis, beautiful visualizations, GraphQL API
 - **Weaknesses:** No VOD linking whatsoever, stats-only product
 - **Verdict:** The smartest stats tool in Dota but completely different use case — complementary not competing
 
-### 7. Dotabuff
+### 9. Dotabuff
 - **What it does:** Longest-standing Dota stats site — player profiles, hero meta, match history
 - **Data source:** OpenDota / Valve API
 - **Strengths:** Trusted brand, large user base, deep player stats
 - **Weaknesses:** No VOD linking, no AI, pro match coverage is limited
 - **Verdict:** Player-focused stats tool, not a pro match viewer tool
 
-### 8. Esports Charts
+### 10. Esports Charts
 - **What it does:** Esports analytics and viewership data platform — tracks peak viewers, hours watched, tournament audience metrics
 - **Data source:** Twitch/YouTube/streaming platform APIs + proprietary data
 - **Strengths:** Viewership analytics, sponsor insights
@@ -90,19 +104,23 @@ These are the companies that power other products' data — not direct competito
 
 ## Competitive Matrix
 
-| Feature | Spectate Esports | Strafe | Liquipedia | GGScore | STRATZ |
-|---|---|---|---|---|---|
-| Timestamped VOD deep links | ✅ | ❌ | ❌ | ❌ | ❌ |
-| AI match summary | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Search by team/tournament | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Series score grouping | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Live scores | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Tournament brackets | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Draft analysis | ✅ | ❌ | ✅ | ❌ | ✅ |
-| Player stats | ⚠️ per-game only | ✅ | ✅ | ✅ | ✅ |
-| Dota-only focus | ✅ | ❌ | ✅ | ❌ | ✅ |
-| Free, no login | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Automated (no manual updates) | ✅ | ✅ | ❌ | Partial | ✅ |
+| Feature | Spectate Esports | Strafe | Liquipedia | GGScore | STRATZ | BLAST.tv | rdy.gg |
+|---|---|---|---|---|---|---|---|
+| Timestamped VOD deep links | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AI match summary | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Live "worth watching" signal | ⚠️ post-game only | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Spoiler-free mode | ✅ default-on | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Search by team/tournament | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅ |
+| Series score grouping | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Live scores | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅ |
+| Tournament brackets | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Standings | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅ |
+| Draft analysis | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Player stats | ⚠️ per-game only | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| Fantasy / pick'em | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Dota-only focus | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Free, no login | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ accounts | ✅ |
+| Automated (no manual updates) | ✅ | ✅ | ❌ | Partial | ✅ | ✅ | ✅ |
 
 ---
 
