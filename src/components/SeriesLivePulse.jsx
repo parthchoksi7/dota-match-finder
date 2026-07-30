@@ -319,15 +319,6 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
           </span>
         </p>
       )}
-      {isOwner && showLiveStory && pulse.objectives && (
-        <DotaMinimap
-          radiant={pulse.objectives.radiant}
-          dire={pulse.objectives.dire}
-          radiantName={pulse.radiantName}
-          direName={pulse.direName}
-        />
-      )}
-      {showLiveStory && <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />}
       {!spoilerFree && (hasScore || leadMag || clock) && (
         <div className="mb-2 space-y-0.5">
           <SeriesScoreRow
@@ -342,9 +333,21 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
             leadLabel={!radiantAhead ? leadMag : null}
             leadColor={leadColor}
           />
-          {clock && <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums pt-0.5">{clock}</p>}
+          {/* Momentum row above already shows the clock inline ("game time 14:43") whenever it
+              renders — only fall back to this line when momentum is null (e.g. gameTime present
+              but radiantLead isn't finite yet), so the two never show the same clock twice. */}
+          {clock && !momentum && <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums pt-0.5">{clock}</p>}
         </div>
       )}
+      {isOwner && showLiveStory && pulse.objectives && (
+        <DotaMinimap
+          radiant={pulse.objectives.radiant}
+          dire={pulse.objectives.dire}
+          radiantName={pulse.radiantName}
+          direName={pulse.direName}
+        />
+      )}
+      {showLiveStory && <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />}
       {(radiantHeroes.length > 0 || direHeroes.length > 0) && (
         <div className="mt-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Picks</p>
