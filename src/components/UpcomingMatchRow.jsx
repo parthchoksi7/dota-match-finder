@@ -38,7 +38,7 @@ function UpcomingMatchRow({ match, isFollowedMatch, spoilerFree, isHighlighted =
         )}
       </div>
 
-      {/* Stream pill — desktop only */}
+      {/* Stream pill */}
       {watchUrl && (
         <a
           href={watchUrl}
@@ -49,7 +49,7 @@ function UpcomingMatchRow({ match, isFollowedMatch, spoilerFree, isHighlighted =
             teamA: match.teamA,
             teamB: match.teamB,
           })}
-          className="flex-shrink-0 hidden sm:block text-[10px] px-2 py-1 rounded-full bg-purple-800/30 hover:bg-purple-700/50 text-purple-400 transition-colors whitespace-nowrap"
+          className="flex-shrink-0 text-[10px] px-2 py-1 rounded-full bg-purple-800/30 hover:bg-purple-700/50 text-purple-400 transition-colors whitespace-nowrap"
         >
           {watchLabel || 'Watch'}
         </a>

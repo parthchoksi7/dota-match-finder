@@ -19,8 +19,8 @@ Every element earns its place or gets cut. When in doubt, remove. Don't add.
 ## Typography
 
 ### Typefaces
-- **Display (headings, team names, scores):** Barlow Condensed — bold or black weight only
-- **Body (labels, metadata, table data):** Barlow — regular or semibold
+- **Display (headings, team names, scores):** Helvetica Neue — bold or black weight only
+- **Body (labels, metadata, table data):** Helvetica Neue — regular or semibold
 
 ### Hierarchy (3 levels only)
 | Level | Usage | Style |
@@ -161,7 +161,7 @@ Two-line compact row for a scheduled match. Mobile-first: never truncates team n
 
 - Line 1: `TEAM A vs TEAM B` - display font, font-black, truncates as one unit
 - Line 2: countdown time string (`In 2h 30m - 3:00 AM PDT`) in `text-[11px] text-blue-500`
-- Stream pill (ESL/etc): `hidden sm:block` - desktop only, never shown on mobile
+- Stream pill (ESL/etc): shown on both mobile and desktop — team name (`min-w-0 truncate`) yields horizontal space to it rather than the pill hiding
 - Amber left border when `isFollowedMatch`
 - No click handler (match not yet played)
 
