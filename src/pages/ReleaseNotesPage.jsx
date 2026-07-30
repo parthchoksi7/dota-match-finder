@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 30, 2026",
+    tag: "improvement",
+    title: "Pull-to-refresh now also checks for app updates",
+    desc: "Pulling down to refresh in the installed app already re-fetched live and upcoming match data. It now also checks in the background for a newer version of the app, so pull-to-refresh keeps you current the same way reloading a browser tab would, without losing your scroll position, search, or open filters.",
+  },
+  {
     date: "July 29, 2026",
     tag: "new",
     title: "\"Has VOD\" search filter",

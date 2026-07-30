@@ -543,6 +543,15 @@ function App() {
 
   const refreshAll = useCallback(() => {
     clearVodPrefetchCache()
+    // Force a service-worker update check so a pull-to-refresh mimics a browser refresh's
+    // effect on app-shell freshness, not just data freshness. This only checks for and installs
+    // a new sw.js in the background (standard waiting-worker lifecycle, no skipWaiting) — it
+    // deliberately does not force an immediate reload, since that would blow away scroll
+    // position, search state, and open filters, which is the whole reason this hook exists
+    // instead of just calling location.reload().
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => reg?.update()).catch(() => {})
+    }
     return Promise.all([loadMatches(), fetchLiveData(), fetchJustEnded()])
   }, [loadMatches, fetchLiveData, fetchJustEnded])
 
