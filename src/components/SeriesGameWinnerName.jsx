@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react'
-import { fetchMatchStats } from '../api'
 import { resolveRadiantSide } from '../teamMatching'
 
 // Fallback winner-name resolution for a finished game inside a live series, for the gap between
@@ -8,6 +6,11 @@ import { resolveRadiantSide } from '../teamMatching'
 // OpenDota team name: resolves which of the series' own already-trusted PandaScore names
 // (teamA/teamB) was Radiant via resolveRadiantSide(), then displays that name. Returns null
 // (never a guessed/OD-sourced string) when the pairing doesn't cleanly resolve.
+//
+// Resolution is lifted into LiveSeriesSheet.jsx (a single per-series effect resolving every
+// finished game that needs it, not a per-row component) so the same resolved name reaches both
+// the game switcher's tab sublabel and the selected game's body content — a fan parked on a live
+// game must see a finished sibling's winner on its tab chip too, not just after tapping into it.
 export function resolveWinnerName(stats, teamA, teamB) {
   if (typeof stats?.radiantWin !== 'boolean') return null
   const side = resolveRadiantSide(teamA, teamB, stats.radiantName, stats.direName)
@@ -16,28 +19,4 @@ export function resolveWinnerName(stats, teamA, teamB) {
   const radiantWon = stats.radiantWin
   if (radiantWon) return radiantIsA ? teamA : teamB
   return radiantIsA ? teamB : teamA
-}
-
-// `fallback` renders (as the same neutral style LiveSeriesSheet used before this component
-// existed) until a name resolves or the fetch comes back unresolved — this is a drop-in
-// replacement for that inline ternary, not just an additive name.
-export default function SeriesGameWinnerName({ matchId, teamA, teamB, fallback }) {
-  const [name, setName] = useState(null)
-
-  useEffect(() => {
-    setName(null)
-    if (!matchId) return
-    let cancelled = false
-    fetchMatchStats(matchId)
-      .then(stats => { if (!cancelled) setName(resolveWinnerName(stats, teamA, teamB)) })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [matchId, teamA, teamB])
-
-  if (!name) return fallback ?? null
-  return (
-    <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate min-w-0">
-      {name}
-    </p>
-  )
 }

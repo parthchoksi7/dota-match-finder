@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchLiveSeriesGameIds } from '../api'
+import { fetchLiveSeriesGameIds, fetchMatchStats } from '../api'
 import { trackEvent, isGrandFinal } from '../utils'
 import { SHEET_PADDING } from './Sheet'
 import GameSwitcher from './GameSwitcher'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 import SeriesGameIndicators from './SeriesGameIndicators'
 import SeriesGameScore from './SeriesGameScore'
-import SeriesGameWinnerName from './SeriesGameWinnerName'
+import { resolveWinnerName } from './SeriesGameWinnerName'
 import SeriesLivePulse from './SeriesLivePulse'
 
 function formatMinutes(seconds) {
@@ -82,6 +82,42 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
   const gameTabs = buildGameTabs(match)
   const selectedPosition = pinnedPosition ?? defaultPosition(match)
 
+  // Winner-name fallback for finished games PandaScore's live feed hasn't caught up on yet
+  // (confirmed laggy — see SeriesGameWinnerName.jsx). Resolved once per series here, for every
+  // finished game that needs it, rather than per-row — this same map feeds both the game
+  // switcher's tab sublabel below and the selected game's body content, so a fan parked on a
+  // live game still sees a finished sibling's winner on its tab chip, not just after tapping in.
+  const [resolvedWinnerNames, setResolvedWinnerNames] = useState({})
+  useEffect(() => {
+    // Gates on `resolvedWinnerNames` itself rather than a separate "already requested" ref -
+    // a ref-based guard broke under React StrictMode's intentional double-invoke-and-discard
+    // dev behavior (the first pass's fetch gets cancelled, but a ref survives the discard and
+    // would permanently block the retry the second pass needs to make). Re-issuing
+    // fetchMatchStats for an in-flight/already-cached id is free (src/api.js dedupes both the
+    // in-flight promise and the resolved value), so there's no real cost to not guarding harder
+    // than "don't re-request an id already in state."
+    const toResolve = finishedGames
+      .filter(g => !g.winnerName)
+      .map(g => g.matchId || resolvedIds[g.position] || null)
+      .filter(Boolean)
+      .map(String)
+      .filter(id => !(id in resolvedWinnerNames))
+    if (!toResolve.length) return
+    let cancelled = false
+    toResolve.forEach(id => {
+      fetchMatchStats(id).then(stats => {
+        if (cancelled) return
+        setResolvedWinnerNames(prev => (id in prev ? prev : { ...prev, [id]: resolveWinnerName(stats, match.teamA, match.teamB) }))
+      }).catch(() => {})
+    })
+    return () => { cancelled = true }
+  }, [finishedGames, resolvedIds, match.teamA, match.teamB, resolvedWinnerNames])
+
+  function winnerNameFor(game, gameMatchId) {
+    if (game.winnerName) return game.winnerName
+    return gameMatchId ? (resolvedWinnerNames[String(gameMatchId)] ?? null) : null
+  }
+
   const selectedFinishedGame = finishedGames.find(g => g.position === selectedPosition) || null
   const showLivePulse = !!currentGame && currentGame.position === selectedPosition
 
@@ -146,30 +182,32 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
         <div className={`flex-shrink-0 overflow-x-auto ${SHEET_PADDING} pt-2 pb-1.5 border-b border-gray-100 dark:border-gray-900`} style={{ scrollbarWidth: 'none' }}>
           <GameSwitcher
             disabled={!!loadingGameId}
-            tabs={gameTabs.map(tab => ({
-              key: tab.position,
-              label: `G${tab.position}`,
-              isLive: tab.kind === 'live',
-              isActive: tab.position === selectedPosition,
-              onClick: () => {
-                trackEvent('live_series_tab_click', { position: tab.position, status: tab.kind })
-                // A finished game whose OD match id has already resolved gets the same full
-                // MatchDrawer treatment as a genuinely completed series' game (score, VOD
-                // buttons, draft breakdown) instead of this sheet's abbreviated summary row -
-                // reuses the exact row-click path (onReplay) rather than duplicating that view
-                // here. Still-indexing games (no matchId yet) fall through to the inline
-                // "Stats indexing" placeholder via pinnedPosition, same as clicking the row.
-                if (tab.kind === 'finished') {
-                  const finishedGame = finishedGames.find(g => g.position === tab.position)
-                  const gameMatchId = finishedGame && (finishedGame.matchId || resolvedIds[finishedGame.position] || null)
-                  if (gameMatchId && onReplay) {
+            tabs={gameTabs.map(tab => {
+              const finishedGame = tab.kind === 'finished' ? finishedGames.find(g => g.position === tab.position) : null
+              const gameMatchId = finishedGame ? (finishedGame.matchId || resolvedIds[finishedGame.position] || null) : null
+              const winnerName = finishedGame ? winnerNameFor(finishedGame, gameMatchId) : null
+              return {
+                key: tab.position,
+                label: `G${tab.position}`,
+                sublabel: !spoilerFree && winnerName ? winnerName : undefined,
+                isLive: tab.kind === 'live',
+                isActive: tab.position === selectedPosition,
+                onClick: () => {
+                  trackEvent('live_series_tab_click', { position: tab.position, status: tab.kind })
+                  // A finished game whose OD match id has already resolved gets the same full
+                  // MatchDrawer treatment as a genuinely completed series' game (score, VOD
+                  // buttons, draft breakdown) instead of this sheet's abbreviated summary row -
+                  // reuses the exact row-click path (onReplay) rather than duplicating that view
+                  // here. Still-indexing games (no matchId yet) fall through to the inline
+                  // "Stats indexing" placeholder via pinnedPosition, same as clicking the row.
+                  if (tab.kind === 'finished' && gameMatchId && onReplay) {
                     onReplay(gameMatchId)
                     return
                   }
-                }
-                setPinnedPosition(tab.position)
-              },
-            }))}
+                  setPinnedPosition(tab.position)
+                },
+              }
+            })}
           />
         </div>
       )}
@@ -179,6 +217,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
         {selectedFinishedGame && (() => {
           const game = selectedFinishedGame
           const gameMatchId = game.matchId || resolvedIds[game.position] || null
+          const winnerName = !spoilerFree ? winnerNameFor(game, gameMatchId) : null
           // String() guards against `loadingGameId` (set from a click) and `gameMatchId` (may be
           // re-derived from a fresher poll response by the time this re-renders) landing on
           // different JS types for what's otherwise the same id.
@@ -198,7 +237,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
                   isLoadingThis
                     ? `Loading Game ${game.position}`
                     : clickable
-                      ? `Game ${game.position}${!spoilerFree && game.winnerName ? `, ${game.winnerName} won` : ''}, view stats and replay`
+                      ? `Game ${game.position}${winnerName ? `, ${winnerName} won` : ''}, view stats and replay`
                       : undefined
                 }
                 aria-busy={isLoadingThis || undefined}
@@ -211,21 +250,10 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        {!spoilerFree && game.winnerName ? (
+                        {winnerName ? (
                           <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate min-w-0">
-                            {game.winnerName}
+                            {winnerName}
                           </p>
-                        ) : !spoilerFree && gameMatchId ? (
-                          // PandaScore's live-feed winner.id is confirmed to lag well behind the
-                          // actual result — this resolves the winner from OpenDota's radiantWin
-                          // instead, mapped onto the series' own trusted PS team names (never a
-                          // raw OD-sourced name) once gameMatchId has resolved.
-                          <SeriesGameWinnerName
-                            matchId={gameMatchId}
-                            teamA={match.teamA}
-                            teamB={match.teamB}
-                            fallback={<p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>}
-                          />
                         ) : (
                           <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
                         )}

@@ -5,7 +5,7 @@
  * The fix keeps the sheet mounted and shows a per-row "Loading…" state via `loadingGameId`).
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import LiveSeriesSheet from '../src/components/LiveSeriesSheet.jsx'
 import Sheet from '../src/components/Sheet.jsx'
@@ -13,15 +13,16 @@ import Sheet from '../src/components/Sheet.jsx'
 vi.mock('../src/components/SeriesGameDraftStrip', () => ({ default: () => null }))
 vi.mock('../src/components/SeriesGameIndicators', () => ({ default: () => null }))
 vi.mock('../src/components/SeriesGameScore', () => ({ default: () => null }))
-vi.mock('../src/components/SeriesGameWinnerName', () => ({
-  default: ({ fallback }) => <div>Winner name resolver ({fallback ? 'has fallback' : 'no fallback'})</div>,
-}))
 vi.mock('../src/components/SeriesLivePulse', () => ({
   default: ({ otherStreams }) => <div>Live pulse ({(otherStreams || []).length} other streams)</div>,
 }))
-vi.mock('../src/api', () => ({ fetchLiveSeriesGameIds: vi.fn().mockResolvedValue({}) }))
+vi.mock('../src/api', () => ({
+  fetchLiveSeriesGameIds: vi.fn().mockResolvedValue({}),
+  fetchMatchStats: vi.fn().mockResolvedValue(null),
+}))
 vi.mock('../src/utils', () => ({ trackEvent: vi.fn(), isGrandFinal: (r) => /^(grand )?finals?$/i.test(r || '') }))
 import { trackEvent } from '../src/utils'
+import { fetchMatchStats } from '../src/api'
 
 const match = {
   id: 'ps1',
@@ -51,7 +52,7 @@ describe('LiveSeriesSheet game switcher', () => {
     render(
       <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={onReplay} loadingGameId={null} spoilerFree={false} />
     )
-    fireEvent.click(screen.getByRole('button', { name: 'G1' }))
+    fireEvent.click(screen.getByRole('button', { name: /G1/ }))
     expect(trackEvent).toHaveBeenCalledWith('live_series_tab_click', { position: 1, status: 'finished' })
     expect(onReplay).toHaveBeenCalledWith('od1')
     // The sheet itself stays pinned on the live game — G1 didn't switch it to the summary view.
@@ -70,11 +71,12 @@ describe('LiveSeriesSheet game switcher', () => {
     render(
       <LiveSeriesSheet match={unresolvedMatch} onDismiss={() => {}} onReplay={onReplay} loadingGameId={null} spoilerFree={false} />
     )
-    fireEvent.click(screen.getByRole('button', { name: 'G1' }))
+    fireEvent.click(screen.getByRole('button', { name: /G1/ }))
     expect(onReplay).not.toHaveBeenCalled()
     // No matchId yet, so the row isn't clickable and shows the winner name plus the
-    // "Stats indexing" placeholder instead of a draft strip.
-    expect(screen.getByText('Team Falcons')).toBeInTheDocument()
+    // "Stats indexing" placeholder instead of a draft strip. Scoped to the `<p>` since the
+    // G1 tab chip now also carries a "Team Falcons" sublabel (a `<span>`) alongside it.
+    expect(screen.getByText('Team Falcons', { selector: 'p' })).toBeInTheDocument()
     expect(screen.getByText('Stats indexing')).toBeInTheDocument()
     expect(screen.queryByText(/Live pulse/)).not.toBeInTheDocument()
   })
@@ -100,7 +102,7 @@ describe('LiveSeriesSheet game switcher', () => {
     render(
       <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId="od1" spoilerFree={false} />
     )
-    expect(screen.getByRole('button', { name: 'G1' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /G1/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'G2' })).toBeDisabled()
   })
 
@@ -139,8 +141,8 @@ describe('LiveSeriesSheet game switcher', () => {
     const { rerender } = render(
       <LiveSeriesSheet match={unresolvedMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
     )
-    fireEvent.click(screen.getByRole('button', { name: 'G1' }))
-    expect(screen.getByRole('button', { name: 'G1' })).toHaveAttribute('aria-current', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /G1/ }))
+    expect(screen.getByRole('button', { name: /G1/ })).toHaveAttribute('aria-current', 'true')
 
     const g3LiveMatch = {
       ...unresolvedMatch,
@@ -154,7 +156,7 @@ describe('LiveSeriesSheet game switcher', () => {
       <LiveSeriesSheet match={g3LiveMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
     )
     // Still pinned on the fan's explicit choice, not yanked onto the new live game.
-    expect(screen.getByRole('button', { name: 'G1' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('button', { name: /G1/ })).toHaveAttribute('aria-current', 'true')
   })
 
   it('excludes the primary Twitch channel from otherStreams case-insensitively', () => {
@@ -194,26 +196,68 @@ describe('LiveSeriesSheet Grand Final bracketRound styling', () => {
 })
 
 describe('LiveSeriesSheet finished-game winner-name fallback', () => {
-  it('renders the OD-resolved winner-name component when winnerName is missing but the OD id has resolved', () => {
-    const unresolvedNameMatch = {
-      ...match,
-      games: [
-        { position: 1, status: 'finished', matchId: 'od1' }, // no winnerName from PandaScore yet
-        { position: 2, status: 'running' },
-      ],
-    }
+  beforeEach(() => {
+    fetchMatchStats.mockReset()
+    fetchMatchStats.mockResolvedValue(null)
+  })
+
+  const unresolvedNameMatch = {
+    ...match,
+    games: [
+      { position: 1, status: 'finished', matchId: 'od1' }, // no winnerName from PandaScore yet
+      { position: 2, status: 'running' },
+    ],
+  }
+
+  it('resolves the winner from OD stats in the body when winnerName is missing but the OD id has resolved', async () => {
+    fetchMatchStats.mockResolvedValue({ radiantWin: true, radiantName: 'Team Falcons', direName: 'Xtreme Gaming' })
     render(
       <LiveSeriesSheet match={unresolvedNameMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} initialGamePosition={1} />
     )
-    expect(screen.getByText(/Winner name resolver \(has fallback\)/)).toBeInTheDocument()
+    expect(await screen.findByText('Team Falcons', { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it('also shows the resolved winner as the G1 tab sublabel while parked on the live G2 tab', async () => {
+    // The actual reported gap: a fan viewing the live game must see a finished sibling's
+    // resolved winner on its tab chip too, not just after tapping into it.
+    fetchMatchStats.mockResolvedValue({ radiantWin: true, radiantName: 'Team Falcons', direName: 'Xtreme Gaming' })
+    render(
+      <LiveSeriesSheet match={unresolvedNameMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
+    )
+    // Still on G2 (the live default) — G1's tab chip should pick up the resolved name.
+    expect(screen.getByText(/Live pulse/)).toBeInTheDocument()
+    expect(await screen.findByText('Team Falcons')).toBeInTheDocument()
+    const g1Tab = screen.getByRole('button', { name: /G1/ })
+    expect(g1Tab).toHaveTextContent('Team Falcons')
+  })
+
+  it('falls back to no sublabel when the OD names do not resolve to either PS team', async () => {
+    fetchMatchStats.mockResolvedValue({ radiantWin: true, radiantName: 'OG', direName: 'Liquid' })
+    render(
+      <LiveSeriesSheet match={unresolvedNameMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />
+    )
+    await screen.findByText(/Live pulse/)
+    const g1Tab = screen.getByRole('button', { name: 'G1' })
+    expect(g1Tab).not.toHaveTextContent('OG')
+    expect(g1Tab).not.toHaveTextContent('Liquid')
   })
 
   it('prefers the PandaScore winnerName over the OD-resolved fallback when both are available', () => {
     render(
       <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} initialGamePosition={1} />
     )
-    expect(screen.getByText('Team Falcons')).toBeInTheDocument()
-    expect(screen.queryByText(/Winner name resolver/)).not.toBeInTheDocument()
+    expect(screen.getByText('Team Falcons', { selector: 'p' })).toBeInTheDocument()
+    expect(fetchMatchStats).not.toHaveBeenCalled()
+  })
+
+  it('hides the resolved winner name from the tab sublabel in spoiler-free mode', async () => {
+    fetchMatchStats.mockResolvedValue({ radiantWin: true, radiantName: 'Team Falcons', direName: 'Xtreme Gaming' })
+    render(
+      <LiveSeriesSheet match={unresolvedNameMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={true} />
+    )
+    await screen.findByText(/Live pulse/)
+    const g1Tab = screen.getByRole('button', { name: 'G1' })
+    expect(g1Tab).not.toHaveTextContent('Team Falcons')
   })
 })
 
