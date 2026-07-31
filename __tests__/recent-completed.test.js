@@ -158,7 +158,24 @@ describe('findOdMatchByTime', () => {
     expect(result?.match_id).toBe(42)
   })
 
-  it('time fallback prefers named matches over null-named matches', () => {
+  it('time fallback prefers named matches over null-named matches, when the named one partially overlaps', () => {
+    const T = 10000
+    const odMatches = [
+      { match_id: 1, start_time: T + 5, radiant_name: null, dire_name: null },
+      { match_id: 2, start_time: T + 300, radiant_name: 'Team A', dire_name: 'Team B' },
+    ]
+    // Team A overlaps opponent side "Team A" — a real (partial) signal, unlike the zero-overlap
+    // case below. The null-named candidate is excluded regardless since it can't be scored at all.
+    const opponents = [makeOpp('Team A'), makeOpp('Team D')]
+    const result = findOdMatchByTime(odMatches, T, opponents)
+    expect(result?.match_id).toBe(2)
+  })
+
+  it('returns null rather than binding to a named candidate with zero name overlap', () => {
+    // Regression for the live-series companion bug (2026-07-31): a same-window OD candidate
+    // that shares NEITHER team name with the requested PS pair must never be returned just for
+    // having non-null names or being closer in time — many concurrent, wholly unrelated pro
+    // games can share the same ±900s window.
     const T = 10000
     const odMatches = [
       { match_id: 1, start_time: T + 5, radiant_name: null, dire_name: null },
@@ -166,7 +183,7 @@ describe('findOdMatchByTime', () => {
     ]
     const opponents = [makeOpp('Team C'), makeOpp('Team D')]
     const result = findOdMatchByTime(odMatches, T, opponents)
-    expect(result?.match_id).toBe(2)
+    expect(result).toBeNull()
   })
 
   it('tiebreaker works with flat radiant_name/dire_name shape (OD promatches format)', () => {
