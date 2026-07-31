@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { normalizeTeamName, teamPairMatch, teamPairScore, findBestPsMatch, resolveFollowedTeamName } from '../api/_shared.js'
-import { isTeamFollowed } from '../src/teamMatching.js'
+import { isTeamFollowed, resolveRadiantSide } from '../src/teamMatching.js'
 
 describe('normalizeTeamName', () => {
   it('lowercases and strips spaces', () => {
@@ -196,6 +196,33 @@ describe('resolveFollowedTeamName (OD name → canonical followable org)', () =>
     expect(resolveFollowedTeamName('')).toBe('')
     expect(resolveFollowedTeamName(null)).toBe(null)
     expect(resolveFollowedTeamName(undefined)).toBe(undefined)
+  })
+})
+
+describe('resolveRadiantSide (winner-name attribution for LiveSeriesSheet)', () => {
+  it('resolves A as Radiant when psNameA matches the OD radiant name', () => {
+    expect(resolveRadiantSide('Team Falcons', 'Xtreme Gaming', 'Team Falcons', 'Xtreme Gaming')).toBe('A')
+  })
+
+  it('resolves B as Radiant when psNameB matches the OD radiant name', () => {
+    expect(resolveRadiantSide('Team Falcons', 'Xtreme Gaming', 'Xtreme Gaming', 'Team Falcons')).toBe('B')
+  })
+
+  it('is order-independent on the OD side (matches regardless of which OD name is passed first)', () => {
+    expect(resolveRadiantSide('the bug', 'GG Boom', 'ggboom', 'The Bug')).toBe('B')
+  })
+
+  it('resolves via a known alias divergence (1win / Tundra Esports)', () => {
+    expect(resolveRadiantSide('1win', 'Vici Gaming', 'Tundra Esports', 'Vici Gaming')).toBe('A')
+  })
+
+  it('returns null for genuinely unrelated teams (never guesses)', () => {
+    expect(resolveRadiantSide('Team Spirit', 'Tundra', 'OG', 'Liquid')).toBeNull()
+  })
+
+  it('returns null when any name is missing', () => {
+    expect(resolveRadiantSide('Team Spirit', null, 'OG', 'Liquid')).toBeNull()
+    expect(resolveRadiantSide('Team Spirit', 'Tundra', null, 'Liquid')).toBeNull()
   })
 })
 

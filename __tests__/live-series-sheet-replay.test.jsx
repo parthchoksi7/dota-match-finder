@@ -8,15 +8,19 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import LiveSeriesSheet from '../src/components/LiveSeriesSheet.jsx'
+import Sheet from '../src/components/Sheet.jsx'
 
 vi.mock('../src/components/SeriesGameDraftStrip', () => ({ default: () => null }))
 vi.mock('../src/components/SeriesGameIndicators', () => ({ default: () => null }))
 vi.mock('../src/components/SeriesGameScore', () => ({ default: () => null }))
+vi.mock('../src/components/SeriesGameWinnerName', () => ({
+  default: ({ fallback }) => <div>Winner name resolver ({fallback ? 'has fallback' : 'no fallback'})</div>,
+}))
 vi.mock('../src/components/SeriesLivePulse', () => ({
   default: ({ otherStreams }) => <div>Live pulse ({(otherStreams || []).length} other streams)</div>,
 }))
 vi.mock('../src/api', () => ({ fetchLiveSeriesGameIds: vi.fn().mockResolvedValue({}) }))
-vi.mock('../src/utils', () => ({ trackEvent: vi.fn() }))
+vi.mock('../src/utils', () => ({ trackEvent: vi.fn(), isGrandFinal: (r) => /^(grand )?finals?$/i.test(r || '') }))
 import { trackEvent } from '../src/utils'
 
 const match = {
@@ -172,11 +176,57 @@ describe('LiveSeriesSheet game switcher', () => {
   })
 })
 
+describe('LiveSeriesSheet Grand Final bracketRound styling', () => {
+  it('renders a Grand Final bracketRound in amber', () => {
+    const gfMatch = { ...match, bracketRound: 'Grand Final' }
+    render(<LiveSeriesSheet match={gfMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />)
+    const label = screen.getByText('Grand Final')
+    expect(label.className).toMatch(/text-amber-600/)
+  })
+
+  it('does not render a non-final bracketRound in amber', () => {
+    const groupStageMatch = { ...match, bracketRound: 'Group Stage' }
+    render(<LiveSeriesSheet match={groupStageMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />)
+    const label = screen.getByText('Group Stage')
+    expect(label.className).not.toMatch(/text-amber-600/)
+    expect(label.className).toMatch(/text-gray-400/)
+  })
+})
+
+describe('LiveSeriesSheet finished-game winner-name fallback', () => {
+  it('renders the OD-resolved winner-name component when winnerName is missing but the OD id has resolved', () => {
+    const unresolvedNameMatch = {
+      ...match,
+      games: [
+        { position: 1, status: 'finished', matchId: 'od1' }, // no winnerName from PandaScore yet
+        { position: 2, status: 'running' },
+      ],
+    }
+    render(
+      <LiveSeriesSheet match={unresolvedNameMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} initialGamePosition={1} />
+    )
+    expect(screen.getByText(/Winner name resolver \(has fallback\)/)).toBeInTheDocument()
+  })
+
+  it('prefers the PandaScore winnerName over the OD-resolved fallback when both are available', () => {
+    render(
+      <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} initialGamePosition={1} />
+    )
+    expect(screen.getByText('Team Falcons')).toBeInTheDocument()
+    expect(screen.queryByText(/Winner name resolver/)).not.toBeInTheDocument()
+  })
+})
+
 describe('LiveSeriesSheet replay loading state', () => {
   it('stays mounted with a per-row loading indicator while the clicked game is fetching', () => {
     const onReplay = vi.fn()
+    // LiveSeriesSheet no longer owns its own <Sheet> (App.jsx now hosts one persistent Sheet
+    // shared with MatchDrawer, so switching between them doesn't unmount/remount the panel) —
+    // wrapped here to keep exercising the same dialog-role integration surface this test covers.
     const { rerender } = render(
-      <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={onReplay} loadingGameId={null} spoilerFree={false} initialGamePosition={1} />
+      <Sheet onDismiss={() => {}} ariaLabel="Test series">
+        <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={onReplay} loadingGameId={null} spoilerFree={false} initialGamePosition={1} />
+      </Sheet>
     )
 
     fireEvent.click(screen.getByRole('button', { name: /Game 1/ }))
@@ -184,7 +234,9 @@ describe('LiveSeriesSheet replay loading state', () => {
 
     // App.jsx sets loadingGameId synchronously while its OD fetch is in flight.
     rerender(
-      <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={onReplay} loadingGameId="od1" spoilerFree={false} initialGamePosition={1} />
+      <Sheet onDismiss={() => {}} ariaLabel="Test series">
+        <LiveSeriesSheet match={match} onDismiss={() => {}} onReplay={onReplay} loadingGameId="od1" spoilerFree={false} initialGamePosition={1} />
+      </Sheet>
     )
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()

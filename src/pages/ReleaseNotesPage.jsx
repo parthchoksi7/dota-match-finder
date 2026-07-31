@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "July 30, 2026",
     tag: "fix",
+    title: "Live series companion now matches the completed match view",
+    desc: "A finished game inside an in-progress series could sit with no winner name for a while after it actually ended, and switching from a live game to a finished one caused a visible flash as the panel closed and reopened. Winner names and scores now resolve reliably even before PandaScore's live feed catches up, the Grand Final badge only shows for actual finals instead of every bracket round, and switching between a live game and a finished one is now a smooth transition instead of a flash.",
+  },
+  {
+    date: "July 30, 2026",
+    tag: "fix",
     title: "Completed series now open on Game 1 again",
     desc: "Clicking a completed series was dropping you on the final game instead of Game 1, so you'd land on the decider before seeing how the series started. Completed series now correctly open on Game 1; live series still open on the most recent game.",
   },

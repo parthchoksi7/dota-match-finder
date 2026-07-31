@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchLiveSeriesGameIds } from '../api'
-import { trackEvent } from '../utils'
-import Sheet, { SHEET_WIDTH, SHEET_PADDING } from './Sheet'
+import { trackEvent, isGrandFinal } from '../utils'
+import { SHEET_PADDING } from './Sheet'
 import GameSwitcher from './GameSwitcher'
 import SeriesGameDraftStrip from './SeriesGameDraftStrip'
 import SeriesGameIndicators from './SeriesGameIndicators'
 import SeriesGameScore from './SeriesGameScore'
+import SeriesGameWinnerName from './SeriesGameWinnerName'
 import SeriesLivePulse from './SeriesLivePulse'
 
 function formatMinutes(seconds) {
@@ -17,14 +18,6 @@ function PlayIcon() {
   return (
     <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M8 5v14l11-7z" />
-    </svg>
-  )
-}
-
-function CloseIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   )
 }
@@ -115,11 +108,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
     .map(s => s.language)
 
   return (
-    <Sheet
-      onDismiss={onDismiss}
-      ariaLabel={`${match.teamA} vs ${match.teamB} series`}
-      widthClassName={SHEET_WIDTH}
-    >
+    <>
       {/* Header */}
       <div className={`flex-shrink-0 flex items-center justify-between gap-3 ${SHEET_PADDING} py-3 border-b border-gray-100 dark:border-gray-900`}>
         <div className="min-w-0">
@@ -132,16 +121,20 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
           </h2>
           <p className="text-xs text-gray-400 dark:text-gray-600 truncate">{match.tournament}{match.seriesLabel ? ` · ${match.seriesLabel}` : ''}</p>
           {match.bracketRound && (
-            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mt-0.5 truncate">{match.bracketRound}</p>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 truncate ${
+              isGrandFinal(match.bracketRound)
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-gray-400 dark:text-gray-600'
+            }`}>{match.bracketRound}</p>
           )}
         </div>
         <button
           type="button"
           onClick={onDismiss}
+          className="focus-ring ml-4 flex-shrink-0 p-2 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           aria-label="Close"
-          className="focus-ring flex-shrink-0 p-2 -mr-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
         >
-          <CloseIcon />
+          ✕
         </button>
       </div>
 
@@ -222,6 +215,17 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
                           <p className="font-display font-black text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate min-w-0">
                             {game.winnerName}
                           </p>
+                        ) : !spoilerFree && gameMatchId ? (
+                          // PandaScore's live-feed winner.id is confirmed to lag well behind the
+                          // actual result — this resolves the winner from OpenDota's radiantWin
+                          // instead, mapped onto the series' own trusted PS team names (never a
+                          // raw OD-sourced name) once gameMatchId has resolved.
+                          <SeriesGameWinnerName
+                            matchId={gameMatchId}
+                            teamA={match.teamA}
+                            teamB={match.teamB}
+                            fallback={<p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>}
+                          />
                         ) : (
                           <p className="text-sm text-gray-400 dark:text-gray-600">Game {game.position}</p>
                         )}
@@ -292,6 +296,6 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
           </div>
         )}
       </div>
-    </Sheet>
+    </>
   )
 }

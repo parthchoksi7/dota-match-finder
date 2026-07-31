@@ -1,7 +1,7 @@
 import DraftDisplay from "./DraftDisplay"
 import GoldGraph from "./GoldGraph"
 import PlayerStatsSection from "./PlayerStatsSection"
-import Sheet, { SHEET_WIDTH, SHEET_PADDING } from "./Sheet"
+import { SHEET_PADDING } from "./Sheet"
 import StreamPicker, { streamLabel } from "./StreamPicker"
 import { TeamIndicators } from "./GameIndicators"
 import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
@@ -149,7 +149,7 @@ function MatchDrawer({
   // Unplayed game slot — show minimal drawer with empty state
   if (match.unplayed) {
     return (
-      <Sheet onDismiss={onDismiss} ariaLabel="Match details" widthClassName={SHEET_WIDTH}>
+      <>
         <div className={`flex items-center justify-between ${SHEET_PADDING} py-4 border-b border-gray-200 dark:border-gray-800 shrink-0`}>
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
@@ -178,7 +178,7 @@ function MatchDrawer({
             </p>
           </div>
         </div>
-      </Sheet>
+      </>
     )
   }
 
@@ -217,7 +217,7 @@ function MatchDrawer({
     : 'text-gray-400 dark:text-gray-500'
 
   return (
-    <Sheet onDismiss={onDismiss} ariaLabel="Match details" widthClassName={SHEET_WIDTH}>
+    <>
       <div className={`flex items-center justify-between ${SHEET_PADDING} py-4 border-b border-gray-200 dark:border-gray-800 shrink-0`}>
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
@@ -691,7 +691,7 @@ function MatchDrawer({
         </div>
 
       </div>
-    </Sheet>
+    </>
   )
 }
 

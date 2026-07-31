@@ -311,6 +311,27 @@ describe('?mode=match-stats handler', () => {
     vi.unstubAllGlobals()
   })
 
+  it('passes through radiantScore/direScore/radiantName/direName from the raw OD match', async () => {
+    mockKv.get.mockResolvedValueOnce(null)   // stats cache miss
+    mockKv.get.mockResolvedValueOnce({ 36: { key: 'shadow_blade', dname: 'Shadow Blade' } })  // item map HIT
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => makeRawMatch({ radiant_score: 34, dire_score: 21, radiant_name: 'Team X', dire_name: 'Team Y', radiant_win: true }),
+    }))
+
+    const req = makeReq({ id: '7890124' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body.radiantScore).toBe(34)
+    expect(res._body.direScore).toBe(21)
+    expect(res._body.radiantName).toBe('Team X')
+    expect(res._body.direName).toBe('Team Y')
+
+    vi.unstubAllGlobals()
+  })
+
   it('returns cached data without calling OpenDota on KV hit', async () => {
     const cached = { radiantGoldAdv: [100], players: [], itemNames: { 36: { key: 'shadow_blade', dname: 'Shadow Blade' } } }
     mockKv.get.mockResolvedValueOnce(cached)  // stats cache HIT
@@ -341,7 +362,7 @@ describe('?mode=match-stats handler', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [], radiantWin: null })
+    expect(res._body).toEqual({ radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [], radiantWin: null, radiantScore: null, direScore: null, radiantName: null, direName: null })
 
     vi.unstubAllGlobals()
   })
@@ -361,7 +382,7 @@ describe('?mode=match-stats handler', () => {
     // res.ok guard: json() must not have been called for the match fetch
     // (it may have been called for items if items fetch also failed, but match fetch did not proceed)
     // The key invariant: KV must NOT be poisoned with empty/error data
-    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v4:'))
+    const statsKvWrite = kvSetCalls.find(([key]) => key?.startsWith('stats:match:v10:'))
     expect(statsKvWrite).toBeUndefined()
 
     vi.unstubAllGlobals()

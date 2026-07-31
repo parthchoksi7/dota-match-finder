@@ -4,6 +4,7 @@ import MatchList from "./components/MatchList"
 import HomeFeed, { FEED_ERROR_ID } from "./components/HomeFeed"
 import MatchDrawer from "./components/MatchDrawer"
 import LiveSeriesSheet from "./components/LiveSeriesSheet"
+import Sheet, { SHEET_WIDTH } from "./components/Sheet"
 import GameSwitcher from "./components/GameSwitcher"
 import XPostsModal from "./components/XPostsModal"
 import RedditPostsModal from "./components/RedditPostsModal"
@@ -1736,60 +1737,75 @@ function App() {
         error={redditPostsError}
       />
 
-      {selectedLiveSeries && !selectedMatch && (
-        <LiveSeriesSheet
-          match={selectedLiveSeries}
-          isOwner={isOwner}
-          onDismiss={closeLiveSeriesSheet}
-          onReplay={handleLiveSeriesReplay}
-          loadingGameId={liveReplayLoadingId}
-          spoilerFree={spoilerFree}
-        />
-      )}
-
-      {selectedMatch && (
-        <MatchDrawer
-          match={selectedMatch}
-          openSource={drawerSource}
-          onDismiss={dismissPanel}
-          followedTeams={followedTeams}
-          onToggleFollow={handleToggleFollow}
-          summary={summaryMatchId === selectedMatch?.id ? summary : null}
-          summaryLoading={summaryLoading}
-          summaryError={summaryErrorMatchId === selectedMatch?.id ? summaryError : null}
-          cachedSummary={cachedSummaryForSelected}
-          onSummarize={handleSummarize}
-          copyFeedback={copyFeedback}
-          twitchSearchHref={twitchSearchHref}
-          gameNumber={matchGameNumbers[selectedMatch?.id]}
-          seriesMatches={selectedSeriesIds?.length}
-          shareUrl={getShareUrl(selectedMatch)}
-          spoilerFree={spoilerFree}
-          gameSwitcher={gameSwitcher}
-          onCopyVod={() => {
-            navigator.clipboard?.writeText(selectedMatch.url)
-            trackEvent("copy_vod", {
-              matchId: selectedMatch.id,
-              radiantTeam: selectedMatch.radiantTeam,
-              direTeam: selectedMatch.direTeam,
-            })
-            setCopyFeedback("vod")
-            setTimeout(() => setCopyFeedback(null), 2000)
-          }}
-          onCopyLink={() => {
-            const url = getShareUrl(selectedMatch)
-            navigator.clipboard?.writeText(url)
-            window.history.replaceState(null, "", "/match/" + getMatchSlug(selectedMatch))
-            trackEvent("share_match", {
-              matchId: selectedMatch.id,
-              radiantTeam: selectedMatch.radiantTeam,
-              direTeam: selectedMatch.direTeam,
-              tournament: selectedMatch.tournament,
-            })
-            setCopyFeedback("link")
-            setTimeout(() => setCopyFeedback(null), 2000)
-          }}
-        />
+      {/* Single host Sheet for both the live-series companion and the completed-match drawer:
+          previously each rendered its own <Sheet>, so switching between them (e.g. tapping a
+          finished game inside a live series) fully unmounted one panel and remounted the other,
+          replaying the slide-in entrance as a visible close-then-reopen flash. This host stays
+          mounted whenever either is selected; only the inner content swaps (key'd cross-fade
+          below), so the panel itself never re-enters mid-series. `selectedMatch` wins when both
+          are set, matching the `!selectedMatch` guard the two branches used before this merge. */}
+      {(selectedLiveSeries || selectedMatch) && (
+        <Sheet
+          onDismiss={selectedMatch ? dismissPanel : closeLiveSeriesSheet}
+          ariaLabel={selectedMatch ? "Match details" : `${selectedLiveSeries.teamA} vs ${selectedLiveSeries.teamB} series`}
+          widthClassName={SHEET_WIDTH}
+        >
+          <div key={selectedMatch ? "drawer" : "live"} className="flex-1 flex flex-col overflow-hidden animate-sheet-content-fade">
+            {selectedMatch ? (
+              <MatchDrawer
+                match={selectedMatch}
+                openSource={drawerSource}
+                onDismiss={dismissPanel}
+                followedTeams={followedTeams}
+                onToggleFollow={handleToggleFollow}
+                summary={summaryMatchId === selectedMatch?.id ? summary : null}
+                summaryLoading={summaryLoading}
+                summaryError={summaryErrorMatchId === selectedMatch?.id ? summaryError : null}
+                cachedSummary={cachedSummaryForSelected}
+                onSummarize={handleSummarize}
+                copyFeedback={copyFeedback}
+                twitchSearchHref={twitchSearchHref}
+                gameNumber={matchGameNumbers[selectedMatch?.id]}
+                seriesMatches={selectedSeriesIds?.length}
+                shareUrl={getShareUrl(selectedMatch)}
+                spoilerFree={spoilerFree}
+                gameSwitcher={gameSwitcher}
+                onCopyVod={() => {
+                  navigator.clipboard?.writeText(selectedMatch.url)
+                  trackEvent("copy_vod", {
+                    matchId: selectedMatch.id,
+                    radiantTeam: selectedMatch.radiantTeam,
+                    direTeam: selectedMatch.direTeam,
+                  })
+                  setCopyFeedback("vod")
+                  setTimeout(() => setCopyFeedback(null), 2000)
+                }}
+                onCopyLink={() => {
+                  const url = getShareUrl(selectedMatch)
+                  navigator.clipboard?.writeText(url)
+                  window.history.replaceState(null, "", "/match/" + getMatchSlug(selectedMatch))
+                  trackEvent("share_match", {
+                    matchId: selectedMatch.id,
+                    radiantTeam: selectedMatch.radiantTeam,
+                    direTeam: selectedMatch.direTeam,
+                    tournament: selectedMatch.tournament,
+                  })
+                  setCopyFeedback("link")
+                  setTimeout(() => setCopyFeedback(null), 2000)
+                }}
+              />
+            ) : (
+              <LiveSeriesSheet
+                match={selectedLiveSeries}
+                isOwner={isOwner}
+                onDismiss={closeLiveSeriesSheet}
+                onReplay={handleLiveSeriesReplay}
+                loadingGameId={liveReplayLoadingId}
+                spoilerFree={spoilerFree}
+              />
+            )}
+          </div>
+        </Sheet>
       )}
     </div>
   )

@@ -79,6 +79,25 @@ export function teamPairScore(psNameA, psNameB, odNameA, odNameB) {
   return (namesEquivalent(a, r) || namesEquivalent(a, d) ? 1 : 0) + (namesEquivalent(b, r) || namesEquivalent(b, d) ? 1 : 0)
 }
 
+// Resolves which of a PS opponent pair was the Radiant side of a specific OD game, so a caller
+// can attribute an OD-only result (radiantWin) onto an already-trusted PS team name instead of
+// ever rendering a raw OD name next to it (the exact naming-mismatch class TEAM_NAME_ALIAS_GROUPS
+// exists to paper over — see "1win"/"tundraesports" above). Returns 'A' when psNameA was Radiant,
+// 'B' when psNameB was Radiant, or null when the pairing doesn't cleanly resolve to exactly one
+// side (missing name, no match, or the rare ambiguous case where both orderings match) — callers
+// must treat null as "don't guess" and fall back to not showing a name at all.
+export function resolveRadiantSide(psNameA, psNameB, odRadiantName, odDireName) {
+  const a = normalizeTeamName(psNameA)
+  const b = normalizeTeamName(psNameB)
+  const r = normalizeTeamName(odRadiantName)
+  const d = normalizeTeamName(odDireName)
+  if (!a || !b || !r || !d) return null
+  const aIsRadiant = namesEquivalent(a, r) && namesEquivalent(b, d)
+  const bIsRadiant = namesEquivalent(b, r) && namesEquivalent(a, d)
+  if (aIsRadiant === bIsRadiant) return null // neither resolves, or both do (ambiguous) — don't guess
+  return aIsRadiant ? 'A' : 'B'
+}
+
 // Minimum normalized length for a name to safely anchor a bidirectional-substring match in
 // isTeamFollowed. namesEquivalent's substring rule is safe inside teamPairMatch because BOTH
 // sides of a pairing must match simultaneously — a false positive needs two independent

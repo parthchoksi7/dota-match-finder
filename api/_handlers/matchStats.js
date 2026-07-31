@@ -11,11 +11,12 @@ export default async function handleMatchStats(req, res) {
   const STATS_TTL = 60 * 60 * 24 * 7 // 7 days — only for parsed matches (immutable)
   const STATS_TTL_UNPARSED = 60 * 30  // 30 min — match not yet parsed by OD; retry soon
   const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
-  // v9: added radiantWin — v8-cached entries predate the field.
-  const STATS_KV_KEY = `stats:match:v9:${matchId}`
+  // v10: added radiantScore/direScore/radiantName/direName — v9 and earlier cached entries
+  // predate these fields.
+  const STATS_KV_KEY = `stats:match:v10:${matchId}`
   const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
-  const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [], radiantWin: null }
+  const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [], radiantWin: null, radiantScore: null, direScore: null, radiantName: null, direName: null }
 
   // KV cache hit
   try {
@@ -151,6 +152,10 @@ export default async function handleMatchStats(req, res) {
     const stats = {
       radiantGoldAdv: data.radiant_gold_adv ?? [],
       radiantWin: typeof data.radiant_win === 'boolean' ? data.radiant_win : null,
+      radiantScore: data.radiant_score ?? null,
+      direScore: data.dire_score ?? null,
+      radiantName: data.radiant_name ?? null,
+      direName: data.dire_name ?? null,
       players: (data.players || []).map(p => ({
         slot: p.player_slot ?? 0,
         heroId: p.hero_id ?? 0,

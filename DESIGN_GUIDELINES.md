@@ -683,6 +683,7 @@ Slide-up sheet on mobile, dropdown panel anchored top-right on desktop. Lives in
 | `animate-spin` | Loading spinners |
 | `slide-in` (custom) | Match drawer entrance only |
 | `transition-colors duration-150` | Hover state color changes |
+| `sheet-content-fade` (custom, `duration-150 ease-out`, opacity only) | Inner content swap inside the shared sheet host (`App.jsx`) when switching between LiveSeriesSheet and MatchDrawer without unmounting the outer panel |
 
 ### Rules
 - No bounce, spring, or elastic easing — too playful for this product

@@ -8,15 +8,23 @@ import { useEffect } from 'react'
 // their own copies of the same Escape keydown effect — differing only in panel width and
 // aria-label. A third overlay would have made it three copies.
 //
-// What deliberately stays with the caller: the header (title block + its close button). The two
-// existing sheets style their close affordance differently (a "✕" glyph vs. an SVG icon, with
-// different hover colors), and unifying those is a design decision, not a DRY cleanup — folding
-// them in here would have changed pixels at both call sites.
+// What deliberately stays with the caller: the header (title block + its close button) and the
+// body content. Both MatchDrawer and LiveSeriesSheet now use the same "✕" glyph close-button
+// treatment (unified 2026-07-30), but the header layout/copy still legitimately differs per
+// sheet, so it isn't folded into this shared shell.
+//
+// App.jsx (2026-07-30) is the sole call site for both: a single host <Sheet> wraps whichever of
+// MatchDrawer/LiveSeriesSheet is active, so switching between them (e.g. tapping a finished game
+// inside a live series) swaps the inner content instead of unmounting/remounting this whole
+// panel — that used to replay the slide-in as a visible close-then-reopen flash.
 //
 // Motion: `animate-slide-in` is entrance-only. There is no exit animation, by design — the panel
 // unmounts immediately on dismiss. React would need the unmount deferred to play one, and the
 // drawer slide-in is the product's single signature motion (see DESIGN_GUIDELINES "Motion &
-// Animation"); a competing exit animation is not wanted. Preserve this behavior.
+// Animation"); a competing exit animation is not wanted. Preserve this behavior. Since the host
+// now stays mounted across a live<->drawer swap, that slide-in only replays on a genuine sheet
+// open/close, not on a content swap — the swap itself gets a lighter cross-fade
+// (`animate-sheet-content-fade`) applied by the caller (App.jsx), not by this shell.
 //
 // SHEET_WIDTH / SHEET_PADDING are the canonical match-sheet shell contract (pending-refactors
 // #4 — MatchDrawer and LiveSeriesSheet had independently picked their own width and a flat
