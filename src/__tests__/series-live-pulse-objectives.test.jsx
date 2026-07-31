@@ -1,11 +1,10 @@
 /**
- * Coverage for the R4 tower map (DotaMinimap) rendering inside SeriesLivePulse.jsx
- * (owner-only during verification — see DESIGN_GUIDELINES.md "Tower map"). The map renders
- * only when ALL of these hold: isOwner, spoiler-free is off, and the resolved pulse carries
- * `objectives` (server already confidence-gates that field, so its mere presence is
- * sufficient — no separate low-confidence state to test here, same reasoning as
- * `series-live-pulse-watch.test.jsx`'s sibling surfaces). DotaMinimap's own rendering details
- * (marker count, destroyed-state, the unknown-data caption) are covered in
+ * Coverage for the R4 tower map (DotaMinimap) rendering inside SeriesLivePulse.jsx. Public since
+ * 2026-07-31 (see DESIGN_GUIDELINES.md "Tower map") — the map renders whenever spoiler-free is
+ * off and the resolved pulse carries `objectives` (server already confidence-gates that field,
+ * so its mere presence is sufficient — no separate low-confidence state to test here, same
+ * reasoning as `series-live-pulse-watch.test.jsx`'s sibling surfaces). DotaMinimap's own
+ * rendering details (marker count, destroyed-state, the unknown-data caption) are covered in
  * `dota-minimap.test.jsx` — this file only tests the gating that decides whether it mounts.
  */
 
@@ -45,7 +44,6 @@ import { fetchLiveGamePulse } from '../api'
 const baseProps = {
   psMatchId: 'ps1',
   spoilerFree: false,
-  isOwner: true,
   seriesLabel: 'BO3',
   seriesScore: '0-0',
   teamA: 'Team Lynx',
@@ -70,8 +68,8 @@ async function renderPulse(pulse, propOverrides = {}) {
 
 const OBJECTIVES = { radiant: [3, 3, 3], dire: [1, 3, 2] }
 
-describe('SeriesLivePulse — tower map gating (owner-only)', () => {
-  it('renders the map when isOwner, not spoiler-free, and objectives is present', async () => {
+describe('SeriesLivePulse — tower map gating (public)', () => {
+  it('renders the map for any viewer when not spoiler-free and objectives is present', async () => {
     await renderPulse(pulseWith({ objectives: OBJECTIVES }))
     expect(screen.getByRole('img', { name: /Team Lynx:/ })).toBeInTheDocument()
     expect(screen.getByText(/barracks, base towers & ancient status unknown/i)).toBeInTheDocument()
@@ -82,12 +80,7 @@ describe('SeriesLivePulse — tower map gating (owner-only)', () => {
     expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })
 
-  it('renders nothing when isOwner is false, even though objectives is present (API already gates this, frontend gate is defense-in-depth)', async () => {
-    await renderPulse(pulseWith({ objectives: OBJECTIVES }), { isOwner: false })
-    expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
-  })
-
-  it('renders nothing in spoiler-free mode, even for an owner with objectives present', async () => {
+  it('renders nothing in spoiler-free mode, even with objectives present', async () => {
     await renderPulse(pulseWith({ objectives: OBJECTIVES }), { spoilerFree: true })
     expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })

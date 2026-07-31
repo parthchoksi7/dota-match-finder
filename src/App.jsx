@@ -1797,7 +1797,6 @@ function App() {
             ) : (
               <LiveSeriesSheet
                 match={selectedLiveSeries}
-                isOwner={isOwner}
                 onDismiss={closeLiveSeriesSheet}
                 onReplay={handleLiveSeriesReplay}
                 loadingGameId={liveReplayLoadingId}

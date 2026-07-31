@@ -46,7 +46,7 @@ function defaultPosition(match) {
 // currently running game's live pulse) via a chip switcher, so a fan reaches "what's happening
 // now" without scrolling past every earlier game first. `initialGamePosition` lets a future
 // per-game entry point open the sheet pre-scoped to a specific game; no caller passes it today.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, isOwner, followedTeams, onToggleFollow }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, followedTeams, onToggleFollow }) {
   // Recover OD match_ids for finished games the live feed returned without one, so their draft
   // strips can render.
   const [resolvedIds, setResolvedIds] = useState({})
@@ -145,21 +145,19 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
 
   return (
     <>
-      {/* Header — mirrors MatchDrawer's header exactly (tournament name primary line, meta row
-          below, Grand Final badge only for actual finals, same as MatchDrawer never showing a
-          non-final bracketRound at all). Team names stay in the header as a secondary line
-          rather than moving entirely into the body's new names row (SeriesLivePulse) — the
-          header is series-level chrome that stays visible for BOTH the live game and the
-          finished-game summary card, and the finished-game card still hides team names in
-          spoiler-free mode (see winnerNameFor gating below); dropping them here too would leave
-          a spoiler-free fan with no team identification at all while viewing a finished game. */}
+      {/* Header — structurally identical to MatchDrawer's header: tournament name as the sole
+          primary line, then one meta row, then the close button. Team names deliberately do NOT
+          appear here (matching MatchDrawer, which never shows them in its header either) - they
+          live in the body's names row (SeriesLivePulse, or the finished-game summary's winner
+          name) instead, same as MatchDrawer puts them in its own body. Known trade-off: a
+          spoiler-free fan viewing an older finished game's summary card (before it resolves to
+          the full MatchDrawer) currently has no team-name display anywhere in that specific
+          state, since the finished-game card also hides the winner name pre-reveal - narrower
+          than what the header used to paper over, flagged rather than silently accepted. */}
       <div className={`flex-shrink-0 flex items-center justify-between gap-3 ${SHEET_PADDING} py-4 border-b border-gray-200 dark:border-gray-800`}>
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
             {match.tournament}
-          </p>
-          <p className="font-display text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white truncate mt-0.5">
-            {match.teamA} <span className="text-gray-400 dark:text-gray-600 font-normal normal-case">vs</span> {match.teamB}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             {match.seriesLabel && (
@@ -321,7 +319,6 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
             </div>
             <SeriesLivePulse
               psMatchId={match.id}
-              isOwner={isOwner}
               spoilerFree={spoilerFree}
               seriesLabel={match.seriesLabel}
               seriesScore={match.seriesScore}

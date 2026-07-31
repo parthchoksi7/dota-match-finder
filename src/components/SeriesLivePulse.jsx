@@ -175,7 +175,7 @@ function StarIcon({ filled }) {
 // sections (2026-07-31 — the two were independently designed and had drifted for data that's
 // identical between a live and a completed game: team names, kill score, follow, watch position,
 // draft section label). MatchDrawer itself is the fixed baseline and was not changed.
-export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages, followedTeams, onToggleFollow }) {
+export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages, followedTeams, onToggleFollow }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
   // Mirrors MatchDrawer's scoreRevealed: spoiler-free hides the score/outcome-adjacent surfaces
@@ -478,7 +478,7 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
         </div>
       )}
 
-      {isOwner && showLiveStory && pulse.objectives && (
+      {showLiveStory && pulse.objectives && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
           <DotaMinimap
             radiant={pulse.objectives.radiant}
