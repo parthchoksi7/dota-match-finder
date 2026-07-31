@@ -472,7 +472,7 @@ function App() {
     }
     return Object.values(byId).map(gs => ({
       id: `ps-${gs[0].seriesId}`,
-      games: gs,
+      games: [...gs].sort((a, b) => a.startTime - b.startTime),
       tournament: gs[0].tournament,
       seriesType: gs[0].seriesType,
       _pandaMatchId: gs[0]._pandaMatchId,
@@ -936,11 +936,11 @@ function App() {
   }
 
   function handleOpenSeries(series) {
-    // Land on the last played game: the decider for a finished series, or the latest
-    // completed game for one still in progress — either way the most relevant game to a
-    // fan checking in. Games are startTime-ascending (see groupIntoSeries), so that's
-    // always the last entry.
-    handleSelectMatch(series.games[series.games.length - 1])
+    // Completed series: land on Game 1 — PandaScore's begin_at match for VOD/stream lookup
+    // is keyed off G1's start time, so opening later games can push the fuzzy match outside
+    // its window (see 5f4b6f0). In-progress series: land on the most recently played game
+    // (last entry, since games are startTime-ascending — see groupIntoSeries).
+    handleSelectMatch(isSeriesComplete(series) ? series.games[0] : series.games[series.games.length - 1])
   }
 
   async function handleSummarize(match) {
