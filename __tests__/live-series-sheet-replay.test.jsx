@@ -179,19 +179,20 @@ describe('LiveSeriesSheet game switcher', () => {
 })
 
 describe('LiveSeriesSheet Grand Final bracketRound styling', () => {
-  it('renders a Grand Final bracketRound in amber', () => {
+  it('renders the Grand Final trophy badge in amber for a Grand Final bracketRound', () => {
     const gfMatch = { ...match, bracketRound: 'Grand Final' }
     render(<LiveSeriesSheet match={gfMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />)
     const label = screen.getByText('Grand Final')
-    expect(label.className).toMatch(/text-amber-600/)
+    expect(label.closest('span').className).toMatch(/text-amber-600/)
   })
 
-  it('does not render a non-final bracketRound in amber', () => {
+  // Matches MatchDrawer.jsx exactly: a non-final bracketRound isn't shown anywhere in the
+  // header at all (no neutral fallback), not just "not amber."
+  it('does not render a non-final bracketRound anywhere in the header', () => {
     const groupStageMatch = { ...match, bracketRound: 'Group Stage' }
     render(<LiveSeriesSheet match={groupStageMatch} onDismiss={() => {}} onReplay={vi.fn()} loadingGameId={null} spoilerFree={false} />)
-    const label = screen.getByText('Group Stage')
-    expect(label.className).not.toMatch(/text-amber-600/)
-    expect(label.className).toMatch(/text-gray-400/)
+    expect(screen.queryByText('Group Stage')).not.toBeInTheDocument()
+    expect(screen.queryByText('Grand Final')).not.toBeInTheDocument()
   })
 })
 

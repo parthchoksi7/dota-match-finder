@@ -6,7 +6,6 @@ import { formatGoldMagnitude, formatLiveScoreTitle } from '../utils/liveScore'
 import HeroIcon from './HeroIcon'
 import DotaMinimap from './DotaMinimap'
 import LiveGoldGraph from './LiveGoldGraph'
-import SeriesScoreRow from './SeriesScoreRow'
 import LiveStreamPicker from './LiveStreamPicker'
 import { streamLabel } from './StreamPicker'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
@@ -134,6 +133,22 @@ function DraftPickRow({ heroKey, heroName, playerName, side }) {
   )
 }
 
+// Duplicated from MatchDrawer.jsx's identical local StarIcon rather than extracted — two call
+// sites for a 10-line SVG doesn't clear the bar for a shared file yet (see teamMatching.js-style
+// extraction the day a third caller shows up).
+function StarIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden="true">
+      <path
+        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth={filled ? '0' : '1.5'}
+      />
+    </svg>
+  )
+}
+
 // Live pulse for the CURRENTLY RUNNING game of a series: gold lead + kill score + live draft,
 // sourced from live_game_map via ?mode=live-game-pulse. Self-polls while mounted (matchId is
 // stable — one running game per series at a time).
@@ -146,15 +161,27 @@ function DraftPickRow({ heroKey, heroName, playerName, side }) {
 // only the poll that actually lands on an open lock window pays for the full OpenDota round trip.
 //
 // Live draft shows even in spoiler-free (pre-outcome, same rule as the finished-game draft
-// strip); gold lead + kill score are gated by the parent.
+// strip); names/score/stakes/momentum/map/graph are gated by `hideScore` below, same contract as
+// MatchDrawer's own `hideScore` (spoiler-free + not yet manually revealed) — team names are NOT
+// spoiler content (matches MatchDrawer, which always shows radiant/direTeam regardless of
+// spoilerFree), only the score/outcome-adjacent surfaces are.
 //
 // Live Story: seriesLabel/seriesScore/teamA/teamB feed computeStakes ("does this game matter").
 // `true` below always requests `history` from the pulse endpoint (api/_handlers/liveGamePulse.js
 // still checks its own `&owner=1` query param, which this satisfies unconditionally now that the
 // surface is public — left as-is server-side since it's harmless and already tested).
-export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages }) {
+//
+// Names/score/watch/map/graph/draft section shapes deliberately mirror MatchDrawer.jsx's own
+// sections (2026-07-31 — the two were independently designed and had drifted for data that's
+// identical between a live and a completed game: team names, kill score, follow, watch position,
+// draft section label). MatchDrawer itself is the fixed baseline and was not changed.
+export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages, followedTeams, onToggleFollow }) {
   const [pulse, setPulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
+  // Mirrors MatchDrawer's scoreRevealed: spoiler-free hides the score/outcome-adjacent surfaces
+  // behind a "Reveal score" button rather than the site-wide spoiler-free setting being the only
+  // lever, same as a completed game. Reset whenever the game itself changes.
+  const [scoreRevealed, setScoreRevealed] = useState(false)
   // Read once per mount rather than per render — this component re-renders on every 20s poll,
   // and the sheet remounts when reopened, which is when a preference change should take effect.
   const [streamLanguage] = useState(getStreamLanguage)
@@ -162,6 +189,10 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
   // Called before every early return below — the tab title must keep tracking (and restoring)
   // even in the states where this component renders nothing.
   useLiveScoreTabTitle(pulse, spoilerFree)
+
+  useEffect(() => {
+    setScoreRevealed(false)
+  }, [psMatchId])
 
   useEffect(() => {
     if (!psMatchId) return
@@ -204,7 +235,7 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
     : 'bg-purple-700 hover:bg-purple-800 text-white'
   const hasWatchLinks = !!(twitchUrl || youtubeStream || preferredStream || (restStreams && restStreams.length > 0))
   const watchLinks = hasWatchLinks && (
-    <div className="mb-2">
+    <div>
       {(twitchUrl || youtubeStream || preferredStream) && (
         <div className="flex items-center gap-2 flex-wrap mb-2">
           {preferredStream && (
@@ -270,7 +301,16 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
     </div>
   )
 
-  if (!pulse) return hasWatchLinks ? <div className={`${SHEET_PADDING} py-3`}>{watchLinks}</div> : null
+  if (!pulse) {
+    return hasWatchLinks ? (
+      <div className={`${SHEET_PADDING} py-3`}>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+          Watch Live
+        </p>
+        {watchLinks}
+      </div>
+    ) : null
+  }
 
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
@@ -287,74 +327,181 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
   const radiantHeroes = zipDraftPicks(pulse.radiantHeroIds, pulse.radiantPlayerNames, heroMap)
   const direHeroes = zipDraftPicks(pulse.direHeroIds, pulse.direPlayerNames, heroMap)
 
-  // Live Story surfaces (stakes chip, momentum read, net-worth graph) are public. Spoiler-free
-  // still hides them (they reveal who's winning) — draft above is unaffected, same "draft is
-  // pre-outcome, not a spoiler" rule the finished-game strip already follows.
-  const showLiveStory = !spoilerFree
+  const radiantName = pulse.radiantName || 'Radiant'
+  const direName = pulse.direName || 'Dire'
+  // Same contract as MatchDrawer's hideScore: spoiler-free hides the result until manually
+  // revealed. Stakes/momentum/tower-map/net-worth-graph ride the same gate — they're all
+  // outcome-adjacent, same as MatchDrawer's game-facts line riding its own hideScore.
+  const hideScore = spoilerFree && !scoreRevealed
+  const showLiveStory = !hideScore
   const stakes = showLiveStory ? computeStakes({ seriesLabel, seriesScore, teamA, teamB }) : null
   const momentum = showLiveStory
     ? computeMomentum({ radiantLead: pulse.radiantLead, gameTime: pulse.gameTime, radiantName: pulse.radiantName, direName: pulse.direName })
     : null
 
+  function follow(name) {
+    trackEvent(followedTeams?.includes(name) ? 'unfollow_team' : 'follow_team', { team_name: name, source: 'live_series_sheet' })
+    onToggleFollow(name)
+  }
+
   return (
-    <div className={`${SHEET_PADDING} py-3`}>
-      {watchLinks}
-      {stakes?.kind && (
-        <p className="mb-1.5">
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            {stakes.kind === 'DECIDER' ? 'Decider' : `Match Point · ${stakes.leaderName}`}
-          </span>
-        </p>
-      )}
-      {momentum && (
-        <p className="mb-1.5">
-          <span
-            className={`text-xs font-bold uppercase tracking-wide ${momentum.leadColor ? '' : 'text-gray-600 dark:text-gray-400'}`}
-            style={momentum.leadColor ? { color: momentum.leadColor } : undefined}
-          >
-            {momentum.band === 'EVEN' ? 'Even' : `${momentum.leaderName} ${momentum.band === 'FAR_AHEAD' ? 'Far Ahead' : 'Ahead'}`}
-          </span>
-          <span className="ml-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-600 normal-case tracking-normal">
-            game time {formatClock(pulse.gameTime)}
-          </span>
-        </p>
-      )}
-      {!spoilerFree && (hasScore || leadMag || clock) && (
-        <div className="mb-2 space-y-0.5">
-          <SeriesScoreRow
-            name={pulse.radiantName || 'Radiant'}
-            score={pulse.radiantScore}
-            leadLabel={radiantAhead ? leadMag : null}
-            leadColor={leadColor}
-          />
-          <SeriesScoreRow
-            name={pulse.direName || 'Dire'}
-            score={pulse.direScore}
-            leadLabel={!radiantAhead ? leadMag : null}
-            leadColor={leadColor}
-          />
-          {/* Momentum row above already shows the clock inline ("game time 14:43") whenever it
-              renders — only fall back to this line when momentum is null (e.g. gameTime present
-              but radiantLead isn't finite yet), so the two never show the same clock twice. */}
-          {clock && !momentum && <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 tabular-nums pt-0.5">{clock}</p>}
+    <div className={`${SHEET_PADDING} py-3 space-y-6`}>
+      {(stakes?.kind || momentum) && (
+        <div>
+          {stakes?.kind && (
+            <p className="mb-1.5">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                {stakes.kind === 'DECIDER' ? 'Decider' : `Match Point · ${stakes.leaderName}`}
+              </span>
+            </p>
+          )}
+          {momentum && (
+            <p>
+              <span
+                className={`text-xs font-bold uppercase tracking-wide ${momentum.leadColor ? '' : 'text-gray-600 dark:text-gray-400'}`}
+                style={momentum.leadColor ? { color: momentum.leadColor } : undefined}
+              >
+                {momentum.band === 'EVEN' ? 'Even' : `${momentum.leaderName} ${momentum.band === 'FAR_AHEAD' ? 'Far Ahead' : 'Ahead'}`}
+              </span>
+              <span className="ml-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-600 normal-case tracking-normal">
+                game time {formatClock(pulse.gameTime)}
+              </span>
+            </p>
+          )}
         </div>
       )}
-      {isOwner && showLiveStory && pulse.objectives && (
-        <DotaMinimap
-          radiant={pulse.objectives.radiant}
-          dire={pulse.objectives.dire}
-          radiantName={pulse.radiantName}
-          direName={pulse.direName}
-        />
+
+      {/* Names row — mirrors MatchDrawer's names row exactly: left/right anchored, follow stars,
+          no winner/loser coloring (no result yet — same rule MatchDrawer uses in spoiler-free
+          mode, "both names get winner style when no result is known"). */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-display font-black text-base sm:text-lg uppercase tracking-wide truncate text-gray-900 dark:text-white">
+            {radiantName}
+          </span>
+          {onToggleFollow && (
+            <button
+              type="button"
+              onClick={() => follow(radiantName)}
+              className={`flex-shrink-0 p-[14px] rounded transition-colors ${
+                followedTeams?.includes(radiantName)
+                  ? 'text-yellow-400'
+                  : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+              }`}
+              aria-label={followedTeams?.includes(radiantName) ? `Unfollow ${radiantName}` : `Follow ${radiantName}`}
+              title={followedTeams?.includes(radiantName) ? `Unfollow ${radiantName}` : `Follow ${radiantName}`}
+            >
+              <StarIcon filled={followedTeams?.includes(radiantName)} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {onToggleFollow && (
+            <button
+              type="button"
+              onClick={() => follow(direName)}
+              className={`flex-shrink-0 p-[14px] rounded transition-colors ${
+                followedTeams?.includes(direName)
+                  ? 'text-yellow-400'
+                  : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 dark:hover:text-yellow-400'
+              }`}
+              aria-label={followedTeams?.includes(direName) ? `Unfollow ${direName}` : `Follow ${direName}`}
+              title={followedTeams?.includes(direName) ? `Unfollow ${direName}` : `Follow ${direName}`}
+            >
+              <StarIcon filled={followedTeams?.includes(direName)} />
+            </button>
+          )}
+          <span className="font-display font-black text-base sm:text-lg uppercase tracking-wide truncate text-right text-gray-900 dark:text-white">
+            {direName}
+          </span>
+        </div>
+      </div>
+
+      {/* Score + live facts — mirrors MatchDrawer's score + first-blood/roshan facts group */}
+      <div>
+        <div className="flex items-center justify-center gap-3">
+          {hideScore ? (
+            <button
+              type="button"
+              onClick={() => {
+                setScoreRevealed(true)
+                trackEvent('spoiler_reveal', { matchId: psMatchId, radiantTeam: radiantName, direTeam: direName, source: 'live' })
+              }}
+              className="font-display text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Reveal score
+            </button>
+          ) : !hasScore ? (
+            <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+              Score pending
+            </span>
+          ) : (
+            <>
+              <span className="font-display text-4xl font-black text-gray-900 dark:text-white">{pulse.radiantScore}</span>
+              <span className="text-gray-300 dark:text-gray-700 text-2xl font-medium select-none">—</span>
+              <span className="font-display text-4xl font-black text-gray-900 dark:text-white">{pulse.direScore}</span>
+            </>
+          )}
+        </div>
+
+        {/* The momentum band above already shows the clock inline ("game time 4:13") whenever it
+            renders — the clock here is a fallback for when momentum is null (e.g. gameTime
+            present but radiantLead isn't finite yet), so the two never show the same clock
+            twice. */}
+        {!hideScore && (leadMag || (clock && !momentum)) && (
+          <div className="flex items-center justify-center gap-2 mt-1.5">
+            {leadMag && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide tabular-nums" style={{ color: leadColor }}>
+                {radiantAhead ? radiantName : direName} {leadMag} net worth
+              </span>
+            )}
+            {leadMag && clock && !momentum && (
+              <span className="text-[10px] text-gray-300 dark:text-gray-700 select-none" aria-hidden="true">·</span>
+            )}
+            {clock && !momentum && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 tabular-nums">
+                {clock}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Watch — same section label position/style as MatchDrawer's "Watch Full Match Replay",
+          different wording since this is a live broadcast, not a replay. */}
+      {hasWatchLinks && (
+        <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+            Watch Live
+          </p>
+          {watchLinks}
+        </div>
       )}
-      {showLiveStory && <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />}
+
+      {isOwner && showLiveStory && pulse.objectives && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <DotaMinimap
+            radiant={pulse.objectives.radiant}
+            dire={pulse.objectives.dire}
+            radiantName={pulse.radiantName}
+            direName={pulse.direName}
+          />
+        </div>
+      )}
+
+      {showLiveStory && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />
+        </div>
+      )}
+
       {(radiantHeroes.length > 0 || direHeroes.length > 0) && (
-        <div className="mt-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Picks</p>
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Draft</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-green-600 dark:text-green-500 mb-1.5 truncate">
-                {pulse.radiantName || 'Radiant'}
+                {radiantName}
               </p>
               {radiantHeroes.map((h, i) => (
                 <DraftPickRow key={`r${i}`} heroKey={h.key} heroName={h.name} playerName={h.player} side="radiant" />
@@ -362,7 +509,7 @@ export default function SeriesLivePulse({ psMatchId, isOwner, spoilerFree, serie
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-red-600 dark:text-red-500 mb-1.5 truncate">
-                {pulse.direName || 'Dire'}
+                {direName}
               </p>
               {direHeroes.map((h, i) => (
                 <DraftPickRow key={`d${i}`} heroKey={h.key} heroName={h.name} playerName={h.player} side="dire" />

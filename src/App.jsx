@@ -1802,6 +1802,8 @@ function App() {
                 onReplay={handleLiveSeriesReplay}
                 loadingGameId={liveReplayLoadingId}
                 spoilerFree={spoilerFree}
+                followedTeams={followedTeams}
+                onToggleFollow={handleToggleFollow}
               />
             )}
           </div>

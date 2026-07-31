@@ -46,7 +46,7 @@ function defaultPosition(match) {
 // currently running game's live pulse) via a chip switcher, so a fan reaches "what's happening
 // now" without scrolling past every earlier game first. `initialGamePosition` lets a future
 // per-game entry point open the sheet pre-scoped to a specific game; no caller passes it today.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, isOwner }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, isOwner, followedTeams, onToggleFollow }) {
   // Recover OD match_ids for finished games the live feed returned without one, so their draft
   // strips can render.
   const [resolvedIds, setResolvedIds] = useState({})
@@ -145,24 +145,36 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
 
   return (
     <>
-      {/* Header */}
-      <div className={`flex-shrink-0 flex items-center justify-between gap-3 ${SHEET_PADDING} py-3 border-b border-gray-100 dark:border-gray-900`}>
+      {/* Header — mirrors MatchDrawer's header exactly (tournament name primary line, meta row
+          below, Grand Final badge only for actual finals, same as MatchDrawer never showing a
+          non-final bracketRound at all). Team names stay in the header as a secondary line
+          rather than moving entirely into the body's new names row (SeriesLivePulse) — the
+          header is series-level chrome that stays visible for BOTH the live game and the
+          finished-game summary card, and the finished-game card still hides team names in
+          spoiler-free mode (see winnerNameFor gating below); dropping them here too would leave
+          a spoiler-free fan with no team identification at all while viewing a finished game. */}
+      <div className={`flex-shrink-0 flex items-center justify-between gap-3 ${SHEET_PADDING} py-4 border-b border-gray-200 dark:border-gray-800`}>
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-red-500">Live Series</p>
+          <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 font-semibold truncate">
+            {match.tournament}
+          </p>
+          <p className="font-display text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white truncate mt-0.5">
+            {match.teamA} <span className="text-gray-400 dark:text-gray-600 font-normal normal-case">vs</span> {match.teamB}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            {match.seriesLabel && (
+              <p className="text-xs text-gray-400 dark:text-gray-600">{match.seriesLabel}</p>
+            )}
+            <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-red-600 dark:text-red-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+              Live
+            </span>
+            {match.bracketRound && isGrandFinal(match.bracketRound) && (
+              <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                <span aria-hidden>🏆</span> Grand Final
+              </span>
+            )}
           </div>
-          <h2 className="font-display text-base font-black uppercase tracking-wide text-gray-900 dark:text-white truncate mt-0.5">
-            {match.teamA} <span className="text-gray-400 dark:text-gray-600">vs</span> {match.teamB}
-          </h2>
-          <p className="text-xs text-gray-400 dark:text-gray-600 truncate">{match.tournament}{match.seriesLabel ? ` · ${match.seriesLabel}` : ''}</p>
-          {match.bracketRound && (
-            <p className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 truncate ${
-              isGrandFinal(match.bracketRound)
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-gray-400 dark:text-gray-600'
-            }`}>{match.bracketRound}</p>
-          )}
         </div>
         <button
           type="button"
@@ -320,6 +332,8 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
               youtubeStream={match.youtubeStream}
               otherStreams={otherStreams}
               primaryLanguages={primaryLanguages}
+              followedTeams={followedTeams}
+              onToggleFollow={onToggleFollow}
             />
           </div>
         )}

@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 31, 2026",
+    tag: "improvement",
+    title: "Live series companion now looks and feels like a completed match",
+    desc: "The live view for an in-progress game used a completely different layout from a finished match: a small stacked score, no way to follow a team, and the stream links buried above everything else. It now shares the same design as a completed match, team names and a big centered score up top, follow stars on both teams, and the watch links in the same place, so switching between a live game and a finished one in the same series feels like one consistent app instead of two. A finished game's winner also now shows on its tab in the game switcher, not just after you tap into it.",
+  },
+  {
+    date: "July 31, 2026",
     tag: "fix",
     title: "Homepage no longer flashes plain text on load",
     desc: "Refreshing the homepage briefly showed a plain, unstyled block of text before the real page appeared. That content was meant only for search engines and AI crawlers that can't run JavaScript; it's now served only to them, so real visitors go straight to the styled app.",
