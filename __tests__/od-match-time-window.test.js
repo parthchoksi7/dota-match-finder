@@ -73,9 +73,22 @@ describe('findOdMatchByTime honors OD_MATCH_TIME_WINDOW_S', () => {
     expect(findOdMatchByTime([wrongTeams, rightTeams], BEGIN, OPPONENTS)).toBe(rightTeams)
   })
 
-  it('falls back to nearest start_time when no candidate matches on names', () => {
+  it('returns null (never a blind nearest-time guess) when no candidate matches on names', () => {
+    // A same-window OD candidate that shares NEITHER team name with the requested pair must
+    // never be picked just for being closest in time — live_game_map/promatches spans every
+    // concurrent pro game, and multiple unrelated series routinely overlap the same 900s
+    // window. Regression for the exact production bug: a Team Liquid vs BetBoom series' live
+    // pulse resolved to an unrelated Yakult Brothers vs Zero Tenacity game this way (2026-07-31).
     const far = odGame(BEGIN + 800, { match_id: 4, radiant_name: 'Xtreme Gaming', dire_name: 'Azure Ray' })
     const near = odGame(BEGIN + 30, { match_id: 5, radiant_name: 'Gaimin Gladiators', dire_name: 'Talon Esports' })
-    expect(findOdMatchByTime([far, near], BEGIN, OPPONENTS)).toBe(near)
+    expect(findOdMatchByTime([far, near], BEGIN, OPPONENTS)).toBeNull()
+  })
+
+  it('still resolves via score fallback when one side partially matches, even without an exact pair', () => {
+    // Partial overlap (one side matches, the other diverges) is a real, legitimate signal —
+    // unlike zero overlap above — mirroring findBestPsMatch()'s own score-fallback pass.
+    const partial = odGame(BEGIN + 500, { match_id: 6, radiant_name: 'Team Liquid', dire_name: 'Some Divergent Name' })
+    const unrelated = odGame(BEGIN + 20, { match_id: 7, radiant_name: 'Xtreme Gaming', dire_name: 'Azure Ray' })
+    expect(findOdMatchByTime([partial, unrelated], BEGIN, OPPONENTS)).toBe(partial)
   })
 })

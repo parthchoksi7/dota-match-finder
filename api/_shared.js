@@ -581,22 +581,53 @@ export const OD_MATCH_TIME_WINDOW_S = 900
 // Uses teamPairMatch() — the canonical bidirectional substring logic shared with match-streams.js.
 // Timestamp is the primary key (±15 min window); team names break ties when multiple candidates.
 // Returns the best OD match object, or null if nothing is within the time window.
+//
+// When PS opponent names are known (the overwhelmingly common case), a same-window candidate
+// that shares NEITHER team name is never returned, even if it's the closest in time or the only
+// one with non-null names. live_game_map/promatches spans every concurrent pro game — many
+// unrelated series routinely overlap the same 900s window — so "closest in time" alone is not a
+// safe tiebreaker once real disambiguating names are in hand. Confirmed live 2026-07-31: a Team
+// Liquid vs BetBoom series' live pulse resolved to Yakult Brothers vs Zero Tenacity's game state
+// this way, because BetBoom's actual OD row hadn't landed yet and blind nearest-time picked an
+// unrelated named candidate instead of admitting "not found." Only when NO PS names are supplied,
+// or every same-window OD candidate lacks team names outright (nothing to compare against
+// either), does this fall back to pure nearest-time.
 export function findOdMatchByTime(odMatches, beginAtUnix, psOpponents) {
   const candidates = odMatches.filter(m => Math.abs(m.start_time - beginAtUnix) < OD_MATCH_TIME_WINDOW_S)
   if (candidates.length === 0) return null
   if (candidates.length === 1) return candidates[0]
   const names = (psOpponents || []).map(o => o.opponent?.name || '')
+  // Candidates where both team names are known — the only ones a name-based decision (exact or
+  // scored) can be made against.
+  const named = candidates.filter(m =>
+    (m.radiant_name || m.radiant_team?.name) && (m.dire_name || m.dire_team?.name)
+  )
   if (names.length >= 2) {
     const exact = candidates.find(c =>
       teamPairMatch(names[0], names[1], c.radiant_name || c.radiant_team?.name, c.dire_name || c.dire_team?.name)
     )
     if (exact) return exact
+
+    if (named.length > 0) {
+      // No exact pair match — score every named candidate the same way findBestPsMatch() does
+      // for its own same-window fallback, and trust only a UNIQUE best score >= 1 (at least one
+      // side genuinely overlaps). A score of 0 across the board means none of these candidates
+      // are the requested series, so return null rather than guessing.
+      let best = null
+      let bestScore = 0
+      let tied = false
+      for (const c of named) {
+        const score = teamPairScore(names[0], names[1], c.radiant_name || c.radiant_team?.name, c.dire_name || c.dire_team?.name)
+        if (score > bestScore) { best = c; bestScore = score; tied = false }
+        else if (score > 0 && score === bestScore && (c.match_id ?? c) !== (best?.match_id ?? best)) { tied = true }
+      }
+      return (bestScore >= 1 && !tied) ? best : null
+    }
+    // Every candidate lacks team names entirely — nothing to disambiguate with, fall through to
+    // blind nearest-time below.
   }
-  // Prefer candidates where both team names are known; fall back to all candidates
-  // only when every candidate has at least one null team name (very rare).
-  const named = candidates.filter(m =>
-    (m.radiant_name || m.radiant_team?.name) && (m.dire_name || m.dire_team?.name)
-  )
+  // No usable team names anywhere (missing PS opponents, or every OD candidate lacks
+  // radiant/dire names) — nearest start_time is the only signal left.
   const pool = named.length > 0 ? named : candidates
   return pool.reduce((best, m) =>
     Math.abs(m.start_time - beginAtUnix) < Math.abs(best.start_time - beginAtUnix) ? m : best
