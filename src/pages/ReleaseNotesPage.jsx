@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "July 31, 2026",
+    tag: "fix",
+    title: "Homepage no longer flashes plain text on load",
+    desc: "Refreshing the homepage briefly showed a plain, unstyled block of text before the real page appeared. That content was meant only for search engines and AI crawlers that can't run JavaScript; it's now served only to them, so real visitors go straight to the styled app.",
+  },
+  {
     date: "July 30, 2026",
     tag: "fix",
     title: "Live series companion now matches the completed match view",

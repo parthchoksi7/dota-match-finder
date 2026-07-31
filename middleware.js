@@ -1,3 +1,5 @@
+import { next } from '@vercel/functions'
+
 export const config = {
   matcher: [
     '/',
@@ -208,6 +210,17 @@ const LLM_BOTS = [
   'Applebot-Extended',
 ]
 
+// Search engine + social preview crawlers — these don't reliably execute
+// client-side JS, so they need the server-rendered fallback content too.
+// Real browsers do NOT get this treatment; see CRAWLER_BOTS gate below.
+const SEARCH_AND_SOCIAL_BOTS = [
+  'Googlebot', 'Bingbot', 'DuckDuckBot', 'Baiduspider', 'YandexBot', 'Slurp', 'Sogou',
+  'Twitterbot', 'facebookexternalhit', 'LinkedInBot', 'Slackbot', 'Discordbot',
+  'TelegramBot', 'WhatsApp', 'Applebot', 'DuckAssistBot',
+]
+
+const CRAWLER_BOTS = [...LLM_BOTS, ...SEARCH_AND_SOCIAL_BOTS]
+
 export default async function middleware(req) {
   const url = new URL(req.url)
   const { pathname } = url
@@ -217,6 +230,13 @@ export default async function middleware(req) {
   if (matchedBot) {
     console.log(JSON.stringify({ event: 'llm_bot_visit', bot: matchedBot, ua, path: pathname, ts: new Date().toISOString() }))
   }
+
+  // Only known crawlers get the server-rendered fallback HTML (they need it
+  // because they don't reliably execute JS). Real browsers pass straight
+  // through to the normal SPA — otherwise the crawler-oriented markup
+  // flashes on screen before React mounts and replaces it.
+  const isCrawler = CRAWLER_BOTS.some(b => ua.toLowerCase().includes(b.toLowerCase()))
+  if (!isCrawler) return next()
 
   if (pathname === '/') return handleHome(url)
   if (pathname === '/news') return handleNews(url)
