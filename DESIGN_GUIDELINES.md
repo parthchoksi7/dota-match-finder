@@ -119,6 +119,7 @@ only has to pick a surface:
 **Components:**
 - `HoverCard` — hover-delayed card anchored above its trigger. Owns the show/hide timers (120ms show so a mouse crossing a dense item row doesn't strobe, 80ms hide so travel onto the card doesn't dismiss it), the invisible hover bridge that makes that travel possible, timer cleanup on unmount, and `align="left" | "right" | "center"` for row-edge items. Used by `ItemSlot` and `PlayerStatsSection`'s consumed-upgrade icons.
 - `HoverCardTitle`, `WikiLink` — the title line and the Dota 2 Wiki footer row (divider + external link + `aria-label`) shared by both item hover cards.
+- `InfoButton` — click-opened "i" info button + `TOOLTIP_PANEL` popover for explaining a UI term inline (props: `ariaLabel`, `title`, `description`, `width`). Fixed-position, anchored below the button, clamped on-screen, closes on outside click. Used by the match drawer's "Channel link" explainer (see "Stream picker" below). `TournamentDetail.jsx`'s `StageInfoTooltip` predates this and hand-rolls the identical pattern — see `.claude/pending-refactors.md` for migrating it onto this shared component instead of a third hand-rolled copy.
 
 Use the raw `TOOLTIP_SURFACE` constant (not `HoverCard`) when the trigger already owns its own
 open/close mechanism — a portal-positioned tooltip, a caller-measured `fixed` position, or a
@@ -482,20 +483,21 @@ Used in the match drawer's "Watch Full Match Replay" section to surface every re
 - Language chip: 2-letter uppercase code (`EN`, `RU`, `ES`) in entity-chip style — `px-1 py-0.5 rounded border border-gray-300 dark:border-gray-700 text-[10px] font-bold text-gray-500`. Omitted when language is null. **Never use flag icons — flags ≠ languages** (RU serves all of CIS, ES serves LATAM + Spain)
 - Play glyph (purple, `w-3 h-3`) only when `deep_link: true` — signals the link jumps to the game start
 - Channel label: `text-xs font-semibold text-purple-700 dark:text-purple-400 truncate` (purple = watch action)
-- "Co-stream" badge (`text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-600`) only when `official === false` — official is the default state, not a feature
-- "Channel link" marker (right-aligned, same tertiary style) whenever `deep_link` is false — it's a plain channel/stream page, not a timestamped deep link, so never word it as if the moment (or even the VOD itself) will be found automatically
-- The primary button shows a language chip (`bg-white/20`) when the primary broadcast is non-English, and a Co-stream badge in the rare case no official stream exists
+- "Channel link" marker (right-aligned, tertiary style) whenever `deep_link` is false — it's a plain channel/stream page, not a timestamped deep link, so never word it as if the moment (or even the VOD itself) will be found automatically
+- The primary button shows a language chip (`bg-white/20`) when the primary broadcast is non-English
+- **No "Co-stream" badge** (removed 2026-07-31) — whether a stream is official carries no decision-making value for a fan choosing a channel to watch; `official` is still tracked in analytics (`vod_click`/`live_match_watch` payloads), just not surfaced as UI copy anywhere in either picker or either primary-button treatment
+- **"Channel link" explainer**: the match drawer's "Watch Full Match Replay" heading carries an `InfoButton` (`src/components/FloatingTooltip.jsx`) that explains what the "Channel link" marker means and why some replays don't deep-link to the game start — added because the marker alone was confusing without context. Always rendered next to the heading (not conditional on whether a "Channel link" marker actually appears below), matching `TournamentDetail.jsx`'s "About {stage}" info-icon precedent. Live has no equivalent — no `deep_link`/"channel link" concept exists there.
 
 **Analytics:** `stream_picker_expand { matchId, count }` on expand only; row clicks fire `vod_click` with `language`, `official`, `kind`, `from_picker: true`.
 
-**Live sibling**: `src/components/LiveStreamPicker.jsx` (used in the Live Series Companion's live-game section) follows the exact same structure rules (0/1/≥2, language chip, Co-stream badge, shared `streamLabel` export from `StreamPicker.jsx`) but drops the play glyph and "channel link" marker entirely — there is no VOD timestamp concept for a live stream, every row is just "watch live now." Do not conflate the two components; a live stream and a VOD replay are different states with different honesty markers (same "two distinct shapes for two distinct states" rule as the score row below). Analytics: `live_stream_picker_expand { matchId, count }`; row clicks fire `live_match_watch` with `source: 'live_series_sheet'`, `from_picker: true`.
+**Live sibling**: `src/components/LiveStreamPicker.jsx` (used in the Live Series Companion's live-game section) follows the exact same structure rules (0/1/≥2, language chip, shared `streamLabel` export from `StreamPicker.jsx`) but drops the play glyph and "channel link" marker entirely — there is no VOD timestamp concept for a live stream, every row is just "watch live now." Do not conflate the two components; a live stream and a VOD replay are different states with different honesty markers (same "two distinct shapes for two distinct states" rule as the score row below). Analytics: `live_stream_picker_expand { matchId, count }`; row clicks fire `live_match_watch` with `source: 'live_series_sheet'`, `from_picker: true`.
 
 ### Preferred stream language (primary-slot promotion)
 
 When a fan has set a stream language (`SettingsSheet` → Display → Stream language), their language takes the **primary watch slot** on both surfaces. `pickPreferredStream` (`utils.js`) selects it; the surface renders it first.
 
 **Promotion rules (identical on live and replay):**
-- The promoted stream renders **first** in the watch-button row, in the surface's filled primary treatment, carrying the same language chip (`bg-white/20`) and Co-stream badge rules as any other primary button
+- The promoted stream renders **first** in the watch-button row, in the surface's filled primary treatment, carrying the same language chip (`bg-white/20`) rules as any other primary button
 - The previous default is **demoted, never hidden** — it drops to an outline treatment (`border border-gray-300 dark:border-gray-700` + purple label) in the same row. Three filled buttons would leave the row with no primary at all, and removing the official broadcast to make room for a co-stream is never acceptable
 - The promoted stream is removed from the picker below it, so it never appears twice — matched by normalized URL, not object identity, since PandaScore lists one channel twice as dual-language rows
 - **Nothing is promoted when the primary is already in the fan's language.** Promoting a co-stream over an already-correct official broadcast is a downgrade, not a fix

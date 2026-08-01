@@ -243,7 +243,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
               href={preferredStream.raw_url}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Watch live${preferredStream.language ? ` in ${preferredStream.language.toUpperCase()}` : ''} on ${streamLabel({ ...preferredStream, url: preferredStream.raw_url })}${preferredStream.official === false ? ', co-stream' : ''}`}
+              aria-label={`Watch live${preferredStream.language ? ` in ${preferredStream.language.toUpperCase()}` : ''} on ${streamLabel({ ...preferredStream, url: preferredStream.raw_url })}`}
               onClick={() => trackEvent('live_match_watch', {
                 matchId: psMatchId,
                 channel: preferredStream.channel,
@@ -264,11 +264,6 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
                 </span>
               )}
               Watch · {streamLabel({ ...preferredStream, url: preferredStream.raw_url })}
-              {preferredStream.official === false && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-white/70">
-                  Co-stream
-                </span>
-              )}
             </a>
           )}
           {twitchUrl && (

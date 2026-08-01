@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "July 31, 2026",
+    tag: "improvement",
+    title: "Replay links now explain themselves",
+    desc: "Every alternate-language stream in the match drawer used to carry a \"Co-stream\" label that didn't actually help you pick a channel. It's gone. In its place, an info icon next to \"Watch Full Match Replay\" explains what \"Channel link\" means: some replays link to the broadcaster's channel page instead of jumping straight to the game's start.",
+  },
+  {
+    date: "July 31, 2026",
     tag: "new",
     title: "Live tower map is now visible to everyone",
     desc: "The tower map showing which towers are still standing during a live game was only visible during an internal testing window. It's now on for every viewer of a live series.",

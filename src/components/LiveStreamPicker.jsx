@@ -8,8 +8,7 @@ import { trackEvent } from "../utils"
 function LiveStreamRow({ stream, matchId }) {
   const label = streamLabel({ ...stream, url: stream.raw_url })
   const lang = stream.language ? stream.language.toUpperCase() : null
-  const ariaLabel = `Watch live${lang ? ` in ${lang}` : ""} on ${label}` +
-    (stream.official === false ? ", co-stream" : "")
+  const ariaLabel = `Watch live${lang ? ` in ${lang}` : ""} on ${label}`
   return (
     <a
       href={stream.raw_url}
@@ -33,11 +32,6 @@ function LiveStreamRow({ stream, matchId }) {
         </span>
       )}
       <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 truncate">{label}</span>
-      {stream.official === false && (
-        <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600">
-          Co-stream
-        </span>
-      )}
     </a>
   )
 }

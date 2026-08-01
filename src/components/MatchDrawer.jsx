@@ -1,4 +1,5 @@
 import DraftDisplay from "./DraftDisplay"
+import { InfoButton } from "./FloatingTooltip"
 import GoldGraph from "./GoldGraph"
 import PlayerStatsSection from "./PlayerStatsSection"
 import { SHEET_PADDING } from "./Sheet"
@@ -385,9 +386,16 @@ function MatchDrawer({
               co-stream broadcasts travel separately in `otherStreams` (rendered by
               StreamPicker below). The old "Multiple channels were live" hint that used to sit
               here was gated on allVods.length > 1 and was therefore unreachable. */}
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-            Watch Full Match Replay
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              Watch Full Match Replay
+            </p>
+            <InfoButton
+              ariaLabel="About channel links"
+              title="Channel link"
+              description="Most replays jump straight to the moment the game started. When we don't have that timestamp — usually for a co-stream or a channel we don't track for replay resolution — we link to the broadcaster's channel page instead, marked 'Channel link.'"
+            />
+          </div>
           {match.loadingVod && (
             <span className="text-xs text-amber-600 dark:text-yellow-500 uppercase tracking-widest animate-pulse">
               Finding VOD...
@@ -461,11 +469,6 @@ function MatchDrawer({
                         </span>
                       )}
                       {label}
-                      {vod.official === false && (
-                        <span className={`text-[10px] font-semibold uppercase tracking-wide ${badgeClass}`}>
-                          Co-stream
-                        </span>
-                      )}
                       {showChannelLink && (
                         <span className={`text-[10px] font-medium uppercase tracking-wide ${badgeClass}`}>
                           Channel link

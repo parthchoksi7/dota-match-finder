@@ -2,7 +2,7 @@
  * Tests for LiveStreamPicker — the multi-language/co-stream list for the currently live game
  * inside the Live Series Companion. Sibling to StreamPicker (VOD/replay): same render-mode
  * rules (null/inline/collapsed pill), but no deep_link/from-stream-start marker — every row is
- * just "watch live now".
+ * just "watch live now". No "Co-stream" badge either (removed 2026-07-31, see StreamPicker).
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -32,7 +32,6 @@ describe('LiveStreamPicker', () => {
     const row = screen.getByRole('link')
     expect(row).toHaveAttribute('href', RU_STREAM.raw_url)
     expect(screen.getByText('RU')).toBeInTheDocument()
-    expect(screen.getByText('Co-stream')).toBeInTheDocument()
   })
 
   it('collapses two or more streams behind a count pill and expands on click', () => {
@@ -58,8 +57,10 @@ describe('LiveStreamPicker', () => {
     expect(document.querySelector('svg[viewBox="0 0 12 12"]')).not.toBeInTheDocument()
   })
 
-  it('shows no CO-STREAM badge on official streams', () => {
-    render(<LiveStreamPicker streams={[EN2_OFFICIAL]} matchId="1" />)
+  it('never renders a Co-stream badge, official or not', () => {
+    const { rerender } = render(<LiveStreamPicker streams={[EN2_OFFICIAL]} matchId="1" />)
+    expect(screen.queryByText('Co-stream')).not.toBeInTheDocument()
+    rerender(<LiveStreamPicker streams={[RU_STREAM]} matchId="1" />)
     expect(screen.queryByText('Co-stream')).not.toBeInTheDocument()
   })
 
@@ -76,8 +77,8 @@ describe('LiveStreamPicker', () => {
     })
   })
 
-  it('exposes an accessible label describing language, channel, and live/co-stream state', () => {
+  it('exposes an accessible label describing language and channel', () => {
     render(<LiveStreamPicker streams={[ES_STREAM]} matchId="1" />)
-    expect(screen.getByRole('link')).toHaveAttribute('aria-label', 'Watch live in ES on caster_es, co-stream')
+    expect(screen.getByRole('link')).toHaveAttribute('aria-label', 'Watch live in ES on caster_es')
   })
 })

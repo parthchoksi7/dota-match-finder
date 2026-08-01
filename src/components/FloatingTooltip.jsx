@@ -146,7 +146,68 @@ export function HoverCardTitle({ children }) {
 }
 
 /**
- * Dota 2 Wiki footer row for an item hover card — divider + external link. Both item hover
+ * Click-opened "i" info button + popover, for explaining a UI term inline (e.g. the match
+ * drawer's "Channel link" marker). Positioning/dismiss logic: fixed-position popover anchored
+ * below the button, clamped on-screen, closes on outside click.
+ *
+ * `TournamentDetail.jsx`'s `StageInfoTooltip` hand-rolls an identical version of this — see
+ * `.claude/pending-refactors.md` for migrating it onto this shared component.
+ */
+export function InfoButton({ ariaLabel, title, description, width = 288 }) {
+  const [pos, setPos] = useState(null)
+  const btnRef = useRef(null)
+  const tooltipRef = useRef(null)
+
+  function open(e) {
+    e.stopPropagation()
+    const r = btnRef.current.getBoundingClientRect()
+    setPos({ top: r.bottom + 6, left: r.left })
+  }
+
+  useEffect(() => {
+    if (!pos) return
+    function handler(e) {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target) &&
+        tooltipRef.current && !tooltipRef.current.contains(e.target)
+      ) setPos(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [pos])
+
+  return (
+    <span className="inline-flex items-center">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={open}
+        aria-label={ariaLabel}
+        className="group inline-flex items-center justify-center p-1 rounded-full flex-shrink-0"
+      >
+        <span
+          aria-hidden="true"
+          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 group-hover:border-gray-600 dark:group-hover:border-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors leading-none font-bold"
+          style={{ fontSize: '9px' }}
+        >
+          i
+        </span>
+      </button>
+      {pos && (
+        <div
+          ref={tooltipRef}
+          className={`fixed z-[9999] w-72 ${TOOLTIP_PANEL} p-3`}
+          style={{ top: pos.top, left: clampLeft(pos.left, width) }}
+        >
+          {title && <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{title}</p>}
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
+        </div>
+      )}
+    </span>
+  )
+}
+
+/** Dota 2 Wiki footer row for an item hover card — divider + external link. Both item hover
  * cards built this identically, down to the aria-label wording.
  */
 export function WikiLink({ name }) {

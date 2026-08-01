@@ -54,10 +54,17 @@ Exempt from RICE: work that literally cannot start yet.
 
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
+| 21 | Migrate `TournamentDetail.jsx`'s `StageInfoTooltip` onto shared `InfoButton` | 1 | 1 | 90% | 0.25 | **3.6** |
 | 16 | Move push subscriptions from KV to Supabase | 3 | 4 | 80% | 8 | **1.2** |
 | 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
 
 ---
+
+### 21. Migrate `TournamentDetail.jsx`'s `StageInfoTooltip` onto shared `InfoButton`
+- **What:** `StageInfoTooltip` (`src/pages/TournamentDetail.jsx`) hand-rolls a click-opened "i" info button + `TOOLTIP_PANEL` popover with its own `pos`/`btnRef`/`tooltipRef` state and outside-click handler. `InfoButton` (`src/components/FloatingTooltip.jsx`, added 2026-07-31 for the match drawer's "Channel link" explainer) is byte-identical positioning/dismiss logic, generalized to take `ariaLabel`/`title`/`description`/`width` props. Replace `StageInfoTooltip`'s body with a thin wrapper around `InfoButton` (or delete it and call `InfoButton` directly, passing `getStageDescription()`'s output as `description`).
+- **Expected benefit:** One fewer hand-rolled floating-layer copy (the exact drift `FloatingTooltip.jsx`'s original extraction was meant to prevent — see its header comment).
+- **Risk:** Low — purely a call-site swap, same rendered markup and behavior.
+- **Sequence:** Swap `StageInfoTooltip`'s internals for `InfoButton`, spot-check the popover still opens/closes/clamps identically on the tournament page.
 
 ### 16. Move push subscriptions from KV to Supabase
 - **What:** Design a `push_subscriptions` table in Supabase: `(id UUID PK, user_id TEXT UNIQUE, endpoint TEXT, p256dh TEXT, auth TEXT, teams TEXT[], updated_at TIMESTAMPTZ)`. Migrate the push-subscribe write path in `live-matches.js` to Supabase upsert. Migrate the notification send path to query Supabase by team name instead of KV `push:team:{name}` index.

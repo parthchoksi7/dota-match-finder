@@ -3,8 +3,9 @@
  * match drawer's replay section.
  *
  * Render modes: null for no streams, inline row for exactly one, collapsed
- * count pill for two or more. Rows carry the language chip, CO-STREAM badge
- * (unofficial only), and the "channel link" honesty marker.
+ * count pill for two or more. Rows carry the language chip and the "channel
+ * link" honesty marker (no "Co-stream" badge — removed 2026-07-31, it carried
+ * no decision-making value for a fan choosing a channel to watch).
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -34,7 +35,6 @@ describe('StreamPicker', () => {
     const row = screen.getByRole('link')
     expect(row).toHaveAttribute('href', RU_VOD.url)
     expect(screen.getByText('RU')).toBeInTheDocument()
-    expect(screen.getByText('Co-stream')).toBeInTheDocument()
   })
 
   it('collapses two or more streams behind a count pill and expands on click', () => {
@@ -67,8 +67,10 @@ describe('StreamPicker', () => {
     expect(document.querySelector('svg[viewBox="0 0 12 12"]')).toBeInTheDocument()
   })
 
-  it('shows no CO-STREAM badge on official streams', () => {
-    render(<StreamPicker streams={[EN2_OFFICIAL]} matchId="1" />)
+  it('never renders a Co-stream badge, official or not', () => {
+    const { rerender } = render(<StreamPicker streams={[EN2_OFFICIAL]} matchId="1" />)
+    expect(screen.queryByText('Co-stream')).not.toBeInTheDocument()
+    rerender(<StreamPicker streams={[RU_VOD]} matchId="1" />)
     expect(screen.queryByText('Co-stream')).not.toBeInTheDocument()
   })
 
@@ -99,6 +101,6 @@ describe('StreamPicker', () => {
 
   it('exposes an accessible label describing language, channel, and start-point honesty', () => {
     render(<StreamPicker streams={[ES_PAGE]} matchId="1" />)
-    expect(screen.getByRole('link')).toHaveAttribute('aria-label', 'Watch in ES on caster_es, co-stream, channel link')
+    expect(screen.getByRole('link')).toHaveAttribute('aria-label', 'Watch in ES on caster_es, channel link')
   })
 })

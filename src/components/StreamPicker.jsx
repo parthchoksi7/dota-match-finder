@@ -20,7 +20,6 @@ function StreamRow({ stream, matchId }) {
   const label = streamLabel(stream)
   const lang = stream.language ? stream.language.toUpperCase() : null
   const ariaLabel = `Watch${lang ? ` in ${lang}` : ""} on ${label}` +
-    (stream.official === false ? ", co-stream" : "") +
     (stream.deep_link ? "" : ", channel link")
   return (
     <a
@@ -49,11 +48,6 @@ function StreamRow({ stream, matchId }) {
         </svg>
       )}
       <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 truncate">{label}</span>
-      {stream.official === false && (
-        <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600">
-          Co-stream
-        </span>
-      )}
       {!stream.deep_link && (
         <span className="ml-auto flex-shrink-0 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
           Channel link
