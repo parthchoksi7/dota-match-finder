@@ -219,6 +219,7 @@ When TournamentHub is expanded inline within a tournament card, it uses `hideSta
 - Do NOT animate-pulse the card border or background
 - **Amber on dark backgrounds**: always use `dark:border-l-amber-400` (not amber-500/60) for left-border row indicators. The lighter, brighter amber-400 at full opacity is the only shade that reads against dark gray at the 2px border width. Opacity variants of amber-500 disappear.
 - **Match drawer (MatchDrawer)**: the trophy badge only (no amber card background/border — the drawer is a full-panel sheet, not a list card, so the "Personal/highlighted" amber card treatment above doesn't apply the same way). Rendered inline in the header meta row, next to the `Game X of Y` pill: `<span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"><span aria-hidden>🏆</span> Grand Final</span>`.
+- **This 🏆 + amber-600/400 treatment is a shared "achievement/distinction" pattern, not Grand-Final-exclusive** — the second consumer is the per-player MVP/award badge in `PlayerStatsSection` (see "Match drawer — end-game stats" → "STRATZ enrichment" below). Any third achievement-style badge should reuse this exact treatment rather than inventing a new one.
 
 ### Match drawer — score section layout
 
@@ -772,11 +773,17 @@ Both sections use the tertiary label style: `text-[10px] font-bold uppercase tra
 - Tooltip and click work on desktop hover/click. Touch devices get click-only (no hover tooltip).
 
 ### Player stats row (PlayerStatsSection)
-- Per-player row (3 lines): hero icon (24px) + name (truncate, `text-sm font-semibold`) + networth (right, `text-xs tabular-nums text-gray-500`) / 6x ItemSlot (24px each, `gap-0.5`, indented 8px to align under name) / networth bar (`h-1 rounded-full`, green-500 for Radiant, red-500 for Dire).
+- Per-player row (3 lines): position badge (16px) + hero icon (24px) + name (truncate, `text-sm font-semibold`) + MVP badge (if awarded) + impact/networth cluster (right) / 6x ItemSlot (24px each, `gap-0.5`, indented 8px to align under name) / networth bar (`h-1 rounded-full`, green-500 for Radiant, red-500 for Dire).
 - Team group header: `text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-500` (Radiant) or `text-red-600 dark:text-red-500` (Dire).
 - Players sorted by netWorth descending within each team.
 - Dire group separated by `border-t border-gray-100 dark:border-gray-900 pt-4`.
 - Loading skeleton: 5 rows per team with `animate-pulse` bars matching the row shape.
+
+**STRATZ enrichment (position/role/imp/award)** — a second, independently-fetched data source (`fetchMatchStratz`, `?mode=match-stratz`) merged onto the OD player list client-side by `heroId` (a hero can only be picked once per match, so it's a reliable join even when a Steam profile is private). Fetched in parallel with `fetchMatchStats`, never gating it — see `MatchDrawer.jsx`'s `stratzMatchId`/`enrichedPlayers` staleness-guard pair, same pattern as `statsMatchId`/`currentStats`. All four fields below are silent-degrade: absent whenever STRATZ hasn't resolved (rate-limited, unindexed match, cold cache) — no skeleton, no error state, the row just renders as it did before this feature shipped.
+
+- **Position badge** (`PositionBadge`, `src/components/PlayerStatsSection.jsx`): `w-4 h-4 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[9px] font-bold`, showing the bare digit 1–5 — this is the numeral shorthand pro broadcasts and drafts already use, not STRATZ's internal `POSITION_N`/`CORE`/`LIGHT_SUPPORT`/`HARD_SUPPORT` jargon. Placed immediately left of the hero icon, same row, same vertical center. Neutral gray, not a semantic color — position is identity, not a judgment, and shouldn't borrow a color that means something else one line below (the networth bar's Radiant/Dire green/red). Full label ("Hard Support") reveals via `HoverCard` (the same floating-layer component this file already imports for `ConsumedUpgrade`) — no new floating-layer pattern. **`align="left"` is required**, not the `HoverCard` default (`center`): this badge is the leftmost element in the row, so a centered tooltip extends further left and clips against the match drawer's `overflow-x-hidden` — the exact same edge case `ItemSlot`'s `edgePin="left"` already solves for the first two item slots in this same row (see "Floating layer" → `HoverCard`'s `align` prop). Caught by visually inspecting the running app, not by any test. A role-only fallback (STRATZ `role` present, `position` null — happens because `role` can only disambiguate LIGHT_SUPPORT/HARD_SUPPORT from CORE, never carries a number) renders the label's first letter instead of a numeral.
+- **MVP badge**: reuses the Grand Final trophy convention — 🏆 (`aria-hidden`) + `text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wide` — placed inline after the player name, `flex-shrink-0` so it never pushes the name into truncation. **Only STRATZ's literal `MVP` award value is surfaced.** STRATZ's `award` enum has four real values, confirmed running against live match data: `NONE` (no award — the common case for 9 of 10 players), `MVP`, `TOP_CORE`, `TOP_SUPPORT`. The first implementation treated any non-empty award string as awarded, which rendered a trophy badge literally reading "NONE" on every unawarded player in production — caught by the owner looking at the running app, not by a test written against the one verified sample in the audit doc. `TOP_CORE`/`TOP_SUPPORT` are a deliberate product decision to drop too (not just a `NONE`-shaped bug) — the trophy stays scoped to the single highest-value per-match distinction rather than three recognitions diluting it. `stratzAwardLabel()` (`api/_stratz.js`) is the single place this mapping lives — never re-derive it at a call site. This generalizes the trophy badge from Grand-Final-exclusive to the shared "achievement/distinction" pattern — any third use should reuse this, not reinvent it.
+- **Impact score**: rendered as a **chip**, not bare colored text — `inline-flex items-center px-1 py-0.5 rounded border text-[10px] font-bold tabular-nums`, prepended to the existing net-worth stat slot (impact chip first, net worth second). A first version rendered the signed number as plain text directly beside net worth; the owner caught, from the running app, that it read as an unexplained second net-worth-like figure rather than a distinct stat — the bordered/tinted chip (same convention as `GameIndicators`' colored chips) visually marks "this is a different kind of number" before a fan even reaches the hover explainer. Colored via the existing win/loss tokens — `green-600/500` + `bg-green-500/10` positive, `red-600/500` + `bg-red-500/10` negative, `gray-400/600` + `bg-gray-500/10` zero — not a new color, since "over/under-performed" is the same polarity as win/loss. The `+`/`-` sign itself (not color alone) carries the signal for colorblind users. **Scale is documented, not guessed**: STRATZ's own knowledge base confirms IMP runs **-100 to +100**, with **0 as a fair baseline** (draft advantage and rank already factored in, so it measures how much a player's performance moved their team's win probability, not an absolute judgment) — see the full sourced methodology in `.claude/specs/stratz-api-audit.md`. The chip's `HoverCard` (content: title "Impact Score" + the one-line explanation above) is the only place this methodology needs to live in the UI — don't duplicate the explanation elsewhere. `align="right"` since the chip sits toward the row's right side.
 
 ### ItemSlot
 - `w-6 h-6` (md, default) or `w-5 h-5` (sm). Always `rounded-sm`.
@@ -841,6 +848,47 @@ The actual Dota 2 minimap texture (`public/dota-minimap-7.40.webp`, self-hosted,
 - **Deliberately omits per-player KDA and player IGN.** OD `/live` carries no per-player kills/deaths/assists (only the team-level score, shown in the score row), and player names aren't captured yet. The row is the same shape a future IGN/stat slot attaches to — not a dead end.
 - A hero whose name hasn't resolved yet (hero map still loading, or `hero_id` 0 in draft phase) degrades to icon-only (placeholder tile + no label) — never a broken image or a raw "Hero 155".
 - Renders regardless of spoiler-free (a draft is pre-outcome, same rule as `DraftDisplay` and the finished-game strip).
+
+---
+
+## Live feed row — "worth watching" signal badge (owner-only, built 2026-08-01)
+
+A per-row badge in `LiveMatchRow.jsx`'s sub-row, answering a different question than everything in
+the companion sheet above: not "how's this game going" for a game a fan already opened, but "which
+of several simultaneous live rows is worth opening at all." Spec: `.claude/specs/
+live-worth-watching-signal-spec.md`. Computed server-side (`src/utils/liveSignal.js` +
+`api/live-matches.js`'s `resolveLiveSignals`) from `live_game_map`'s net-worth lead only — no new
+data source. **Owner-only as of this build** — `match.signal` is stripped from every response that
+doesn't carry `owner=1` (`stripSignalForResponse`), so none of this renders publicly yet.
+
+- **Three states, one badge, never stacked:** `CLOSE` and `SWINGING` share one **positive**
+  treatment (`text-red-500`, `text-[10px] font-bold uppercase tracking-wide`) — red is the row's
+  existing live-state color (the pulse dot, `G3`), so the badge reads as part of that cluster
+  rather than a fourth hue. `ONE_SIDED` is deliberately **recessive**
+  (`text-gray-500 dark:text-gray-500`, same size/weight) — low contrast *is* the message
+  ("deprioritize this row"). No badge at all (the ordinary-competitive-game case) renders nothing —
+  absence carries meaning, same as the tower map's "no field = don't render" rule above.
+- **Copy:** bare state word (`CLOSE`, `SWINGING`, `ONE-SIDED`) plus an `aria-label` on the same
+  span (`"Current game is close"` / `"Current game has a big momentum swing"` /
+  `"Current game is one-sided"`) — a bare "CLOSE" reads ambiguously as a verb to a screen reader
+  without it. No color-only cue: the badge is real text.
+- **Mobile yield rule — the badge wins, `bracketRound` loses.** Below `sm:`, when a badge is
+  present, `bracketRound` gets `hidden sm:inline` (and its preceding middot the same class) so the
+  sub-row reads `● G3 · CLOSE` instead of overflowing with all three tokens. Desktop keeps all
+  three: `● G3 · Upper Bracket Final · CLOSE`. The middot between `G3` and "whatever's next" is
+  NOT breakpoint-gated — on every viewport, something (bracketRound or the badge) always follows
+  it when currentGame is present, so it needs no responsive class of its own.
+- **Two suppressions on top of the spec, both scoped to `ONE_SIDED` only** (a pre-build critique
+  finding, `/dota_data_scientist` + `/dota_analyst` + `/dota_pm`, 2026-08-01) — `CLOSE`/`SWINGING`
+  are a positive read and are never suppressed: a followed team's row never gets the recessive
+  treatment (a partisan fan behind is often more invested, not less), and neither does a Grand
+  Final or BO3/BO5 decider (`isGrandFinal(bracketRound) || computeStakes(...).kind === 'DECIDER'`)
+  — a lopsided score in either context is still appointment viewing.
+- **Spoiler-free suppresses all three states unconditionally** — same rule as the companion sheet's
+  outcome-adjacent surfaces above.
+- **No animation, no skeleton, no layout shift.** A 10px label doesn't deserve a placeholder, and a
+  shimmering badge implies data that may never arrive; the row's sub-row already reserves a fixed
+  `min-h` so a badge appearing/disappearing on the next poll never shifts anything around it.
 
 ---
 
