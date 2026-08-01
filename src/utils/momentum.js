@@ -4,18 +4,34 @@
 
 // A lead's significance depends on WHEN it happens, not just its size: the same net-worth gap is
 // a likely stomp at 15:00 but a coin-flip at 45:00 (buyback/Aegis/Rapier/mega creeps make late
-// leads structurally reversible in Dota). So the bar for "far ahead" rises with game time — v1
-// ramps linearly from FAR_AHEAD_EARLY at kickoff to FAR_AHEAD_LATE by RAMP_END_S, then holds flat.
-// Vocabulary is deliberately "state, not fate": EVEN / AHEAD / FAR_AHEAD, never a predictive label
-// like "commanding" or "comeback brewing" — this must never imply a decided game before it is one.
-const EVEN_THRESHOLD = 1000 // below this magnitude, always reads as even regardless of game time
-const FAR_AHEAD_EARLY = 6000
-const FAR_AHEAD_LATE = 15000
-const RAMP_END_S = 2400 // 40 minutes — threshold is fully ramped by here
+// leads structurally reversible in Dota). So both boundaries widen with game time. Vocabulary is
+// deliberately "state, not fate": EVEN / AHEAD / FAR_AHEAD, never a predictive label like
+// "commanding" or "comeback brewing" — this must never imply a decided game before it is one.
+//
+// R0 fix (2026-08-01, `.claude/specs/live-worth-watching-signal-spec.md`): the original flat
+// EVEN_THRESHOLD (1000) made EVEN nearly extinct after minute 25 (5–11% of live observations),
+// and the old FAR_AHEAD ramp (6,000→15,000, flat past 40 min) stopped widening well before a
+// typical pro game's total net worth does. Both replaced with ramps validated against 3,230
+// post-game matches. Both exported so `src/utils/liveSignal.js` (the live feed "worth watching"
+// badge) IMPORTS these, not a copy — a badge and the momentum band reading the same lead
+// differently on the same screen would be a same-page contradiction.
+const EVEN_BASE = 500
+const EVEN_PER_MIN = 60
+const EVEN_RAMP_END_MIN = 65 // threshold is fully ramped by here: 500 → 4,400
+const DECIDED_BASE = 5000
+const DECIDED_PER_MIN = 400
+const DECIDED_RAMP_START_MIN = 10 // flat at DECIDED_BASE before this — nothing is "decided" in the first 10 min
+const DECIDED_RAMP_END_MIN = 60 // threshold is fully ramped by here: 5,000 → 25,000
 
-function farAheadThreshold(gameTime) {
-  const t = Math.max(0, Math.min(gameTime, RAMP_END_S))
-  return FAR_AHEAD_EARLY + (FAR_AHEAD_LATE - FAR_AHEAD_EARLY) * (t / RAMP_END_S)
+export function evenThreshold(gameTime) {
+  const minutes = Math.max(0, gameTime) / 60
+  return EVEN_BASE + EVEN_PER_MIN * Math.min(minutes, EVEN_RAMP_END_MIN)
+}
+
+export function farAheadThreshold(gameTime) {
+  const minutes = Math.max(0, gameTime) / 60
+  const clamped = Math.min(Math.max(minutes, DECIDED_RAMP_START_MIN), DECIDED_RAMP_END_MIN)
+  return DECIDED_BASE + DECIDED_PER_MIN * (clamped - DECIDED_RAMP_START_MIN)
 }
 
 // radiantLead/gameTime come from the live pulse (radiant-positive net worth diff, in-game
@@ -25,7 +41,7 @@ export function computeMomentum({ radiantLead, gameTime, radiantName, direName }
   if (!Number.isFinite(radiantLead) || !Number.isFinite(gameTime) || gameTime < 0) return null
   const abs = Math.abs(radiantLead)
   const radiantAhead = radiantLead > 0
-  const isEven = abs <= EVEN_THRESHOLD
+  const isEven = abs <= evenThreshold(gameTime)
   // OD's live feed is well-known in this codebase to come back with a null/empty team name
   // (api/_handlers/liveOdCapture.js) — fall back the same way every other consumer of
   // radiantName/direName in this file family already does (SeriesLivePulse's own score-row

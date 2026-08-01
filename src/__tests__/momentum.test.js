@@ -51,19 +51,21 @@ describe('computeMomentum — threshold widens with game time (the core domain r
   })
 
   it('a very large lead is FAR_AHEAD even late in the game', () => {
-    const result = computeMomentum({ radiantLead: 20000, gameTime: 3000, radiantName: 'TS', direName: 'GG' })
+    // R0's ramp caps at 25,000 (minute 60), up from the old 15,000 (minute 40) — this lead must
+    // clear the NEW cap, not just the old one.
+    const result = computeMomentum({ radiantLead: 26000, gameTime: 3600, radiantName: 'TS', direName: 'GG' })
     expect(result.band).toBe('FAR_AHEAD')
   })
 
-  it('threshold ramp holds flat past RAMP_END_S (40 min), not indefinitely rising', () => {
-    // 20000 is chosen to discriminate a clamped ramp from an unclamped one: at t=5400 an
-    // unclamped linear ramp would put the threshold at ~26250 (this lead reads AHEAD), while the
-    // correct clamped threshold holds at 15000 from t=2400 onward (this lead reads FAR_AHEAD). A
-    // lead of exactly FAR_AHEAD_LATE (15000) can never expose a missing clamp, since it can never
-    // exceed ANY threshold at or above 15000 whether or not the ramp is capped.
-    const at40 = computeMomentum({ radiantLead: 20000, gameTime: 2400, radiantName: 'TS', direName: 'GG' })
-    const at90 = computeMomentum({ radiantLead: 20000, gameTime: 5400, radiantName: 'TS', direName: 'GG' })
-    expect(at40.band).toBe('FAR_AHEAD')
+  it('threshold ramp holds flat past DECIDED_RAMP_END_MIN (60 min), not indefinitely rising', () => {
+    // 30000 is chosen to discriminate a clamped ramp from an unclamped one: at t=5400 (90 min) an
+    // unclamped linear ramp would put the threshold at 37,000 (this lead reads AHEAD), while the
+    // correct clamped threshold holds at 25,000 from t=3600 (60 min) onward (this lead reads
+    // FAR_AHEAD). A lead of exactly the cap (25000) can never expose a missing clamp, since it can
+    // never exceed ANY threshold at or above 25000 whether or not the ramp is capped.
+    const at60 = computeMomentum({ radiantLead: 30000, gameTime: 3600, radiantName: 'TS', direName: 'GG' })
+    const at90 = computeMomentum({ radiantLead: 30000, gameTime: 5400, radiantName: 'TS', direName: 'GG' })
+    expect(at60.band).toBe('FAR_AHEAD')
     expect(at90.band).toBe('FAR_AHEAD')
   })
 })

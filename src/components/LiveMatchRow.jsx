@@ -1,10 +1,41 @@
 import { useEffect, useRef } from 'react'
-import { trackEvent } from '../utils'
+import { trackEvent, isGrandFinal } from '../utils'
+import { computeStakes } from '../utils/momentum'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
+
+// Live "worth watching" feed-row badge (`.claude/specs/live-worth-watching-signal-spec.md`).
+// OWNER-ONLY as of this build — `match.signal` is only ever present when the API request that
+// populated it carried `owner=1` (api/live-matches.js's stripSignalForResponse), so this whole
+// block is a silent no-op for every public viewer regardless of anything below.
+//
+// Two suppressions were added on top of the spec during a pre-build critique
+// (/dota_data_scientist + /dota_analyst + /dota_pm, 2026-08-01), both scoped to ONE_SIDED only —
+// CLOSE/SWINGING are a positive "come watch this" read and are never suppressed:
+//   - A followed team's row never gets the recessive "deprioritize" treatment. The badge has no
+//     notion of followedTeams (a per-viewer preference, same boundary as spoilerFree below), and a
+//     partisan fan watching their own team behind is often MORE invested, not less.
+//   - Grand Finals and BO3/BO5 deciders never get it either. A lopsided score in a decider is
+//     still appointment viewing (career-defining performances, tournament narrative closure) —
+//     the net-worth gap is real, but "deprioritize this row" is the wrong read for the single
+//     highest-stakes game type this product covers.
+const BADGE_COPY = {
+  SWINGING: { label: 'SWINGING', ariaLabel: 'Current game has a big momentum swing' },
+  CLOSE: { label: 'CLOSE', ariaLabel: 'Current game is close' },
+  ONE_SIDED: { label: 'ONE-SIDED', ariaLabel: 'Current game is one-sided' },
+}
 
 function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, isFollowedMatch, isHighlighted = false }) {
   const hasScore = match.seriesScore && match.seriesScore !== '0-0'
   const [scoreA, scoreB] = hasScore ? match.seriesScore.split('-').map(Number) : [0, 0]
+
+  const isDeciderOrGrandFinal = isGrandFinal(match.bracketRound) || computeStakes({
+    seriesLabel: match.seriesLabel, seriesScore: match.seriesScore, teamA: match.teamA, teamB: match.teamB,
+  }).kind === 'DECIDER'
+  const rawSignal = match.signal || null
+  const signal = spoilerFree ? null
+    : (rawSignal === 'ONE_SIDED' && (isFollowedMatch || isDeciderOrGrandFinal)) ? null
+    : rawSignal
+  const badge = signal ? BADGE_COPY[signal] : null
 
   // Push-notification landing: scroll the targeted row into view. The ring below fades
   // out via transition-shadow when App clears the highlight after a few seconds.
@@ -26,7 +57,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
   // too — hasScore-only was a leftover from before the companion had anything worth showing then.
   const isClickable = !!onSelectLiveMatch
 
-  const hasSubRow = match.currentGame || match.bracketRound || watchUrl || match.youtubeStream
+  const hasSubRow = match.currentGame || match.bracketRound || watchUrl || match.youtubeStream || badge
 
   // The centered sub-row label must not sit under the mobile-only (sm:hidden) 44px watch
   // buttons at the row's right edge. Reserved width scales with how many can render at once
@@ -99,7 +130,7 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
       {/* Sub-row: G{n} · bracket stage (centered) + watch button (right) */}
       {hasSubRow && (
         <div className="relative flex items-center px-4 pb-2.5 min-h-[44px] sm:min-h-[28px]">
-          {(match.currentGame || match.bracketRound) && (
+          {(match.currentGame || match.bracketRound || badge) && (
             <span className={`absolute left-1/2 -translate-x-1/2 ${subRowLabelMaxWidth} sm:max-w-[calc(100%-3.5rem)] flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden`}>
               {match.currentGame && (
                 <>
@@ -107,11 +138,30 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                   <span className="font-bold text-red-500">G{match.currentGame}</span>
                 </>
               )}
-              {match.currentGame && match.bracketRound && (
+              {/* "the next visible thing" is always either bracketRound or the badge, on every
+                  viewport (see the mobile-yield rule below), so this separator never needs its
+                  own breakpoint class. */}
+              {match.currentGame && (match.bracketRound || badge) && (
                 <span className="text-gray-300 dark:text-gray-700">·</span>
               )}
               {match.bracketRound && (
-                <span className="text-gray-500 dark:text-gray-500">{match.bracketRound}</span>
+                // Mobile yield rule (spec UX "Mobile (375px first)"): when a badge is present,
+                // bracketRound is the least-actionable of the three tokens (the tournament card
+                // header above already establishes event context) and yields to it below `sm:`.
+                <span className={`text-gray-500 dark:text-gray-500 ${badge ? 'hidden sm:inline' : ''}`}>
+                  {match.bracketRound}
+                </span>
+              )}
+              {match.bracketRound && badge && (
+                <span className="hidden sm:inline text-gray-300 dark:text-gray-700">·</span>
+              )}
+              {badge && (
+                <span
+                  aria-label={badge.ariaLabel}
+                  className={`font-bold ${signal === 'ONE_SIDED' ? 'text-gray-500 dark:text-gray-500' : 'text-red-500'}`}
+                >
+                  {badge.label}
+                </span>
               )}
             </span>
           )}

@@ -703,6 +703,21 @@ export async function rateLimitByIp(req, kv, limitKey, maxPerMin = 10) {
   }
 }
 
+// Deploy-free kill switch for a probabilistic/unvalidated feature: a single `kv.set('feature:' +
+// name + ':enabled', 'off')` disables it instantly, no redeploy. Fail-OPEN on any read failure or
+// missing key — a KV hiccup must never silently turn a feature off, only an explicit 'off' write
+// does. First consumer: the live "worth watching" signal (`.claude/specs/
+// live-worth-watching-signal-spec.md`, R7); `live-story-roadmap.md` §2a (Catch Me Up) needs the
+// same mechanism, so this is written generically rather than one-off.
+export async function isFeatureEnabled(name, kv) {
+  try {
+    const value = await kv.get(`feature:${name}:enabled`)
+    return value !== 'off'
+  } catch {
+    return true
+  }
+}
+
 // Server-side GA4 event via the Measurement Protocol — the only way to land an event
 // from a cron/serverless context (where window.gtag and Vercel's client `track()` don't
 // exist) into the SAME GA4 property + BigQuery export the client uses. Best-effort: no-ops
