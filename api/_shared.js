@@ -15,14 +15,21 @@ Sentry.init({
   environment: process.env.VERCEL_ENV || 'development',
   tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
 })
-// normalizeTeamName/teamPairMatch/teamPairScore/namesAlias live in src/teamMatching.js
-// (zero-import, so it's also safe to import client-side — see src/utils.js's re-export for
-// the favorites-highlight comparisons in HomeFeed.jsx). Imported (not just re-exported)
-// because findBestPsMatch/findOdMatchByTime/resolveFollowedTeamName below call them
-// internally — `export { x } from 'y'` alone would NOT create a usable local binding for
-// those call sites. Do not redefine any of these in this file.
-import { normalizeTeamName, namesAlias, teamPairMatch, teamPairScore } from '../src/teamMatching.js'
-export { normalizeTeamName, teamPairMatch, teamPairScore }
+// normalizeTeamName/teamPairMatch/teamPairScore live in src/teamMatching.js (zero-import, so
+// it's also safe to import client-side — see src/utils.js's re-export for the favorites-highlight
+// comparisons in HomeFeed.jsx). Imported (not just re-exported) because findBestPsMatch/
+// findOdMatchByTime below call them internally — `export { x } from 'y'` alone would NOT create a
+// usable local binding for those call sites. Do not redefine any of these in this file.
+import {
+  normalizeTeamName, teamPairMatch, teamPairScore,
+  TIER1_TEAMS_SERVER, TIER1_TEAMS_SERVER_SLUGS, TEAM_NICKNAMES,
+  canonicalTeamName, resolveFollowedTeamName,
+} from '../src/teamMatching.js'
+export {
+  normalizeTeamName, teamPairMatch, teamPairScore,
+  TIER1_TEAMS_SERVER, TIER1_TEAMS_SERVER_SLUGS, TEAM_NICKNAMES,
+  canonicalTeamName, resolveFollowedTeamName,
+}
 
 // ── Canonical data shapes ─────────────────────────────────────────────────────
 
@@ -343,101 +350,16 @@ export function normalizeAllStreams(streamsList) {
     })
 }
 
-// Server-side tier-1 team list for entity tagging in news ingestion, and the last-resort
-// fallback for ?mode=teams (see api/_handlers/teamsList.js) if both KV keys below are
-// empty/unreachable. The living, auto-updated list is dota2:tier1_teams_full_v1,
-// populated by ?mode=sync-teams (api/_handlers/syncTeams.js) from PandaScore tournament
-// rosters — this static array only needs manual edits as a safety net, not as the
-// day-to-day source of truth.
-// 2026-07-19: cross-checked every entry against a live PandaScore fetch (past 50 +
-// running + upcoming /dota2/tournaments/*) and every tier-S/A Esports World Cup 2026 +
-// BLAST Slam stage specifically. Two renames (orgs that dropped/changed branding —
-// PandaScore no longer returns the old name at all) and twelve additions (real EWC
-// group-stage/playoffs or BLAST Slam Playoffs participants that had no entry here,
-// 1win among them — it inherited Tundra Esports' roster in June 2026, see
-// TEAM_NAME_ALIAS_GROUPS in src/teamMatching.js).
-export const TIER1_TEAMS_SERVER = [
-  'Team Liquid', 'Tundra Esports', 'Team Spirit', 'BetBoom Team',
-  'Team Falcons', 'Gaimin Gladiators', 'Aurora', 'OG',
-  'Natus Vincere', 'Virtus.pro', 'Team Secret', 'Team Aster',
-  'Talon Esports', 'Nouns Esports', 'Team Yandex', 'LGD Gaming',
-  'Nigma Galaxy', 'Evil Geniuses', 'beastcoast', 'Thunder Awaken',
-  'Parivision', 'Xtreme Gaming', '1win', 'Vici Gaming', 'Rune Eaters',
-  'GamerLegion', 'MOUZ', 'Team Nemesis', 'L1ga Team', 'Level UP',
-  'PlayTime', 'Poor Rangers', 'Inner Circle x Insanity', 'REKONIX',
-]
+// TIER1_TEAMS_SERVER / TIER1_TEAMS_SERVER_SLUGS / TEAM_NICKNAMES / resolveFollowedTeamName
+// (imported below) live in src/teamMatching.js so resolveFollowedTeamName/canonicalTeamName can
+// also run client-side (display-name canonicalization for completed matches) — same rationale as
+// normalizeTeamName/teamPairMatch above. Re-exported here unchanged so every existing server call
+// site (api/live-matches.js, api/news.js, api/_handlers/teamsList.js, api/_handlers/syncTeams.js)
+// keeps working without edits.
 
 /** KV keys written by ?mode=sync-teams, read by ?mode=teams and api/news.js. */
 export const KV_TIER1_TEAMS_KEY = 'dota2:tier1_teams_dynamic_v1'
 export const KV_TIER1_TEAMS_FULL_KEY = 'dota2:tier1_teams_full_v1'
-
-// Known PandaScore slugs for the TIER1_TEAMS_SERVER fallback teams, taken directly from
-// a live PandaScore team object per name (not guessed — three earlier guesses here were
-// wrong: BetBoom Team is "betboom-team" not "betboom", Team Falcons is
-// "team-falcons-dota-2" not "team-falcons", Parivision is "parivision-dota-2" not
-// "parivision"). ?mode=teams uses this to give its own fallback (KV_TIER1_TEAMS_FULL_KEY
-// empty/unreachable — e.g. right after this feature first deploys, before the sync-teams
-// cron has ever run) real, usable slugs instead of null — Calendar.jsx's team picker
-// requires a non-null slug per team, so a null-slug fallback would silently empty it out
-// until KV is populated.
-export const TIER1_TEAMS_SERVER_SLUGS = {
-  'Team Liquid': 'team-liquid',
-  'Tundra Esports': 'tundra-esports',
-  'Team Spirit': 'team-spirit',
-  'BetBoom Team': 'betboom-team',
-  'Team Falcons': 'team-falcons-dota-2',
-  'Gaimin Gladiators': 'gaimin-gladiators',
-  'Aurora': 'aurora-dota-2',
-  'OG': 'og',
-  'Natus Vincere': 'natus-vincere',
-  'Virtus.pro': 'virtus-pro',
-  'Team Secret': 'team-secret',
-  'Team Aster': 'team-aster',
-  'Talon Esports': 'talon-esports',
-  'Nouns Esports': 'nouns-esports',
-  'Team Yandex': 'team-yandex',
-  'LGD Gaming': 'lgd-gaming-dota-2',
-  'Nigma Galaxy': 'nigma-galaxy',
-  'Evil Geniuses': 'evil-geniuses',
-  'beastcoast': 'beastcoast',
-  'Thunder Awaken': 'thunder-awaken',
-  'Parivision': 'parivision-dota-2',
-  'Xtreme Gaming': 'xtreme-gaming',
-  '1win': '1win-dota-2',
-  'Vici Gaming': 'vici-gaming-dota-2',
-  'Rune Eaters': 'rune-eaters',
-  'GamerLegion': 'gamerlegion-dota-2',
-  'MOUZ': 'mouz-dota-2',
-  'Team Nemesis': 'team-nemesis',
-  'L1ga Team': 'l1ga-team',
-  'Level UP': 'level-up',
-  'PlayTime': 'playtime',
-  'Poor Rangers': 'poor-rangers',
-  'Inner Circle x Insanity': 'inner-circle',
-  'REKONIX': 'rekonix',
-}
-
-// Community nicknames/shorthand that don't appear as a substring of the official team
-// name, so plain substring search can't find them — hand-maintained since PandaScore has
-// no concept of a fan nickname. Keyed by the exact official name used elsewhere in this
-// list. Extend as new nicknames come up; no need to cover every team, only ones whose
-// common short form isn't already substring-matchable.
-export const TEAM_NICKNAMES = {
-  'BetBoom Team': ['boomboys', 'bb'],
-  'Parivision': ['pvision'],
-  'Natus Vincere': ['navi'],
-  'Virtus.pro': ['vp'],
-  'Team Liquid': ['tl'],
-  // Nicknames longer than the current official name — plain substring search only
-  // checks name.includes(query), so a query longer than the name never matches without
-  // an explicit alias here.
-  '1win': ['1win team'],
-  'Aurora': ['aurora gaming'],
-  // LGD Gaming dropped the PSG sponsorship in its name; PandaScore no longer returns
-  // "PSG.LGD" at all (confirmed 2026-07-19), but plenty of existing content/muscle memory
-  // still calls them that.
-  'LGD Gaming': ['psg.lgd', 'psg'],
-}
 
 // RSS sources for the news aggregation feature (api/news.js).
 // Add new sources here; set disabled: true to temporarily pause a source
@@ -508,25 +430,6 @@ export function buildTournamentName(m) {
     .replace(/\bseason\s+(\d+)\b/gi, 'S$1')
     .replace(/\s+\d{4}$/, '')
     .trim()
-}
-
-// Maps a raw team name (typically an OpenDota radiant_name/dire_name) to the canonical
-// followable org name in TIER1_TEAMS_SERVER, so the push follower index (keyed by the names
-// users actually follow, e.g. "BetBoom Team") is hit even when OpenDota carries a divergent
-// name ("BoomBoys"). Matches ONLY on full normalized equality or an explicit alias group —
-// NOT the bidirectional substring rule teamPairMatch uses. Substring is safe for a
-// disambiguated PAIR but not for a single short org: "OG" (normalized "og") is a substring
-// of "zerogaming", "turbogaming", etc., which would misfire replays to OG's followers. OD
-// uses full registered names for the 20 tier-1 orgs, so equality + alias covers every real
-// divergence; add a TEAM_NAME_ALIAS_GROUPS entry if a new one appears. Returns the input
-// unchanged when it matches no tier-1 org, so a non-tier-1 name is never silently dropped.
-export function resolveFollowedTeamName(name) {
-  const n = normalizeTeamName(name)
-  if (!n) return name
-  return TIER1_TEAMS_SERVER.find(t => {
-    const c = normalizeTeamName(t)
-    return c === n || namesAlias(c, n)
-  }) || name
 }
 
 // Finds the best-matching PandaScore match from a list of same-time-window candidates for

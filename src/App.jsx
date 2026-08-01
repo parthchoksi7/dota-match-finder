@@ -19,6 +19,7 @@ import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
 import { countFollowedLive } from "./utils/liveScore"
 import { getPushPermission, subscribeToPush } from "./utils/push"
+import { canonicalTeamName } from "./teamMatching"
 
 const JUST_ENDED_ENABLED = true
 
@@ -51,8 +52,8 @@ async function fetchAppMatchFromOpenDota(matchId) {
     id: String(data.match_id),
     tournament: data.league?.name || "Match " + data.match_id,
     date: new Date(data.start_time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    radiantTeam: data.radiant_name || "Radiant",
-    direTeam: data.dire_name || "Dire",
+    radiantTeam: canonicalTeamName(data.radiant_name) || "Radiant",
+    direTeam: canonicalTeamName(data.dire_name) || "Dire",
     radiantScore: data.radiant_score,
     direScore: data.dire_score,
     radiantWin: data.radiant_win,

@@ -19,22 +19,162 @@ const TEAM_NAME_ALIAS_GROUPS = [
   // hits for that name, only "BetBoom Team" (id 130768) — confirming it's a legacy/OD-side
   // name for the same org, not a different team. Confirmed live in an EWC 2026 match
   // (PS opponent "BetBoom Team" vs OD radiant_name "BoomBoys", same game, same time window).
-  ['betboomteam', 'boomboys'],
+  // "bb" added 2026-08-01: OpenDota's promatches feed sometimes abbreviates radiant_name/
+  // dire_name to the bare "BB" for this org (previously handled by a since-removed hand-rolled
+  // TEAM_NAME_MAP in src/api.js) — exact alias-group membership only, no substring risk (unlike
+  // TEAM_NICKNAMES' fuzzy search matching, `namesAlias` requires exact equality with a group
+  // member, so this can't misfire the way a 2-char *substring* match could).
+  ['betboomteam', 'boomboys', 'bb'],
   // 2026-07-15: "1win Team" inherited Tundra Esports' roster in June 2026 (flagged as
   // unconfirmed in .claude/pending-refactors.md pending a live match to check against).
-  // Confirmed now: PandaScore's opponent name for today's EWC 2026 Round 2 match (id
-  // 1565904) is "1win", but OpenDota still has no "1win" team_id at all — team_id 8291895's
-  // most recent match (OD match 8815912139, ~2026-05) carries radiant_name "Tundra Esports",
-  // the pre-roster-swap identity (OD ties team_id to Steam group continuity, not org
-  // branding). No substring relationship between "1win" and "tundraesports", so this needs
-  // an explicit alias entry, not just normalizeTeamName. Revisit/remove once OD's per-match
-  // name catches up to "1win".
-  ['1win', 'tundraesports'],
+  // Confirmed then: PandaScore's opponent name for that EWC 2026 Round 2 match (id 1565904)
+  // was "1win", but OpenDota still had no "1win" team_id at all — team_id 8291895's most
+  // recent match (OD match 8815912139, ~2026-05) carried radiant_name "Tundra Esports", the
+  // pre-roster-swap identity (OD ties team_id to Steam group continuity, not org branding).
+  // 2026-08-01: owner-confirmed the org has since rebranded again, from "1win" to "1w Team"
+  // — PandaScore's own synced team list (?mode=teams) still returns "1win" as of this date
+  // (not yet caught up, same lag pattern as the original Tundra→1win transition), and
+  // OpenDota's per-match name is the short form "1W". None of "1wteam"/"1w"/"1win"/
+  // "tundraesports" have a substring relationship with each other, so all four need explicit
+  // alias membership, not just normalizeTeamName. Revisit/prune the older entries once
+  // PandaScore's sync and OD's per-match name both catch up to "1w Team".
+  ['1wteam', '1w', '1win', 'tundraesports'],
 ]
 
 export function namesAlias(x, y) {
   return TEAM_NAME_ALIAS_GROUPS.some(g => g.includes(x) && g.includes(y))
 }
+
+// Curated tier-1 org roster + known slugs/nicknames, used by canonicalTeamName() below and by
+// several server-only features (?mode=teams, sync-teams cron, news team-tagging). Lives here
+// (not api/_shared.js) so canonicalTeamName can run client-side too — api/_shared.js imports and
+// re-exports all four unchanged so none of its existing server call sites need to change.
+//
+// Reconciled 2026-07-15 against a live PandaScore /videogames/dota-2/teams sweep across every
+// tracked tier-1 league: one removal (Xtreme Gaming's old "PSG.Y" tag — PandaScore no longer
+// returns the old name at all) and twelve additions (real EWC group-stage/playoffs or BLAST Slam
+// Playoffs participants that had no entry here, 1win among them — it inherited Tundra Esports'
+// roster in June 2026, see TEAM_NAME_ALIAS_GROUPS above).
+// 2026-08-01: "1win" renamed to "1w Team" (owner-confirmed; PandaScore's own sync hasn't
+// caught up yet, see the alias-group comment above — "1win"/"1w"/"tundraesports" all resolve
+// here via alias). "Tundra Esports" is kept as its own separate entry (not merged into this
+// one) so a genuinely historical OD match from before the 1win/1w Team roster swap still
+// displays "Tundra Esports" — exact equality is checked before alias fallback, so it wins for
+// any OD name that's still literally "Tundra Esports".
+export const TIER1_TEAMS_SERVER = [
+  'Team Liquid', '1w Team', 'Tundra Esports', 'Team Spirit', 'BetBoom Team',
+  'Team Falcons', 'Gaimin Gladiators', 'Aurora', 'OG',
+  'Natus Vincere', 'Virtus.pro', 'Team Secret', 'Team Aster',
+  'Talon Esports', 'Nouns Esports', 'Team Yandex', 'LGD Gaming',
+  'Nigma Galaxy', 'Evil Geniuses', 'beastcoast', 'Thunder Awaken',
+  'Parivision', 'Xtreme Gaming', 'Vici Gaming', 'Rune Eaters',
+  'GamerLegion', 'MOUZ', 'Team Nemesis', 'L1ga Team', 'Level UP',
+  'PlayTime', 'Poor Rangers', 'Inner Circle x Insanity', 'REKONIX',
+]
+
+// Known PandaScore slugs for the TIER1_TEAMS_SERVER fallback teams, taken directly from a live
+// PandaScore team object per name (not guessed — three earlier guesses here were wrong: BetBoom
+// Team is "betboom-team" not "betboom", Team Falcons is "team-falcons-dota-2" not "team-falcons",
+// Parivision is "parivision-dota-2" not "parivision"). ?mode=teams uses this to give its own
+// fallback (KV_TIER1_TEAMS_FULL_KEY empty/unreachable — e.g. right after this feature first
+// deploys, before the sync-teams cron has ever run) real, usable slugs instead of null —
+// Calendar.jsx's team picker requires a non-null slug per team, so a null-slug fallback would
+// silently empty it out until KV is populated.
+export const TIER1_TEAMS_SERVER_SLUGS = {
+  'Team Liquid': 'team-liquid',
+  'Tundra Esports': 'tundra-esports',
+  'Team Spirit': 'team-spirit',
+  'BetBoom Team': 'betboom-team',
+  'Team Falcons': 'team-falcons-dota-2',
+  'Gaimin Gladiators': 'gaimin-gladiators',
+  'Aurora': 'aurora-dota-2',
+  'OG': 'og',
+  'Natus Vincere': 'natus-vincere',
+  'Virtus.pro': 'virtus-pro',
+  'Team Secret': 'team-secret',
+  'Team Aster': 'team-aster',
+  'Talon Esports': 'talon-esports',
+  'Nouns Esports': 'nouns-esports',
+  'Team Yandex': 'team-yandex',
+  'LGD Gaming': 'lgd-gaming-dota-2',
+  'Nigma Galaxy': 'nigma-galaxy',
+  'Evil Geniuses': 'evil-geniuses',
+  'beastcoast': 'beastcoast',
+  'Thunder Awaken': 'thunder-awaken',
+  'Parivision': 'parivision-dota-2',
+  'Xtreme Gaming': 'xtreme-gaming',
+  // Carried over from the pre-rename "1win" slug — unverified against the "1w Team" rename
+  // (PandaScore's own sync hasn't caught up yet as of 2026-08-01, see TIER1_TEAMS_SERVER
+  // comment). This is only the last-resort static fallback (?mode=teams prefers the live
+  // KV-synced slug); worst case until confirmed is Calendar's team picker excludes this org.
+  '1w Team': '1win-dota-2',
+  'Vici Gaming': 'vici-gaming-dota-2',
+  'Rune Eaters': 'rune-eaters',
+  'GamerLegion': 'gamerlegion-dota-2',
+  'MOUZ': 'mouz-dota-2',
+  'Team Nemesis': 'team-nemesis',
+  'L1ga Team': 'l1ga-team',
+  'Level UP': 'level-up',
+  'PlayTime': 'playtime',
+  'Poor Rangers': 'poor-rangers',
+  'Inner Circle x Insanity': 'inner-circle',
+  'REKONIX': 'rekonix',
+}
+
+// Community nicknames/shorthand that don't appear as a substring of the official team name, so
+// plain substring search can't find them — hand-maintained since PandaScore has no concept of a
+// fan nickname. Keyed by the exact official name used elsewhere in this list. Extend as new
+// nicknames come up; no need to cover every team, only ones whose common short form isn't
+// already substring-matchable.
+export const TEAM_NICKNAMES = {
+  'BetBoom Team': ['boomboys', 'bb'],
+  'Parivision': ['pvision'],
+  'Natus Vincere': ['navi'],
+  'Virtus.pro': ['vp'],
+  'Team Liquid': ['tl'],
+  // "1win"/"1W" are the pre-rename names fans and older content still search by — no
+  // substring relationship with "1w Team" (renamed 2026-08-01, see TIER1_TEAMS_SERVER).
+  '1w Team': ['1win', '1win team', '1w'],
+  'Aurora': ['aurora gaming'],
+  // LGD Gaming dropped the PSG sponsorship in its name; PandaScore no longer returns "PSG.LGD"
+  // at all (confirmed 2026-07-19), but plenty of existing content/muscle memory still calls
+  // them that.
+  'LGD Gaming': ['psg.lgd', 'psg'],
+}
+
+// Maps a raw team name (typically an OpenDota radiant_name/dire_name) to the canonical org name
+// in TIER1_TEAMS_SERVER — the single source of truth for "always show the PandaScore/official
+// name" across upcoming, live, and completed matches (originally built for the push follower
+// index, so also exported as resolveFollowedTeamName below for that call site's own clarity).
+// Matches ONLY on full normalized equality or an explicit alias group — NOT the bidirectional
+// substring rule teamPairMatch uses. Substring is safe for a disambiguated PAIR but not for a
+// single short org: "OG" (normalized "og") is a substring of "zerogaming", "turbogaming", etc.,
+// which would misfire onto OG's identity. OD uses full registered names for the tier-1 orgs, so
+// equality + alias covers every real divergence; add a TEAM_NAME_ALIAS_GROUPS entry if a new one
+// appears. Returns the input unchanged when it matches no tier-1 org, so a non-tier-1 name is
+// never silently dropped or misattributed.
+//
+// Exact-equality is checked across the WHOLE roster before any alias fallback, in its own pass
+// — not a single combined predicate. Two TIER1_TEAMS_SERVER entries can legitimately share one
+// alias group at once (e.g. "1w Team" and "Tundra Esports", kept separate so a genuinely
+// historical OD match from before the roster/branding swap still displays "Tundra Esports"); a
+// combined single-pass predicate would let array order alone decide the winner for an EXACT
+// match too (whichever entry `.find()` reached first), which broke the historical-accuracy
+// case — caught in review 2026-08-01 before shipping. With exact-first, alias-fallback array
+// order only matters for names that exactly match NEITHER entry (e.g. OD's abbreviated "1W"),
+// where it deliberately prefers whichever entry is listed first in TIER1_TEAMS_SERVER — keep the
+// current/preferred name of any such pair ahead of the retired one in that array.
+export function canonicalTeamName(name) {
+  const n = normalizeTeamName(name)
+  if (!n) return name
+  const exact = TIER1_TEAMS_SERVER.find(t => normalizeTeamName(t) === n)
+  if (exact) return exact
+  return TIER1_TEAMS_SERVER.find(t => namesAlias(normalizeTeamName(t), n)) || name
+}
+
+// Alias kept for the push-follower-index call site (api/live-matches.js), which predates the
+// name display use case above — same function, just a name that reads clearly in that context.
+export const resolveFollowedTeamName = canonicalTeamName
 
 // Normalize a team name for fuzzy PS↔OD matching: lowercase, then strip every
 // separator/punctuation char (spaces, dots, hyphens, apostrophes) while keeping

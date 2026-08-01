@@ -1,5 +1,5 @@
 import { kv } from '../_kv.js'
-import { trackError } from '../_shared.js'
+import { trackError, canonicalTeamName } from '../_shared.js'
 
 export default async function handleHeroMatches(req, res) {
   const heroId = parseInt(req.query?.hero_id, 10)
@@ -45,8 +45,8 @@ export default async function handleHeroMatches(req, res) {
       start_time: Number(r.start_time),
       radiant_win: Boolean(r.radiant_win),
       league_name: r.league_name || '',
-      radiant_name: r.radiant_name || 'Radiant',
-      dire_name: r.dire_name || 'Dire',
+      radiant_name: canonicalTeamName(r.radiant_name) || 'Radiant',
+      dire_name: canonicalTeamName(r.dire_name) || 'Dire',
     }))
 
     const exhausted = rows.length < 100

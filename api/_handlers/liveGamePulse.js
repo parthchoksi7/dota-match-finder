@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '../_supabase.js'
 import { createLogger, validateId, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S } from '../_shared.js'
 import { fetchPsMatchDetail, beginAtToUnix, shapeLiveGameMapRows } from './liveSeriesGames.js'
 import { decodeBuildingState } from '../_buildingState.js'
+import { resolveRadiantSide } from '../../src/teamMatching.js'
 
 // Phase 2 — live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
 // game to its OpenDota telemetry (gold lead, kill score, live draft) via live_game_map — the
@@ -81,10 +82,21 @@ export async function resolvePulse(pandaId, isOwner, log) {
     const row = data.find(r => Number(r.od_match_id) === hit.match_id)
     if (!row) return { pulse: null }
 
+    // Never render raw OpenDota team names here — resolve which already-trusted PandaScore
+    // opponent name was Radiant for this specific game (same pattern as resolveWinnerName /
+    // SeriesGameWinnerName.jsx) so the live pulse always shows the PS name, not OD's. Falls back
+    // to the raw OD names only in the rare case the pairing can't be cleanly resolved (missing
+    // name or an ambiguous double-match) — a name is better than a blank live-pulse header.
+    const psNameA = opponents[0]?.opponent?.name
+    const psNameB = opponents[1]?.opponent?.name
+    const side = resolveRadiantSide(psNameA, psNameB, row.radiant_name, row.dire_name)
+    const radiantName = side === 'A' ? psNameA : side === 'B' ? psNameB : row.radiant_name
+    const direName = side === 'A' ? psNameB : side === 'B' ? psNameA : row.dire_name
+
     const pulse = {
       matchId: String(row.od_match_id),
-      radiantName: row.radiant_name,
-      direName: row.dire_name,
+      radiantName,
+      direName,
       radiantLead: row.radiant_lead,
       radiantScore: row.radiant_score,
       direScore: row.dire_score,

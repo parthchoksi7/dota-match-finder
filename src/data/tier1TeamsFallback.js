@@ -6,15 +6,18 @@
 // functional without it.
 //
 // `slug` is the PandaScore team slug, used by Calendar.jsx to build calendar
-// subscription URLs. `aliases` mirrors TEAM_NICKNAMES in api/_shared.js so alias search
+// subscription URLs. `aliases` mirrors TEAM_NICKNAMES in src/teamMatching.js so alias search
 // (e.g. "boomboys" -> BetBoom Team) still works offline.
 //
 // 2026-07-19: cross-checked every slug against a live PandaScore fetch and added every
 // tier-S/A Esports World Cup 2026 + BLAST Slam participant that had no entry here (1win
 // among them). Mirrors TIER1_TEAMS_SERVER / TIER1_TEAMS_SERVER_SLUGS / TEAM_NICKNAMES in
-// api/_shared.js — keep both in sync.
+// src/teamMatching.js (moved there 2026-08-01, formerly api/_shared.js) — keep both in sync.
 export const TIER1_TEAMS_FALLBACK = [
-  { name: '1win', slug: '1win-dota-2', acronym: null, aliases: ['1win team'] },
+  // Renamed "1win" -> "1w Team" 2026-08-01 (owner-confirmed; PandaScore's own sync hasn't
+  // caught up yet, see TIER1_TEAMS_SERVER in src/teamMatching.js) — slug carried over from
+  // "1win-dota-2" and unverified against the rename.
+  { name: '1w Team', slug: '1win-dota-2', acronym: null, aliases: ['1win', '1win team', '1w'] },
   { name: 'Aurora', slug: 'aurora-dota-2', acronym: null, aliases: ['aurora gaming'] },
   { name: 'beastcoast', slug: 'beastcoast', acronym: null, aliases: [] },
   { name: 'BetBoom Team', slug: 'betboom-team', acronym: null, aliases: ['boomboys', 'bb'] },

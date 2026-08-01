@@ -57,13 +57,14 @@ describe('teamsList handler', () => {
     expect(res.body.teams.every(t => t.slug)).toBe(true)
   })
 
-  it('includes 1win (inherited Tundra Esports\' roster in June 2026) in the static fallback', async () => {
+  it('includes 1w Team (inherited Tundra Esports\' roster in June 2026, renamed from 1win 2026-08-01) in the static fallback', async () => {
     kv.get.mockResolvedValue(null)
     const res = mockRes()
     await handleTeamsList({}, res)
-    const oneWin = res.body.teams.find(t => t.name === '1win')
+    const oneWin = res.body.teams.find(t => t.name === '1w Team')
     expect(oneWin).toBeTruthy()
     expect(oneWin.slug).toBe('1win-dota-2')
+    expect(oneWin.aliases).toContain('1win')
     expect(oneWin.aliases).toContain('1win team')
   })
 

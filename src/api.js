@@ -1,12 +1,6 @@
 import { matchesTier1Names, winsRequiredForSeries, trackEvent, STORAGE_KEYS } from './utils'
 import { TIER1_TEAMS_FALLBACK } from './data/tier1TeamsFallback.js'
-
-// OpenDota sometimes uses abbreviations that differ from the team's full name.
-// Map abbrev → canonical name so team display, fuzzy stream matching, and follow
-// logic all see the same string.
-const TEAM_NAME_MAP = {
-  'BB': 'BetBoom Team',
-}
+import { canonicalTeamName } from './teamMatching.js'
 
 /**
  * Returns true if the series already has a winner (one team has enough wins).
@@ -139,8 +133,8 @@ export async function fetchProMatches(lastMatchId = null) {
     date: new Date(m.start_time * 1000).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric'
     }),
-    radiantTeam: TEAM_NAME_MAP[m.radiant_name] || m.radiant_name || 'Radiant',
-    direTeam: TEAM_NAME_MAP[m.dire_name] || m.dire_name || 'Dire',
+    radiantTeam: canonicalTeamName(m.radiant_name) || 'Radiant',
+    direTeam: canonicalTeamName(m.dire_name) || 'Dire',
     radiantScore: m.radiant_score,
     direScore: m.dire_score,
     radiantWin: m.radiant_win,
