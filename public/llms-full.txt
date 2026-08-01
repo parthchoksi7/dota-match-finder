@@ -421,6 +421,22 @@ Returns end-game statistics for a single OpenDota match.
 }
 ```
 
+### GET /api/tournaments?mode=match-stratz&id={matchId}
+Returns STRATZ post-game enrichment for a single match: drafted position/role, MVP designation, and STRATZ's proprietary Impact score. A second, independently-sourced endpoint from `match-stats` above — merge onto its `players` array client-side by `heroId`.
+```json
+{
+  "players": [
+    {
+      "heroId": "number",
+      "position": "number 1-5 | null (drafted position: 1=Carry, 2=Mid, 3=Offlane, 4=Soft Support, 5=Hard Support)",
+      "positionLabel": "string | null (e.g. 'Carry', 'Hard Support')",
+      "imp": "number | null (STRATZ Impact score, -100 to +100; 0 is a fair baseline factoring in draft/rank; positive/negative = how much this player's performance moved their team's win probability)",
+      "award": "'MVP' | null (only STRATZ's MVP designation is surfaced; other STRATZ award values are intentionally omitted)"
+    }
+  ]
+}
+```
+
 ### GET /api/tournaments?mode=llms-data
 Returns structured entity data about the full site, designed for RAG pipelines, citation engines, and AI knowledge graph builders. Cached 1 hour. Add `?bust=1` to bypass KV cache.
 ```json

@@ -4,6 +4,7 @@ import { setCorsHeaders, buildPremiumLeagueIds, trackError, createLogger } from 
 
 import handleWatchability from './_handlers/watchability.js'
 import handleMatchStats from './_handlers/matchStats.js'
+import handleMatchStratz from './_handlers/matchStratz.js'
 import handleTournamentPlayers from './_handlers/tournamentPlayers.js'
 import handleMonitor from './_handlers/monitor.js'
 import handleCalendarTeam from './_handlers/calendarTeam.js'
@@ -39,6 +40,12 @@ export default async function handler(req, res) {
   // ── match-stats mode ────────────────────────────────────────────────────────
   // Placed before PANDASCORE_TOKEN check — only calls OpenDota, not PandaScore.
   if (req.query?.mode === 'match-stats') return handleMatchStats(req, res)
+
+  // ── match-stratz mode ───────────────────────────────────────────────────────
+  // Placed before PANDASCORE_TOKEN check — calls STRATZ, not PandaScore. Separate from
+  // match-stats above: STRATZ enrichment (position/role/imp/award) is fetched by the
+  // client in parallel, never blocking the OD stats path — see matchStratz.js.
+  if (req.query?.mode === 'match-stratz') return handleMatchStratz(req, res)
 
   // ── tournament-players mode ─────────────────────────────────────────────────
   // Placed before PANDASCORE_TOKEN check — only calls OpenDota, not PandaScore.

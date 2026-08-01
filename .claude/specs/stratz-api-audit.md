@@ -40,6 +40,10 @@ These are the only reasons to integrate at all — everything else we already ha
 ### 1. `match.players[].imp` — Impact score
 STRATZ's proprietary per-player impact metric. **No equivalent in OpenDota or PandaScore.** Verified sample: `{"name":"hahaxd","imp":3,"position":"POSITION_2","role":"CORE","award":"MVP"}`.
 
+**Methodology (confirmed 2026-08-02 via STRATZ's own knowledge base + Medium post, not inferred):** scale is **-100 to +100**, with **0 as a fair baseline** — every player starts at 0 regardless of draft advantage or rank, so the score measures *how much their performance moved their team's win probability*, not an absolute "good/bad" judgment. Positive = increased their team's win probability; negative = decreased it. Computed by a neural network over ~22 per-hero stat inputs (plus team composition and rank as context), evaluated at each minute of the game. **Known limitation: calculated over roughly the first 90% of the game**, so a genuine late-game comeback play won't fully register. Sources: [STRATZ Knowledge Base — How is IMP calculated](https://stratz.com/knowledge-base/General/How%20is%20IMP%20calculated), [STRATZ Medium — IMP: Decoding Your Performance](https://medium.com/stratz/imp-decoding-your-performance-c251dcb42b93).
+
+**`award` enum (confirmed live 2026-08-01, not just the one MVP sample):** `NONE` (no award — the common case), `MVP`, `TOP_CORE`, `TOP_SUPPORT`. Product decision: only `MVP` is surfaced in the UI; `TOP_CORE`/`TOP_SUPPORT` are treated the same as `NONE` (no badge) to keep the trophy scoped to one per-match distinction.
+
 ### 2. `position` (POSITION_1–5) and `role` (CORE / LIGHT_SUPPORT / HARD_SUPPORT)
 **Directly restores a deleted feature.** `CONTEXT.md` records under Known Issues: *"Role detection (Carry/Mid/Off/Support) is removed - OpenDota `lane_role` field is unreliable."* STRATZ classifies position and role properly. This is the single highest-confidence win in the audit, because the product already wanted it and gave up on it for data-quality reasons that no longer apply.
 

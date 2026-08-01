@@ -1,6 +1,13 @@
 import { kv } from '../_kv.js'
 import { createLogger, validateId } from '../_shared.js'
 
+// STRATZ enrichment (position/role/imp/award) is intentionally NOT fetched here.
+// It's a separate, independently-rate-limited data source (`?mode=match-stratz`,
+// see api/_handlers/matchStratz.js) fetched in parallel by the frontend so a STRATZ
+// cache-miss round trip never adds latency to this already-working OD stats path.
+// `position`/`positionLabel`/`imp`/`award` below are the fixed shape the client merges
+// that response into by `heroId` — see PlayerStatsSection.jsx / MatchDrawer.jsx.
+
 export default async function handleMatchStats(req, res) {
   const log = createLogger('/api/tournaments?mode=match-stats')
   const { id: matchId } = req.query
@@ -169,6 +176,14 @@ export default async function handleMatchStats(req, res) {
         deaths: p.deaths ?? 0,
         assists: p.assists ?? 0,
         isRadiant: isRadiantPlayer(p),
+        // STRATZ enrichment fields — always present here as null; MatchDrawer.jsx's
+        // client-side `enrichedPlayers` memo merges in real values from the separate
+        // ?mode=match-stratz fetch by heroId (keeps this OD-only response's shape
+        // consistent whether or not the client ever merges STRATZ data onto it).
+        position: null,
+        positionLabel: null,
+        imp: null,
+        award: null,
       })),
       events: (() => {
         const playerEvents = extractMatchEvents(data.players || [])

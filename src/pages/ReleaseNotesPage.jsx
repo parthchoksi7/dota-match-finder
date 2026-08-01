@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "August 1, 2026",
+    tag: "new",
+    title: "Player ratings from STRATZ",
+    desc: "Every completed game's stats panel now shows each player's drafted position, a match MVP badge when one is awarded, and an Impact score rating how much their performance moved their team's win probability (-100 to +100, independent of net worth). Hover either for a plain-language explanation.",
+  },
+  {
+    date: "August 1, 2026",
     tag: "fix",
     title: "Team names are now consistent everywhere",
     desc: "Completed matches and live in-game scores sometimes showed OpenDota's team name instead of the official one, for example BetBoom Team showing up as BoomBoys. Every match view (upcoming, live, and completed) now shows the same official name. 1win has also been renamed to 1w Team to match their current branding.",

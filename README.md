@@ -26,6 +26,7 @@ Live at: **https://spectateesports.live**
 | Deployment | Vercel (Hobby) |
 | Match data | OpenDota API |
 | Live/tournament data | PandaScore API |
+| Post-game enrichment | STRATZ GraphQL API (position/role, MVP, impact score) |
 | VOD search | Twitch Helix API |
 | Cache | Upstash Redis (KV) |
 | AI summaries | Anthropic Claude Haiku |
@@ -64,6 +65,7 @@ Requires `.env.local` with:
 - `PANDASCORE_TOKEN`
 - `KV_REST_API_URL`
 - `KV_REST_API_TOKEN`
+- `STRATZ_TOKEN` (post-game match enrichment — position/role, MVP award, impact score; app runs fine without it, that enrichment just stays absent)
 - `QSTASH_TOKEN` (only to run `npm run setup-qstash` — provisions the QStash schedules that trigger the stream-capture / warm-streams crons)
 - `GA4_API_SECRET` (optional — enables server-side GA4 `push_sent` events via the Measurement Protocol; push notifications work without it, but "sent" won't show in GA4/BigQuery)
 - `SENTRY_DSN` / `VITE_SENTRY_DSN` (optional — server/browser error capture; the app runs the same without them, Sentry just stays disabled)

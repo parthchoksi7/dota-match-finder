@@ -5,7 +5,7 @@ import PlayerStatsSection from "./PlayerStatsSection"
 import { SHEET_PADDING } from "./Sheet"
 import StreamPicker, { streamLabel } from "./StreamPicker"
 import { TeamIndicators } from "./GameIndicators"
-import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchHighlights, matchHighlightsToSeries } from "../api"
+import { VOD_CHANNEL_LABELS, fetchMatchIndicators, fetchMatchStats, fetchMatchStratz, fetchHighlights, matchHighlightsToSeries } from "../api"
 import { useEffect, useMemo, useState } from "react"
 import { formatDuration, trackEvent, isGrandFinal as checkIsGrandFinal, getStreamLanguage, pickPreferredStream } from "../utils"
 
@@ -61,6 +61,12 @@ function MatchDrawer({
   // trust `matchStats` when this id matches the current match.
   const [statsMatchId, setStatsMatchId] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
+  // STRATZ post-game enrichment (position/role/imp/award) — deliberately separate state
+  // from matchStats above. It's a second, independently-rate-limited data source fetched
+  // in parallel; it must be able to arrive before, after, or never relative to matchStats
+  // without blocking or being blocked by it. Same statsMatchId-style staleness guard.
+  const [stratzPlayers, setStratzPlayers] = useState(null)
+  const [stratzMatchId, setStratzMatchId] = useState(null)
   const [seriesHighlight, setSeriesHighlight] = useState(null)
   // Read once per mount; the drawer remounts on open, which is when a preference change lands.
   const [streamLanguage] = useState(getStreamLanguage)
@@ -107,6 +113,20 @@ function MatchDrawer({
   }, [match?.id, match?._fromPandaScore, spoilerFree])
 
   useEffect(() => {
+    setStratzPlayers(null)
+    setStratzMatchId(null)
+    if (!match?.id || match._fromPandaScore || spoilerFree) return
+    const id = match.id
+    let cancelled = false
+    fetchMatchStratz(id).then(({ players }) => {
+      if (cancelled) return
+      setStratzPlayers(players)
+      setStratzMatchId(id)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [match?.id, match?._fromPandaScore, spoilerFree])
+
+  useEffect(() => {
     setSeriesHighlight(null)
     if (!match?.id || match._fromPandaScore) return
     fetchHighlights(match.tournament).then(videos => {
@@ -138,12 +158,30 @@ function MatchDrawer({
   // would otherwise render under the new game's team labels (and, worse, latch a
   // remounting DraftDisplay onto the wrong draft).
   const currentStats = statsMatchId === match?.id ? matchStats : null
+  const currentStratzPlayers = stratzMatchId === match?.id ? stratzPlayers : null
 
   // Player-level rampage set — drives the per-card badge in DraftDisplay
   const rampagePlayers = useMemo(() => {
     if (!currentStats?.events || spoilerFree) return new Set()
     return new Set(currentStats.events.filter(e => e.type === 'rampage').map(e => e.player))
   }, [currentStats, spoilerFree])
+
+  // Merges STRATZ enrichment onto OD players by heroId (a hero can only be picked once
+  // per match, so it's a reliable join even when a player's Steam profile is private).
+  // currentStratzPlayers can resolve before, after, or never relative to currentStats —
+  // this recomputes independently of which one changed, and is a no-op (returns the OD
+  // shape unchanged) whenever STRATZ hasn't resolved yet.
+  const enrichedPlayers = useMemo(() => {
+    const players = currentStats?.players
+    if (!players) return players
+    if (!currentStratzPlayers || currentStratzPlayers.length === 0) return players
+    const byHero = new Map(currentStratzPlayers.map(p => [p.heroId, p]))
+    return players.map(p => {
+      const sp = byHero.get(p.heroId)
+      if (!sp) return p
+      return { ...p, position: sp.position, positionLabel: sp.positionLabel, imp: sp.imp, award: sp.award }
+    })
+  }, [currentStats, currentStratzPlayers])
 
   if (!match) return null
 
@@ -656,7 +694,7 @@ function MatchDrawer({
                 Player Stats
               </h3>
               <PlayerStatsSection
-                players={currentStats?.players}
+                players={enrichedPlayers}
                 itemNames={currentStats?.itemNames}
                 radiantName={match.radiantTeam}
                 direName={match.direTeam}

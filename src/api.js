@@ -359,6 +359,8 @@ export async function fetchMatchSummary(matchId) {
 const _indicatorsCache = new Map()
 const _statsCache = new Map()
 const _statsInFlight = new Map()
+const _stratzCache = new Map()
+const _stratzInFlight = new Map()
 
 /**
  * Fetch game indicators for one or more match IDs.
@@ -414,6 +416,39 @@ export async function fetchMatchStats(matchId) {
     }
   })()
   _statsInFlight.set(key, promise)
+  return promise
+}
+
+/**
+ * Fetch STRATZ post-game enrichment (position/role → positionLabel, imp, award) for a
+ * single match. Deliberately a SEPARATE fetch from fetchMatchStats — STRATZ is a second,
+ * independently-rate-limited data source (150/min, no batch endpoint), so a cold-cache
+ * round trip here must never block or slow down the OD stats path above.
+ * Returns { players: [{ heroId, position, positionLabel, imp, award }] } — merge onto
+ * matchStats players by heroId (a hero can only be picked once per match, so it's a
+ * reliable join key even when a player's Steam profile is private). Never rejects;
+ * resolves to { players: [] } on any failure so a caller can always merge unconditionally.
+ */
+export async function fetchMatchStratz(matchId) {
+  if (!matchId) return { players: [] }
+  const key = String(matchId)
+  if (_stratzCache.has(key)) return _stratzCache.get(key)
+  if (_stratzInFlight.has(key)) return _stratzInFlight.get(key)
+  const promise = (async () => {
+    try {
+      const res = await fetch(`/api/tournaments?mode=match-stratz&id=${key}`)
+      if (!res.ok) return { players: [] }
+      const data = await res.json()
+      const result = { players: Array.isArray(data?.players) ? data.players : [] }
+      _stratzCache.set(key, result)
+      return result
+    } catch {
+      return { players: [] }
+    } finally {
+      _stratzInFlight.delete(key)
+    }
+  })()
+  _stratzInFlight.set(key, promise)
   return promise
 }
 

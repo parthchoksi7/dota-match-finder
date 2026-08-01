@@ -8,6 +8,48 @@ function formatNetWorth(val) {
   return `${val}`
 }
 
+// STRATZ Impact score (IMP) — documented scale, confirmed via STRATZ's own knowledge
+// base (2026-08-02): -100 to +100, with 0 as a fair baseline (draft/rank advantage
+// already factored in) — positive means the player's performance increased their team's
+// win probability, negative means it decreased it. The sign is colored with the site's
+// existing win/loss tokens, and the `+`/`-` sign itself (not color alone) is what a
+// colorblind user reads.
+function formatImpact(imp) {
+  return imp > 0 ? `+${imp}` : `${imp}`
+}
+
+// Chip treatment (not bare colored text) — a plain number sitting directly beside net
+// worth read as a second, unexplained net-worth-like figure. The bordered/tinted chip
+// (same convention as GameIndicators' colored chips) visually separates "this is a
+// different kind of stat" at a glance, before a fan even needs the hover explainer.
+function impactChipClasses(imp) {
+  if (imp > 0) return 'bg-green-500/10 dark:bg-green-500/15 border-green-500/30 text-green-600 dark:text-green-500'
+  if (imp < 0) return 'bg-red-500/10 dark:bg-red-500/15 border-red-500/30 text-red-600 dark:text-red-500'
+  return 'bg-gray-500/10 dark:bg-gray-500/15 border-gray-400/30 text-gray-400 dark:text-gray-600'
+}
+
+// Small circular position badge (numeral 1-5) with a HoverCard reveal of the full label
+// ("Hard Support") — restores role/position detection removed for OpenDota's unreliable
+// `lane_role` (see CONTEXT.md). A role-only fallback (STRATZ `role` present, `position`
+// null) carries a label but no numeral — CORE can't be disambiguated among positions 1-3.
+function PositionBadge({ position, positionLabel }) {
+  if (!positionLabel) return null
+  return (
+    <HoverCard
+      className="w-4 h-4 flex-shrink-0"
+      align="left"
+      content={<HoverCardTitle>{positionLabel}</HoverCardTitle>}
+    >
+      <span
+        className="w-4 h-4 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-[9px] font-bold flex items-center justify-center select-none"
+        aria-label={`Position: ${positionLabel}`}
+      >
+        {position ?? positionLabel[0]}
+      </span>
+    </HoverCard>
+  )
+}
+
 const AGHANIM_UPGRADES = [
   { buffId: 2,  key: 'ultimate_scepter', label: "Aghanim's Scepter" },
   { buffId: 12, key: 'aghanims_shard',   label: "Aghanim's Shard"   },
@@ -51,8 +93,9 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
 
   return (
     <div className="space-y-1.5">
-      {/* Hero icon (with CSS tooltip) + player name + networth */}
+      {/* Position badge + hero icon (with CSS tooltip) + player name + MVP badge + impact/networth */}
       <div className="flex items-center gap-2 min-w-0">
+        <PositionBadge position={player.position} positionLabel={player.positionLabel} />
         {heroKey ? (
           <div className="relative flex-shrink-0 group">
             <img
@@ -78,8 +121,38 @@ function PlayerRow({ player, heroKey, heroName, itemNames, maxNetWorth, isRadian
         <span className="text-sm font-semibold text-gray-900 dark:text-white truncate flex-1 min-w-0">
           {player.name || 'Unknown'}
         </span>
-        <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400 flex-shrink-0 ml-1">
-          {formatNetWorth(player.netWorth)}
+        {player.award && (
+          <span
+            className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+            aria-label={`Match ${player.award}`}
+          >
+            <span aria-hidden="true">🏆</span> {player.award}
+          </span>
+        )}
+        <span className="flex items-center gap-1 flex-shrink-0 ml-1">
+          {player.imp != null && (
+            <HoverCard
+              align="right"
+              content={
+                <>
+                  <HoverCardTitle>Impact Score</HoverCardTitle>
+                  <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+                    STRATZ's -100 to +100 rating of how much this player's performance moved their team's win probability. 0 is a fair baseline — draft and rank are already factored in.
+                  </p>
+                </>
+              }
+            >
+              <span
+                className={`inline-flex items-center px-1 py-0.5 rounded border text-[10px] font-bold tabular-nums leading-none ${impactChipClasses(player.imp)}`}
+                aria-label={`Impact score: ${formatImpact(player.imp)} on STRATZ's -100 to +100 scale`}
+              >
+                {formatImpact(player.imp)}
+              </span>
+            </HoverCard>
+          )}
+          <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+            {formatNetWorth(player.netWorth)}
+          </span>
         </span>
       </div>
 
