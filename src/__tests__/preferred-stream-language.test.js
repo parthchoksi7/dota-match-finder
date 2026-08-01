@@ -3,11 +3,10 @@
  * splitter used by both the live and replay surfaces) and getStreamLanguage (the localStorage
  * reader).
  *
- * The behaviour that matters most here is the NEGATIVE case: when a fan's language isn't
- * broadcast for a match, nothing is overridden and the surface keeps whatever default it already
- * had. There is deliberately no "fall back to English" branch — see pickPreferredStream's doc
- * comment and api/_shared.js getTwitchStreams, which already falls back to any official stream
- * for CIS/Chinese-only events.
+ * "No preference" defaults to English, and an explicit preference with no live stream in that
+ * language also falls back to English — see pickPreferredStream's doc comment. Only when English
+ * itself isn't broadcast either (a CIS/Chinese-only qualifier, say) does nothing get promoted and
+ * the surface keeps whatever default it already had.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -24,18 +23,30 @@ const RU_OFFICIAL_PAGE = { url: 'https://twitch.tv/pgl_ru_main', channel: 'pgl_r
 const ZH_LIVE = { raw_url: 'https://twitch.tv/zh_caster', channel: 'zh_caster', language: 'zh', official: false }
 
 describe('pickPreferredStream', () => {
-  it('returns the list untouched when no preference is set', () => {
-    const list = [EN_OFFICIAL, RU_PAGE]
+  it('defaults to English when no preference is set', () => {
+    const { preferred, rest } = pickPreferredStream([EN_OFFICIAL, RU_PAGE], null)
+    expect(preferred).toBe(EN_OFFICIAL)
+    expect(rest).toEqual([RU_PAGE])
+  })
+
+  it('returns the list untouched when neither the preference nor English is broadcast', () => {
+    const list = [RU_PAGE]
     const { preferred, rest } = pickPreferredStream(list, null)
     expect(preferred).toBeNull()
     expect(rest).toBe(list)
   })
 
-  it('returns the list untouched when the preferred language is not broadcast', () => {
-    // The core fallback question: RU preferred, only EN available → no override, no English
-    // special-casing, the surface keeps whatever primary it already had.
-    const list = [EN_OFFICIAL]
-    const { preferred, rest } = pickPreferredStream(list, 'ru')
+  it('falls back to English when the preferred language is not broadcast', () => {
+    // The core fallback question: RU preferred, only EN available → promote EN rather than
+    // leaving the fan with no default stream at all.
+    const { preferred, rest } = pickPreferredStream([EN_OFFICIAL], 'ru')
+    expect(preferred).toBe(EN_OFFICIAL)
+    expect(rest).toEqual([])
+  })
+
+  it('returns the list untouched when neither the preferred language nor English is broadcast', () => {
+    const list = [RU_PAGE]
+    const { preferred, rest } = pickPreferredStream(list, 'zh')
     expect(preferred).toBeNull()
     expect(rest).toBe(list)
   })

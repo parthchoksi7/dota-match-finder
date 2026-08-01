@@ -150,13 +150,13 @@ export default function SettingsSheet({ spoilerFree, onSpoilerToggle }) {
           </div>
 
           {/* Stream language sits in Display because it changes what a fan SEES first, not what
-              they're notified about. "No preference" is the default and is byte-for-byte today's
-              behavior — it never forces English, it just declines to override whichever stream the
-              surface already leads with (see pickPreferredStream in utils.js). */}
+              they're notified about. "No preference" defaults to English, and an explicit
+              preference with no live stream in that language also falls back to English
+              (see pickPreferredStream in utils.js). */}
           <div className="flex items-center justify-between gap-2 px-2 py-3 min-h-[44px]">
             <span className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-gray-900 dark:text-white">Stream language</span>
-              <span className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">Shown first when available</span>
+              <span className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">Shown first when available — defaults to English if unavailable</span>
             </span>
             <select
               aria-label="Preferred stream language"

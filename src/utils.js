@@ -90,33 +90,38 @@ function sameStream(a, b) {
  * Returns { preferred, rest } — `preferred` is the best stream in that language (or null), and
  * `rest` preserves the input order minus that entry and any duplicate of it.
  *
- * A null/absent `preferredLang`, or no stream in that language, returns { preferred: null } and
- * the list untouched — so "my language isn't broadcast for this match" degrades to whatever the
- * surface's existing default already is. That default is deliberately NOT hardcoded English:
- * getTwitchStreams (api/_shared.js) prefers an English official stream only when one exists and
- * otherwise falls back to any official stream, so a CIS/Chinese-only event still leads with its
- * own broadcast. There is no separate English fallback branch here by design.
+ * "No preference" (null/absent `preferredLang`) defaults to English. An explicit preference with
+ * no live stream in that language also falls back to English as the base stream. Only when
+ * neither the preferred language nor English is present does this degrade to whatever the
+ * surface's existing default already is (e.g. a CIS/Chinese-only qualifier with no English
+ * broadcast at all) — see the stream language picker in SettingsSheet.jsx for the user-facing
+ * note on this fallback.
  *
- * `incumbentLanguages` are the languages already holding the surface's primary slot(s). If the
- * fan's language is among them there is nothing to fix, so nothing is promoted — otherwise a
- * co-stream page would be promoted OVER an official broadcast that was already in the right
- * language, which on the replay surface can mean burying a real timestamped VOD under a bare
- * channel link. Callers pass what they know; a language the provider never reported is simply
- * absent, and the worst case degrades to today's promote-anyway behavior.
+ * `incumbentLanguages` are the languages already holding the surface's primary slot(s). If a
+ * candidate language (preferred or the English fallback) is among them there is nothing to fix,
+ * so nothing is promoted for that language — otherwise a co-stream page would be promoted OVER an
+ * official broadcast that was already in the right language, which on the replay surface can mean
+ * burying a real timestamped VOD under a bare channel link. Callers pass what they know; a
+ * language the provider never reported is simply absent, and the worst case degrades to today's
+ * promote-anyway behavior.
  */
 export function pickPreferredStream(streams, preferredLang, incumbentLanguages = []) {
   const list = Array.isArray(streams) ? streams : []
-  if (!preferredLang) return { preferred: null, rest: list }
   // Array check, not just the `= []` default: that default only fires for `undefined`, so a
   // caller passing an explicit null would throw here.
-  if (Array.isArray(incumbentLanguages) && incumbentLanguages.includes(preferredLang)) {
-    return { preferred: null, rest: list }
+  const incumbents = Array.isArray(incumbentLanguages) ? incumbentLanguages : []
+
+  const bestInLanguage = (lang) => {
+    if (!lang || incumbents.includes(lang)) return null
+    let best = null
+    for (const s of list) {
+      if (s?.language !== lang) continue
+      if (!best || streamRank(s) > streamRank(best)) best = s
+    }
+    return best
   }
-  let preferred = null
-  for (const s of list) {
-    if (s?.language !== preferredLang) continue
-    if (!preferred || streamRank(s) > streamRank(preferred)) preferred = s
-  }
+
+  const preferred = bestInLanguage(preferredLang || 'en') || bestInLanguage('en')
   if (!preferred) return { preferred: null, rest: list }
   return { preferred, rest: list.filter(s => !sameStream(s, preferred)) }
 }
