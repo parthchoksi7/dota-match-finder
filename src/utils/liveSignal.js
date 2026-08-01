@@ -91,10 +91,12 @@ function rawConditions({ radiantLead, gameTime }) {
 // shape, to be persisted verbatim by the caller. Never throws on a null/invalid prior.
 //
 // Priority when multiple raw conditions could apply: SWINGING > CLOSE > ONE_SIDED > none (R1 —
-// "SWINGING outranks CLOSE when both fire"; SWINGING and ONE_SIDED cannot both be raw-true at once
-// since a retracement large enough to enter SWINGING necessarily first passed through a smaller
-// gap than farAheadThreshold, but SWINGING can still override an ONE_SIDED state that hasn't yet
-// exited via its own hysteresis).
+// "SWINGING outranks CLOSE when both fire"). SWINGING and ONE_SIDED CAN both be raw-true on the
+// same observation (a big peak that has only partially retraced can sit above farAheadThreshold
+// while its retracement already clears RETRACEMENT_ENTER — e.g. peak 20,000, current 9,500 at
+// farAheadThreshold=9,000 is both) — `deriveEntry()`'s check order, not mutual exclusivity, is
+// what makes SWINGING win, including overriding an ONE_SIDED state that hasn't yet exited via its
+// own hysteresis.
 export function nextSignalState(prior, { radiantLead, gameTime }) {
   const priorState = prior?.state ?? null
   const priorPeak = Number.isFinite(prior?.peak) ? prior.peak : 0
