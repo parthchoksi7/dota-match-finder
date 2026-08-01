@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { normalizeTeamName, teamPairMatch, teamPairScore, findBestPsMatch, resolveFollowedTeamName } from '../api/_shared.js'
-import { isTeamFollowed, resolveRadiantSide } from '../src/teamMatching.js'
+import { isTeamFollowed, resolveRadiantSide, canonicalTeamName } from '../src/teamMatching.js'
 
 describe('normalizeTeamName', () => {
   it('lowercases and strips spaces', () => {
@@ -196,6 +196,35 @@ describe('resolveFollowedTeamName (OD name → canonical followable org)', () =>
     expect(resolveFollowedTeamName('')).toBe('')
     expect(resolveFollowedTeamName(null)).toBe(null)
     expect(resolveFollowedTeamName(undefined)).toBe(undefined)
+  })
+})
+
+describe('canonicalTeamName (2026-08-01 — always render the PandaScore/official name)', () => {
+  it('resolves OpenDota\'s abbreviated "1W" to the current official name "1w Team"', () => {
+    expect(canonicalTeamName('1W')).toBe('1w Team')
+  })
+
+  it('resolves the pre-rename "1win" to "1w Team" too', () => {
+    expect(canonicalTeamName('1win')).toBe('1w Team')
+  })
+
+  it('resolves the bare "BB" abbreviation to "BetBoom Team" (regression: this was the one entry the old hand-rolled TEAM_NAME_MAP covered)', () => {
+    expect(canonicalTeamName('BB')).toBe('BetBoom Team')
+  })
+
+  // Regression: "1w Team" and "Tundra Esports" are both separate TIER1_TEAMS_SERVER entries
+  // that share one alias group (the 1w Team org inherited Tundra's roster). A single combined
+  // `c === n || namesAlias(c, n)` pass let array order alone decide an EXACT match too, so
+  // canonicalTeamName('1W') incorrectly returned "Tundra Esports" (whichever entry the .find()
+  // reached first) before exact-match was split into its own priority pass. A genuinely
+  // historical OD match still literally named "Tundra Esports" must keep showing that name, not
+  // be relabeled to the org's later branding.
+  it('still shows "Tundra Esports" for a literal historical match, not the current org name', () => {
+    expect(canonicalTeamName('Tundra Esports')).toBe('Tundra Esports')
+  })
+
+  it('passes a non-tier-1 name through unchanged', () => {
+    expect(canonicalTeamName('Some Qualifier Squad')).toBe('Some Qualifier Squad')
   })
 })
 

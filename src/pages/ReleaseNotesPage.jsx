@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 1, 2026",
+    tag: "fix",
+    title: "Team names are now consistent everywhere",
+    desc: "Completed matches and live in-game scores sometimes showed OpenDota's team name instead of the official one, for example BetBoom Team showing up as BoomBoys. Every match view (upcoming, live, and completed) now shows the same official name. 1win has also been renamed to 1w Team to match their current branding.",
+  },
+  {
     date: "July 31, 2026",
     tag: "improvement",
     title: "Replay links now explain themselves",
