@@ -251,6 +251,24 @@ describe('?mode=match-stratz handler', () => {
     ])
   })
 
+  it('?bust=1 clears the KV key and forces a live STRATZ fetch, ignoring any cached value', async () => {
+    const rawPlayers = [{ heroId: 9, position: 'POSITION_1', role: 'CORE', imp: 12, award: 'MVP' }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: rawPlayers } } }),
+    }))
+
+    const req = makeStratzReq({ id: '7890123', bust: '1' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(mockKv.del).toHaveBeenCalledWith('stratz:match:v1:7890123')
+    expect(mockKv.get).not.toHaveBeenCalled()
+    expect(res._body.players).toEqual([
+      { heroId: 9, position: 1, positionLabel: 'Carry', imp: 12, award: 'MVP' },
+    ])
+  })
+
   it('treats the MISS marker as a cached negative result — no STRATZ call, empty players', async () => {
     mockKv.get.mockResolvedValueOnce('MISS')
     const fetchSpy = vi.fn()

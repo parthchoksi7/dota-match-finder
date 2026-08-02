@@ -20,12 +20,16 @@ export default async function handleMatchStratz(req, res) {
 
   const key = `${STRATZ_KV_PREFIX}${matchId}`
 
+  if (req.query?.bust === '1') {
+    try { await kv.del(key) } catch (err) { log.warn('STRATZ KV bust failed', { error: err?.message }) }
+  }
+
   // Cache read and the live fetch are deliberately separate try/catch blocks (same
   // pattern as matchStats.js) — a KV read failure must still fall through to a live
   // STRATZ fetch, not silently return empty players for the whole 8s timeout budget.
   let cached = null
   try {
-    cached = await kv.get(key)
+    cached = req.query?.bust === '1' ? null : await kv.get(key)
   } catch (err) {
     log.warn('STRATZ KV read failed', { error: err?.message })
   }
