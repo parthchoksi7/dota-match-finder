@@ -1,10 +1,16 @@
 name: VOD Enrich
 
-# Resolves twitch_vod_id / vod_offset_s for completed match_stream_history rows (main
-# channel) AND match_stream_vods rows (alt/language channels), so replay links are served
-# from permanent Supabase storage instead of the 24h-TTL KV cache. Runs the existing
-# `npm run vod-enrich` script (it calls the LOCKED resolver per channel — does not
-# reimplement it). P3.4 of .claude/all-stream-urls-spec.md.
+# The main enrichment pass (twitch_vod_id / vod_offset_s resolution for match_stream_history
+# and match_stream_vods rows) moved to the QStash-triggered `/api/pipeline?type=vod-enrich`
+# (2026-06-27) — handleVodEnrich in api/pipeline.js mirrors scripts/vod-enrich.mjs and runs
+# on a reliable 15-min cadence there. This workflow's own `npm run vod-enrich` step was left
+# running in parallel by mistake: same Supabase rows, same repeated calls to
+# /api/match-streams, fired on the same ~15-min cadence from a second, redundant path —
+# inflating Vercel Fluid CPU for zero coverage benefit. Removed 2026-08-02.
+#
+# What's left here is the one piece of functionality with no server-side equivalent: the
+# "Backfill PS enrichment" step (ps_match_id / tournament / streams_json for PandaScore-blind
+# rows), self-gated below to run ~every 3h. P3.4 of .claude/all-stream-urls-spec.md.
 #
 # Requires repo secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 # (Settings → Secrets and variables → Actions). CRON_SECRET is NOT needed — the script
@@ -30,7 +36,6 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       PANDASCORE_TOKEN: ${{ secrets.PANDASCORE_TOKEN }}
-      BATCH: '40'              # rows per pass (main + alt); generous headroom under Twitch limits
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,8 +43,6 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: Run VOD enrichment
-        run: npm run vod-enrich
       # Backfill ps_match_id / tournament / streams_json for rows that were born from a
       # PandaScore-blind write path (ts/KV fallback) and never enriched. enrich-history
       # queries PandaScore directly (fixes all-null series); enrich-history-siblings then
