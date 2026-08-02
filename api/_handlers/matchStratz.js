@@ -36,8 +36,19 @@ export default async function handleMatchStratz(req, res) {
   } else {
     rawPlayers = await fetchStratzMatchEnrichment(matchId)
     if (!rawPlayers) log.warn('STRATZ enrichment unavailable', { matchId })
-    kv.set(key, rawPlayers ?? STRATZ_MISS_MARKER, { ex: rawPlayers ? STRATZ_TTL_FOUND : STRATZ_TTL_MISS })
+    // STRATZ can return a match record (heroIds resolved) before it has finished
+    // post-game processing — position/role/imp/award all come back null in that case.
+    // Treat that the same as a true miss (short retry TTL) rather than caching an
+    // empty-looking result for 7 days, or the badges would never appear once STRATZ
+    // does finish processing.
+    const isUnprocessed = rawPlayers != null && rawPlayers.every(
+      p => p && p.position == null && p.role == null && p.imp == null && p.award == null
+    )
+    const isMiss = !rawPlayers || isUnprocessed
+    if (isUnprocessed) log.warn('STRATZ match not yet processed', { matchId })
+    kv.set(key, isMiss ? STRATZ_MISS_MARKER : rawPlayers, { ex: isMiss ? STRATZ_TTL_MISS : STRATZ_TTL_FOUND })
       .catch(err => log.warn('STRATZ KV write failed', { error: err?.message }))
+    if (isUnprocessed) rawPlayers = null
   }
 
   // Merge key on the client is heroId — a hero can only be picked once per match, so

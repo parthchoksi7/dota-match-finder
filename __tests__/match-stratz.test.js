@@ -332,6 +332,34 @@ describe('?mode=match-stratz handler', () => {
     expect(write[2]).toEqual({ ex: THIRTY_MIN })
   })
 
+  it('treats a match with heroIds resolved but all enrichment fields null as a soft-miss (30-min TTL, not the 7-day TTL)', async () => {
+    // Reproduces the live 1win Essence II match (8924695153): STRATZ has indexed the
+    // match (heroIds present) but hasn't finished post-game processing yet, so
+    // position/role/imp/award all come back null. Caching that for 7 days would mean
+    // the badges never appear once STRATZ does finish.
+    mockKv.get.mockResolvedValueOnce(null)
+    const rawPlayers = [
+      { heroId: 30, position: null, role: null, imp: null, award: null },
+      { heroId: 96, position: null, role: null, imp: null, award: null },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: rawPlayers } } }),
+    }))
+
+    const req = makeStratzReq({ id: '8924695153' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body.players).toEqual([])
+
+    const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
+    expect(write).toBeDefined()
+    expect(write[1]).toBe('MISS')
+    expect(write[2]).toEqual({ ex: THIRTY_MIN })
+  })
+
   it('never throws and returns empty players when STRATZ returns a malformed player element', async () => {
     mockKv.get.mockResolvedValueOnce(null)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
