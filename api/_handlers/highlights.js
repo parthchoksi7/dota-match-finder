@@ -18,6 +18,7 @@ const YT_CHANNEL_MAP = [
                                           channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
   { keywords: ['the international', 'riyadh masters', 'beyond the summit'],
                                           channelId: 'UCTQKT5QqO3h7y32G8VzuySQ', handle: '@dota2' },
+  { keywords: ['games of the future'],   channelId: 'UCSnzqrm0_rBtW8m-3VeFJWA', handle: '@GamesoftheFutureOfficial' },
 ]
 
 export default async function handleHighlights(req, res) {

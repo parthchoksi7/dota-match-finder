@@ -555,6 +555,7 @@ export const PERMANENT_TIER1_NAMES = [
   '1win Essence',
   'Esports World Cup',
   'EPL Masters',
+  'Games of the Future',
 ]
 
 // ── OpenDota league fuzzy-matching ───────────────────────────────────────────
