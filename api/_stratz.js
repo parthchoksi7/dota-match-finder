@@ -7,11 +7,15 @@
  * Match-level data is the only verified-working surface.
  */
 
+import { createLogger } from './_shared.js'
+
 const STRATZ_ENDPOINT = 'https://api.stratz.com/graphql'
 
 // `User-Agent: STRATZ_API` is mandatory on every request — verified Node's fetch
 // actually transmits it; some HTTP clients silently drop custom UAs.
 const STRATZ_USER_AGENT = 'STRATZ_API'
+
+const log = createLogger('/api/_stratz')
 
 const MATCH_ENRICHMENT_QUERY = `
   query MatchEnrichment($matchId: Long!) {
@@ -34,7 +38,10 @@ const MATCH_ENRICHMENT_QUERY = `
  */
 export async function fetchStratzMatchEnrichment(matchId) {
   const token = process.env.STRATZ_TOKEN
-  if (!token) return null
+  if (!token) {
+    log.warn('STRATZ_TOKEN not configured — enrichment disabled', { matchId })
+    return null
+  }
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
@@ -52,15 +59,25 @@ export async function fetchStratzMatchEnrichment(matchId) {
         variables: { matchId: Number(matchId) },
       }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      log.warn('STRATZ API error', { status: res.status, matchId })
+      return null
+    }
 
     const json = await res.json()
-    if (json?.errors) return null
+    if (json?.errors) {
+      log.warn('STRATZ GraphQL error', { errors: json.errors, matchId })
+      return null
+    }
 
     const players = json?.data?.match?.players
-    if (!Array.isArray(players) || players.length === 0) return null
+    if (!Array.isArray(players) || players.length === 0) {
+      log.warn('STRATZ returned no players', { matchId })
+      return null
+    }
     return players
-  } catch {
+  } catch (err) {
+    log.warn('STRATZ fetch failed', { error: err?.message, matchId })
     return null
   } finally {
     clearTimeout(timeout)
