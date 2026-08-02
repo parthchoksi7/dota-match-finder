@@ -3,10 +3,6 @@
     {
       "path": "/api/draft-posts",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/pipeline?type=trigger",
-      "schedule": "0 14 * * *"
     }
   ],
   "rewrites": [
