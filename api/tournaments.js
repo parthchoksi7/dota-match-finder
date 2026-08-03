@@ -2,30 +2,34 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { setCorsHeaders, buildPremiumLeagueIds, trackError, createLogger } from './_shared.js'
 
-import handleWatchability from './_handlers/watchability.js'
-import handleMatchStats from './_handlers/matchStats.js'
-import handleMatchStratz from './_handlers/matchStratz.js'
-import handleTournamentPlayers from './_handlers/tournamentPlayers.js'
-import handleMonitor from './_handlers/monitor.js'
-import handleCalendarTeam from './_handlers/calendarTeam.js'
-import handleCalendarAll from './_handlers/calendarAll.js'
-import handleCalendarTournament from './_handlers/calendarTournament.js'
-import handleSyncTeams from './_handlers/syncTeams.js'
-import handleTeamsList from './_handlers/teamsList.js'
-import handleTier1Leagues from './_handlers/tier1Leagues.js'
-import handleMatchEnrichment, { handleMatchFormats, handleMatchBrackets } from './_handlers/matchEnrichment.js'
-import handleHighlights from './_handlers/highlights.js'
-import handleLlmsData from './_handlers/llmsData.js'
-import handleMatchIndicators from './_handlers/matchIndicators.js'
-import handleHeroMatches from './_handlers/heroMatches.js'
-import handleSeriesList from './_handlers/seriesList.js'
-import handleRecentCompleted from './_handlers/recentCompleted.js'
-import handleLiveSeriesGames from './_handlers/liveSeriesGames.js'
-import handleLiveOdCapture from './_handlers/liveOdCapture.js'
-import handleLiveGamePulse from './_handlers/liveGamePulse.js'
-
 import { kv } from './_kv.js'
 import { fetchTournamentList, fetchTournamentStatuses, KV_LIST_KEY, KV_STATUS_KEY } from './_handlers/_tournamentUtils.js'
+
+// Handler modules below are dynamic-imported per mode, not statically imported at the top of this
+// file (2026-08-02, Fluid Active CPU budget fix — see CONTEXT.md / the memory note on the Vercel
+// free-plan CPU cap). This file is a single router for ~24 query-param "modes"; before this
+// change every one of them (plus their transitive deps — getSupabaseAdmin/@supabase/supabase-js,
+// STRATZ/Liquipedia clients, etc.) was imported eagerly on EVERY request regardless of which mode
+// was actually hit, so a cheap call like ?mode=hero-matches paid to load the Supabase SDK and
+// every other handler's dependencies too. Runtime logs showed this endpoint dominating invocation
+// volume in tight concurrent bursts (many modes fetched in parallel on a single page mount, plus
+// SeriesLivePulse's 20s poll), with a meaningful fraction of those bursts being literal cold
+// starts — so the eager-import cost was being paid disproportionately often.
+//
+// Each `import('./_handlers/x.js')` below uses a static string literal specifically so Vercel's
+// build-time file tracing (`@vercel/nft`) can still discover and bundle these files into the
+// deployed function — a computed/templated specifier would NOT be traced and would 404 at
+// runtime. Verified locally with `vercel build` (see the git history around this change) that all
+// _handlers/*.js files are present in the built function's file list. Node's ESM loader caches a
+// module after its first import within a given warm container, so repeat hits to the same mode (or
+// to a different mode that happens to share a dependency) on a warm instance don't re-pay the
+// import cost — the win is specifically on cold starts and on modes that were never eagerly needed.
+//
+// kv/_shared/_tournamentUtils stay statically imported above: kv and _shared's createLogger/
+// setCorsHeaders are used unconditionally on every request path (including the default
+// TournamentHub branch at the bottom), and _tournamentUtils is that default branch's own direct
+// dependency — deferring either would only add an import() await to the hottest, always-taken path
+// for no benefit.
 
 export default async function handler(req, res) {
   const log = createLogger('/api/tournaments')
@@ -34,31 +38,50 @@ export default async function handler(req, res) {
   // Watchability scoring (POST, no PANDASCORE_TOKEN needed)
   if (req.method === 'POST' && req.query?.mode === 'watchability') {
     res.setHeader('Cache-Control', 'private, no-store')
+    const { default: handleWatchability } = await import('./_handlers/watchability.js')
     return handleWatchability(req, res)
   }
 
   // ── match-stats mode ────────────────────────────────────────────────────────
   // Placed before PANDASCORE_TOKEN check — only calls OpenDota, not PandaScore.
-  if (req.query?.mode === 'match-stats') return handleMatchStats(req, res)
+  if (req.query?.mode === 'match-stats') {
+    const { default: handleMatchStats } = await import('./_handlers/matchStats.js')
+    return handleMatchStats(req, res)
+  }
 
   // ── match-stratz mode ───────────────────────────────────────────────────────
   // Placed before PANDASCORE_TOKEN check — calls STRATZ, not PandaScore. Separate from
   // match-stats above: STRATZ enrichment (position/role/imp/award) is fetched by the
   // client in parallel, never blocking the OD stats path — see matchStratz.js.
-  if (req.query?.mode === 'match-stratz') return handleMatchStratz(req, res)
+  if (req.query?.mode === 'match-stratz') {
+    const { default: handleMatchStratz } = await import('./_handlers/matchStratz.js')
+    return handleMatchStratz(req, res)
+  }
 
   // ── tournament-players mode ─────────────────────────────────────────────────
   // Placed before PANDASCORE_TOKEN check — only calls OpenDota, not PandaScore.
-  if (req.query?.mode === 'tournament-players') return handleTournamentPlayers(req, res)
+  if (req.query?.mode === 'tournament-players') {
+    const { default: handleTournamentPlayers } = await import('./_handlers/tournamentPlayers.js')
+    return handleTournamentPlayers(req, res)
+  }
 
   // ── monitor mode ────────────────────────────────────────────────────────────
-  if (req.query?.mode === 'monitor') return handleMonitor(req, res)
+  if (req.query?.mode === 'monitor') {
+    const { default: handleMonitor } = await import('./_handlers/monitor.js')
+    return handleMonitor(req, res)
+  }
 
   // ── match-indicators mode ───────────────────────────────────────────────────
-  if (req.query?.mode === 'match-indicators') return handleMatchIndicators(req, res)
+  if (req.query?.mode === 'match-indicators') {
+    const { default: handleMatchIndicators } = await import('./_handlers/matchIndicators.js')
+    return handleMatchIndicators(req, res)
+  }
 
   // ── hero-matches mode ───────────────────────────────────────────────────────
-  if (req.query?.mode === 'hero-matches') return handleHeroMatches(req, res)
+  if (req.query?.mode === 'hero-matches') {
+    const { default: handleHeroMatches } = await import('./_handlers/heroMatches.js')
+    return handleHeroMatches(req, res)
+  }
 
   // ── premium-league-ids mode ─────────────────────────────────────────────────
   // Proxy for OpenDota /api/leagues — returns premium league IDs to avoid client-side CORS errors.
@@ -93,7 +116,10 @@ export default async function handler(req, res) {
   // write trigger — no PandaScore token needed, throttled by its own KV lock. Placed
   // before the PANDASCORE_TOKEN check and the shared s-maxage cache header (it sets its
   // own no-store).
-  if (req.query?.mode === 'od-live-capture') return handleLiveOdCapture(req, res)
+  if (req.query?.mode === 'od-live-capture') {
+    const { default: handleLiveOdCapture } = await import('./_handlers/liveOdCapture.js')
+    return handleLiveOdCapture(req, res)
+  }
 
   // ── promatches-proxy mode ───────────────────────────────────────────────────
   // Proxy for OpenDota /api/promatches — avoids client-side CORS restrictions.
@@ -115,49 +141,94 @@ export default async function handler(req, res) {
   if (!token) return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
 
   // ── calendar-team mode ──────────────────────────────────────────────────────
-  if (req.query?.mode === 'calendar-team') return handleCalendarTeam(req, res)
+  if (req.query?.mode === 'calendar-team') {
+    const { default: handleCalendarTeam } = await import('./_handlers/calendarTeam.js')
+    return handleCalendarTeam(req, res)
+  }
 
   // ── calendar-all mode ───────────────────────────────────────────────────────
-  if (req.query?.mode === 'calendar-all') return handleCalendarAll(req, res)
+  if (req.query?.mode === 'calendar-all') {
+    const { default: handleCalendarAll } = await import('./_handlers/calendarAll.js')
+    return handleCalendarAll(req, res)
+  }
 
   // ── calendar-tournament mode ────────────────────────────────────────────────
-  if (req.query?.mode === 'calendar-tournament') return handleCalendarTournament(req, res)
+  if (req.query?.mode === 'calendar-tournament') {
+    const { default: handleCalendarTournament } = await import('./_handlers/calendarTournament.js')
+    return handleCalendarTournament(req, res)
+  }
 
   // ── sync-teams mode ─────────────────────────────────────────────────────────
-  if (req.query?.mode === 'sync-teams') return handleSyncTeams(req, res)
+  if (req.query?.mode === 'sync-teams') {
+    const { default: handleSyncTeams } = await import('./_handlers/syncTeams.js')
+    return handleSyncTeams(req, res)
+  }
 
   // ── teams mode ───────────────────────────────────────────────────────────────
-  if (req.query?.mode === 'teams') return handleTeamsList(req, res)
+  if (req.query?.mode === 'teams') {
+    const { default: handleTeamsList } = await import('./_handlers/teamsList.js')
+    return handleTeamsList(req, res)
+  }
 
   // ── tier1-leagues mode ──────────────────────────────────────────────────────
-  if (req.query?.mode === 'tier1-leagues') return handleTier1Leagues(req, res)
+  if (req.query?.mode === 'tier1-leagues') {
+    const { default: handleTier1Leagues } = await import('./_handlers/tier1Leagues.js')
+    return handleTier1Leagues(req, res)
+  }
 
   // ── match-enrichment mode ───────────────────────────────────────────────────
-  if (req.query?.mode === 'match-enrichment') return handleMatchEnrichment(req, res)
+  if (req.query?.mode === 'match-enrichment') {
+    const { default: handleMatchEnrichment } = await import('./_handlers/matchEnrichment.js')
+    return handleMatchEnrichment(req, res)
+  }
 
   // ── match-formats mode ──────────────────────────────────────────────────────
-  if (req.query?.mode === 'match-formats') return handleMatchFormats(req, res)
+  if (req.query?.mode === 'match-formats') {
+    const { handleMatchFormats } = await import('./_handlers/matchEnrichment.js')
+    return handleMatchFormats(req, res)
+  }
 
   // ── match-brackets mode ─────────────────────────────────────────────────────
-  if (req.query?.mode === 'match-brackets') return handleMatchBrackets(req, res)
+  if (req.query?.mode === 'match-brackets') {
+    const { handleMatchBrackets } = await import('./_handlers/matchEnrichment.js')
+    return handleMatchBrackets(req, res)
+  }
 
   // ── recent-completed mode ───────────────────────────────────────────────────
-  if (req.query?.mode === 'recent-completed') return handleRecentCompleted(req, res)
+  if (req.query?.mode === 'recent-completed') {
+    const { default: handleRecentCompleted } = await import('./_handlers/recentCompleted.js')
+    return handleRecentCompleted(req, res)
+  }
 
   // ── live-series-games mode ──────────────────────────────────────────────────
-  if (req.query?.mode === 'live-series-games') return handleLiveSeriesGames(req, res)
+  if (req.query?.mode === 'live-series-games') {
+    const { default: handleLiveSeriesGames } = await import('./_handlers/liveSeriesGames.js')
+    return handleLiveSeriesGames(req, res)
+  }
 
   // ── live-game-pulse mode (Phase 2) ──────────────────────────────────────────
-  if (req.query?.mode === 'live-game-pulse') return handleLiveGamePulse(req, res)
+  if (req.query?.mode === 'live-game-pulse') {
+    const { default: handleLiveGamePulse } = await import('./_handlers/liveGamePulse.js')
+    return handleLiveGamePulse(req, res)
+  }
 
   // ── series mode ─────────────────────────────────────────────────────────────
-  if (req.query?.mode === 'series') return handleSeriesList(req, res)
+  if (req.query?.mode === 'series') {
+    const { default: handleSeriesList } = await import('./_handlers/seriesList.js')
+    return handleSeriesList(req, res)
+  }
 
   // ── highlights mode ─────────────────────────────────────────────────────────
-  if (req.query?.mode === 'highlights') return handleHighlights(req, res)
+  if (req.query?.mode === 'highlights') {
+    const { default: handleHighlights } = await import('./_handlers/highlights.js')
+    return handleHighlights(req, res)
+  }
 
   // ── llms-data mode ──────────────────────────────────────────────────────────
-  if (req.query?.mode === 'llms-data') return handleLlmsData(req, res)
+  if (req.query?.mode === 'llms-data') {
+    const { default: handleLlmsData } = await import('./_handlers/llmsData.js')
+    return handleLlmsData(req, res)
+  }
 
   // Default: TournamentHub sub-stages
   if (req.query?.bust === '1') {

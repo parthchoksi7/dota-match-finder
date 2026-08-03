@@ -15,14 +15,18 @@ import { createLogger } from '../_shared.js'
 // `stream:match:`). Correlation to a PandaScore game happens later, at resolve time,
 // via findOdMatchByTime() — not here.
 //
-// Trigger: the live-sheet pulse (SeriesLivePulse) fires this every 20s while a live series is
-// open, and App.jsx's ambient 2-min live poll fires it too (both 0 QStash cost); a */15 QStash
-// backstop covers no-user windows. The KV lock below is the real cadence control and doubles as
-// abuse protection: however many callers hit this, at most one OpenDota /live fetch runs per
-// LOCK_TTL_S. So the EFFECTIVE cadence is ~LOCK_TTL_S while any live sheet is open (the 20s pulse
-// out-paces the lock), and ~2 min when only the ambient poll triggers it (that poll's own rate is
-// then the floor, below the lock). The endpoint is intentionally unauthenticated
-// (idempotent, throttled, no user input, no sensitive data) — like promatches-proxy.
+// Trigger: App.jsx's ambient 2-min live poll fires `?mode=od-live-capture` directly (0 QStash
+// cost); a */15 QStash backstop covers no-user windows. The live-sheet pulse (SeriesLivePulse)
+// used to fire this same endpoint separately every 20s too — as of 2026-08-02 that call is folded
+// into `?mode=live-game-pulse` itself (liveGamePulse.js calls the exported captureOdLiveOnce()
+// below as its own first step, on a pulse-cache miss) so the 20s poll costs one serverless
+// invocation instead of two; see the CPU-budget note in CONTEXT.md's live-game-map section. The KV
+// lock below is the real cadence control and doubles as abuse protection: however many callers hit
+// this, at most one OpenDota /live fetch runs per LOCK_TTL_S. So the EFFECTIVE cadence is
+// ~LOCK_TTL_S while any live sheet is open (the 20s pulse out-paces the lock), and ~2 min when only
+// the ambient poll triggers it (that poll's own rate is then the floor, below the lock). The
+// endpoint is intentionally unauthenticated (idempotent, throttled, no user input, no sensitive
+// data) — like promatches-proxy.
 //
 // Phase 2 addition: also captures each side's live hero picks (players[].hero_id, split by
 // players[].team) so the resolver can serve a "live pulse" (gold lead/score/draft) for the
@@ -137,27 +141,32 @@ export function toGoldRows(rows) {
     }))
 }
 
-export default async function handleLiveOdCapture(req, res) {
-  const log = createLogger('/api/tournaments?mode=od-live-capture')
-  res.setHeader('Cache-Control', 'private, no-store')
-
+// Core capture logic, independent of the HTTP request/response — extracted (2026-08-02) so
+// handleLiveGamePulse can run this same throttled capture as its own first step (folding what
+// used to be SeriesLivePulse.jsx's separate `?mode=od-live-capture` fetch into the pulse request
+// itself, cutting the 20s live-sheet poll from two serverless invocations to one). Never throws —
+// every path resolves to a plain result object, same contract the old inline handler body had.
+// `log` is caller-provided so log lines stay attributed to whichever endpoint actually triggered
+// the run (`/api/tournaments?mode=od-live-capture` for the standalone caller, `?mode=live-game-pulse`
+// for the folded-in one) instead of always reading as the capture endpoint.
+export async function captureOdLiveOnce(log) {
   try {
     // Global throttle: the first caller in the LOCK_TTL_S window runs the fetch; concurrent
     // tabs and the */15 backstop early-exit on a single KV GET. Deliberately never
     // released — the TTL expiring is what permits the next run.
     const gotLock = await kv.set(LOCK_KEY, Date.now(), { nx: true, ex: LOCK_TTL_S })
-    if (!gotLock) return res.status(200).json({ ok: true, skipped: 'throttled' })
+    if (!gotLock) return { ok: true, skipped: 'throttled' }
 
     const odRes = await fetch(OD_LIVE_URL)
     if (!odRes.ok) {
       log.warn('OD /live fetch failed', { status: odRes.status })
-      return res.status(200).json({ ok: false, error: 'od_live_fetch_failed' })
+      return { ok: false, error: 'od_live_fetch_failed' }
     }
     const games = await odRes.json()
-    if (!Array.isArray(games)) return res.status(200).json({ ok: true, captured: 0 })
+    if (!Array.isArray(games)) return { ok: true, captured: 0 }
 
     const rows = mapLiveGamesToRows(games, new Date().toISOString())
-    if (rows.length === 0) return res.status(200).json({ ok: true, captured: 0 })
+    if (rows.length === 0) return { ok: true, captured: 0 }
 
     // Upsert on od_match_id: refresh the transient telemetry + captured_at each run while
     // the identity/team/time mapping stays stable. first_seen_at is omitted from the
@@ -168,7 +177,7 @@ export default async function handleLiveOdCapture(req, res) {
 
     if (error) {
       log.warn('live_game_map upsert failed', { error: error.message })
-      return res.status(200).json({ ok: false, error: 'upsert_failed' })
+      return { ok: false, error: 'upsert_failed' }
     }
 
     log.info('captured', { count: rows.length })
@@ -194,11 +203,18 @@ export default async function handleLiveOdCapture(req, res) {
       log.warn('live_game_gold append threw', { error: goldErr?.message })
     }
 
-    return res.status(200).json({ ok: true, captured: rows.length })
+    return { ok: true, captured: rows.length }
   } catch (err) {
     // Fail open — this is a best-effort background capture; never surface a 500 to the
     // client poll that triggers it.
     log.warn('handler failed', { error: err?.message })
-    return res.status(200).json({ ok: false, error: err?.message })
+    return { ok: false, error: err?.message }
   }
+}
+
+export default async function handleLiveOdCapture(req, res) {
+  const log = createLogger('/api/tournaments?mode=od-live-capture')
+  res.setHeader('Cache-Control', 'private, no-store')
+  const result = await captureOdLiveOnce(log)
+  return res.status(200).json(result)
 }

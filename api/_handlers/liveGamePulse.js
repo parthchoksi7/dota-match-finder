@@ -4,6 +4,7 @@ import { createLogger, validateId, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S } f
 import { fetchPsMatchDetail, beginAtToUnix, shapeLiveGameMapRows } from './liveSeriesGames.js'
 import { decodeBuildingState } from '../_buildingState.js'
 import { resolveRadiantSide } from '../../src/teamMatching.js'
+import { captureOdLiveOnce } from './liveOdCapture.js'
 
 // Phase 2 — live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
 // game to its OpenDota telemetry (gold lead, kill score, live draft) via live_game_map — the
@@ -179,6 +180,20 @@ export default async function handleLiveGamePulse(req, res) {
   } catch (err) {
     log.warn('pulse cache read failed', { pandaId, error: err?.message })
   }
+
+  // Nudge the OD /live capture before resolving, same as SeriesLivePulse.jsx's 20s poll used to
+  // do via its own separate `?mode=od-live-capture` fetch (removed 2026-08-02) — folded in here so
+  // that hot path costs one serverless invocation per tick instead of two. Only runs on a pulse-
+  // cache miss: the capture itself is independently throttled to ~1/60s by its own KV lock
+  // (LOCK_TTL_S in liveOdCapture.js) regardless of caller count, so skipping the attempt on a
+  // cache hit (another viewer of the same series resolved within the last PULSE_CACHE_TTL_S)
+  // never changes the actual OD-fetch cadence, only avoids a redundant lock-check round trip. Own
+  // logger (not this handler's `log`) so capture log lines stay attributed to the capture endpoint,
+  // matching what they read as when triggered by the standalone `?mode=od-live-capture` caller.
+  // captureOdLiveOnce never throws (fully fail-open internally) — the .catch() here is defensive
+  // only, matching this file's existing "own try/catch, never let a side-effect block the pulse"
+  // convention (see the live_game_gold history read below).
+  await captureOdLiveOnce(createLogger('/api/tournaments?mode=od-live-capture')).catch(() => {})
 
   const result = await resolvePulse(pandaId, isOwner, log)
 
