@@ -95,7 +95,7 @@ const TI_EDITIONS_SSR = [
   { edition: 11, year: 2022, location: 'Singapore', champion: 'Tundra Esports', runnerUp: 'Team Secret', prizePool: '$18.86M' },
   { edition: 12, year: 2023, location: 'Seattle, USA', champion: 'Team Spirit', runnerUp: 'Gaimin Gladiators', prizePool: '$3.32M' },
   { edition: 13, year: 2024, location: 'Copenhagen, Denmark', champion: 'Team Liquid', runnerUp: null, prizePool: null },
-  { edition: 14, year: 2025, location: null, champion: 'Team Falcons', runnerUp: 'Xtreme Gaming', prizePool: null },
+  { edition: 14, year: 2025, location: 'Hamburg, Germany', champion: 'Team Falcons', runnerUp: 'Xtreme Gaming', prizePool: null },
 ]
 
 // Glossary term definitions (kept inline — edge middleware cannot import from src/)
@@ -407,14 +407,16 @@ async function handleTournaments(url) {
   const completedHtml = seriesListHtml(completed, 'Recently Completed')
   const hasDynamic = ongoing.length || upcoming.length || completed.length
 
-  // JSON-LD: inject live SportsEvent nodes for ongoing tournaments
-  const sportsEvents = ongoing.map(s => ({
+  // JSON-LD: inject live SportsEvent nodes for ongoing tournaments (Google requires startDate, so skip series without one)
+  const sportsEvents = ongoing.filter(s => s.beginAt).map(s => ({
     '@type': 'SportsEvent',
     'name': s.seoName || s.name,
     'sport': 'Dota 2',
-    'startDate': s.beginAt || undefined,
+    'startDate': s.beginAt,
     'endDate': s.endAt || undefined,
     'url': tournamentPathMw(s),
+    'location': { '@type': 'VirtualLocation', 'url': tournamentPathMw(s) },
+    'eventAttendanceMode': 'https://schema.org/OnlineEventAttendanceMode',
     'organizer': { '@type': 'Organization', 'name': s.leagueName || 'Spectate Esports' },
   }))
 
@@ -869,49 +871,52 @@ export async function handleMatch(url) {
         { '@type': 'SportsTeam', 'name': radiantTeam },
         { '@type': 'SportsTeam', 'name': direTeam },
       ]
+      // Google requires startDate + location on SportsEvent, so only emit the node when start_time is known
+      const matchSportsEvent = data.start_time ? {
+        '@type': 'SportsEvent',
+        '@id': `${canonical}#event`,
+        'name': `${radiantTeam} vs ${direTeam}`,
+        'url': canonical,
+        'sport': 'Dota 2',
+        'description': description,
+        'eventStatus': 'https://schema.org/EventCompleted',
+        'eventAttendanceMode': 'https://schema.org/OnlineEventAttendanceMode',
+        'startDate': new Date(data.start_time * 1000).toISOString(),
+        'location': { '@type': 'VirtualLocation', 'url': canonical },
+        'image': imageUrl,
+        ...(league ? {
+          'organizer': {
+            '@type': 'SportsOrganization',
+            'name': league,
+            'sport': 'Dota 2',
+            'url': BASE_URL,
+          },
+        } : {}),
+        'competitor': matchCompetitors,
+        'performer': matchCompetitors,
+        ...(data.radiant_win != null ? {
+          'winner': { '@type': 'SportsTeam', 'name': winner },
+        } : {}),
+        'offers': {
+          '@type': 'Offer',
+          'name': 'Free to watch',
+          'price': 0,
+          'priceCurrency': 'USD',
+          'availability': 'https://schema.org/InStock',
+          'url': canonical,
+          'validFrom': new Date(data.start_time * 1000).toISOString(),
+        },
+        'potentialAction': {
+          '@type': 'WatchAction',
+          'target': canonical,
+          'actionStatus': 'https://schema.org/PotentialActionStatus',
+        },
+      } : null
+
       jsonLd = {
         '@context': 'https://schema.org',
         '@graph': [
-          {
-            '@type': 'SportsEvent',
-            '@id': `${canonical}#event`,
-            'name': `${radiantTeam} vs ${direTeam}`,
-            'url': canonical,
-            'sport': 'Dota 2',
-            'description': description,
-            'eventStatus': 'https://schema.org/EventCompleted',
-            'eventAttendanceMode': 'https://schema.org/OnlineEventAttendanceMode',
-            ...(data.start_time ? { 'startDate': new Date(data.start_time * 1000).toISOString() } : {}),
-            'location': { '@type': 'VirtualLocation', 'url': canonical },
-            'image': imageUrl,
-            ...(league ? {
-              'organizer': {
-                '@type': 'SportsOrganization',
-                'name': league,
-                'sport': 'Dota 2',
-                'url': BASE_URL,
-              },
-            } : {}),
-            'competitor': matchCompetitors,
-            'performer': matchCompetitors,
-            ...(data.radiant_win != null ? {
-              'winner': { '@type': 'SportsTeam', 'name': winner },
-            } : {}),
-            'offers': {
-              '@type': 'Offer',
-              'name': 'Free to watch',
-              'price': 0,
-              'priceCurrency': 'USD',
-              'availability': 'https://schema.org/InStock',
-              'url': canonical,
-              ...(data.start_time ? { 'validFrom': new Date(data.start_time * 1000).toISOString() } : {}),
-            },
-            'potentialAction': {
-              '@type': 'WatchAction',
-              'target': canonical,
-              'actionStatus': 'https://schema.org/PotentialActionStatus',
-            },
-          },
+          ...(matchSportsEvent ? [matchSportsEvent] : []),
           {
             '@type': 'WebPage',
             '@id': `${canonical}#webpage`,
@@ -1272,7 +1277,7 @@ async function handleArticles(url) {
         'description': description,
         'url': canonical,
         'isPartOf': { '@id': `${BASE_URL}/#website` },
-        'about': { '@type': 'SportsEvent', 'name': 'BLAST Slam VII', 'sport': 'Dota 2' },
+        'about': { '@type': 'Thing', 'name': 'BLAST Slam VII' },
         'breadcrumb': breadcrumb([{ name: 'Articles', url: `${BASE_URL}/articles` }]),
       },
     ],
@@ -1344,9 +1349,8 @@ async function handleArticleDetail(url) {
           'url': BASE_URL,
         },
         'about': {
-          '@type': 'SportsEvent',
+          '@type': 'Thing',
           'name': article.tournamentLabel,
-          'sport': 'Dota 2',
         },
         'isPartOf': { '@id': `${BASE_URL}/#website` },
       },
@@ -1621,13 +1625,13 @@ async function handleTIHub(url) {
     return `<li style="margin-bottom:6px"><strong>TI${ti.edition} ${ti.year}${location}:</strong> ${escapeHtml(ti.champion)}${runnerUp}${prize}</li>`
   }).join('')
 
-  // SportsEvent JSON-LD for each TI edition
-  const tiEvents = TI_EDITIONS_SSR.map(ti => ({
+  // SportsEvent JSON-LD for each TI edition (Google requires startDate + location, so skip editions missing either)
+  const tiEvents = TI_EDITIONS_SSR.filter(ti => ti.location).map(ti => ({
     '@type': 'SportsEvent',
     'name': `The International ${ti.year} (TI${ti.edition})`,
     'sport': 'Dota 2',
     'startDate': `${ti.year}`,
-    'location': ti.location ? { '@type': 'Place', 'name': ti.location } : undefined,
+    'location': { '@type': 'Place', 'name': ti.location },
     'winner': { '@type': 'SportsTeam', 'name': ti.champion, 'sport': 'Dota 2' },
     'url': canonical,
     'organizer': { '@type': 'Organization', 'name': 'Valve Corporation' },
