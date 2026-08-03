@@ -41,6 +41,13 @@ export function shapeGoldHistory(rows) {
   const byTime = new Map()
   for (const r of rows) {
     if (!r || r.game_time == null || r.game_time < 0 || r.radiant_lead == null) continue
+    // Stale-snapshot guard: OD's /live occasionally returns a momentarily zeroed snapshot
+    // (0-0 kills, 0 lead) for a match right as it first appears in the feed, before real
+    // telemetry populates. Captured raw (toGoldRows doesn't filter), it otherwise survives
+    // forever as a false "Even" point once the real game is well past the opening horn —
+    // seen live 2026-08-03 on od_match_id 8927380776 (bogus zero rows at 2:00/4:00/6:00
+    // sitting next to real captures showing a real ~500g lead at the same game time).
+    if (r.game_time > 60 && r.radiant_lead === 0 && r.radiant_score === 0 && r.dire_score === 0) continue
     const existing = byTime.get(r.game_time)
     if (!existing || (r.captured_at || '') > (existing.captured_at || '')) byTime.set(r.game_time, r)
   }

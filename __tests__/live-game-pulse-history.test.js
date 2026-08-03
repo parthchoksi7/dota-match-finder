@@ -46,6 +46,32 @@ describe('shapeGoldHistory — filtering', () => {
     expect(shapeGoldHistory(undefined)).toEqual([])
   })
 
+  it('drops a stale zero-lead/0-0-score snapshot past the opening horn (bad OD /live capture)', () => {
+    const bad = row({ game_time: 120, radiant_lead: 0, radiant_score: 0, dire_score: 0 })
+    expect(shapeGoldHistory([bad])).toEqual([])
+  })
+
+  it('keeps a genuine 0-0 snapshot at/near the horn (game_time <= 60)', () => {
+    const early = row({ game_time: 30, radiant_lead: 0, radiant_score: 0, dire_score: 0 })
+    const [point] = shapeGoldHistory([early])
+    expect(point.t).toBe(30)
+    expect(point.lead).toBe(0)
+  })
+
+  it('keeps a real zero-lead point past the horn as long as kills have happened', () => {
+    const real = row({ game_time: 600, radiant_lead: 0, radiant_score: 4, dire_score: 3 })
+    const [point] = shapeGoldHistory([real])
+    expect(point.t).toBe(600)
+  })
+
+  it('does not let a bad zero snapshot mask a real capture at a different game_time', () => {
+    const bad = row({ game_time: 120, radiant_lead: 0, radiant_score: 0, dire_score: 0 })
+    const real = row({ game_time: 110, radiant_lead: 531, radiant_score: 1, dire_score: 0 })
+    const result = shapeGoldHistory([bad, real])
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({ t: 110, lead: 531, rk: 1, dk: 0 })
+  })
+
   it('drops falsy entries without throwing', () => {
     expect(shapeGoldHistory([null, undefined, row()])).toHaveLength(1)
   })
