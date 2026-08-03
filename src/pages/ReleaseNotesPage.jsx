@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "August 3, 2026",
+    tag: "new",
+    title: "Live game clock on the homepage",
+    desc: "Live match rows now show how far into the current game play is, in whole minutes (e.g. \"12m\"), right next to the G1/G2/... indicator.",
+  },
+  {
+    date: "August 3, 2026",
     tag: "fix",
     title: "Live net-worth graph no longer shows a false \"Even\" dip early in a game",
     desc: "The live net-worth graph could briefly show a live game as dead even a few minutes in, even when one team already had a real gold lead. That came from an occasional bad data point right as a match first went live. Those bad points are now filtered out, so the graph reflects the real net worth throughout.",

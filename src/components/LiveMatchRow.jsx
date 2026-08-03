@@ -138,6 +138,12 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
                   <span className="font-bold text-red-500">G{match.currentGame}</span>
                 </>
               )}
+              {match.currentGame && Number.isFinite(match.gameTime) && match.gameTime >= 0 && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-700">·</span>
+                  <span className="text-gray-500 dark:text-gray-500">{Math.round(match.gameTime / 60)}m</span>
+                </>
+              )}
               {/* "the next visible thing" is always either bracketRound or the badge, on every
                   viewport (see the mobile-yield rule below), so this separator never needs its
                   own breakpoint class. */}

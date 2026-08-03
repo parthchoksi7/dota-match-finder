@@ -1104,6 +1104,21 @@ export default async function handler(req, res) {
       log.warn('live-signal enrichment failed', { error: err?.message })
     }
 
+    // In-game clock (elapsed minutes) for the homepage row — same batched pulse read as the
+    // signal block above (reusing resolveRunningPulses, not a second PS↔OD matcher), isolated in
+    // its own try/catch so a failure here never affects the primary matches payload. Not
+    // owner-gated: unlike `.signal`, an elapsed-minutes clock carries no score/outcome
+    // information, so it's fine for spoiler-free/public viewers too.
+    try {
+      const pulses = await resolveRunningPulses(tier1Raw, log)
+      matches.forEach(m => {
+        const hit = pulses.get(m.id)
+        if (hit && Number.isFinite(hit.pulse.gameTime)) m.gameTime = hit.pulse.gameTime
+      })
+    } catch (err) {
+      log.warn('game-time enrichment failed', { error: err?.message })
+    }
+
     const payload = { matches, fetchedAt: new Date().toISOString() }
 
     try {
