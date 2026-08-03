@@ -1,4 +1,3 @@
-import webpush from 'web-push'
 import { createHmac } from 'crypto'
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
@@ -28,16 +27,32 @@ const REPLAY_DEDUP_TTL = 7 * 24 * 3600 // 7 days — a series binds once; guards
 // up to 60s. See pending-refactors for batching the per-subscriber KV reads (mget).
 export const config = { maxDuration: 30 }
 
-if (process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:admin@spectateesports.live',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  )
-}
-
 import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp, resolveFollowedTeamName, sendGa4Event, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S, isFeatureEnabled } from './_shared.js'
 import { shapeLiveGameMapRows, beginAtToUnix } from './_handlers/liveSeriesGames.js'
+
+// web-push is dynamic-imported and configured lazily, only from ensureWebpush() below — not
+// eagerly at module scope. Same rationale as _shared.js's lazy Sentry init (2026-08-03, Fluid
+// Active CPU budget): this is the 2nd-highest-hit endpoint in the api surface, and the vast
+// majority of its requests are plain cached reads (the homepage's 2-min ambient poll) that never
+// reach dispatchPush()/webpush.sendNotification() at all — that only fires from the cron/
+// warm-streams paths below and the push-test mode. Importing `web-push` eagerly meant every cold
+// start paid its import+setVapidDetails cost even on requests that never send a notification.
+let _webpushPromise = null
+function ensureWebpush() {
+  if (!_webpushPromise) {
+    _webpushPromise = import('web-push').then(({ default: webpush }) => {
+      if (process.env.VAPID_PRIVATE_KEY) {
+        webpush.setVapidDetails(
+          process.env.VAPID_SUBJECT || 'mailto:admin@spectateesports.live',
+          process.env.VAPID_PUBLIC_KEY,
+          process.env.VAPID_PRIVATE_KEY
+        )
+      }
+      return webpush
+    })
+  }
+  return _webpushPromise
+}
 
 
 
@@ -366,6 +381,10 @@ async function dispatchPush(match, { type, dedupPrefix, dedupTtl, payloadOpts })
   teamLists.forEach(ids => { if (Array.isArray(ids)) ids.forEach(id => userIds.add(id)) })
   if (userIds.size === 0) return 0
 
+  // Fired now (not awaited yet) so the web-push import overlaps the KV reads below instead of
+  // adding sequential latency — resolved just before it's actually needed, at the forEach loop.
+  const webpushPromise = ensureWebpush()
+
   const ids = [...userIds]
   const [sentVals, subVals, prefVals] = await Promise.all([
     kv.mget(...ids.map(id => `${dedupPrefix}:${match.id}:${id}`)).catch(() => []),
@@ -373,6 +392,7 @@ async function dispatchPush(match, { type, dedupPrefix, dedupTtl, payloadOpts })
     kv.mget(...ids.map(id => `push:prefs:${id}`)).catch(() => []),
   ])
 
+  const webpush = await webpushPromise
   const payload = JSON.stringify(buildPushPayload(type, match, payloadOpts))
   const now = Date.now()
   const ops = []
@@ -772,6 +792,7 @@ export default async function handler(req, res) {
     const allowed = await rateLimitByIp(req, kv, 'push-test', 3)
     if (!allowed) return res.status(429).json({ error: 'Too many test notifications. Try again in a minute.' })
     try {
+      const webpush = await ensureWebpush()
       await webpush.sendNotification(subscription, JSON.stringify({
         title: 'Notifications are on',
         body: "You'll get an alert before your teams play",
