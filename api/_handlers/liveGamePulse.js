@@ -14,8 +14,8 @@ import { captureOdLiveOnce } from './liveOdCapture.js'
 
 // Concurrency cache for the WHOLE resolved payload (correlation + both Supabase reads), same
 // purpose and TTL as fetchPsMatchDetail's PS_MATCH_DETAIL_CACHE_TTL_S: many viewers can have the
-// same live series open, each self-polling every 20s — without this, a popular series fans out to
-// one full resolve (PS fetch + 1-2 Supabase queries) per viewer per poll. 15s < the 20s poll
+// same live series open, each self-polling every 40s — without this, a popular series fans out to
+// one full resolve (PS fetch + 1-2 Supabase queries) per viewer per poll. 15s < the 40s poll
 // interval, so a single returning client always forces a fresh resolve; only genuinely concurrent
 // callers within the same window get collapsed. The {pulse: null} "nothing live" result is cached
 // too, for the same reason — a series with no running game shouldn't hammer the resolver either.

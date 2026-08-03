@@ -19,14 +19,15 @@ import { createLogger } from '../_shared.js'
 // cost); a */15 QStash backstop covers no-user windows. The live-sheet pulse (SeriesLivePulse)
 // used to fire this same endpoint separately every 20s too — as of 2026-08-02 that call is folded
 // into `?mode=live-game-pulse` itself (liveGamePulse.js calls the exported captureOdLiveOnce()
-// below as its own first step, on a pulse-cache miss) so the 20s poll costs one serverless
-// invocation instead of two; see the CPU-budget note in CONTEXT.md's live-game-map section. The KV
-// lock below is the real cadence control and doubles as abuse protection: however many callers hit
-// this, at most one OpenDota /live fetch runs per LOCK_TTL_S. So the EFFECTIVE cadence is
-// ~LOCK_TTL_S while any live sheet is open (the 20s pulse out-paces the lock), and ~2 min when only
-// the ambient poll triggers it (that poll's own rate is then the floor, below the lock). The
-// endpoint is intentionally unauthenticated (idempotent, throttled, no user input, no sensitive
-// data) — like promatches-proxy.
+// below as its own first step, on a pulse-cache miss) so the poll costs one serverless invocation
+// instead of two; see the CPU-budget note in CONTEXT.md's live-game-map section. That poll interval
+// was also widened 20s → 40s the same day, a second, independent invocation-count cut. The KV lock
+// below is the real cadence control and doubles as abuse protection: however many callers hit this,
+// at most one OpenDota /live fetch runs per LOCK_TTL_S. So the EFFECTIVE cadence is ~LOCK_TTL_S
+// while any live sheet is open (the 40s pulse out-paces the lock), and ~2 min when only the ambient
+// poll triggers it (that poll's own rate is then the floor, below the lock). The endpoint is
+// intentionally unauthenticated (idempotent, throttled, no user input, no sensitive data) — like
+// promatches-proxy.
 //
 // Phase 2 addition: also captures each side's live hero picks (players[].hero_id, split by
 // players[].team) so the resolver can serve a "live pulse" (gold lead/score/draft) for the
@@ -43,7 +44,7 @@ import { createLogger } from '../_shared.js'
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
-const LOCK_TTL_S = 60 // throttle ceiling, never released — the TTL IS the cadence whenever a caller polls faster than it (the live-sheet pulse fires every 20s); the trigger's own rate floors it otherwise.
+const LOCK_TTL_S = 60 // throttle ceiling, never released — the TTL IS the cadence whenever a caller polls faster than it (the live-sheet pulse fires every 40s); the trigger's own rate floors it otherwise.
 
 // Splits a /live `players` array into each side's hero_id picks AND player names by `team`
 // (0=Radiant, 1=Dire — confirmed empirically 2026-07-16: every live league game splits players
@@ -144,7 +145,7 @@ export function toGoldRows(rows) {
 // Core capture logic, independent of the HTTP request/response — extracted (2026-08-02) so
 // handleLiveGamePulse can run this same throttled capture as its own first step (folding what
 // used to be SeriesLivePulse.jsx's separate `?mode=od-live-capture` fetch into the pulse request
-// itself, cutting the 20s live-sheet poll from two serverless invocations to one). Never throws —
+// itself, cutting the live-sheet poll from two serverless invocations to one). Never throws —
 // every path resolves to a plain result object, same contract the old inline handler body had.
 // `log` is caller-provided so log lines stay attributed to whichever endpoint actually triggered
 // the run (`/api/tournaments?mode=od-live-capture` for the standalone caller, `?mode=live-game-pulse`

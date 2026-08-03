@@ -11,13 +11,13 @@ import { streamLabel } from './StreamPicker'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
 import { SHEET_PADDING } from './Sheet'
 
-const POLL_MS = 20000
+const POLL_MS = 40000
 // Bounds the retain-last-known-good behavior below: a failed/empty poll and a routine "no game
 // is running right now" (the ordinary gap between games in a BO3/BO5 — drafting, or the new
 // game's OD correlation hasn't landed yet) are indistinguishable from the client's point of view,
 // since both surface as a null pulse. Retaining indefinitely would show a FINISHED game's numbers
 // captioned as if they described whichever game is running now. 90s survives a transient miss or
-// two at this component's 20s poll cadence without risking that.
+// two at this component's 40s poll cadence without risking that.
 const STALE_AFTER_MS = 90000
 
 // Decides what the next pulse state should be after a poll. A fresh (non-null) result always
@@ -157,9 +157,12 @@ function StarIcon({ filled }) {
 // pulse-cache miss — see liveGamePulse.js/liveOdCapture.js) before resolving, so "a viewer has
 // this exact live game open" still drives freshness directly, not just the app's ambient 2-min
 // site-wide poll. Until 2026-08-02 this component fired that capture nudge itself via a separate
-// `?mode=od-live-capture` fetch before every pulse read — folded server-side so this 20s poll now
-// costs one serverless invocation per tick instead of two (the capture's own KV lock still throttles
-// the actual OpenDota fetch to ~once/60s regardless of caller count, unchanged).
+// `?mode=od-live-capture` fetch before every pulse read — folded server-side so this poll costs one
+// serverless invocation per tick instead of two (the capture's own KV lock still throttles the
+// actual OpenDota fetch to ~once/60s regardless of caller count, unchanged). Poll interval widened
+// 20s → 40s the same day (further CPU-budget reduction, see the memory/CONTEXT.md note) — the
+// underlying capture only refreshes ~once/60s anyway, so a 20s poll was already re-fetching
+// unchanged data most ticks; 40s trades a bit of that margin for ~33% fewer invocations.
 //
 // Live draft shows even in spoiler-free (pre-outcome, same rule as the finished-game draft
 // strip); names/score/stakes/momentum/map/graph are gated by `hideScore` below, same contract as
@@ -183,7 +186,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   // behind a "Reveal score" button rather than the site-wide spoiler-free setting being the only
   // lever, same as a completed game. Reset whenever the game itself changes.
   const [scoreRevealed, setScoreRevealed] = useState(false)
-  // Read once per mount rather than per render — this component re-renders on every 20s poll,
+  // Read once per mount rather than per render — this component re-renders on every 40s poll,
   // and the sheet remounts when reopened, which is when a preference change should take effect.
   const [streamLanguage] = useState(getStreamLanguage)
 
@@ -214,7 +217,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
 
   // Watch links don't depend on the pulse poll (they come from the already-fetched match
   // object), so they're computed and rendered regardless of whether a pulse has arrived yet -
-  // a fan shouldn't wait on the 20s live-data poll just to get a link to the stream.
+  // a fan shouldn't wait on the 40s live-data poll just to get a link to the stream.
   const twitchUrl = streams?.[0]?.url || null
   const twitchLabel = streams?.[0]?.label || null
   // A fan's preferred-language stream takes the primary slot: rendered first, in the same purple
