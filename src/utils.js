@@ -653,7 +653,15 @@ export function buildTournamentCards(live, upcoming, completed, followedTeams, n
     })
   }
 
+  // TI Mode (`ti-2026-day-one-spec.md` §5.1): while TI has live or upcoming matches, its card
+  // pins above every other card — including other live tournaments — the same way a followed
+  // team pins within a card. State-driven, not a flag: once TI has neither live nor upcoming
+  // matches (pre-event, and again after it ends), this tiebreak is a no-op and the card falls
+  // back to the ordinary hasLive/hasUpcoming/hasFollowed/latestTime order below.
   cards.sort((a, b) => {
+    const aTI = isTITournament(a.tournament) && (a.hasLive || a.hasUpcoming)
+    const bTI = isTITournament(b.tournament) && (b.hasLive || b.hasUpcoming)
+    if (aTI !== bTI) return aTI ? -1 : 1
     if (a.hasLive !== b.hasLive) return a.hasLive ? -1 : 1
     if (a.hasUpcoming !== b.hasUpcoming) return a.hasUpcoming ? -1 : 1
     if (a.hasFollowed !== b.hasFollowed) return a.hasFollowed ? -1 : 1
@@ -701,6 +709,44 @@ export const TOURNAMENT_FORMAT_CONFIGS = {
       },
     ],
   },
+  // TI 2026 (`.claude/specs/ti-2026-day-one-spec.md` §5.5 / T2.1). Verified live 2026-07-29:
+  // PandaScore serie 10828 currently has one stage, "Group Stage" (id 21545) — Elimination Round
+  // and Playoffs stages don't exist yet and will be picked up automatically once PandaScore
+  // creates them (same sibling-stage fetch pattern as blast-slam).
+  'the-international': {
+    stages: [
+      {
+        match: name => /group/i.test(name),
+        format: 'Swiss',
+        matchFormat: 'BO3',
+        teamCount: 16,
+        advancement: [
+          { label: 'Top 3',     dest: 'Playoffs',           type: 'up' },
+          { label: '4th–13th',  dest: 'Elimination Round',  type: 'conditional' },
+          { label: '14th–16th', dest: 'Eliminated',         type: 'out' },
+        ],
+      },
+      {
+        match: name => /elimination/i.test(name),
+        format: 'Single Elim',
+        matchFormat: 'BO3',
+        teamCount: 10,
+        advancement: [
+          { label: 'Winner', dest: 'Playoffs',   type: 'up' },
+          { label: 'Loser',  dest: 'Eliminated', type: 'out' },
+        ],
+      },
+      {
+        match: name => /playoff|main.?event/i.test(name),
+        format: 'Double Elim',
+        matchFormat: 'BO3',
+        grandFinalFormat: 'BO5',
+        advancement: [
+          { label: 'Winner', dest: 'Champion', type: 'up' },
+        ],
+      },
+    ],
+  },
 }
 
 // Returns the advancement type ('up'|'conditional'|'out') for a given rank (1-based).
@@ -721,6 +767,44 @@ export function getTournamentFormatKey(leagueName, tournamentName) {
   const league = (leagueName || '').toLowerCase()
   const name = (tournamentName || '').toLowerCase()
   if (league.includes('blast') && (league.includes('slam') || name.includes('slam'))) return 'blast-slam'
+  if (league.includes('international') || name.includes('international')) return 'the-international'
+  return null
+}
+
+// Matches the same 'The International' substring PERMANENT_TIER1_NAMES (api/_shared.js) already
+// gates on, so this can't drift from the tier-1 rule. Not year-scoped: only one "The International"
+// is ever live/upcoming at a time, and every TI-Mode consumer below is itself state-driven (fires
+// only while TI has live/upcoming matches), so there's no code path that can strand TI Mode on
+// after TI 2026 ends (`.claude/specs/ti-2026-day-one-spec.md` §5.1).
+export function isTITournament(tournamentName) {
+  return /\bthe international\b/i.test(tournamentName || '')
+}
+
+// TI 2026 dates verified live 2026-07-29 (`ti-2026-day-one-spec.md` §1): PandaScore serie 10828
+// runs 2026-08-12T22:00Z → 2026-08-23T22:00Z; Aug 13 is Day 1 of the group stage.
+const TI_2026_DAY_ONE_MS = Date.parse('2026-08-13T00:00:00Z')
+
+export function getTIOrientationLabel(bracketRound, now = Date.now()) {
+  const dayNumber = Math.floor((now - TI_2026_DAY_ONE_MS) / 86400000) + 1
+  const dayLabel = dayNumber >= 1 ? `Day ${dayNumber}` : null
+  return ['TI 2026', dayLabel, bracketRound || null].filter(Boolean).join(' · ')
+}
+
+// Deterministic Swiss stakes — rank-derived from PandaScore's own standings table, never a
+// model or probability (`ti-2026-day-one-spec.md` Finding 4: any published stakes line must be
+// checkable by the reader against the standings page itself). Reuses getAdvancementType/the
+// Group Stage advancement rules above rather than hand-rolling TI-specific cutoffs a second time.
+// Takes both teams' current ranks and reports the more consequential (higher-severity) zone —
+// "does this game matter" cares about whichever side has more on the line. Returns null (renders
+// nothing) when ranks are unknown or both teams are already locked for Playoffs — matches this
+// codebase's "never claim something it can't back up" rule (see the Catch-Up rail's "still
+// processing" honesty requirement).
+export function getSwissStakesLabel(rankA, rankB, advancement) {
+  if (!advancement) return null
+  const typeOf = r => (r ? getAdvancementType(advancement, r) : null)
+  const types = [typeOf(rankA), typeOf(rankB)]
+  if (types.includes('out')) return 'Elimination on the line'
+  if (types.includes('conditional')) return 'Elimination Round on the line'
   return null
 }
 

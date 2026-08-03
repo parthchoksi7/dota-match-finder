@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, isGrandFinal, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, isGrandFinal, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery, isTITournament, getTIOrientationLabel, getSwissStakesLabel, getTournamentFormatKey, getStageFormatConfig, getAdvancementType } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -786,6 +786,121 @@ describe('buildTournamentCards', () => {
     )
     expect(cards[0].hasLive).toBe(true)
     expect(cards[0].hasUpcoming).toBe(true)
+  })
+
+  it('pins a live TI card above another live tournament (TI Mode)', () => {
+    const cards = buildTournamentCards(
+      [makeLive('Other Live Event'), makeLive('The International 2026')],
+      [],
+      [],
+      [],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('The International 2026')
+  })
+
+  it('pins an upcoming-only TI card above a live non-TI card', () => {
+    const cards = buildTournamentCards(
+      [makeLive('Other Live Event')],
+      [makeUpcoming('The International 2026', new Date((NOW + 3600) * 1000).toISOString())],
+      [],
+      [],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('The International 2026')
+  })
+
+  it('does not pin a TI card with no live or upcoming matches (post-event)', () => {
+    const cards = buildTournamentCards(
+      [makeLive('Other Live Event')],
+      [],
+      [makeCompleted('The International 2026', NOW - 3600)],
+      [],
+      NOW
+    )
+    expect(cards[0].tournament).toBe('Other Live Event')
+  })
+})
+
+// ── TI 2026 tournament format config ─────────────────────────────────────────
+
+describe('the-international format config', () => {
+  it('getTournamentFormatKey resolves TI by league or tournament name', () => {
+    expect(getTournamentFormatKey('The International', 'The International 2026')).toBe('the-international')
+    expect(getTournamentFormatKey('', 'The International 2026 Group Stage')).toBe('the-international')
+    expect(getTournamentFormatKey('DreamLeague', 'DreamLeague S29')).toBeNull()
+  })
+
+  it('getStageFormatConfig matches the Group Stage as Swiss BO3, 16 teams', () => {
+    const config = getStageFormatConfig('the-international', 'Group Stage')
+    expect(config.format).toBe('Swiss')
+    expect(config.matchFormat).toBe('BO3')
+    expect(config.teamCount).toBe(16)
+  })
+
+  it('Group Stage advancement rules resolve rank to the right zone', () => {
+    const { advancement } = getStageFormatConfig('the-international', 'Group Stage')
+    expect(getAdvancementType(advancement, 3)).toBe('up')
+    expect(getAdvancementType(advancement, 4)).toBe('conditional')
+    expect(getAdvancementType(advancement, 13)).toBe('conditional')
+    expect(getAdvancementType(advancement, 14)).toBe('out')
+  })
+
+  it('matches the Elimination Round and Playoffs stages by name', () => {
+    expect(getStageFormatConfig('the-international', 'Elimination Round').format).toBe('Single Elim')
+    expect(getStageFormatConfig('the-international', 'Playoffs').format).toBe('Double Elim')
+    expect(getStageFormatConfig('the-international', 'Playoffs').grandFinalFormat).toBe('BO5')
+  })
+})
+
+// ── TI 2026 Mode helpers ──────────────────────────────────────────────────────
+
+describe('isTITournament', () => {
+  it('matches "The International" case-insensitively', () => {
+    expect(isTITournament('The International 2026')).toBe(true)
+    expect(isTITournament('the international')).toBe(true)
+  })
+  it('does not match unrelated tournament names', () => {
+    expect(isTITournament('ESL One')).toBe(false)
+    expect(isTITournament('International Series')).toBe(false)
+    expect(isTITournament(null)).toBe(false)
+  })
+})
+
+describe('getTIOrientationLabel', () => {
+  it('labels day 1 on the event start date', () => {
+    const day1 = Date.parse('2026-08-13T12:00:00Z')
+    expect(getTIOrientationLabel('Round 1', day1)).toBe('TI 2026 · Day 1 · Round 1')
+  })
+  it('labels day 3 two days later', () => {
+    const day3 = Date.parse('2026-08-15T01:00:00Z')
+    expect(getTIOrientationLabel(null, day3)).toBe('TI 2026 · Day 3')
+  })
+  it('omits the day label before the event starts', () => {
+    const before = Date.parse('2026-08-01T00:00:00Z')
+    expect(getTIOrientationLabel('Round 1', before)).toBe('TI 2026 · Round 1')
+  })
+})
+
+describe('getSwissStakesLabel', () => {
+  const advancement = [
+    { label: 'Top 3',     dest: 'Playoffs',          type: 'up' },
+    { label: '4th–13th',  dest: 'Elimination Round', type: 'conditional' },
+    { label: '14th–16th', dest: 'Eliminated',        type: 'out' },
+  ]
+  it('flags elimination range when either team is 14th-16th', () => {
+    expect(getSwissStakesLabel(2, 15, advancement)).toBe('Elimination on the line')
+    expect(getSwissStakesLabel(15, 2, advancement)).toBe('Elimination on the line')
+  })
+  it('flags the elimination round bubble when the worse team is 4th-13th', () => {
+    expect(getSwissStakesLabel(1, 8, advancement)).toBe('Elimination Round on the line')
+  })
+  it('returns null when both teams are already locked for Playoffs', () => {
+    expect(getSwissStakesLabel(1, 2, advancement)).toBeNull()
+  })
+  it('returns null when ranks or advancement rules are unknown', () => {
+    expect(getSwissStakesLabel(null, null, advancement)).toBeNull()
+    expect(getSwissStakesLabel(1, 2, null)).toBeNull()
   })
 })
 

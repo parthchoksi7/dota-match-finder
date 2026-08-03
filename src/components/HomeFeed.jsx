@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime, isTeamFollowed, isGrandFinal } from '../utils'
+import { groupIntoSeries, isSeriesComplete, getLeagueLabel, trackEvent, buildTournamentCards, normalizeTournamentKey, tournamentStageLabel, formatMatchTime, isTeamFollowed, isGrandFinal, isTITournament, getTIOrientationLabel, getSwissStakesLabel, getStageFormatConfig } from '../utils'
+import { normalizeTeamName } from '../teamMatching'
 import DateStrip from './DateStrip'
 import CompactSeriesRow from './CompactSeriesRow'
 import LiveMatchRow from './LiveMatchRow'
@@ -246,11 +247,75 @@ function HomeFeed({
     return map
   }, [justEndedSeries, isToday])
 
-  // Build tournament cards sorted: live → upcoming → followed-team → completed
-  const tournamentCards = useMemo(
-    () => buildTournamentCards(activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, followedTeams),
-    [activeLiveMatches, activeUpcomingMatches, activeCompletedSeries, followedTeams]
+  // TI 2026 Swiss stakes (`ti-2026-day-one-spec.md` §5.3): fetch the TI group stage's standings
+  // once a TI match is visible anywhere in the feed (not just the active date), and enrich TI
+  // rows' bracketRound with a deterministic "does this game matter" line. PandaScore doesn't seed
+  // standings until Swiss Round 1 finishes, so this is a silent no-op pre-event and never fabricates
+  // a stake — same "never claim something it can't back up" rule as the Catch-Up rail.
+  const [tiStakesData, setTiStakesData] = useState(null) // { advancement, ranks: Map<normalizedName, rank> }
+  const tiStakesFetchedIdRef = useRef(null)
+
+  const tiTournamentName = useMemo(() => {
+    for (const m of activeLiveMatches) if (isTITournament(m.tournament)) return m.tournament
+    for (const m of upcomingMatches) if (isTITournament(m.tournament)) return m.tournament
+    return null
+  }, [activeLiveMatches, upcomingMatches])
+
+  useEffect(() => {
+    if (!tiTournamentName) return
+    const tiId = findTournamentId(tiTournamentName, tournamentIdMap)
+    if (!tiId || tiStakesFetchedIdRef.current === tiId) return
+    tiStakesFetchedIdRef.current = tiId
+    fetch(`/api/tournament-detail?id=${tiId}&series=1`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        const groupStage = data?.stages?.find(s => /group/i.test(s.name || ''))
+        if (!groupStage?.standings?.length) return
+        const advancement = getStageFormatConfig('the-international', groupStage.name)?.advancement
+        if (!advancement) return
+        const ranks = new Map()
+        for (const row of groupStage.standings) {
+          if (row.teamName && row.rank) ranks.set(normalizeTeamName(row.teamName), row.rank)
+        }
+        if (ranks.size) setTiStakesData({ advancement, ranks })
+      })
+      .catch(() => {})
+  }, [tiTournamentName, tournamentIdMap])
+
+  function withTIStakes(match) {
+    if (!tiStakesData || !isTITournament(match.tournament)) return match
+    const rankA = tiStakesData.ranks.get(normalizeTeamName(match.teamA))
+    const rankB = tiStakesData.ranks.get(normalizeTeamName(match.teamB))
+    const stakesLabel = getSwissStakesLabel(rankA, rankB, tiStakesData.advancement)
+    if (!stakesLabel) return match
+    return { ...match, bracketRound: match.bracketRound ? `${match.bracketRound} · ${stakesLabel}` : stakesLabel }
+  }
+
+  const tiAwareLiveMatches = useMemo(
+    () => activeLiveMatches.map(withTIStakes),
+    [activeLiveMatches, tiStakesData]
   )
+  const tiAwareUpcomingMatches = useMemo(
+    () => activeUpcomingMatches.map(withTIStakes),
+    [activeUpcomingMatches, tiStakesData]
+  )
+
+  // Build tournament cards sorted: TI (if live/upcoming) → live → upcoming → followed-team → completed
+  const tournamentCards = useMemo(
+    () => buildTournamentCards(tiAwareLiveMatches, tiAwareUpcomingMatches, activeCompletedSeries, followedTeams),
+    [tiAwareLiveMatches, tiAwareUpcomingMatches, activeCompletedSeries, followedTeams]
+  )
+
+  const tiCard = useMemo(
+    () => tournamentCards.find(c => isTITournament(c.tournament) && (c.hasLive || c.hasUpcoming)) || null,
+    [tournamentCards]
+  )
+
+  const tiOrientationLabel = useMemo(() => {
+    if (!tiCard) return null
+    const round = (tiCard.liveMatches[0]?.bracketRound || tiCard.upcomingMatches[0]?.bracketRound || '').split(' · ')[0] || null
+    return getTIOrientationLabel(round)
+  }, [tiCard])
 
   if (error) {
     return (
@@ -373,8 +438,8 @@ function HomeFeed({
       {/* My Teams card — persists for followers even with no matches on the active date,
           showing the next scheduled followed-team match so the feature never vanishes */}
       {followedTeams?.length > 0 && (() => {
-        const myLive = activeLiveMatches.filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
-        const myUpcoming = activeUpcomingMatches.filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
+        const myLive = tiAwareLiveMatches.filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
+        const myUpcoming = tiAwareUpcomingMatches.filter(m => isTeamFollowed(followedTeams, m.teamA, m.teamB))
         const myCompleted = activeCompletedSeries.filter(s => isTeamFollowed(followedTeams, s.games?.[0]?.radiantTeam, s.games?.[0]?.direTeam))
         if (myLive.length + myUpcoming.length + myCompleted.length === 0) {
           // upcomingMatches spans the next 72h across all dates (unfiltered by activeDate)
@@ -508,7 +573,15 @@ function HomeFeed({
                 className="w-full flex items-center gap-2 px-3 py-2 min-h-[44px] bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 text-left"
               >
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  {card.org && (
+                  {/* TI Mode (`ti-2026-day-one-spec.md` §5.1): the TI card's eyebrow becomes the
+                      "TI 2026 · Day N · Round Y" orientation line instead of the org label — the
+                      one orientation cue the spec calls for, reusing the existing eyebrow slot
+                      rather than adding a new banner element. */}
+                  {(tiCard && card.tournament === tiCard.tournament) ? (
+                    <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500">
+                      {tiOrientationLabel}
+                    </span>
+                  ) : card.org && (
                     <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500">
                       {card.org}
                     </span>

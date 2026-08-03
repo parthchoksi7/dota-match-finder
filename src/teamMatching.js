@@ -39,6 +39,19 @@ const TEAM_NAME_ALIAS_GROUPS = [
   // alias membership, not just normalizeTeamName. Revisit/prune the older entries once
   // PandaScore's sync and OD's per-match name both catch up to "1w Team".
   ['1wteam', '1w', '1win', 'tundraesports'],
+  // TI 2026 rebrand scrub, 2026-08-02 (`.claude/specs/ti-2026-day-one-spec.md` T0.2): PandaScore's
+  // "Iron Wing" (team id 138994, confirmed via live `dota2/teams` search) is backed by OpenDota
+  // Steam group 10150413 — PandaScore's own logo asset for this team is literally named
+  // `10150413.png`. OD's per-match radiant_name/dire_name for that same team_id still reads
+  // "Tundra Esports" as of its most recent indexed match (2026-05-30) — a second, UNRELATED
+  // OD-side "Tundra Esports" label from the org's pre-rebrand identity, distinct from the
+  // 8291895/1win lineage above. This is NOT the same org as the real, currently active "Tundra
+  // Esports" (PandaScore id 128439, roster incl. Saksa, still competing under its own name) — that
+  // org's own matches carry the literal "Tundra Esports" name on BOTH sides and need no alias at
+  // all. Scoped as its own group (not merged into the 1win group above) precisely so a future
+  // cleanup doesn't collapse three distinct orgs that all happen to touch the string
+  // "tundraesports" into one.
+  ['ironwing', 'tundraesports'],
 ]
 
 export function namesAlias(x, y) {
