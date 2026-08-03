@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 3, 2026",
+    tag: "fix",
+    title: "Live net-worth graph no longer shows a false \"Even\" dip early in a game",
+    desc: "The live net-worth graph could briefly show a live game as dead even a few minutes in, even when one team already had a real gold lead. That came from an occasional bad data point right as a match first went live. Those bad points are now filtered out, so the graph reflects the real net worth throughout.",
+  },
+  {
     date: "August 2, 2026",
     tag: "new",
     title: "TI 2026 mode",
