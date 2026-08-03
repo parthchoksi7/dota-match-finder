@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 2, 2026",
+    tag: "new",
+    title: "TI 2026 mode",
+    desc: "While The International 2026 has a live or upcoming match, its card pins above every other tournament in the feed, with a \"TI 2026 · Day N · Round Y\" header. Group Stage rows also get a deterministic stakes line — \"Elimination Round on the line\" or \"Elimination on the line\" — once standings resolve, based only on each team's current rank.",
+  },
+  {
     date: "August 1, 2026",
     tag: "new",
     title: "Player ratings from STRATZ",

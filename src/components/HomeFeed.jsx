@@ -578,7 +578,10 @@ function HomeFeed({
                       one orientation cue the spec calls for, reusing the existing eyebrow slot
                       rather than adding a new banner element. */}
                   {(tiCard && card.tournament === tiCard.tournament) ? (
-                    <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500">
+                    // truncate (not present on the plain org-label span below) because this line
+                    // is materially longer than a one-word org label ("TI 2026 · Day 11 · Round 5")
+                    // and DESIGN_GUIDELINES flags wide letter-tracking as a 320px clipping risk.
+                    <span className="text-[10px] font-bold uppercase tracking-[4px] text-red-500 truncate">
                       {tiOrientationLabel}
                     </span>
                   ) : card.org && (
