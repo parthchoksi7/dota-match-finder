@@ -5,16 +5,32 @@
  */
 
 import { Redis } from '@upstash/redis'
-import * as Sentry from '@sentry/node'
 
-// Runs once per cold start, the first time any handler imports this module. No-ops (SDK stays
-// disabled, nothing is sent) when SENTRY_DSN is unset — same "silently disabled if missing"
-// convention as the other optional integrations in this file (GA4, CURRENTS_API_KEY, IndexNow).
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.VERCEL_ENV || 'development',
-  tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
-})
+// Sentry is dynamic-imported and initialized lazily, only from ensureSentry() below (called by
+// trackError() on an actual error) — not eagerly at module scope. Measured cost of the eager form
+// (2026-08-03): importing `@sentry/node` alone takes ~250ms, before init() even runs, and SENTRY_DSN
+// has never been set in production since Sentry was added (2026-07-27) — the account/DSN setup step
+// was left for the owner and never happened (see CONTEXT.md/pending-refactors' Sentry entry). That
+// meant EVERY cold start of nearly every function in api/ (this file is imported almost everywhere)
+// was paying ~280ms for an SDK that silently sends nothing. Deferring to only the error path, and
+// only when a DSN actually exists, makes the happy path (the overwhelming majority of requests) pay
+// nothing at all, while an actual error still gets reported once SENTRY_DSN is eventually set.
+let _sentryPromise = null
+function ensureSentry() {
+  if (!_sentryPromise) {
+    _sentryPromise = process.env.SENTRY_DSN
+      ? import('@sentry/node').then(Sentry => {
+          Sentry.init({
+            dsn: process.env.SENTRY_DSN,
+            environment: process.env.VERCEL_ENV || 'development',
+            tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
+          })
+          return Sentry
+        })
+      : Promise.resolve(null)
+  }
+  return _sentryPromise
+}
 // normalizeTeamName/teamPairMatch/teamPairScore live in src/teamMatching.js (zero-import, so
 // it's also safe to import client-side — see src/utils.js's re-export for the favorites-highlight
 // comparisons in HomeFeed.jsx). Imported (not just re-exported) because findBestPsMatch/
@@ -771,9 +787,12 @@ export async function sendGa4Event(name, params = {}, clientId = null) {
 // upstream API's own error-response body), never a genuine Error instance.
 export async function trackError(endpoint, statusCode, detail, err) {
   try {
-    Sentry.captureException(err instanceof Error ? err : new Error(String(detail).slice(0, 500)), {
-      tags: { endpoint, statusCode },
-    })
+    const Sentry = await ensureSentry()
+    if (Sentry) {
+      Sentry.captureException(err instanceof Error ? err : new Error(String(detail).slice(0, 500)), {
+        tags: { endpoint, statusCode },
+      })
+    }
   } catch (_) {}
   try {
     const client = _getMonitorKv()
