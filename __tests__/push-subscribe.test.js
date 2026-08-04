@@ -6,24 +6,46 @@ vi.mock('../api/_shared.js', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, isTier1: () => false, isTier1ByName: () => false }
 })
+// live-matches.js still imports the KV client for the unrelated stream-cache paths this file
+// doesn't exercise — mock it out for import safety only (mirrors push-payload.test.js).
+vi.mock('@upstash/redis', () => ({ Redis: class { constructor() {} } }))
 
-// KV state: in-memory map that simulates Upstash Redis behavior.
-const { mockKv } = vi.hoisted(() => {
-  const store = new Map()
-  const mockKv = {
-    store,
-    get: vi.fn(key => Promise.resolve(store.has(key) ? store.get(key) : null)),
-    set: vi.fn((key, val) => { store.set(key, val); return Promise.resolve('OK') }),
-    del: vi.fn((...keys) => { keys.forEach(k => store.delete(k)); return Promise.resolve(1) }),
+// In-memory push_subscriptions table. Keyed by user_id (the schema's UNIQUE column), matching
+// the real onConflict:'user_id' upsert behavior — this is the entire fixture the mock needs.
+const { subsStore, mockState, mockGetSupabaseAdmin } = vi.hoisted(() => {
+  const subsStore = new Map()
+  const mockState = { forceSelectError: null, forceUpsertError: null }
+
+  function client() {
+    return {
+      from(_table) {
+        return {
+          select(_cols) {
+            return {
+              eq(_col, val) {
+                return {
+                  maybeSingle: async () => {
+                    if (mockState.forceSelectError) return { data: null, error: mockState.forceSelectError }
+                    return { data: subsStore.get(val) || null, error: null }
+                  },
+                }
+              },
+            }
+          },
+          upsert: async (row) => {
+            if (mockState.forceUpsertError) return { data: null, error: mockState.forceUpsertError }
+            subsStore.set(row.user_id, { ...row })
+            return { data: [row], error: null }
+          },
+        }
+      },
+    }
   }
-  return { mockKv }
+
+  return { subsStore, mockState, mockGetSupabaseAdmin: vi.fn(() => client()) }
 })
 
-vi.mock('@upstash/redis', () => ({
-  Redis: class {
-    constructor() { Object.assign(this, mockKv) }
-  },
-}))
+vi.mock('../api/_supabase.js', () => ({ getSupabaseAdmin: mockGetSupabaseAdmin }))
 
 import handler from '../api/live-matches.js'
 
@@ -45,123 +67,85 @@ function makeRes() {
   return res
 }
 
-describe('push-subscribe: team index management', () => {
+describe('push-subscribe: Supabase push_subscriptions upsert', () => {
   beforeEach(() => {
-    mockKv.store.clear()
-    mockKv.get.mockClear()
-    mockKv.set.mockClear()
-    mockKv.del.mockClear()
-    mockKv.get.mockImplementation(key =>
-      Promise.resolve(mockKv.store.has(key) ? mockKv.store.get(key) : null)
-    )
-    mockKv.set.mockImplementation((key, val) => {
-      mockKv.store.set(key, val)
-      return Promise.resolve('OK')
-    })
-    mockKv.del.mockImplementation((...keys) => {
-      keys.forEach(k => mockKv.store.delete(k))
-      return Promise.resolve(1)
-    })
+    subsStore.clear()
+    mockState.forceSelectError = null
+    mockState.forceUpsertError = null
     process.env.PANDASCORE_TOKEN = 'test-token'
     process.env.VAPID_PRIVATE_KEY = VAPID_TEST_KEY
   })
 
-  it('first-time subscribe: adds userId to each team index', async () => {
+  it('first-time subscribe: upserts a row with lowercased teams', async () => {
     const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid', 'Team Spirit'] })
     const res = makeRes()
     await handler(req, res)
 
     expect(res.statusCode).toBe(200)
-    expect(mockKv.store.get('push:team:team liquid')).toContain(USER_ID)
-    expect(mockKv.store.get('push:team:team spirit')).toContain(USER_ID)
+    const row = subsStore.get(USER_ID)
+    expect(row).toBeTruthy()
+    expect(row.endpoint).toBe(FAKE_SUB.endpoint)
+    expect(row.p256dh).toBe('b')
+    expect(row.auth).toBe('a')
+    // Case-folded at write time: dispatchPush's `overlaps` query lowercases match.teamA/teamB the
+    // same way the old push:team:{name} reverse-index key did — a mismatch here is a silent,
+    // total notification blackout for the affected subscriber.
+    expect(row.teams).toEqual(['team liquid', 'team spirit'])
   })
 
-  it('team change (new array format): removes userId from old team, adds to new', async () => {
-    mockKv.store.set(`push:teams:${USER_ID}`, ['Xtreme Gaming'])
-    mockKv.store.set('push:team:xtreme gaming', [USER_ID])
+  it('re-subscribe with a new team list: fully replaces the previous teams array (no reverse index to diff)', async () => {
+    subsStore.set(USER_ID, {
+      user_id: USER_ID, endpoint: FAKE_SUB.endpoint, p256dh: 'b', auth: 'a',
+      teams: ['xtreme gaming'], prefs: { tz: null, types: { soon: true, live: true, replay: true, score: false }, quietStart: null, quietEnd: null },
+    })
 
     const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
     const res = makeRes()
     await handler(req, res)
 
     expect(res.statusCode).toBe(200)
-    const xgUsers = mockKv.store.get('push:team:xtreme gaming')
-    expect(xgUsers === undefined || !xgUsers.includes(USER_ID)).toBe(true)
-    expect(mockKv.store.get('push:team:team liquid')).toContain(USER_ID)
+    expect(subsStore.get(USER_ID).teams).toEqual(['team liquid'])
   })
 
-  it('team change (old JSON-string format): correctly parses and removes userId from stale index', async () => {
-    // Old format: push:teams stored as JSON.stringify'd string (pre-fix deployments)
-    mockKv.store.set(`push:teams:${USER_ID}`, JSON.stringify(['Xtreme Gaming']))
-    mockKv.store.set('push:team:xtreme gaming', [USER_ID])
-
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
-    const res = makeRes()
-    await handler(req, res)
-
-    expect(res.statusCode).toBe(200)
-    const xgUsers = mockKv.store.get('push:team:xtreme gaming')
-    expect(xgUsers === undefined || !xgUsers.includes(USER_ID)).toBe(true)
-    expect(mockKv.store.get('push:team:team liquid')).toContain(USER_ID)
-    // teams key should now be stored as a direct array going forward
-    expect(Array.isArray(mockKv.store.get(`push:teams:${USER_ID}`))).toBe(true)
-  })
-
-  it('unsubscribe all (empty teams): removes userId from all previous team indexes', async () => {
-    mockKv.store.set(`push:teams:${USER_ID}`, ['Team Liquid', 'Xtreme Gaming'])
-    mockKv.store.set('push:team:team liquid', [USER_ID, 'other-user'])
-    mockKv.store.set('push:team:xtreme gaming', [USER_ID])
+  it('unsubscribe all (empty teams): stores an empty teams array rather than deleting the row', async () => {
+    subsStore.set(USER_ID, {
+      user_id: USER_ID, endpoint: FAKE_SUB.endpoint, p256dh: 'b', auth: 'a',
+      teams: ['team liquid', 'xtreme gaming'], prefs: { tz: null, types: { soon: true, live: true, replay: true, score: false }, quietStart: null, quietEnd: null },
+    })
 
     const req = makeReq({ subscription: FAKE_SUB, teamNames: [] })
     const res = makeRes()
     await handler(req, res)
 
     expect(res.statusCode).toBe(200)
-    // userId removed; other-user still in team liquid index
-    const liquidUsers = mockKv.store.get('push:team:team liquid')
-    expect(liquidUsers).not.toContain(USER_ID)
-    expect(liquidUsers).toContain('other-user')
-    // Last user removed: key deleted entirely
-    expect(mockKv.store.has('push:team:xtreme gaming')).toBe(false)
+    expect(subsStore.get(USER_ID).teams).toEqual([])
   })
 
-  it('re-subscribe with same teams: no redundant add/remove on team indexes', async () => {
-    mockKv.store.set(`push:teams:${USER_ID}`, ['Team Liquid'])
-    mockKv.store.set('push:team:team liquid', [USER_ID])
+  it('prefs merge: a tz-only re-subscribe (the auto re-subscribe on visit) does not clobber stored type toggles', async () => {
+    subsStore.set(USER_ID, {
+      user_id: USER_ID, endpoint: FAKE_SUB.endpoint, p256dh: 'b', auth: 'a',
+      teams: ['team liquid'],
+      prefs: { tz: 'America/New_York', types: { soon: false, live: true, replay: true, score: true }, quietStart: 23, quietEnd: 8 },
+    })
 
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'], prefs: { tz: 'Europe/London' } })
     const res = makeRes()
     await handler(req, res)
 
     expect(res.statusCode).toBe(200)
-    // Team index unchanged — userId present exactly once
-    const liquidUsers = mockKv.store.get('push:team:team liquid')
-    expect(liquidUsers.filter(id => id === USER_ID).length).toBe(1)
-  })
-
-  it('partial change: only touched teams are updated', async () => {
-    mockKv.store.set(`push:teams:${USER_ID}`, ['Team Liquid', 'Xtreme Gaming'])
-    mockKv.store.set('push:team:team liquid', [USER_ID])
-    mockKv.store.set('push:team:xtreme gaming', [USER_ID])
-
-    // Remove Xtreme Gaming, keep Liquid, add Team Spirit
-    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid', 'Team Spirit'] })
-    const res = makeRes()
-    await handler(req, res)
-
-    expect(res.statusCode).toBe(200)
-    expect(mockKv.store.get('push:team:team liquid')).toContain(USER_ID)
-    expect(mockKv.store.has('push:team:xtreme gaming')).toBe(false)
-    expect(mockKv.store.get('push:team:team spirit')).toContain(USER_ID)
+    const { prefs } = subsStore.get(USER_ID)
+    expect(prefs.tz).toBe('Europe/London')
+    // Untouched by the partial update — must survive the merge.
+    expect(prefs.types).toEqual({ soon: false, live: true, replay: true, score: true })
+    expect(prefs.quietStart).toBe(23)
+    expect(prefs.quietEnd).toBe(8)
   })
 
   it('missing subscription endpoint returns 400', async () => {
-    // No subscription at all
     const res = makeRes()
     await handler(makeReq({ teamNames: ['Team Liquid'] }), res)
     expect(res.statusCode).toBe(400)
 
-    // Subscription without endpoint
     const res2 = makeRes()
     await handler(makeReq({ subscription: { keys: { auth: 'a', p256dh: 'b' } }, teamNames: [] }), res2)
     expect(res2.statusCode).toBe(400)
@@ -174,21 +158,23 @@ describe('push-subscribe: team index management', () => {
     expect(res.statusCode).toBe(503)
   })
 
-  it('KV failure on prevTeams read: defaults to empty, subscribe still succeeds', async () => {
-    mockKv.get.mockImplementation(key => {
-      if (key === `push:teams:${USER_ID}`) return Promise.reject(new Error('KV timeout'))
-      return Promise.resolve(mockKv.store.has(key) ? mockKv.store.get(key) : null)
-    })
-
+  it('Supabase upsert failure: returns 500, does not silently report success', async () => {
+    mockState.forceUpsertError = { message: 'connection refused' }
     const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
     const res = makeRes()
     await handler(req, res)
 
-    // Graceful degradation: handler catches the error and returns 500
-    // OR succeeds with prevTeams = [] (addOps only, no removeOps)
-    expect([200, 500]).toContain(res.statusCode)
-    if (res.statusCode === 200) {
-      expect(mockKv.store.get('push:team:team liquid')).toContain(USER_ID)
-    }
+    expect(res.statusCode).toBe(500)
+    expect(subsStore.has(USER_ID)).toBe(false)
+  })
+
+  it('Supabase read failure on the prefs-merge lookup: subscribe still succeeds (defaults to permissive prefs)', async () => {
+    mockState.forceSelectError = { message: 'timeout' }
+    const req = makeReq({ subscription: FAKE_SUB, teamNames: ['Team Liquid'] })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res.statusCode).toBe(200)
+    expect(subsStore.get(USER_ID).teams).toEqual(['team liquid'])
   })
 })

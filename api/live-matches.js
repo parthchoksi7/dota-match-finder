@@ -16,10 +16,6 @@ import { nextSignalState, STALE_MAX_S } from '../src/utils/liveSignal.js'
 
 const KV_KEY = 'dota2:live_matches_v5' // v5: matches may now carry `.signal` (live worth-watching badge)
 const TTL = 60 * 2 // 2 minutes
-const PUSH_SUB_TTL = 90 * 24 * 3600 // 90 days — refreshed on every visit (App.jsx re-subscribe).
-// Longer than the old 30d so a fan who follows a team but doesn't return for a few weeks
-// isn't silently dropped from notifications. The reliable fix is the Supabase migration
-// (pending-refactors #92); this is the interim KV mitigation.
 const REPLAY_DEDUP_TTL = 7 * 24 * 3600 // 7 days — a series binds once; guards partial-bind re-runs.
 
 // Headroom above the 10s default: the cron=1 capture path fetches up to 100 running
@@ -358,52 +354,64 @@ export function inQuietHours(prefs, nowMs) {
 
 /**
  * Sends `type` notifications for one match to every subscriber of either team, honoring
- * per-user prefs (type toggle + quiet hours) and per-(type,series,user) dedup. Uses
- * batched kv.mget instead of per-user gets (pending-refactors #161). Returns count sent.
+ * per-user prefs (type toggle + quiet hours) and per-(type,series,user) dedup. Subscriber lookup
+ * is one Supabase query (`overlaps` on push_subscriptions.teams — pending-refactors #16, replaces
+ * the old KV push:team:{name} reverse index + push:sub/push:prefs mget pair). Dedup (`push:sent:*`)
+ * stays in KV — short-TTL delivery bookkeeping, not subscription state, and keyed by the same
+ * userId (HMAC of the endpoint) before and after the migration, so it survived the cutover
+ * unaffected. Returns count sent.
  */
 async function dispatchPush(match, { type, dedupPrefix, dedupTtl, payloadOpts }) {
   if (!process.env.VAPID_PRIVATE_KEY) return 0
   const teams = [match.teamA, match.teamB].filter(t => t && t !== 'TBD')
   if (teams.length === 0) return 0
 
-  const teamLists = await kv.mget(...teams.map(t => `push:team:${t.toLowerCase()}`)).catch(() => [])
-  const userIds = new Set()
-  teamLists.forEach(ids => { if (Array.isArray(ids)) ids.forEach(id => userIds.add(id)) })
-  if (userIds.size === 0) return 0
-
-  // Fired now (not awaited yet) so the web-push import overlaps the KV reads below instead of
-  // adding sequential latency — resolved just before it's actually needed, at the forEach loop.
+  // Fired now (not awaited yet) so the web-push import overlaps the Supabase query below instead
+  // of adding sequential latency — resolved just before it's actually needed, at the forEach loop.
   const webpushPromise = ensureWebpush()
 
-  const ids = [...userIds]
-  const [sentVals, subVals, prefVals] = await Promise.all([
-    kv.mget(...ids.map(id => `${dedupPrefix}:${match.id}:${id}`)).catch(() => []),
-    kv.mget(...ids.map(id => `push:sub:${id}`)).catch(() => []),
-    kv.mget(...ids.map(id => `push:prefs:${id}`)).catch(() => []),
-  ])
+  const { data: subs, error } = await getSupabaseAdmin()
+    .from('push_subscriptions')
+    .select('user_id, endpoint, p256dh, auth, prefs')
+    .overlaps('teams', teams.map(t => t.toLowerCase()))
+  // Distinct from "no subscribers" (the common case, silent by design): a query failure here
+  // means dispatchPush silently sends nothing for this match, with no other signal anywhere in
+  // the request trace — worth a log line since this is a new dependency this path didn't have
+  // before the KV→Supabase migration (pending-refactors #16).
+  if (error) {
+    console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'push_subscriptions read failed', error: error.message, ts: Date.now() }))
+    return 0
+  }
+  if (!subs?.length) return 0
+
+  const ids = subs.map(s => s.user_id)
+  const sentVals = await kv.mget(...ids.map(id => `${dedupPrefix}:${match.id}:${id}`)).catch(() => [])
 
   const webpush = await webpushPromise
   const payload = JSON.stringify(buildPushPayload(type, match, payloadOpts))
   const now = Date.now()
   const ops = []
-  ids.forEach((userId, i) => {
+  subs.forEach((row, i) => {
     // For one-shot types this is "already notified for this series"; for the recurring score
     // ping the same key is a per-user cooldown whose TTL is the minimum gap between sends.
     if (sentVals[i]) return
-    const subRaw = subVals[i]
-    if (!subRaw) return
-    const prefs = normalizePrefs(prefVals[i])
+    const prefs = normalizePrefs(row.prefs)
     if (prefs.types[type] === false) return       // user disabled this type
     if (inQuietHours(prefs, now)) return          // suppressed during quiet hours
-    const sub = typeof subRaw === 'string' ? JSON.parse(subRaw) : subRaw
+    const userId = row.user_id
+    const sub = { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }
     const sentKey = `${dedupPrefix}:${match.id}:${userId}`
     ops.push(
       webpush.sendNotification(sub, payload)
         .then(() => kv.set(sentKey, '1', { ex: dedupTtl }))
         .catch(err => {
-          // 410 Gone / 404 Not Found → subscription is dead; prune it.
+          // 410 Gone / 404 Not Found → subscription is dead; prune it. Unlike the old KV keys
+          // (90d TTL), a Supabase row never expires on its own — this delete is now the only
+          // way a dead subscription is ever removed.
           if (err.statusCode === 410 || err.statusCode === 404) {
-            kv.del(`push:sub:${userId}`, `push:teams:${userId}`, `push:prefs:${userId}`).catch(() => {})
+            getSupabaseAdmin().from('push_subscriptions').delete().eq('user_id', userId)
+              .then(({ error }) => { if (error) console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'push_subscriptions prune failed', error: error.message, ts: Date.now() })) })
+              .catch(err2 => console.error(JSON.stringify({ level: 'warn', endpoint: '/api/live-matches', msg: 'push_subscriptions prune failed', error: err2?.message, ts: Date.now() })))
           }
         })
     )
@@ -682,7 +690,8 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'PANDASCORE_TOKEN not configured' })
   }
 
-  // Push subscription: store endpoint + team list in KV.
+  // Push subscription: upsert endpoint + team list + prefs into Supabase (push_subscriptions,
+  // pending-refactors #16 — replaces the KV push:sub/push:teams/push:prefs/push:team:{name} keys).
   if (req.method === 'POST' && req.query?.mode === 'push-subscribe') {
     try {
       const { subscription, teamNames } = req.body || {}
@@ -692,23 +701,20 @@ export default async function handler(req, res) {
         .update(subscription.endpoint)
         .digest('hex')
         .slice(0, 32)
-      const teams = Array.isArray(teamNames) ? teamNames : []
-
-      // Fetch previous team list to diff — required to clean up removed team indexes.
-      // Without this, users receive notifications for teams they unfollowed (stale reverse index).
-      // Handle both formats: old entries were JSON.stringify'd strings; new entries are direct arrays.
-      const prevTeamsRaw = await kv.get(`push:teams:${userId}`).catch(() => null)
-      let prevTeams = []
-      if (Array.isArray(prevTeamsRaw)) {
-        prevTeams = prevTeamsRaw
-      } else if (typeof prevTeamsRaw === 'string') {
-        try { prevTeams = JSON.parse(prevTeamsRaw) } catch { prevTeams = [] }
-      }
+      // Lowercased at write time: push_subscriptions.teams is matched in dispatchPush via
+      // Postgres `overlaps` against [teamA.toLowerCase(), teamB.toLowerCase()] — there is no
+      // reverse-index key anymore to case-fold at query time, so it has to happen here instead.
+      const teams = (Array.isArray(teamNames) ? teamNames : []).map(t => String(t).toLowerCase())
 
       // Merge incoming prefs over stored prefs. The auto re-subscribe on follow-change
       // (App.jsx) sends only { tz }, so a naive overwrite would wipe the user's type
       // toggles / quiet hours set in Settings — merge preserves them.
-      const prevPrefs = normalizePrefs(await kv.get(`push:prefs:${userId}`).catch(() => null))
+      const { data: existingRow } = await getSupabaseAdmin()
+        .from('push_subscriptions')
+        .select('prefs')
+        .eq('user_id', userId)
+        .maybeSingle()
+      const prevPrefs = normalizePrefs(existingRow?.prefs)
       const incoming = (req.body?.prefs && typeof req.body.prefs === 'object') ? req.body.prefs : {}
       const inTypes = (incoming.types && typeof incoming.types === 'object') ? incoming.types : {}
       const storedPrefs = normalizePrefs({
@@ -723,38 +729,21 @@ export default async function handler(req, res) {
         quietEnd: incoming.quietEnd !== undefined ? incoming.quietEnd : prevPrefs.quietEnd,
       })
 
-      const removedTeams = prevTeams.filter(t => !teams.includes(t))
-      const addedTeams = teams.filter(t => !prevTeams.includes(t))
+      // Full overwrite of `teams` on every call — no reverse index to diff/maintain, unlike the
+      // old KV push:team:{name} keys. A relational `overlaps` query at send time replaces it.
+      const { error } = await getSupabaseAdmin()
+        .from('push_subscriptions')
+        .upsert({
+          user_id: userId,
+          endpoint: subscription.endpoint,
+          p256dh: subscription.keys?.p256dh || null,
+          auth: subscription.keys?.auth || null,
+          teams,
+          prefs: storedPrefs,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+      if (error) throw error
 
-      // Remove userId from indexes of unfollowed teams
-      const removeOps = removedTeams.map(async name => {
-        const key = `push:team:${name.toLowerCase()}`
-        const existing = await kv.get(key).catch(() => null)
-        const ids = Array.isArray(existing) ? existing.filter(id => id !== userId) : []
-        if (ids.length > 0) {
-          await kv.set(key, ids, { ex: PUSH_SUB_TTL })
-        } else {
-          await kv.del(key).catch(() => {})
-        }
-      })
-
-      // Add userId to indexes of newly followed teams
-      const addOps = addedTeams.map(async name => {
-        const key = `push:team:${name.toLowerCase()}`
-        const existing = await kv.get(key).catch(() => null)
-        const ids = Array.isArray(existing) ? existing : []
-        if (!ids.includes(userId)) {
-          await kv.set(key, [...ids, userId], { ex: PUSH_SUB_TTL })
-        }
-      })
-
-      await Promise.all([
-        kv.set(`push:sub:${userId}`, JSON.stringify(subscription), { ex: PUSH_SUB_TTL }),
-        kv.set(`push:teams:${userId}`, teams, { ex: PUSH_SUB_TTL }),  // store as direct array going forward
-        kv.set(`push:prefs:${userId}`, storedPrefs, { ex: PUSH_SUB_TTL }),  // refreshed on every visit
-        ...removeOps,
-        ...addOps,
-      ])
       return res.status(200).json({ ok: true })
     } catch (err) {
       log.error('push-subscribe error', { error: err?.message })

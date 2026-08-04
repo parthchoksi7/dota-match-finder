@@ -21,9 +21,10 @@ const PUSH_DISABLED_KEY = 'spectate-push-disabled'
 // permission dialog, so a decline here can't burn Notification.requestPermission's
 // one-shot prompt. Collapses to the compact Enable row for good once dismissed or granted.
 const PUSH_PRIMER_DISMISSED_KEY = 'spectate-push-primer-dismissed'
-// Mirrors the server-side push:prefs shape so the Customize panel reads instantly with no
-// round trip. Per-browser, like followedTeams and the flags above — the subscription
-// endpoint these sync to is itself per-browser, so there's no cross-device state to reconcile.
+// Mirrors the server-side push_subscriptions.prefs shape (Supabase) so the Customize panel reads
+// instantly with no round trip. Per-browser, like followedTeams and the flags above — the
+// subscription endpoint these sync to is itself per-browser, so there's no cross-device state to
+// reconcile.
 const PUSH_PREFS_KEY = 'spectate-push-prefs'
 // `score` is the one type that defaults OFF, mirroring normalizePrefs() server-side: it is the
 // only alert whose copy carries a live result, so receiving one has to be a deliberate choice.

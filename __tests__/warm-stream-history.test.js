@@ -10,7 +10,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('dotenv', () => ({ config: vi.fn() }))
-vi.mock('../api/_supabase.js', () => ({ getSupabaseAdmin: () => ({}) }))
+
+// push_subscriptions fixture for dispatchPush's `overlaps` lookup (pending-refactors #16 —
+// replaced the old push:team/push:sub/push:prefs KV mget trio). Every other table this handler
+// touches (match_stream_history, live_game_map) is untouched by this test file's assertions, so
+// their upsert/select calls just resolve empty rather than needing real fixtures.
+const { pushSubsStore, mockGetSupabaseAdmin } = vi.hoisted(() => {
+  const pushSubsStore = new Map() // user_id -> row
+  function client() {
+    return {
+      from(table) {
+        return {
+          select() {
+            return {
+              overlaps: (col, val) => Promise.resolve({
+                data: table === 'push_subscriptions'
+                  ? [...pushSubsStore.values()].filter(r => (r[col] || []).some(x => val.includes(x)))
+                  : [],
+                error: null,
+              }),
+              eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+            }
+          },
+          upsert: async () => ({ data: [], error: null }),
+          delete: () => ({ eq: async () => ({ data: null, error: null }) }),
+        }
+      },
+    }
+  }
+  return { pushSubsStore, mockGetSupabaseAdmin: vi.fn(() => client()) }
+})
+vi.mock('../api/_supabase.js', () => ({ getSupabaseAdmin: mockGetSupabaseAdmin }))
 
 const { mockKv, mockSendNotification } = vi.hoisted(() => {
   const mockKv = { get: vi.fn(), set: vi.fn(), mget: vi.fn(), scan: vi.fn(), del: vi.fn() }
@@ -316,15 +346,22 @@ describe('warm-streams handler', () => {
     beforeEach(() => {
       process.env.VAPID_PRIVATE_KEY = 'test-vapid-key'
       mockSendNotification.mockReset().mockResolvedValue({})
-      // Route mget by key prefix: unbound stream cache (forces an attempt), one subscriber
-      // per team lookup, not-yet-sent dedup, a valid stored subscription, and default prefs.
+      // One subscriber following both default fixture teams (odGame()'s 'REKONIX'/'TEAM GRIND'),
+      // lowercased to match what dispatchPush's `overlaps` query compares against.
+      pushSubsStore.clear()
+      pushSubsStore.set('user1', {
+        user_id: 'user1',
+        endpoint: 'https://push.example/ep',
+        p256dh: 'p',
+        auth: 'a',
+        teams: ['rekonix', 'team grind'],
+        prefs: { tz: null, types: { soon: true, live: true, replay: true, score: false }, quietStart: null, quietEnd: null },
+      })
+      // Route mget by key prefix: unbound stream cache (forces an attempt), not-yet-sent dedup.
       mockKv.mget.mockImplementation((...keys) => {
         const first = keys[0] || ''
         if (first.startsWith('stream:match:')) return Promise.resolve(keys.map(() => null))
-        if (first.startsWith('push:team:')) return Promise.resolve(keys.map(() => ['user1']))
         if (first.startsWith('push:sent:')) return Promise.resolve(keys.map(() => null))
-        if (first.startsWith('push:sub:')) return Promise.resolve(keys.map(() => JSON.stringify({ endpoint: 'https://push.example/ep', keys: { p256dh: 'p', auth: 'a' } })))
-        if (first.startsWith('push:prefs:')) return Promise.resolve(keys.map(() => null))
         return Promise.resolve(keys.map(() => null))
       })
     })
@@ -390,13 +427,12 @@ describe('warm-streams handler', () => {
       // bound in KV (stream:match:8201); Game 2's is not — so the series is re-attempted
       // (existing.every(Boolean) is false) and the completion gate re-evaluates with BOTH
       // games. This is the exact sequence that produced the real incident.
+      // pushSubsStore's 'user1' fixture from the outer beforeEach still applies — only the
+      // stream:match: dedup state changes between runs.
       mockKv.mget.mockImplementation((...keys) => {
         const first = keys[0] || ''
         if (first.startsWith('stream:match:')) return Promise.resolve(keys.map(k => k === 'stream:match:8201' ? 'pgl_dota2' : null))
-        if (first.startsWith('push:team:')) return Promise.resolve(keys.map(() => ['user1']))
         if (first.startsWith('push:sent:')) return Promise.resolve(keys.map(() => null))
-        if (first.startsWith('push:sub:')) return Promise.resolve(keys.map(() => JSON.stringify({ endpoint: 'https://push.example/ep', keys: { p256dh: 'p', auth: 'a' } })))
-        if (first.startsWith('push:prefs:')) return Promise.resolve(keys.map(() => null))
         return Promise.resolve(keys.map(() => null))
       })
       global.fetch = vi.fn((url) => {
