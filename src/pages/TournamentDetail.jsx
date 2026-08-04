@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
@@ -8,7 +8,7 @@ import RegionBreakdown from '../components/RegionBreakdown'
 import { HorizontalBracket } from '../components/BracketView'
 import StatusBadge from '../components/StatusBadge'
 import { trackEvent, formatDateRange, buildTournamentName, getTournamentFormatKey, getStageFormatConfig } from '../utils'
-import { TOOLTIP_PANEL, clampLeft } from '../components/FloatingTooltip'
+import { InfoButton } from '../components/FloatingTooltip'
 
 function getSeriesIdFromPath() {
   if (typeof window === 'undefined') return null
@@ -213,62 +213,14 @@ function getStageDescription(stageName, hasBracket) {
   return 'Tournament stage where teams compete for advancement.'
 }
 
-// Matches the popover's own `w-72`; used as the viewport clamp width.
-const STAGE_POPOVER_WIDTH = 288
-
 function StageInfoTooltip({ stageName, hasBracket }) {
-  const [pos, setPos] = useState(null)
-  const btnRef = useRef(null)
-  const tooltipRef = useRef(null)
-
-  function open(e) {
-    e.stopPropagation()
-    const r = btnRef.current.getBoundingClientRect()
-    setPos({ top: r.bottom + 6, left: r.left })
-  }
-
-  useEffect(() => {
-    if (!pos) return
-    function handler(e) {
-      if (
-        btnRef.current && !btnRef.current.contains(e.target) &&
-        tooltipRef.current && !tooltipRef.current.contains(e.target)
-      ) setPos(null)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [pos])
-
   return (
-    <span className="inline-flex items-center">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={open}
-        aria-label={`About ${stageName}`}
-        className="group inline-flex items-center justify-center p-[15px] rounded-full flex-shrink-0"
-      >
-        <span
-          aria-hidden="true"
-          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 dark:border-gray-600 text-gray-400 dark:text-gray-600 group-hover:border-gray-600 dark:group-hover:border-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors leading-none font-bold"
-          style={{ fontSize: '9px' }}
-        >
-          i
-        </span>
-      </button>
-      {pos && (
-        <div
-          ref={tooltipRef}
-          className={`fixed z-[9999] w-72 ${TOOLTIP_PANEL} p-3`}
-          style={{ top: pos.top, left: clampLeft(pos.left, STAGE_POPOVER_WIDTH) }}
-        >
-          <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{stageName}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-            {getStageDescription(stageName, hasBracket)}
-          </p>
-        </div>
-      )}
-    </span>
+    <InfoButton
+      ariaLabel={`About ${stageName}`}
+      title={stageName}
+      description={getStageDescription(stageName, hasBracket)}
+      buttonClassName="p-[15px]"
+    />
   )
 }
 

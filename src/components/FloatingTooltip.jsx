@@ -150,10 +150,11 @@ export function HoverCardTitle({ children }) {
  * drawer's "Channel link" marker). Positioning/dismiss logic: fixed-position popover anchored
  * below the button, clamped on-screen, closes on outside click.
  *
- * `TournamentDetail.jsx`'s `StageInfoTooltip` hand-rolls an identical version of this — see
- * `.claude/pending-refactors.md` for migrating it onto this shared component.
+ * @param {string} [props.buttonClassName='p-1']  Button padding, exposed so callers needing a
+ *   larger touch target (e.g. TournamentDetail's stage info, which uses `p-[15px]` for the
+ *   44px floor) don't have to shrink their hit area to match this component's default.
  */
-export function InfoButton({ ariaLabel, title, description, width = 288 }) {
+export function InfoButton({ ariaLabel, title, description, width = 288, buttonClassName = 'p-1' }) {
   const [pos, setPos] = useState(null)
   const btnRef = useRef(null)
   const tooltipRef = useRef(null)
@@ -183,7 +184,7 @@ export function InfoButton({ ariaLabel, title, description, width = 288 }) {
         type="button"
         onClick={open}
         aria-label={ariaLabel}
-        className="group inline-flex items-center justify-center p-1 rounded-full flex-shrink-0"
+        className={`group inline-flex items-center justify-center ${buttonClassName} rounded-full flex-shrink-0`}
       >
         <span
           aria-hidden="true"
