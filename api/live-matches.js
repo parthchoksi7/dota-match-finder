@@ -14,7 +14,7 @@ import { formatScoreHeadline, formatScoreDetail, scoreSignature, shouldSendScore
 // Same zero-browser-dependency rule — liveSignal.js only imports momentum.js, itself zero-import.
 import { nextSignalState, STALE_MAX_S } from '../src/utils/liveSignal.js'
 
-const KV_KEY = 'dota2:live_matches_v5' // v5: matches may now carry `.signal` (live worth-watching badge, owner-only)
+const KV_KEY = 'dota2:live_matches_v5' // v5: matches may now carry `.signal` (live worth-watching badge)
 const TTL = 60 * 2 // 2 minutes
 const PUSH_SUB_TTL = 90 * 24 * 3600 // 90 days — refreshed on every visit (App.jsx re-subscribe).
 // Longer than the old 30d so a fan who follows a team but doesn't return for a few weeks
@@ -109,16 +109,6 @@ function mapGames(m) {
 function getYoutubeStream(streamsList) {
   const s = (streamsList || []).find(s => s.language === 'en' && s.raw_url?.includes('youtube.com'))
   return s?.raw_url || null
-}
-
-// Response-time gate for the owner-only live "worth watching" signal (see the handler's isOwner
-// comment for why this happens here rather than at attachment time). Never mutates the cached
-// object — a shallow clone per match, cheap at the live feed's row counts (single digits to low
-// tens), so every non-owner request pays a trivial cost for a guarantee: `.signal` never appears
-// in a public response, regardless of which request happened to populate the shared cache.
-export function stripSignalForResponse(payload, isOwner) {
-  if (isOwner || !payload?.matches) return payload
-  return { ...payload, matches: payload.matches.map(({ signal, ...rest }) => rest) }
 }
 
 function mapMatch(m) {
@@ -557,7 +547,7 @@ async function sendScorePings(rawMatches, mapped, log) {
   return sent
 }
 
-// ── Live "worth watching" feed-row signal (owner-only) ───────────────────────────────────────
+// ── Live "worth watching" feed-row signal ────────────────────────────────────────────────────
 // `.claude/specs/live-worth-watching-signal-spec.md`. Computed on the response path (inside this
 // same KV cache regeneration), never in the cron — the dwell design means sub-2-minute freshness
 // buys nothing, so there is no case for a separate poll or a cron-side precompute.
@@ -686,15 +676,6 @@ export function selectSeriesToWarm(odMatches, { tier1Names, nowSec, lookbackSec,
 export default async function handler(req, res) {
   const log = createLogger('/api/live-matches')
   if (setCorsHeaders(req, res, { allowAll: true })) return
-  // Owner-only staged rollout for the live "worth watching" signal (same non-cryptographic
-  // client-flag pattern as every other owner-gated feature in this codebase — not a security
-  // boundary). Unlike api/_handlers/liveGamePulse.js, this endpoint's payload is cached under ONE
-  // shared KV key for every caller (see KV_KEY below), so gating happens at RESPONSE time
-  // (stripSignalForResponse) rather than at attachment time — attachment-time gating here would
-  // mean whichever request happens to trigger a cache regen decides what EVERY caller sees for
-  // the rest of that TTL window, which would leak the field to public callers whenever an owner
-  // request (harmlessly) wins the regen race.
-  const isOwner = req.query?.owner === '1'
 
   const token = process.env.PANDASCORE_TOKEN
   if (!token) {
@@ -1038,7 +1019,7 @@ export default async function handler(req, res) {
     const cached = await kv.get(KV_KEY)
     if (cached) {
       log.info('serving from KV cache')
-      return res.status(200).json(stripSignalForResponse(cached, isOwner))
+      return res.status(200).json(cached)
     }
   } catch (err) {
     log.warn('KV cache read failed', { error: err?.message })
@@ -1088,10 +1069,9 @@ export default async function handler(req, res) {
     }
 
     // Live "worth watching" signal — computed unconditionally into the CACHED payload (cheap: one
-    // batched query + one pipelined KV mget/set per ~2-min regen, reusing resolveRunningPulses),
-    // then stripped per-request below if the caller isn't the owner. Entire enrichment sits in one
-    // try/catch: any failure here (Supabase, KV, the pure helpers) must never affect the primary
-    // matches payload, which is the product's highest-traffic surface.
+    // batched query + one pipelined KV mget/set per ~2-min regen, reusing resolveRunningPulses).
+    // Entire enrichment sits in one try/catch: any failure here (Supabase, KV, the pure helpers)
+    // must never affect the primary matches payload, which is the product's highest-traffic surface.
     try {
       if (await isFeatureEnabled('live-signal', kv)) {
         const signals = await resolveLiveSignals(tier1Raw, log)
@@ -1106,9 +1086,7 @@ export default async function handler(req, res) {
 
     // In-game clock (elapsed minutes) for the homepage row — same batched pulse read as the
     // signal block above (reusing resolveRunningPulses, not a second PS↔OD matcher), isolated in
-    // its own try/catch so a failure here never affects the primary matches payload. Not
-    // owner-gated: unlike `.signal`, an elapsed-minutes clock carries no score/outcome
-    // information, so it's fine for spoiler-free/public viewers too.
+    // its own try/catch so a failure here never affects the primary matches payload.
     try {
       const pulses = await resolveRunningPulses(tier1Raw, log)
       matches.forEach(m => {
@@ -1131,7 +1109,7 @@ export default async function handler(req, res) {
     // Keyed by begin_at rounded to 5 min so OpenDota's start_time (close but not identical) can look it up.
     await cacheRunningStreams(tier1Raw)
 
-    return res.status(200).json(stripSignalForResponse(payload, isOwner))
+    return res.status(200).json(payload)
 
   } catch (err) {
     await trackError('/api/live-matches', 500, err?.message)

@@ -155,7 +155,7 @@ While TI is running, the site collapses around it:
 *Why a state and not a page:* a page needs discovery. The homepage already has the traffic; the TI hub already exists for search. Rebuilding a hub costs the window and duplicates rdy.gg.
 
 ### 5.2 The hero: cross-game "worth watching" signal on each live row
-The one thing nobody else has. Per live TI row, a compact badge derived from telemetry we already capture:
+**Status: shipped and public** (built owner-only 2026-08-01, flipped public 2026-08-03 — see `live-worth-watching-signal-spec.md`). The one thing nobody else has. Per live TI row, a compact badge derived from telemetry we already capture:
 - **CLOSE** — net-worth lead inside the momentum band's `EVEN` threshold at this game time.
 - **SWING** — lead crossed sides, or shrank by a large margin since the last capture.
 - **DECIDER / MATCH POINT** — series stakes (`computeStakes` already produces this).
@@ -211,7 +211,7 @@ Add `TOURNAMENT_FORMAT_CONFIGS['the-international']` with the group stage (Swiss
 ### Tier 1 — the hero
 | # | Item | Notes |
 |---|---|---|
-| T1.1 | **Cross-game live "worth watching" signal on feed rows** | `live-story-roadmap.md` 2b. **Write the PM spec first** (the roadmap explicitly requires it). Scope hard: one badge, three states, existing `computeMomentum`/`computeStakes` thresholds, one batched cross-game query. Effort M–L; must land by **Aug 8** to leave a rehearsal window on 1win Essence / EPL Masters. |
+| T1.1 | **Cross-game live "worth watching" signal on feed rows** | **DONE** — spec written (`live-worth-watching-signal-spec.md`), built owner-only 2026-08-01, flipped public 2026-08-03 (ahead of the original Aug 8 target). `live-story-roadmap.md` 2b. |
 
 ### Tier 2 — cheap, high-leverage
 | # | Item | Effort |

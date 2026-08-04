@@ -851,15 +851,15 @@ The actual Dota 2 minimap texture (`public/dota-minimap-7.40.webp`, self-hosted,
 
 ---
 
-## Live feed row — "worth watching" signal badge (owner-only, built 2026-08-01)
+## Live feed row — "worth watching" signal badge (public, built owner-only 2026-08-01, flipped public 2026-08-03)
 
 A per-row badge in `LiveMatchRow.jsx`'s sub-row, answering a different question than everything in
 the companion sheet above: not "how's this game going" for a game a fan already opened, but "which
 of several simultaneous live rows is worth opening at all." Spec: `.claude/specs/
 live-worth-watching-signal-spec.md`. Computed server-side (`src/utils/liveSignal.js` +
 `api/live-matches.js`'s `resolveLiveSignals`) from `live_game_map`'s net-worth lead only — no new
-data source. **Owner-only as of this build** — `match.signal` is stripped from every response that
-doesn't carry `owner=1` (`stripSignalForResponse`), so none of this renders publicly yet.
+data source. Renders for every viewer — the only way to disable it is the `feature:live-signal` KV
+kill switch (`isFeatureEnabled`, `api/_shared.js`), not viewer identity.
 
 - **Three states, one badge, never stacked:** `CLOSE` and `SWINGING` share one **positive**
   treatment (`text-red-500`, `text-[10px] font-bold uppercase tracking-wide`) — red is the row's

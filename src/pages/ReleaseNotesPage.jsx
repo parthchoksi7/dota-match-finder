@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "August 3, 2026",
     tag: "new",
+    title: "\"Worth watching\" badge on live feed rows",
+    desc: "When more than one game is live at once, a badge now shows on each row: CLOSE or SWINGING for a genuinely undecided or momentum-shifting game, ONE-SIDED for one that's very likely already decided. No badge is the ordinary case. Never shown on a Grand Final, a series decider, or a match involving a team you follow.",
+  },
+  {
+    date: "August 3, 2026",
+    tag: "new",
     title: "Live game clock on the homepage",
     desc: "Live match rows now show how far into the current game play is, in whole minutes (e.g. \"12m\"), right next to the G1/G2/... indicator.",
   },

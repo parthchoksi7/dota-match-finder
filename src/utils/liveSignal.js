@@ -5,12 +5,14 @@
 // cross-boundary rule already established by src/utils/liveScore.js, src/seriesLogic.js, and
 // src/teamMatching.js.
 //
-// OWNER-ONLY as of this build (2026-08-01). The spec's own MVP timeline treats an owner-gated
-// verification window as a real milestone before any public flip (same pattern as the tower map:
-// live-story-shipped.md, R4 Phase D) — the signal's predictive value is explicitly unvalidated
-// (Finding 5) and its base rate is only 4.1%, so it must be watched against real games before it
-// makes any public claim. Gating itself lives at the API response boundary
-// (api/live-matches.js), not here — this module has no notion of who's asking.
+// Built owner-only 2026-08-01, flipped PUBLIC 2026-08-03 (ahead of the spec's own Aug 8–10
+// milestone). The spec's threshold/pipeline calibration caveat (Finding 3b: calibrated against
+// post-game `radiant_gold_adv`, not yet re-validated against the noisier live `radiant_lead`
+// field) was open at flip time and closed 2026-08-03 — replaying this module's own
+// `nextSignalState` over 183 tier-1 games of real `live_game_gold` history landed within noise of
+// the original post-game calibration (see the spec's "Post-flip re-validation" section). This
+// module has no notion of who's asking; there is no gate here or at the API response boundary
+// (api/live-matches.js) — only the `feature:live-signal` KV kill switch can disable it.
 //
 // Pre-implementation critique (2026-08-01, /dota_data_scientist + /dota_analyst + /dota_pm):
 // three logic gaps were found and fixed here before this shipped, and two product-level

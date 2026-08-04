@@ -523,13 +523,8 @@ function App() {
 
   const fetchLiveData = useCallback(async () => {
     try {
-      // owner=1 unlocks the owner-only live "worth watching" badge (`match.signal` —
-      // `.claude/specs/live-worth-watching-signal-spec.md`); api/live-matches.js strips the field
-      // from the response entirely for every other caller, same non-cryptographic staged-rollout
-      // pattern as every other owner-gated feature in this codebase.
-      const liveUrl = isOwner ? "/api/live-matches?owner=1" : "/api/live-matches"
       const [liveRes, upcomingRes] = await Promise.all([
-        fetch(liveUrl).then(r => r.json()),
+        fetch("/api/live-matches").then(r => r.json()),
         fetch("/api/upcoming-matches").then(r => r.json()),
       ])
       setLiveMatches(liveRes.matches || [])
@@ -546,7 +541,7 @@ function App() {
       }
     } catch {}
     setLiveLoading(false)
-  }, [isOwner])
+  }, [])
 
   const refreshAll = useCallback(() => {
     clearVodPrefetchCache()

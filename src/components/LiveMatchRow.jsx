@@ -4,9 +4,9 @@ import { computeStakes } from '../utils/momentum'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
 
 // Live "worth watching" feed-row badge (`.claude/specs/live-worth-watching-signal-spec.md`).
-// OWNER-ONLY as of this build — `match.signal` is only ever present when the API request that
-// populated it carried `owner=1` (api/live-matches.js's stripSignalForResponse), so this whole
-// block is a silent no-op for every public viewer regardless of anything below.
+// PUBLIC as of 2026-08-03 — `match.signal` is present on every live-matches response
+// (api/live-matches.js's live-signal enrichment, gated only by the `feature:live-signal` KV kill
+// switch, not by viewer identity).
 //
 // Two suppressions were added on top of the spec during a pre-build critique
 // (/dota_data_scientist + /dota_analyst + /dota_pm, 2026-08-01), both scoped to ONE_SIDED only —

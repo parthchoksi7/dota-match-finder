@@ -1,7 +1,7 @@
 /**
  * Tests for src/utils/liveSignal.js — the live feed "worth watching" badge state machine
- * (`.claude/specs/live-worth-watching-signal-spec.md`). Owner-only as of this build; these tests
- * cover the pure logic regardless of gating, plus the three fixes from the pre-build critique
+ * (`.claude/specs/live-worth-watching-signal-spec.md`). Public as of 2026-08-03; these tests
+ * cover the pure logic, plus the three fixes from the pre-build critique
  * (/dota_data_scientist + /dota_analyst + /dota_pm, 2026-08-01): peak-reset-on-sign-flip, the
  * time-scaled peak floor, and the shared-threshold guarantee against momentum.js.
  */

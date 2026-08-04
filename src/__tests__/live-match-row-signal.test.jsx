@@ -1,11 +1,8 @@
 /**
  * Component tests for LiveMatchRow's live "worth watching" badge
- * (`.claude/specs/live-worth-watching-signal-spec.md`), owner-only as of this build.
- *
- * `match.signal` is only ever present in the API response for an owner-flagged request
- * (api/live-matches.js's stripSignalForResponse strips it for everyone else) — these tests feed
- * `match.signal` directly, since LiveMatchRow itself has no notion of who's asking; the gate is
- * entirely "is this field present on the object I was given."
+ * (`.claude/specs/live-worth-watching-signal-spec.md`). Public as of 2026-08-03 — `match.signal`
+ * is present on every live-matches response. These tests feed `match.signal` directly, since
+ * LiveMatchRow itself has no notion of who's asking; it just renders whatever field it's given.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -29,7 +26,7 @@ function baseMatch(overrides = {}) {
 }
 
 describe('LiveMatchRow — signal badge visibility', () => {
-  it('renders nothing when match.signal is absent (public payload today)', () => {
+  it('renders nothing when match.signal is absent (no running game, or kill switch off)', () => {
     render(<LiveMatchRow match={baseMatch()} />)
     expect(screen.queryByText('CLOSE')).toBeNull()
     expect(screen.queryByText('SWINGING')).toBeNull()

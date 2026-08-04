@@ -1,11 +1,13 @@
 # Live "Worth Watching" Signal on Feed Rows — Product Specification
 
 Roadmap item: `.claude/specs/live-story-roadmap.md` **Priority 2b** ("Row-level 'heating up' / 'close game' badge — NOT speced, commission a PM pass first"). Cross-referenced in `.claude/product-backlog.md` line 9.
-Status: **spec drafted 2026-07-30. BUILT AND SHIPPED OWNER-ONLY 2026-08-01** — this matches the
-timeline's own "Aug 4: owner-gated deploy" milestone below, just earlier; the "Aug 8–10: public
-flip" milestone is explicitly **not** decided by this build and needs its own go/no-go once the
-owner has watched it against real games (see "Pre-build critique" immediately below and the
-timeline's own observation window).
+Status: **spec drafted 2026-07-30. BUILT AND SHIPPED OWNER-ONLY 2026-08-01, FLIPPED PUBLIC
+2026-08-03** — ahead of the timeline's own "Aug 8–10" target below (owner decision, made without
+completing the full owner-observation window this spec originally called for). The
+threshold/pipeline calibration caveat (post-game `radiant_gold_adv` proxy vs. live `radiant_lead`
+— Finding 3b) was open at flip time; it was **re-validated against real `live_game_gold` data and
+closed 2026-08-03** — see "Post-flip re-validation" immediately after the critique below. The
+result corroborated the original post-game calibration; no threshold changes were made.
 Shares its data source with the Live Series Companion pulse (`live_game_map`) and the live-score push (`sendScorePings`).
 
 ## Pre-build critique (2026-08-01) — findings and fixes applied before shipping
@@ -28,11 +30,11 @@ calibration risk was confirmed already-known and left as an open pre-public-flip
    at minute 15 but statistical noise by minute 70+, where net worth totals (and single-fight
    swings) are far larger. `peakFloor(gameTime)` now scales with `evenThreshold` the same way the
    CLOSE/ONE_SIDED boundaries already do.
-3. **Threshold/pipeline mismatch — confirmed, not newly fixable.** The calibration corpus used
+3. **Threshold/pipeline mismatch — confirmed, not newly fixable at the time.** The calibration corpus used
    post-game `radiant_gold_adv` (smoother) as a stand-in for the noisier live `radiant_lead` field.
    This was already flagged in "Data Requirements" as a pre-public-flip requirement
-   ("re-validate against `live_game_gold`"); the critique corroborates it independently and it
-   remains open — no amount of state-machine logic fixes a calibration-source mismatch.
+   ("re-validate against `live_game_gold`"); the critique corroborates it independently. **Closed
+   2026-08-03 — see "Post-flip re-validation" below.**
 
 **Product fixes (`src/components/LiveMatchRow.jsx`), both scoped to ONE_SIDED only — CLOSE/SWINGING
 are a positive read and are never suppressed:**
@@ -63,6 +65,53 @@ are a positive read and are never suppressed:**
   its cache per-owner and this one does not. Attachment-time gating here would leak the field to
   every public caller for the rest of a cache window whenever an owner's request happened to win
   the regen race. See the code comment on `handler()`'s `isOwner` line in `api/live-matches.js`.
+
+## Post-flip re-validation (2026-08-03) — Finding 3b closed
+
+The public flip (2026-08-03) shipped ahead of re-validating thresholds against real live
+`radiant_lead` data. This section closes that gap: computed this session, not recalled, against
+`live_game_gold` (this codebase's own production capture table, live since 2026-07-17, no prune
+job ever implemented — see `scripts/create-live-game-gold.sql` — which is incidentally why enough
+history existed to run this at all).
+
+**Method.** Pulled every `live_game_gold` row (4,623 rows / 321 games, 2026-07-18 → 2026-08-03),
+joined against real outcomes (`radiant_win`) and league names via OpenDota's `/api/explorer` SQL
+endpoint, filtered to this repo's own `PERMANENT_TIER1_NAMES` (dropped 85 of 308 resolvable games —
+Boris Invitational, Asgard Championship — that OD's `/live` sweep captures but that would never
+actually reach a production feed row). Left with **183 tier-1 games with ≥5 captured snapshots**
+(2,993 (game, minute) observations). Unlike the original post-game corpus (uniform per-minute
+`radiant_gold_adv` from OpenDota's clean post-match parse), this is the actual noisy, irregularly-
+spaced signal the shipped code reads in production — real ~60–120s capture gaps, real network
+blips, real games that stopped being captured mid-way when no one was watching.
+
+**Result 1 — replaying the actual shipped state machine (`nextSignalState`, full hysteresis +
+dwell), not just snapshot buckets:** of the 183 games, 116 triggered `ONE_SIDED` at least once.
+The leading side at that moment went on to win **111/116 = 95.7%** — 5 wrong calls. The original
+spec's Finding 3 (post-game data) found 78/83 = 94% (5 wrong calls, on a smaller game count).
+Statistically indistinguishable, same wrong-call rate.
+
+**Result 2 — aggregate three-band calibration (current thresholds, live `radiant_lead`, tier-1
+only, minute 8+):**
+
+| Band | share (live) | P(leader wins), live | P(leader wins), original post-game corpus |
+|---|---|---|---|
+| `EVEN` | 21.6% | 52.5% | 53.2% |
+| `AHEAD` | 56.1% | 71.8% | 75.0% |
+| `FAR_AHEAD` | 22.3% | 95.1% | 95.9% |
+
+All three within ~1–4 points of the original calibration. Broken out by game phase (8–25 / 25–45 /
+45+ min) to specifically check for the failure mode a noisy live feed could cause — thresholds
+drifting badly at one phase but not another — `FAR_AHEAD` held 92–97% "decided" and `EVEN` held
+50–57% "coin flip" at every phase, with no systematic drift late-game where net worth (and
+single-fight swings) are largest and the ramp matters most.
+
+**Conclusion: the live/post-game pipeline mismatch flagged in Finding 3b does not materially
+change the calibration story.** No threshold changes made in `momentum.js` or `liveSignal.js` as a
+result. Caveat carried forward honestly: this corpus is ~18× smaller than the original (183 vs.
+3,230 games), so individual lead × time-bucket cells are thin (some n=1–2) — this closes the
+*aggregate* calibration risk, not a claim that every fine-grained cell is precisely pinned down.
+The `feature:live-signal` KV kill switch remains the backstop if real-world behavior still
+surprises the owner during TI 2026.
 
 ---
 
@@ -401,9 +450,9 @@ Two consequences, both of which change the plan:
 ### Data-quality caveats (stated, not buried)
 
 - `radiant_gold_adv` (post-game, per-minute) is a **proxy** for `live_game_map.radiant_lead` (OpenDota `/live`
-  net-worth diff). Conceptually the same quantity, different pipeline and different sampling cadence. Thresholds
-  derived here **must be re-verified against real `live_game_gold` history before the public flip** — that table
-  holds the actual production series and has never been pruned, so the corpus exists today.
+  net-worth diff). Conceptually the same quantity, different pipeline and different sampling cadence.
+  **Re-verified against real `live_game_gold` history 2026-08-03** (after the flip, not before —
+  see "Post-flip re-validation") — corroborated within noise, no threshold changes needed.
 - Pooled observations are autocorrelated within a game. n = 3,609 is not 3,609 independent trials; the honest
   unit is **N = 104 games**.
 - 1win Essence II contributes only n = 10 games. EWC coverage is partial (157 of its games fell inside the
@@ -833,9 +882,10 @@ Both pure, both fully unit-testable without network, KV, or React.
 
 No new table, no new column, no new capture, no new third-party dependency, no schema migration.
 
-**Threshold re-validation before public flip:** rerun the Finding 1/2/3 analysis against `live_game_gold`
-history for real production games (the table has never been pruned and holds full per-game series). This
-replaces the `radiant_gold_adv` proxy with the exact production signal.
+**Threshold re-validation:** rerun the Finding 1/2/3 analysis against `live_game_gold` history for real
+production games (the table has never been pruned and holds full per-game series), replacing the
+`radiant_gold_adv` proxy with the exact production signal. **Done 2026-08-03** (after, not before, the
+public flip) — see "Post-flip re-validation." Result corroborated the original calibration.
 
 ---
 
@@ -908,6 +958,13 @@ hundreds of real games of rehearsal **without waiting for live concurrency** —
 arrive before Aug 8. It also directly re-validates the thresholds against production data rather than the
 `radiant_gold_adv` proxy.
 
+**A one-off version of exactly this replay was run manually 2026-08-03** (see "Post-flip re-validation" —
+`nextSignalState` replayed over 183 tier-1 `live_game_gold` games, 95.7% correct `ONE_SIDED` calls). That
+closed the calibration risk but was an ad-hoc script, not a persisted test — turning it into a real
+`__tests__/live-signal-replay.test.js` (fixture: a handful of real games' `(game_time, radiant_lead)`
+series + their outcome) is still open as a regression guard, so a future threshold tweak can't silently
+break what was just validated.
+
 Concrete acceptance targets, derived from Finding 4 (baseline 4.5 transitions/game, 58% of games ≥ 4):
 - **Mean badge transitions per game ≤ 2.0**
 - **≤ 10% of games with ≥ 3 transitions**
@@ -957,8 +1014,8 @@ If hysteresis does not achieve that, tune `CLOSE_EXIT` / `ONE_SIDED_EXIT_FACTOR`
 | **Predictive claim is unvalidated** (Finding 5) | High | Copy is a present-tense state read, never a prediction. Pre-registered kill criterion. |
 | **Badge flicker** (Finding 4) | High | Hysteresis + dwell + replay-harness acceptance targets. |
 | **Cannot rehearse multi-row before TI** (Finding 6) | High | Replay harness + mocked 4-row viewport QA. Accept that live multi-row rehearsal will be thin. |
-| **Thresholds derived from a proxy metric** | Medium | Re-validate against `live_game_gold` before the public flip. |
-| **Touches the highest-traffic endpoint right before TI** | Medium | Full failure isolation; KV kill switch; owner gate; flip before Aug 13 or after Aug 23, never during. |
+| **Thresholds derived from a proxy metric** | ~~Medium~~ Closed 2026-08-03 | Re-validated against real `live_game_gold` data (183 tier-1 games, see "Post-flip re-validation") — corroborated the original calibration within noise. KV kill switch (`feature:live-signal`) remains the backstop. |
+| **Touches the highest-traffic endpoint right before TI** | Medium | Full failure isolation; KV kill switch (only remaining gate — the owner gate was removed at the public flip). |
 | **Extra Supabase query on the hot path** | Low | One batched range query per ~2-min cache regeneration, not per request. Already the proven pattern in `sendScorePings`. |
 | **Correlation failures leave rows unbadged** | Low | Fail-closed by design. Monitor `live_signal_resolved.unresolved`. |
 | **TI 2026 group format unverified** (BO3 per secondary sources) | Low for MVP | Stakes is excluded from MVP, so a BO2 group stage would not change the build. Verify anyway. |
@@ -1010,10 +1067,8 @@ work is a small pure module, a KV state machine, one render site, and the test h
 
 | Date | Milestone |
 |---|---|
-| Aug 1–4 | Build + replay harness + threshold re-validation on `live_game_gold` |
-| Aug 4 | Owner-gated deploy; verify on live EPL Masters / 1win Essence games |
-| Aug 5–7 | Owner-mode observation; tune hysteresis against real transitions |
-| **Aug 8–10** | **Public flip (hard gate — before TI group stage opens Aug 13)** |
+| Aug 1 | Build + owner-gated deploy |
+| **Aug 3** | **Public flip (actual — ahead of the Aug 8–10 target; threshold re-validation on `live_game_gold` not completed first, see Status)** |
 | Aug 13–23 | TI 2026: observe, do not touch (freeze) |
 | Aug 24 | Evaluate against the pre-registered kill criterion |
 
