@@ -34,8 +34,8 @@ dist-ssr
 .claude/*.md
 .claude/*.sql
 
-# Authored article kept locally, not part of the codebase
-ARTICLE_ENTITY_RESOLUTION.md
+# Archived docs — local only, not published
+archive/
 
 # Live Story R4 spike: raw building_state watch snapshots (local analysis data)
 scripts/building-state-samples.jsonl
