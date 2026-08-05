@@ -48,6 +48,10 @@ Each match at /match/{team-a}-vs-{team-b}-{tournament}-{matchId} includes:
 
 ## Data Coverage
 
+### The International 2026 — Coverage
+
+- [TI 2026's Swiss Stage Isn't Tradition. It's Valve's Second Try.](https://spectateesports.live/articles/the-international-2026-swiss-stage-explained) — August 5, 2026. The International 2026's group stage uses Swiss pairings for only the second time in TI history. Here's how the format works, and why every round from Round 3 on carries real elimination stakes.
+
 ### Esports World Cup 2026 — Coverage
 
 - [Four Elimination Matches Tomorrow — Which One to Watch First](https://spectateesports.live/articles/ewc-2026-survival-round-1-preview) — July 13, 2026. Survival Round 1 hits July 14 with four win-or-go-home best-of-3s. One of them sends its winner straight into a match against the reigning champion the very next day.
