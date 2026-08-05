@@ -121,6 +121,34 @@ export default async function handler(req, res) {
     return handleLiveOdCapture(req, res)
   }
 
+  // ── live-story-capture mode ─────────────────────────────────────────────────
+  // Valve GetLiveLeagueGames capture + event derivation (Live Story, admin-verification phase).
+  // Same shape as od-live-capture directly above: unauthenticated (idempotent, KV-throttled, no
+  // user input, no sensitive data), no new QStash schedule — a KV lock is the real cadence
+  // control, so the ambient client poll IS the trigger while anyone has a live surface open, and
+  // the existing */15 od-live-capture backstop schedule covers no-user windows for free.
+  if (req.query?.mode === 'live-story-capture') {
+    const { captureLiveStoryOnce } = await import('./_handlers/liveStoryCapture.js')
+    const result = await captureLiveStoryOnce(createLogger('/api/tournaments?mode=live-story-capture'))
+    res.setHeader('Cache-Control', 'no-store')
+    return res.status(200).json(result)
+  }
+
+  // ── live-story-admin mode ───────────────────────────────────────────────────
+  // Read-only verification surface for /admin/live-story: last captured pair (for the snapshot
+  // inspector), health summary, and per-match event rings. Token-gated like api/pipeline.js's
+  // admin endpoints (CRON_SECRET as Bearer) — this is not a security boundary against a
+  // determined attacker, it's the same "never linked, never indexed, cheap gate" pattern used
+  // everywhere else internal-only data is exposed in this codebase.
+  if (req.query?.mode === 'live-story-admin') {
+    const auth = req.headers.authorization
+    if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ error: 'unauthorized' })
+    }
+    const { default: handleLiveStoryAdmin } = await import('./_handlers/liveStoryAdmin.js')
+    return handleLiveStoryAdmin(req, res)
+  }
+
   // ── promatches-proxy mode ───────────────────────────────────────────────────
   // Proxy for OpenDota /api/promatches — avoids client-side CORS restrictions.
   if (req.query?.mode === 'promatches-proxy') {
