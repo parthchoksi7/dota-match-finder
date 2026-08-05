@@ -159,12 +159,14 @@ export default async function handler(req, res) {
     // ── Article slugs ──────────────────────────────────────────────────────────
     let articleSlugs = []
     let articleTournaments = []
+    let articleDates = {}
     try {
       const artRes = await fetch(`${BASE_URL}/api/pipeline?type=articles&mode=slugs`).catch(() => null)
       if (artRes?.ok) {
         const artData = await artRes.json().catch(() => null)
         articleSlugs = artData?.slugs || []
         articleTournaments = artData?.tournaments || []
+        articleDates = artData?.dates || {}
       }
     } catch (_) {}
 
@@ -241,7 +243,7 @@ ${articleTournaments.map(t => `  <url>
     <priority>0.9</priority>
   </url>`).join('\n')}
 ${articleSlugs.map(slug => `  <url>
-    <loc>${BASE_URL}/articles/${slug}</loc>
+    <loc>${BASE_URL}/articles/${slug}</loc>${articleDates[slug] ? `\n    <lastmod>${articleDates[slug]}</lastmod>` : ''}
     <changefreq>never</changefreq>
     <priority>0.8</priority>
   </url>`).join('\n')}

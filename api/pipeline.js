@@ -82,13 +82,15 @@ async function handleArticles(req, res) {
 
     if (mode === 'slugs') {
       const { data, error } = await db
-        .from('articles').select('slug,tournament')
+        .from('articles').select('slug,tournament,published_at')
         .eq('status', 'published').or(notExpired).order('published_at', { ascending: false })
       if (error) throw error
       res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
       return res.status(200).json({
         slugs: (data || []).map(r => r.slug),
         tournaments: [...new Set((data || []).map(r => r.tournament))],
+        // slug -> published_at (YYYY-MM-DD), for accurate sitemap <lastmod> values
+        dates: Object.fromEntries((data || []).map(r => [r.slug, (r.published_at || '').slice(0, 10)])),
       })
     }
 
