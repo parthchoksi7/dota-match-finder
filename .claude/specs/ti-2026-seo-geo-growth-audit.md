@@ -6,6 +6,21 @@
 
 ---
 
+## Progress Log
+
+**2026-08-04 — Shipped and verified live in production:**
+
+1. **`llms.txt`/`llms-full.txt` TI 2026 entry** (Priority #1) — added dates, Shanghai venue, $1.6M prize pool, 16-team Swiss format, link to the live tournament page. Deployed, confirmed live via curl.
+2. **Sitemap duplicate-URL bug** (Priority #2) — fixed at root cause, not just the symptom. The actual cause was `patchSitemap()` in `api/pipeline/_publisher.js`: it hardcoded a `<url>` insertion into `sitemap.js`'s dynamic tournament loop on every article publish, which duplicated once per tournament in the array on every render. `articleTournaments` is already fetched live per request, so no static patch was ever needed — the insertion logic was deleted entirely rather than patched. Independent review (Explore subagent, per CLAUDE.md §9) caught that a naive symptom-only fix would have let the bug recur the next time an article published for a new tournament — quite possibly during TI itself. Logged the now-dead `ARTICLE_SLUGS` patch logic as a low-risk follow-up cleanup in `pending-refactors.md` (#21).
+3. **Bing Webmaster Tools registration** (Priority #3) — turned out to already be registered and verified (owner screenshot, 2026-08-04); the earlier "not registered" note in memory was stale and has been corrected. Bing's dashboard surfaced two live diagnostics that validate this audit directly: "limited crawl capacity" and "not enough inbound links from high quality domains."
+4. **Sitemap `<lastmod>` backfill** (new item, surfaced by the Bing crawl-capacity flag) — investigation found 210 of 580 sitemap URLs had no `<lastmod>`. Rather than fabricate dates for genuinely static pages (worse than omitting, per sitemap best practice), added real `<lastmod>` only where a true timestamp exists: individual `/articles/{slug}` pages, now sourced from the `published_at` column. `api/pipeline.js`'s `mode=slugs` endpoint gained a `dates` field; `api/sitemap.js` consumes it. Deployed, verified via `npm run verify-prod` and live curl.
+
+All four shipped through the full deployment checklist: tests written/passing, full regression run, independent Explore-subagent review on every change (two rounds on item 2, since the first review caught the root-cause issue), and `npm run verify-prod` post-deploy.
+
+**In progress:** Priority #4 ("How to watch TI 2026" page) — drafting split into two pieces per `/editorial` guidance (logistics piece + a data/analyst-grounded storylines piece, see below). Blocked on confirming TI 2026's official broadcast channels, which remain unconfirmed as of this session (a February 2026 aggregator article names likely-templated channel handles — not being treated as confirmed without a harder source). `/dota_analyst` and `/dota_data_scientist` were brought in for the storylines piece and surfaced a genuinely new finding not in `ti-2026-day-one-spec.md`: **patch 7.41e landed 2026-07-30**, reversing that spec's "no pre-TI patch confirmed" assumption, and Valve's Compendium/Fantasy/Predictions shipped alongside it — also reversing that spec's Finding 5 ("compendium hadn't shipped"). Worth a look back at whether that changes anything in the day-one spec's pick'em-kill decision (probably not — see that spec's own §15 open question — but the premise it was based on has now resolved).
+
+---
+
 ## Objective
 
 Win the highest-value, highest-competition 10 days of the Dota 2 calendar. TI 2026 runs **Aug 13–23** (Shanghai, Swiss group stage Aug 13–16, playoffs Aug 20–23) — 9 days from this audit, and the codebase's own hard freeze is **Aug 11**, leaving a **7-day engineering window** and an unlimited content/outreach window. The goal isn't "have a TI page" — it's to convert TI's search and social spike into people who bookmark spectateesports.live and come back after TI ends.
@@ -79,13 +94,14 @@ Adds the SEO/GEO layer the existing spec's product-launch post doesn't cover —
 
 Concrete, verified-live gaps, in priority order:
 
-| # | Gap | Evidence | Fix effort |
-|---|---|---|---|
-| 1 | `llms.txt`/`llms-full.txt` have **no TI 2026 dates/venue/format/prize-pool entry** — confirmed live, only historical TI1–14 data and generic team bios | Live curl, this audit | Trivial — text edit; already scoped as a TODO in the existing spec's §13, just not executed |
-| 2 | **Sitemap duplicate-URL defect still live** — `articles?tournament=esports-world-cup-2026` appears 3× | Live curl: `grep -c` returns 3 | Trivial — same defect flagged in the 2026-07-10 audit, unfixed in 25 days |
-| 3 | **Bing Webmaster Tools never registered** | Flagged 2026-07-10, still open | 15 min, manual, zero code |
-| 4 | **Editorial pipeline dormant for TI** — no article referencing TI 2026 exists anywhere in `llms.txt`/`llms-full.txt`, last referenced article is BLAST Slam VII | Live curl | Content work, not engineering — start now |
-| 5 | **No Google News sitemap** — zero shot at Top Stories placement for "who won TI 2026" on Grand Final day, the single largest spike | Known defect since 2026-07-10, still open | Medium — evaluate Google News Publisher Center eligibility this week; if unattainable in time, compensate with IndexNow speed instead |
+| # | Gap | Evidence | Fix effort | Status |
+|---|---|---|---|---|
+| 1 | `llms.txt`/`llms-full.txt` have **no TI 2026 dates/venue/format/prize-pool entry** — confirmed live, only historical TI1–14 data and generic team bios | Live curl, this audit | Trivial — text edit; already scoped as a TODO in the existing spec's §13, just not executed | ✅ **Fixed 2026-08-04** |
+| 2 | **Sitemap duplicate-URL defect still live** — `articles?tournament=esports-world-cup-2026` appears 3× | Live curl: `grep -c` returns 3 | Trivial — same defect flagged in the 2026-07-10 audit, unfixed in 25 days | ✅ **Fixed 2026-08-04** at root cause (`patchSitemap()` in the editorial pipeline, not just the visible duplicate) |
+| 3 | **Bing Webmaster Tools never registered** | Flagged 2026-07-10, still open | 15 min, manual, zero code | ✅ **Already registered** — this note was stale; corrected 2026-08-04. Dashboard flags "limited crawl capacity" and "not enough inbound links," both addressed elsewhere in this doc |
+| 3b | **210 of 580 sitemap URLs had no `<lastmod>`** — new finding, surfaced by Bing's crawl-capacity flag, not in the original audit | Live curl + `grep -c`, 2026-08-04 | Small — real dates only where known (article `published_at`), not fabricated for static pages | ✅ **Fixed 2026-08-04** |
+| 4 | **Editorial pipeline dormant for TI** — no article referencing TI 2026 exists anywhere in `llms.txt`/`llms-full.txt`, last referenced article is BLAST Slam VII | Live curl | Content work, not engineering — start now | 🔄 In progress — two articles drafting (see Progress Log) |
+| 5 | **No Google News sitemap** — zero shot at Top Stories placement for "who won TI 2026" on Grand Final day, the single largest spike | Known defect since 2026-07-10, still open | Medium — evaluate Google News Publisher Center eligibility this week; if unattainable in time, compensate with IndexNow speed instead | Not started |
 | 6 | **Live competitive absence** — zero appearance for head-term TI 2026 queries against exact-match-domain competitors | Verified live via search, this audit | Not fixable by Aug 13; the wedge (spoiler-safe timestamped VODs) is the realistic path, not head-term competition |
 
 ---
@@ -144,10 +160,12 @@ Owned by growth, additive to the existing spec's product metrics (§12 there alr
 
 ## Priority Ranking
 
-1. Fix `llms.txt`/`llms-full.txt` TI 2026 entry (trivial, direct GEO impact)
-2. Fix sitemap duplicate-URL defect (trivial, crawl-budget hygiene during peak week)
-3. Register Bing Webmaster Tools (trivial, unblocks a real channel)
-4. Publish "how to watch TI 2026" page this week
+1. ~~Fix `llms.txt`/`llms-full.txt` TI 2026 entry~~ ✅ **Shipped 2026-08-04** (trivial, direct GEO impact)
+2. ~~Fix sitemap duplicate-URL defect~~ ✅ **Shipped 2026-08-04**, fixed at root cause not just symptom (trivial, crawl-budget hygiene during peak week)
+3. ~~Register Bing Webmaster Tools~~ ✅ **Already done** — confirmed already registered 2026-08-04, prior "not registered" note was stale
+3b. ~~Sitemap `<lastmod>` backfill~~ ✅ **Shipped 2026-08-04** — new item, surfaced by Bing's crawl-capacity flag; not in the original list
+4. **Publish "how to watch TI 2026" page this week** — 🔄 in progress; drafting, blocked on unconfirmed broadcast channels
+4b. **Storylines/data preview article** — 🔄 in progress; `/editorial` split this into a second piece from item 4, `/dota_analyst` + `/dota_data_scientist` input gathered, drafting next
 5. Commit to and staff the daily spoiler-safe recap cadence for Aug 13–23
 6. Pre-build the "Who won TI 2026?" instant-publish page
 7. Reddit utility-comment experiment (Days 1–3, evaluate before scaling)
