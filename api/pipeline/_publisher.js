@@ -75,27 +75,18 @@ export function patchLlms(current, article) {
 }
 
 export function patchSitemap(current, article) {
-  // Prepend slug to ARTICLE_SLUGS
-  let updated = current.replace(
+  // Prepend slug to ARTICLE_SLUGS. Tournament filter URLs (/articles?tournament=X)
+  // are NOT patched here — api/sitemap.js fetches articleTournaments live from
+  // /api/pipeline?type=articles&mode=slugs on every request, so a newly published
+  // article's tournament is picked up automatically with no file patch needed.
+  // (A static patch was attempted here previously; it inserted a literal <url>
+  // block into the middle of sitemap.js's dynamic .map() over articleTournaments,
+  // which then duplicated that URL once per tournament in the array on every
+  // sitemap render — see the 2026-08-04 sitemap dedup fix.)
+  return current.replace(
     'const ARTICLE_SLUGS = [',
     `const ARTICLE_SLUGS = [\n  '${article.slug}',`
   )
-
-  // Add tournament filter URL if new tournament
-  const filterMarker = `articles?tournament=${article.tournament}</loc>`
-  if (!updated.includes(filterMarker)) {
-    const matches = [...updated.matchAll(
-      /( {2}<url>\s*\n\s*<loc>\$\{BASE_URL\}\/articles\?tournament=[^<]+<\/loc>[\s\S]*?<\/url>)/g
-    )]
-    if (matches.length > 0) {
-      const last = matches[matches.length - 1]
-      const insertAt = last.index + last[0].length
-      const newUrlBlock = `\n  <url>\n    <loc>\${BASE_URL}/articles?tournament=${article.tournament}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>`
-      updated = updated.slice(0, insertAt) + newUrlBlock + updated.slice(insertAt)
-    }
-  }
-
-  return updated
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

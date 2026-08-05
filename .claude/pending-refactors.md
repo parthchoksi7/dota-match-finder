@@ -54,7 +54,16 @@ Exempt from RICE: work that literally cannot start yet.
 
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
+| 21 | Dead `patchSitemap`/`ARTICLE_SLUGS` logic in `api/pipeline/_publisher.js` | 2 | 2 | 90% | 0.25 | **14.4** |
 | 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
+
+---
+
+### 21. Dead `patchSitemap`/`ARTICLE_SLUGS` logic in `api/pipeline/_publisher.js`
+- **What:** `patchSitemap()` (`api/pipeline/_publisher.js`) still does `current.replace('const ARTICLE_SLUGS = [', ...)` on every article publish. That string doesn't exist in production `api/sitemap.js` anymore — `ARTICLE_SLUGS` was removed in commit `995f6202` (2026-06-03) and replaced with `articleSlugs`/`articleTournaments`, both fetched live from `/api/pipeline?type=articles&mode=slugs` on every sitemap render (`api/sitemap.js:159-169`). So the `.replace()` call is a silent no-op against the real file — harmless (it just returns the input unchanged, and `updateMetadataFiles()` commits an identical sitemap.js back to GitHub), but dead code with a comment that's now factually wrong about `ARTICLE_SLUGS` being "genuinely static."
+- **Found:** 2026-08-04, during an independent review pass on the sitemap-duplicate-URL fix (see git history same day) — this function was also the actual root cause of that bug (its sibling "add tournament filter URL" block, since deleted, inserted a hardcoded `<url>` into `sitemap.js`'s dynamic `.map()`, duplicating it once per tournament on every render).
+- **Fix:** Delete `patchSitemap()` entirely and its call site in `updateMetadataFiles()`, since `api/sitemap.js` needs zero static patching now — it's 100% dynamically assembled per request. Update/remove the `__tests__/pipeline-publisher.test.js` `sitemapJs` fixture and its `describe('patchSitemap', ...)` block accordingly (the fixture is already fictional/stale relative to the real file's current shape).
+- **Risk:** Low — the function is a no-op today; removing it changes nothing observable in production, only removes dead code and a wasted GitHub commit on every article publish.
 
 ---
 

@@ -134,15 +134,11 @@ describe('patchSitemap', () => {
     expect(newSlugPos).toBeLessThan(oldSlugPos)
   })
 
-  it('does not add a duplicate tournament filter URL when it already exists', () => {
-    const result = patchSitemap(sitemapJs, article)
+  it('does not touch tournament filter URLs — sitemap.js fetches those live', () => {
+    const result = patchSitemap(sitemapJs, articleNewTournament)
+    expect(result).not.toContain('articles?tournament=pgl-wallachia-s3')
     const count = (result.match(/articles\?tournament=blast-slam-vii/g) || []).length
     expect(count).toBe(1)
-  })
-
-  it('adds a new tournament filter URL when it is a new tournament', () => {
-    const result = patchSitemap(sitemapJs, articleNewTournament)
-    expect(result).toContain('articles?tournament=pgl-wallachia-s3')
   })
 
   it('does not corrupt the existing ARTICLE_SLUGS entries', () => {

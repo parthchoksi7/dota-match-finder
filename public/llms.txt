@@ -13,9 +13,18 @@ Spectate Esports (https://spectateesports.live) is a Dota 2 esports intelligence
 - [About](https://spectateesports.live/about): Site description, data sources, methodology, and contact information.
 - [Release Notes](https://spectateesports.live/release-notes): Feature changelog and version history.
 
+## The International 2026
+
+- **Dates**: August 13–23, 2026. Group Stage August 13–16 (16 teams, Swiss system, best-of-3). Playoffs August 20–23 (double elimination, best-of-3, Grand Final best-of-5).
+- **Location**: Oriental Sports Center, Shanghai, China. First TI held in China since TI9 (2019).
+- **Prize pool**: $1,600,000 base pool (no Battle Pass funding model, discontinued after TI12).
+- **Format**: Top 3 of the Group Stage advance directly to Playoffs. 4th–13th play a single-elimination Elimination Round for the remaining 5 playoff slots. 14th–16th are eliminated after the Group Stage.
+- **Tournament page**: [The International 2026](https://spectateesports.live/tournament/the-international-2026-10828) — live schedule, results, standings, and team rosters as the event runs.
+- **Edition**: 15th annual The International.
+
 ## TI History Hub
 
-- [The International History](https://spectateesports.live/tournaments/the-international): Complete history of all 14 TI editions (TI1 2011 – TI14 2025). Champions, runners-up, prize pools, and host cities. Includes multi-year champion breakdown (OG 2×, Team Spirit 2×, Team Liquid 2×). Includes SportsEvent schema for each edition.
+- [The International History](https://spectateesports.live/tournaments/the-international): Complete history of all 14 completed TI editions (TI1 2011 – TI14 2025). Champions, runners-up, prize pools, and host cities. Includes multi-year champion breakdown (OG 2×, Team Spirit 2×, Team Liquid 2×). Includes SportsEvent schema for each edition.
 
 ## Tournament Pages
 
