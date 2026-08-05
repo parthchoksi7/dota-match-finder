@@ -243,7 +243,7 @@ export default function ArticlePage() {
             <ShareButtons article={article} />
             {article.watchQuery && (
               <a
-                href={`/?q=${encodeURIComponent(article.watchQuery)}`}
+                href={article.watchQuery.startsWith('/') ? article.watchQuery : `/?q=${encodeURIComponent(article.watchQuery)}`}
                 onClick={() => trackEvent('article_watch_cta', { slug: article.slug })}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors"
               >
