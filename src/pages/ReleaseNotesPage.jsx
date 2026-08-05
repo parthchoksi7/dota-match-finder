@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 4, 2026",
+    tag: "fix",
+    title: "Live companion no longer shows the wrong match's score",
+    desc: "Switching straight from one live match to a different one (for example via a push notification) could briefly leave the previous match's team names and score showing under the new match's header. The live panel now always clears to the new match's own data on a switch.",
+  },
+  {
     date: "August 3, 2026",
     tag: "new",
     title: "\"Worth watching\" badge on live feed rows",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { fetchLiveGamePulse, fetchHeroes } from '../api'
 import { trackEvent, getStreamLanguage, pickPreferredStream } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
@@ -196,6 +196,17 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
 
   useEffect(() => {
     setScoreRevealed(false)
+  }, [psMatchId])
+
+  // Without this, the sheet host reuses this component instance across a live-series switch
+  // (App.jsx keeps it mounted to avoid a close/reopen flash), so a stale pulse from the
+  // previously-viewed series would otherwise survive under nextPulseState's retain-last-known-good
+  // window (up to STALE_AFTER_MS) and render as if it belonged to the newly selected series.
+  // useLayoutEffect (not useEffect) so the clear lands before the browser paints the new
+  // psMatchId's props alongside the still-mounted old pulse — otherwise a same-frame mix (new
+  // series' stakes chip over the old series' name/score) could flash for one paint.
+  useLayoutEffect(() => {
+    setPulse(null)
   }, [psMatchId])
 
   useEffect(() => {
