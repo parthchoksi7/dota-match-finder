@@ -37,15 +37,42 @@ describe('trimSnapshot', () => {
     expect(trimmed).toBeLessThan(raw * 0.75)
   })
 
-  it('drops the heavy per-player fields the differ never reads', () => {
+  it('drops the heavy per-player fields nothing renders', () => {
     const p = trimSnapshot(r0).result.games.find(g => g.scoreboard)?.scoreboard.radiant.players[0]
+    // No live minimap/heatmap exists or is planned — 20 floats per game per tick to render
+    // nothing is pure bandwidth cost.
     expect(p.position_x).toBeUndefined()
     expect(p.position_y).toBeUndefined()
-    expect(p.ultimate_state).toBeUndefined()
     // ...while keeping everything the single-source live surface renders.
     expect(p.net_worth).toEqual(expect.any(Number))
     expect(p.level).toEqual(expect.any(Number))
     expect(p.item0).toBeDefined()
+  })
+
+  it('retains the fields the Valve-sourced live surface renders (widened 2026-08-06)', () => {
+    const p = trimSnapshot(r0).result.games.find(g => g.scoreboard)?.scoreboard.radiant.players[0]
+    // "Ultimate is up" signal — verified 99.5% reliable, previously trimmed away.
+    expect(p.ultimate_state).toEqual(expect.any(Number))
+    expect(p).toHaveProperty('ultimate_cooldown')
+    // Death/buyback state, and the input to detectBuybackCandidate's positive->0 test.
+    expect(p).toHaveProperty('respawn_timer')
+  })
+
+  it('retains per-side picks and bans as bare hero ids', () => {
+    const side = trimSnapshot(r0).result.games.find(g => g.scoreboard?.radiant?.picks?.length)?.scoreboard.radiant
+    expect(Array.isArray(side.picks)).toBe(true)
+    expect(Array.isArray(side.bans)).toBe(true)
+    // Flattened from Valve's `{ hero_id }` objects — nothing downstream reads any other key.
+    expect(side.picks.every(id => Number.isFinite(id))).toBe(true)
+    expect(side.bans.every(id => Number.isFinite(id))).toBe(true)
+  })
+
+  it('still drops abilities[], which has no shipped consumer and a documented staleness risk', () => {
+    // UNIVERSAL_ABILITY_IDS is a hardcoded, empirically-derived Set a Valve patch can silently
+    // invalidate with no test catching the drift (see .claude/pending-refactors.md). Any ability
+    // display must land WITH that guard, not ahead of it.
+    const side = trimSnapshot(r0).result.games.find(g => g.scoreboard)?.scoreboard.radiant
+    expect(side.abilities).toBeUndefined()
   })
 
   it('keeps live IGNs, which exist only on the top-level players array', () => {

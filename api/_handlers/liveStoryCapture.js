@@ -74,7 +74,7 @@ const HEALTH_TTL_S = 86400
 // Item id -> { key, dname } map. SAME key as api/_handlers/matchStats.js's ITEM_MAP_KV_KEY —
 // deliberately, so this never pays for a second independent OpenDota constants fetch/cache when
 // matchStats.js has already warmed it. Must stay byte-identical to that key if it ever changes.
-const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
+export const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 const ITEM_MAP_TTL_S = 60 * 60 * 24 // matches matchStats.js's 24h TTL — item names rarely change
 
 // The tier-1-filtered live PandaScore payload api/live-matches.js already caches. Read-only —
@@ -83,9 +83,29 @@ const PS_LIVE_KEY = 'dota2:live_matches_v5'
 
 // Strips the response down to the fields the differ and the live display actually read, before
 // it goes into KV. The raw response is ~245 KB per poll; storing that every 30s is pure waste,
-// and Upstash bills on bandwidth. Dropped: position_x/y, abilities[], ultimate_state/cooldown,
-// respawn_timer, picks/bans (players[].hero_id already carries the draft), team_logo.
-// Everything retained is either differ input or something the single-source live surface renders.
+// and Upstash bills on bandwidth.
+//
+// 2026-08-06 — RETENTION WIDENED for the Valve-sourced rich live surface (see
+// `_handlers/liveValvePulse.js`). Newly retained: `ultimate_state`/`ultimate_cooldown` (the
+// "ultimate is up" signal), `respawn_timer` (death/buyback state), and per-side `picks[]`/`bans[]`
+// (draft order + the ban list — `players[].hero_id` carries WHICH heroes are in, but not the
+// ORDER they were taken, and carries no bans at all, so this is genuinely new signal rather than
+// a duplicate of the existing draft fields).
+//
+// Still dropped, deliberately:
+//   - `position_x`/`position_y` — real and plausible, but no live minimap/heatmap rendering exists
+//     or is planned; retaining 20 floats per game per tick to render nothing is pure cost.
+//   - `abilities[]` — the biggest remaining field by volume, AND the one with a live staleness
+//     risk: `attributeAbility()`'s `UNIVERSAL_ABILITY_IDS` is a hardcoded, empirically-derived Set
+//     that a Valve patch can silently invalidate with no test catching the drift (see
+//     `.claude/pending-refactors.md`). Wiring a talent/ability display is a product decision that
+//     should land WITH that guard, not ahead of it.
+//   - `team_logo` — a Steam UGC file id that is 0 on ~8% of teams observed, and the site already
+//     renders PandaScore team identity everywhere else.
+//
+// The marginal bandwidth cost of the widened set is small and bounded: it is a handful of small
+// integers per player plus at most ~24 `{hero_id}` objects per game, applied only to the
+// tier-1-correlated games that survive `selectTier1MatchIds` (typically 2-6, not all ~43 live).
 // Which live Valve games correspond to a tier-1 PandaScore series. Correlation uses the shared
 // `teamPairMatch` (src/teamMatching.js) — the SAME alias/nickname table every other PS-adjacent
 // matcher in this codebase uses. Never hand-roll a second name matcher here.
@@ -164,6 +184,12 @@ function trimSide(side) {
     score: side.score,
     tower_state: side.tower_state,
     barracks_state: side.barracks_state,
+    // Draft signal the per-player hero_id list cannot carry: `picks` is pick-ORDER (verified to
+    // contain the same hero set as players[].hero_id but in a different, order-bearing sequence),
+    // and `bans` has no equivalent anywhere else in the payload. Mapped down to bare hero ids —
+    // both arrive as `{ hero_id }` objects and nothing downstream reads any other key.
+    picks: (side.picks || []).map(p => p?.hero_id).filter(id => id != null),
+    bans: (side.bans || []).map(b => b?.hero_id).filter(id => id != null),
     players: (side.players || []).map(p => ({
       player_slot: p.player_slot,
       account_id: p.account_id,
@@ -180,6 +206,15 @@ function trimSide(side) {
       net_worth: p.net_worth,
       item0: p.item0, item1: p.item1, item2: p.item2,
       item3: p.item3, item4: p.item4, item5: p.item5,
+      // Death/buyback state. `respawn_timer` is also the input to detectBuybackCandidate()'s
+      // positive->0 transition test, so retaining it keeps that capability wired-able later.
+      respawn_timer: p.respawn_timer,
+      // Empirically decoded bitmask: bit 0 = ultimate unlocked, bit 1 = off cooldown (99.5%
+      // consistent with ultimate_cooldown across 194 real non-trivial player-ticks). Retained as
+      // the RAW integer — decoding belongs at the read site, not here, matching how
+      // tower_state/barracks_state are stored undecoded.
+      ultimate_state: p.ultimate_state,
+      ultimate_cooldown: p.ultimate_cooldown,
     })),
   }
 }

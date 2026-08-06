@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { fetchLiveGamePulse, fetchHeroes } from '../api'
+import { fetchLiveGamePulse, fetchLiveValvePulse, fetchHeroes } from '../api'
+import { RoshanStatus, BarracksPanel, LivePlayerBoard, LiveBanList } from './LiveValveBoard'
 import { trackEvent, getStreamLanguage, pickPreferredStream } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
 import { formatGoldMagnitude, formatLiveScoreTitle } from '../utils/liveScore'
@@ -181,6 +182,8 @@ function StarIcon({ filled }) {
 // draft section label). MatchDrawer itself is the fixed baseline and was not changed.
 export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages, followedTeams, onToggleFollow }) {
   const [pulse, setPulse] = useState(null)
+  // Valve telemetry. Null is the normal, expected state — see the poll effect below.
+  const [valvePulse, setValvePulse] = useState(null)
   const [heroMap, setHeroMap] = useState(null)
   // Mirrors MatchDrawer's scoreRevealed: spoiler-free hides the score/outcome-adjacent surfaces
   // behind a "Reveal score" button rather than the site-wide spoiler-free setting being the only
@@ -214,6 +217,29 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     let cancelled = false
     function poll() {
       fetchLiveGamePulse(psMatchId, true).then(p => { if (!cancelled) setPulse(prev => nextPulseState(p, prev)) }).catch(() => {})
+    }
+    poll()
+    const interval = setInterval(poll, POLL_MS)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [psMatchId])
+
+  // Valve-sourced telemetry, polled independently of the OpenDota pulse above.
+  //
+  // Deliberately a SEPARATE state + effect rather than a merged fetch: the two are different
+  // sources with different failure modes, and the shipped OD pulse (names, score, net-worth graph,
+  // tower map) must keep rendering unchanged if the Valve path returns nothing — which is its
+  // DEFAULT state, since the endpoint is fail-closed behind `feature:live-valve-pulse:enabled`
+  // until CONTEXT.md's public-graduation bar closes. Same staleness contract as the OD pulse:
+  // cleared on series switch so a previous series' telemetry can never render under new names.
+  useLayoutEffect(() => {
+    setValvePulse(null)
+  }, [psMatchId])
+
+  useEffect(() => {
+    if (!psMatchId) return
+    let cancelled = false
+    function poll() {
+      fetchLiveValvePulse(psMatchId).then(p => { if (!cancelled) setValvePulse(p) }).catch(() => {})
     }
     poll()
     const interval = setInterval(poll, POLL_MS)
@@ -497,9 +523,48 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
 
+      {/* Roshan sits directly under the tower map: both answer "how close is this to ending," and
+          they read together as one objective-state block ahead of the graph's history. */}
+      {showLiveStory && valvePulse && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <RoshanStatus respawnTimer={valvePulse.roshanRespawnTimer} />
+        </div>
+      )}
+
+      {/* Test the DECODED sides, not the container: `barracks` is always the object
+          `{ radiant, dire }` and is therefore always truthy, so gating on it alone renders a bare
+          "Barracks" heading with an empty body on the ~7% of games that carry no scoreboard. */}
+      {showLiveStory && (valvePulse?.barracks?.radiant || valvePulse?.barracks?.dire) && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Barracks</p>
+          <BarracksPanel
+            barracks={valvePulse.barracks}
+            radiantName={valvePulse.radiantName}
+            direName={valvePulse.direName}
+          />
+        </div>
+      )}
+
       {showLiveStory && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
           <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />
+        </div>
+      )}
+
+      {/* Per-player telemetry sits after the graph, mirroring MatchDrawer's completed-match order
+          (gold graph, then player stats) so the two surfaces read the same way. */}
+      {/* Same always-truthy-container trap as Barracks above: gate on there actually being a
+          player on one of the two sides. */}
+      {showLiveStory && (valvePulse?.players?.radiant?.length > 0 || valvePulse?.players?.dire?.length > 0) && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Player Stats</p>
+          <LivePlayerBoard
+            players={valvePulse.players}
+            heroes={heroMap}
+            itemNames={valvePulse.itemNames}
+            radiantName={valvePulse.radiantName}
+            direName={valvePulse.direName}
+          />
         </div>
       )}
 
@@ -524,6 +589,20 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
               ))}
             </div>
           </div>
+          {/* Bans render inside the existing Draft block rather than as their own section — they
+              are part of the same draft story, and DraftDisplay's completed-match layout already
+              puts Picks and Bans under one heading. Renders regardless of spoiler-free, same rule
+              as the picks above: a draft is pre-outcome. */}
+          {/* `draft` is always an object, so gate on a ban actually existing — otherwise a game
+              still in its pick phase renders an empty "Bans" label. */}
+          {(valvePulse?.draft?.radiantBans?.length > 0 || valvePulse?.draft?.direBans?.length > 0) && (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 mb-1.5">
+                Bans
+              </p>
+              <LiveBanList draft={valvePulse.draft} heroes={heroMap} />
+            </div>
+          )}
         </div>
       )}
     </div>

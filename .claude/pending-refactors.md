@@ -55,8 +55,17 @@ Exempt from RICE: work that literally cannot start yet.
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
 | 21 | Dead `patchSitemap`/`ARTICLE_SLUGS` logic in `api/pipeline/_publisher.js` | 2 | 2 | 90% | 0.25 | **14.4** |
+| 23 | `ITEM_MAP_KV_KEY` defined in two places, consumed in three | 1 | 2 | 95% | 0.25 | **7.6** |
 | 22 | No regression test for `UNIVERSAL_ABILITY_IDS` staleness | 1 | 2 | 90% | 0.25 | **7.2** |
 | 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
+
+---
+
+### 23. `ITEM_MAP_KV_KEY` defined in two places, consumed in three
+- **What:** The KV key `'opendota:item_map_v2'` is declared as a local const inside `api/_handlers/matchStats.js` (function-scoped, line ~24) AND as a module const in `api/_handlers/liveStoryCapture.js` (line ~77, carrying a comment that explicitly notes they must stay identical). `api/_handlers/liveValvePulse.js` now imports the latter rather than adding a third literal, but the two declarations are still hand-synchronized. A key-format bump applied to one and not the other would silently split the cache in two — each writer refilling a key the other never reads, doubling OpenDota constants fetches with no error anywhere.
+- **Found:** 2026-08-06, while wiring the Valve live pulse's scoped item-name map (it needed the same key and would have been a third copy).
+- **Fix:** Hoist to `api/_shared.js` as an exported `ITEM_MAP_KV_KEY` (alongside the existing shared constants like `OD_MATCH_TIME_WINDOW_S`, which was hoisted for exactly this reason) and import it in all three handlers. Also hoist the two TTL constants (`ITEM_MAP_TTL` / `ITEM_MAP_TTL_S`) that shadow each other the same way.
+- **Risk:** Low today — the literals do currently match, and a test would not catch drift since nothing asserts on the key. Deliberately not done inline with the Valve-pulse work: it touches `matchStats.js`, a completed-match path unrelated to that change.
 
 ---
 

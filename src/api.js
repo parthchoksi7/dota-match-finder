@@ -492,6 +492,27 @@ export async function fetchLiveGamePulse(psMatchId, isOwner = false) {
   }
 }
 
+// Valve-sourced live telemetry for the CURRENTLY RUNNING game of a series
+// (?mode=live-valve-pulse). This is a SECOND, independent source from `fetchLiveGamePulse` above:
+// that one serves OpenDota's /api/live, which carries no per-player KDA, items, last hits,
+// GPM/XPM, barracks or Roshan timer. Everything this adds is structurally unavailable there.
+//
+// Returns null when nothing resolves — including when the staged-rollout flag is off, which the
+// server reports as `{ pulse: null, disabled: true }`. Callers get plain null either way and
+// simply render nothing; there is deliberately no distinct "disabled" UI state, because a viewer
+// should never see chrome for a surface that isn't on.
+export async function fetchLiveValvePulse(psMatchId) {
+  if (!psMatchId) return null
+  try {
+    const res = await fetch(`/api/tournaments?mode=live-valve-pulse&id=${encodeURIComponent(psMatchId)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.pulse || null
+  } catch {
+    return null
+  }
+}
+
 const _tournamentPlayersCache = new Map()
 
 export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false, beginAt = null) {

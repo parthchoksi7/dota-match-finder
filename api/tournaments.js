@@ -265,6 +265,15 @@ export default async function handler(req, res) {
     return handleLiveGamePulse(req, res)
   }
 
+  // Valve-sourced live telemetry (score, per-player stats, items, ultimates, towers, barracks,
+  // Roshan, draft order + bans). Separate from `live-game-pulse` above, which serves the same
+  // surface from OpenDota and carries none of those fields. Fail-closed behind
+  // `feature:live-valve-pulse:enabled` — see the handler's gate comment.
+  if (req.query?.mode === 'live-valve-pulse') {
+    const { default: handleLiveValvePulse } = await import('./_handlers/liveValvePulse.js')
+    return handleLiveValvePulse(req, res)
+  }
+
   // ── series mode ─────────────────────────────────────────────────────────────
   if (req.query?.mode === 'series') {
     const { default: handleSeriesList } = await import('./_handlers/seriesList.js')
