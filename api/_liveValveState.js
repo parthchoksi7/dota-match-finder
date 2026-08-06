@@ -222,6 +222,24 @@ export function collectItemIds(pulse) {
   return [...ids]
 }
 
+/**
+ * Collects marquee item ids referenced in a shaped event feed (`shapeLiveEvents`'s output).
+ *
+ * A SEPARATE collector from `collectItemIds` above on purpose: that one only sees items currently
+ * sitting in a player's 6 visible slots, so an item bought earlier and since sold or displaced out
+ * of view (the differ diffs item SETS, not slots, precisely because they move) would silently drop
+ * out of the scoped item-name map even though a still-visible ItemPurchased event references it —
+ * the event feed would then show an unresolved "buys a marquee item" instead of naming it. Union
+ * this with `collectItemIds`'s result before scoping the map, don't call it instead.
+ */
+export function collectEventItemIds(events) {
+  const ids = new Set()
+  for (const e of events || []) {
+    if (e?.type === 'ItemPurchased' && Number.isFinite(e.itemId) && e.itemId > 0) ids.add(e.itemId)
+  }
+  return [...ids]
+}
+
 // Event types safe to show a viewer today. An explicit WHITELIST, not "everything except
 // uncertain" — TowerDestroyed/BarracksDestroyed both carry `confidence: 'uncertain'` by design
 // (`_liveStoryDiff.js`'s own comment: "never rendered to a user") because lane NAMING isn't at

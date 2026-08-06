@@ -295,7 +295,7 @@ function EventMarker({ side, children }) {
   )
 }
 
-function EventRow({ event, heroes }) {
+function EventRow({ event, heroes, itemNames }) {
   let icon, text, sub
 
   if (event.type === 'HeroKilled') {
@@ -320,12 +320,18 @@ function EventRow({ event, heroes }) {
     sub = 'Killing team not reported by this feed'
   } else if (event.type === 'ItemPurchased') {
     const player = event.playerName || heroDisplayName(event.heroId, heroes) || 'A player'
+    // itemNames is the SAME scoped {id: {key, dname}} map ItemSlot already reads — the server
+    // unions it with every event's itemId (see collectEventItemIds in _liveValveState.js) so an
+    // item bought and since sold/displaced still resolves here even though it's no longer in
+    // anyone's visible 6 slots. A miss (map not loaded yet, or a genuinely unresolved id) degrades
+    // to the generic phrasing rather than blank/undefined text.
+    const itemName = itemNames?.[event.itemId]?.dname
     icon = (
       <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6">
         <path d="M8 1l1.8 4.6L14.5 6l-3.6 3 1 4.9L8 11.5 3.9 13.9l1-4.9L1.5 6l4.7-.4z" />
       </svg>
     )
-    text = `${player} buys a marquee item`
+    text = itemName ? `${player} buys ${itemName}` : `${player} buys a marquee item`
     sub = null
   } else {
     return null
@@ -347,7 +353,7 @@ function EventRow({ event, heroes }) {
   )
 }
 
-export function LiveEventFeed({ events, heroes }) {
+export function LiveEventFeed({ events, heroes, itemNames }) {
   if (!events || events.length === 0) return null
 
   return (
@@ -357,7 +363,7 @@ export function LiveEventFeed({ events, heroes }) {
       <div className="absolute left-[11px] top-2 bottom-2 w-px bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
       <div className="space-y-0">
         {events.map((e, i) => (
-          <EventRow key={`${e.type}-${e.time}-${i}`} event={e} heroes={heroes} />
+          <EventRow key={`${e.type}-${e.time}-${i}`} event={e} heroes={heroes} itemNames={itemNames} />
         ))}
       </div>
       <div className="flex items-center gap-2.5 pt-1.5">

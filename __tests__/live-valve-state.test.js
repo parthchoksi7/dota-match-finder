@@ -11,6 +11,8 @@ import {
   shapeLiveEvents,
   shapeValveGoldHistory,
   normalizeHeroIdList,
+  collectItemIds,
+  collectEventItemIds,
 } from '../api/_liveValveState.js'
 
 describe('decodeTowerState', () => {
@@ -410,6 +412,44 @@ describe('shapeLiveEvents', () => {
   it('degrades to an empty array for non-array input', () => {
     expect(shapeLiveEvents(null)).toEqual([])
     expect(shapeLiveEvents(undefined)).toEqual([])
+  })
+})
+
+describe('collectEventItemIds', () => {
+  it('collects itemId from ItemPurchased events only', () => {
+    const events = [
+      { type: 'ItemPurchased', itemId: 42 },
+      { type: 'HeroKilled', victimHeroId: 1 },
+      { type: 'RoshanKilled' },
+      { type: 'ItemPurchased', itemId: 63 },
+    ]
+    expect(collectEventItemIds(events)).toEqual(expect.arrayContaining([42, 63]))
+    expect(collectEventItemIds(events)).toHaveLength(2)
+  })
+
+  it('dedups repeated purchases of the same item', () => {
+    const events = [{ type: 'ItemPurchased', itemId: 42 }, { type: 'ItemPurchased', itemId: 42 }]
+    expect(collectEventItemIds(events)).toEqual([42])
+  })
+
+  it('is the union source for a scoped item map, alongside collectItemIds — an item bought and since sold still resolves', () => {
+    // The exact scenario this was built for: itemId 63 is no longer in anyone's visible 6 slots
+    // (collectItemIds alone would miss it), but a feed event still references it.
+    const pulse = { players: { radiant: [{ items: [1, 0, 0, 0, 0, 0] }], dire: [] } }
+    const events = [{ type: 'ItemPurchased', itemId: 63 }]
+    const scoped = new Set([...collectItemIds(pulse), ...collectEventItemIds(events)])
+    expect(scoped.has(1)).toBe(true)
+    expect(scoped.has(63)).toBe(true)
+  })
+
+  it('ignores non-finite or non-positive item ids', () => {
+    const events = [{ type: 'ItemPurchased', itemId: null }, { type: 'ItemPurchased', itemId: 0 }, { type: 'ItemPurchased' }]
+    expect(collectEventItemIds(events)).toEqual([])
+  })
+
+  it('degrades to an empty array for non-array input', () => {
+    expect(collectEventItemIds(null)).toEqual([])
+    expect(collectEventItemIds(undefined)).toEqual([])
   })
 })
 

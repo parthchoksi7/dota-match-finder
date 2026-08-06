@@ -4,7 +4,7 @@ import { createLogger, validateId } from '../_shared.js'
 import { fetchPsMatchDetail } from './liveSeriesGames.js'
 import { captureLiveStoryOnce, LIVE_STORY_KEYS, ITEM_MAP_KV_KEY } from './liveStoryCapture.js'
 import { indexGamesById } from '../_liveStoryDiff.js'
-import { shapeValvePulse, collectItemIds, shapeLiveEvents, shapeValveGoldHistory } from '../_liveValveState.js'
+import { shapeValvePulse, collectItemIds, collectEventItemIds, shapeLiveEvents, shapeValveGoldHistory } from '../_liveValveState.js'
 import { teamPairMatch, resolveRadiantSide } from '../../src/teamMatching.js'
 
 // Valve-sourced live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
@@ -127,16 +127,36 @@ export async function resolveValvePulse(pandaId, log) {
     // doesn't blank the whole Valve-sourced UI on one bad poll.
     pulse.capturedAt = new Date().toISOString()
 
-    // Scoped item-name map for exactly the items on the board (~60 ids max), so the client's
-    // existing `ItemSlot` can resolve CDN keys without shipping the full ~1,500-entry constants
+    // Live event feed — reads the SAME event ring the differ already writes on every capture tick
+    // (`live-story:events:v1:{matchId}`), keyed by Valve's own match_id, which is the identical id
+    // space as `pulse.matchId` here (confirmed in the audit doc: "Same ID space as OpenDota's
+    // match_id"). No new capture path, no new storage — this is read-only reuse of data that was
+    // already being derived for the admin verification console, now surfaced publicly for the
+    // first time. `shapeLiveEvents` enforces its own whitelist (kills/Roshan/marquee items only,
+    // never tower/barracks events — see that function's comment) independent of anything here.
+    // Resolved BEFORE the item-name scoping below, on purpose — an ItemPurchased event can
+    // reference an item a player has since sold or displaced out of their visible 6 slots (the
+    // differ diffs item SETS, precisely because they move), so the scoped map needs the union of
+    // "currently equipped" and "referenced by a feed event," not just the former.
+    try {
+      const events = await kv.get(LIVE_STORY_KEYS.EVENTS_KEY(pulse.matchId))
+      pulse.events = shapeLiveEvents(events)
+    } catch (err) {
+      log.warn('event feed read failed', { error: err?.message })
+      pulse.events = []
+    }
+
+    // Scoped item-name map for exactly the items on the board PLUS anything a feed event names
+    // (~60 ids max either way), so the client's `ItemSlot` and the event feed's item-purchase text
+    // can both resolve CDN keys/display names without shipping the full ~1,500-entry constants
     // blob on every poll. Reuses the SAME KV key the capture and matchStats already populate —
-    // never re-fetches the constants here. Absent map degrades to empty-looking item slots, which
-    // is strictly better than failing the whole pulse.
+    // never re-fetches the constants here. Absent map degrades to unresolved item slots and a
+    // generic "buys a marquee item" line, which is strictly better than failing the whole pulse.
     try {
       const itemMap = await kv.get(ITEM_MAP_KV_KEY)
       if (itemMap) {
         const scoped = {}
-        for (const id of collectItemIds(pulse)) {
+        for (const id of [...collectItemIds(pulse), ...collectEventItemIds(pulse.events)]) {
           if (itemMap[id]) scoped[id] = itemMap[id]
         }
         pulse.itemNames = scoped
@@ -181,21 +201,6 @@ export async function resolveValvePulse(pandaId, log) {
       else pulse.history = shapeValveGoldHistory(goldRows)
     } catch (err) {
       log.warn('live_valve_gold history read threw', { error: err?.message })
-    }
-
-    // Live event feed — reads the SAME event ring the differ already writes on every capture tick
-    // (`live-story:events:v1:{matchId}`), keyed by Valve's own match_id, which is the identical id
-    // space as `pulse.matchId` here (confirmed in the audit doc: "Same ID space as OpenDota's
-    // match_id"). No new capture path, no new storage — this is read-only reuse of data that was
-    // already being derived for the admin verification console, now surfaced publicly for the
-    // first time. `shapeLiveEvents` enforces its own whitelist (kills/Roshan/marquee items only,
-    // never tower/barracks events — see that function's comment) independent of anything here.
-    try {
-      const events = await kv.get(LIVE_STORY_KEYS.EVENTS_KEY(pulse.matchId))
-      pulse.events = shapeLiveEvents(events)
-    } catch (err) {
-      log.warn('event feed read failed', { error: err?.message })
-      pulse.events = []
     }
 
     return { pulse }

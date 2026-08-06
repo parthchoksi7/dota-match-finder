@@ -639,7 +639,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
       {showLiveStory && valvePulse?.events?.length > 0 && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Live Event Feed</p>
-          <LiveEventFeed events={valvePulse.events} heroes={heroMap} />
+          <LiveEventFeed events={valvePulse.events} heroes={heroMap} itemNames={valvePulse.itemNames} />
         </div>
       )}
     </div>
