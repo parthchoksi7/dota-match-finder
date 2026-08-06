@@ -281,6 +281,18 @@ function heroDisplayName(heroId, heroes) {
   return heroes?.[heroId]?.name || null
 }
 
+// Items that can NEVER be bought from the shop — they only ever enter an inventory as a Roshan or
+// Tormentor drop. The differ's underlying event (`_liveStoryDiff.js`'s `ItemPurchased`, name
+// inherited from its original shop-purchase-only design) fires on ANY marquee item's first
+// appearance regardless of source, so "buys" is flatly wrong for these two — confirmed live
+// (`aegis` showing as "buys Aegis of the Immortal"). `aghanims_shard`/`aghanims_blessing` are
+// deliberately NOT in this set even though both CAN also drop from Roshan/Tormentor in some
+// patches: they're bought from the shop far more often, and mislabeling a real purchase as a
+// pickup would trade one wrong verb for another just-as-likely one. `cheese` isn't in the
+// differ's own MARQUEE_ITEM_KEYS list today, but is guarded here anyway in case it's ever added —
+// same reasoning as `aegis`, unambiguous in every patch.
+const PICKUP_ONLY_ITEM_KEYS = new Set(['aegis', 'cheese'])
+
 function EventMarker({ side, children }) {
   const cls =
     side === 'radiant'
@@ -307,8 +319,11 @@ function EventRow({ event, heroes, itemNames }) {
       </svg>
     )
     if (event.ambiguous || !event.killerName) {
+      // No sub-line explaining WHY the killer is unnamed — "poll cadence" is internal jargon a
+      // viewer has no use for, and the bare fact ("X dies") is already honest on its own; it
+      // doesn't claim a killer that isn't there.
       text = `${victim} dies`
-      sub = event.ambiguous ? 'Killer not attributable at this poll cadence' : null
+      sub = null
     } else {
       const killer = event.killerName || heroDisplayName(event.killerHeroId, heroes) || 'Unknown'
       text = `${killer} kills ${victim}`
@@ -326,12 +341,17 @@ function EventRow({ event, heroes, itemNames }) {
     // anyone's visible 6 slots. A miss (map not loaded yet, or a genuinely unresolved id) degrades
     // to the generic phrasing rather than blank/undefined text.
     const itemName = itemNames?.[event.itemId]?.dname
+    const isPickup = PICKUP_ONLY_ITEM_KEYS.has(itemNames?.[event.itemId]?.key)
+    const verb = isPickup ? 'picks up' : 'buys'
     icon = (
       <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6">
         <path d="M8 1l1.8 4.6L14.5 6l-3.6 3 1 4.9L8 11.5 3.9 13.9l1-4.9L1.5 6l4.7-.4z" />
       </svg>
     )
-    text = itemName ? `${player} buys ${itemName}` : `${player} buys a marquee item`
+    // Neutral verb when the name itself didn't resolve — "buys" would be a real guess in that
+    // case (the item could just as easily be an unresolved pickup), and there's nothing to lose
+    // by staying accurate here since the item name is missing either way.
+    text = itemName ? `${player} ${verb} ${itemName}` : `${player} gets a marquee item`
     sub = null
   } else {
     return null
