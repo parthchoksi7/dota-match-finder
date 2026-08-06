@@ -152,7 +152,15 @@ export function clearedBits(prevMask, nextMask) {
 
 // ---- E12: tower/barracks bit layout --------------------------------------------------------
 //
-// STATUS: structure PROVEN from the fixtures; lane NAMING still needs one post-game cross-check.
+// STATUS: structure PROVEN from the fixtures. Lane NAMING has its first real, independently-
+// sourced confirmation (2026-08-06, match 8931981851, RE.Arise vs No Hoodwink — EPL Masters S1):
+// a live-captured TowerDestroyed (team=Radiant, bit 3 -> decoded lane='mid', tier=1) matched
+// OpenDota's own post-game objectives[] for the SAME match — team=Radiant, lane='mid', tier=1, at
+// real game-time 779s (our event was stamped 810s, a 31s "discovery lag" from a wide poll gap,
+// well inside the 45s crosscheck tolerance). This is n=1 — one building event, one match — real
+// evidence, not yet enough to flip `laneVerified` or promote building events out of 'uncertain'.
+// The investigation doc's public-graduation bar is 3+ independently-validated matches; see
+// .claude/specs/live-ingestion-investigation.md's E12 section for the running count.
 //
 // The layout is lane-major — bit = laneIndex*3 + tierIndex for towers, laneIndex*2 + kind for
 // barracks. Established by testing every observed bitmask against constraints the game itself

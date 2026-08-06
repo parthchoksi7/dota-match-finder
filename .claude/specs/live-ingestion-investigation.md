@@ -722,6 +722,20 @@ Corroborating: max `tower_state` observed is **2047** = 11 bits (9 towers + 2 ti
 
 Implemented as `decodeTowerBit()` / `decodeBarracksBit()` in [api/_liveStoryDiff.js](api/_liveStoryDiff.js), which return `laneVerified: false` until that cross-check lands. The differ itself still emits building events at `uncertain` confidence and carries only the **raw bit** in the payload, so nothing lane-named can reach a user before verification. Proof is re-derived in `__tests__/live-story-diff.test.js` so a future fixture change cannot silently invalidate it.
 
+**First real cross-check — 2026-08-06, confirmed.** Match `8931981851` (RE.Arise vs No Hoodwink, EPL Masters S1) was captured live by the admin verification pipeline, finished, and was parsed by OpenDota (`version` populated, `objectives[]` non-empty) — the first time this system has had both an independently-sourced live capture *and* post-game ground truth for the same real match. `crossCheckBuildingEvents()`, run via `/admin/live-story`'s crosscheck panel:
+
+| Our derived event | OpenDota ground truth | Verdict |
+|---|---|---|
+| `TowerDestroyed`, team=Radiant, bit 3 → decoded `mid, tier 1`, stamped game_time 810s | `building_kill`, team=Radiant, `npc_dota_goodguys_tower1_mid`, real time 779s | **`confirmed`** |
+
+Team, lane, and tier all agree. The 31s gap between OD's real time (779s) and our stamped time (810s) is explained, not concerning — it's the sparse-polling "discovery lag" already documented (§this session's admin-verification pass had wide gaps between manual capture ticks), well inside the crosscheck's 45s tolerance.
+
+This is **n=1** — one building event, from one match. Real, independently-sourced evidence that the lane-major layout's naming is correct, not just its structure — but short of the public-graduation bar below. `laneVerified` stays `false` and building events stay `uncertain` until more matches confirm it. Track the running count here as future admin-verification sessions add cross-checked matches:
+
+| # | Match | Event(s) | Verdict |
+|---|---|---|---|
+| 1 | `8931981851` (RE.Arise vs No Hoodwink, EPL Masters S1, 2026-08-06) | 1 TowerDestroyed (Radiant mid t1) | confirmed |
+
 **E13 — Ability↔player mapping** *(new, needed for `AbilityLearned`)*
 `abilities[]` are team-level arrays, not nested per-player like items. Confirm hero_id → ability-kit cross-referencing (via `odota/dotaconstants`) reliably attributes each ability-level change to the correct player, including cases with duplicate/shared ability ids across the roster (unlikely in normal drafts, but not yet verified).
 
