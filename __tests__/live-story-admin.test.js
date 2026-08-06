@@ -157,12 +157,47 @@ describe('action=crosscheck', () => {
     expect(res.json.mock.calls[0][0].note).toBe('no_building_events_captured')
   })
 
-  it('degrades to not_yet_parsed when OpenDota has no duration for the match yet', async () => {
+  it('degrades to not_yet_parsed when OpenDota has no version (still-unparsed match)', async () => {
     mockKv.get.mockResolvedValue([{ eventType: 'TowerDestroyed', team: 2, gameTime: 700, payload: { bit: 0 } }])
-    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ duration: null, objectives: [] }) })
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ version: null, duration: null, objectives: [] }) })
     const res = mockRes()
     await handleLiveStoryAdmin({ query: { action: 'crosscheck', matchId: '1' } }, res)
     expect(res.json.mock.calls[0][0].odFetchError).toBe('not_yet_parsed')
+  })
+
+  it('degrades to not_yet_parsed even when duration/scores are already populated (real bug, caught live 2026-08-06)', async () => {
+    // Verified against a real match (8931981851): OD's quick match-summary layer populates
+    // duration/scores/basic stats well before the detailed replay parse finishes. A match with
+    // duration=1818 and version=null returned an empty objectives[] that the ORIGINAL code
+    // (gated on `duration == null`) silently accepted as "genuinely no objectives" — producing a
+    // false `no_match` verdict indistinguishable from an actual cross-check failure. `version` is
+    // OD's own "parsed" signal and is the only field that's actually null at this stage.
+    mockKv.get.mockResolvedValue([{ eventType: 'TowerDestroyed', team: 2, gameTime: 810, payload: { bit: 3 } }])
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: null, duration: 1818, radiant_score: 4, dire_score: 14, objectives: [] }),
+    })
+    const res = mockRes()
+    await handleLiveStoryAdmin({ query: { action: 'crosscheck', matchId: '8931981851' } }, res)
+    const payload = res.json.mock.calls[0][0]
+    expect(payload.odFetchError).toBe('not_yet_parsed')
+    expect(payload.results).toEqual([])
+  })
+
+  it('runs the real comparison once version is populated, even with duration also present', async () => {
+    mockKv.get.mockResolvedValue([{ eventType: 'TowerDestroyed', team: 3, gameTime: 736, payload: { bit: 0 } }])
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        version: 21, duration: 1770,
+        objectives: [{ time: 736, type: 'building_kill', key: 'npc_dota_badguys_tower1_top' }],
+      }),
+    })
+    const res = mockRes()
+    await handleLiveStoryAdmin({ query: { action: 'crosscheck', matchId: '1' } }, res)
+    const payload = res.json.mock.calls[0][0]
+    expect(payload.odFetchError).toBeUndefined()
+    expect(payload.summary).toEqual({ confirmed: 1 })
   })
 
   it('summarizes verdicts once OD has parsed the match', async () => {
@@ -170,7 +205,7 @@ describe('action=crosscheck', () => {
     global.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
-        duration: 1770,
+        version: 21, duration: 1770,
         objectives: [{ time: 736, type: 'building_kill', key: 'npc_dota_badguys_tower1_top' }],
       }),
     })
@@ -180,12 +215,23 @@ describe('action=crosscheck', () => {
     expect(payload.summary).toEqual({ confirmed: 1 })
   })
 
-  it('propagates an OpenDota HTTP failure without throwing', async () => {
+  it('propagates a genuine OpenDota HTTP failure without throwing', async () => {
     mockKv.get.mockResolvedValue([{ eventType: 'TowerDestroyed', team: 2, gameTime: 1, payload: { bit: 0 } }])
     global.fetch.mockResolvedValue({ ok: false, status: 502 })
     const res = mockRes()
     await handleLiveStoryAdmin({ query: { action: 'crosscheck', matchId: '1' } }, res)
     expect(res.json.mock.calls[0][0].odFetchError).toBe('http_502')
+  })
+
+  it('reports a 404 as "not yet indexed", not as a generic error', async () => {
+    // Verified live 2026-08-06 against a real in-progress EPL Masters match: OpenDota genuinely
+    // 404s for a match it hasn't seen yet (still running). This is the expected, common case for
+    // crosscheck on a live-captured match, not a fault worth alarming the operator over.
+    mockKv.get.mockResolvedValue([{ eventType: 'TowerDestroyed', team: 2, gameTime: 1, payload: { bit: 0 } }])
+    global.fetch.mockResolvedValue({ ok: false, status: 404 })
+    const res = mockRes()
+    await handleLiveStoryAdmin({ query: { action: 'crosscheck', matchId: '1' } }, res)
+    expect(res.json.mock.calls[0][0].odFetchError).toBe('match_still_in_progress_or_not_yet_indexed')
   })
 })
 

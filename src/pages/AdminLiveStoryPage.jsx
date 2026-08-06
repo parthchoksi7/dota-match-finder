@@ -317,7 +317,15 @@ function CrosscheckPanel({ token, matchId, setMatchId }) {
       {result && (
         <div className="space-y-2">
           {result.note && <Pill tone="amber">{result.note}</Pill>}
-          {result.odFetchError && <Pill tone="amber">OD: {result.odFetchError}</Pill>}
+          {result.odFetchError && (
+            <Pill tone={['match_still_in_progress_or_not_yet_indexed', 'not_yet_parsed'].includes(result.odFetchError) ? 'gray' : 'amber'}>
+              {result.odFetchError === 'not_yet_parsed'
+                ? 'OD has basic data but has not finished the detailed replay parse yet — try again shortly'
+                : result.odFetchError === 'match_still_in_progress_or_not_yet_indexed'
+                  ? 'Match still in progress — OpenDota has not indexed it yet'
+                  : `OD: ${result.odFetchError.replace(/_/g, ' ')}`}
+            </Pill>
+          )}
           {result.summary && (
             <div className="flex flex-wrap gap-2 mb-2">
               {Object.entries(result.summary).map(([verdict, n]) => (
@@ -360,7 +368,7 @@ function CrosscheckPanel({ token, matchId, setMatchId }) {
 }
 
 // ── Panel 3b: Valve vs OpenDota side-by-side — the two-clocks question, answered with a number ─
-function ComparePanel({ token, matchId, setMatchId }) {
+function ComparePanel({ token, matchId, setMatchId, autoRunToken }) {
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -375,6 +383,14 @@ function ComparePanel({ token, matchId, setMatchId }) {
       .finally(() => setLoading(false))
   }
 
+  // Fires automatically when the Overview panel's "Inspect →" is clicked (autoRunToken bumps,
+  // see AdminLiveStoryPage's handleSelectMatch). Not tied to `matchId` itself — typing in the
+  // input above must never auto-fire a request per keystroke, only an explicit selection does.
+  useEffect(() => {
+    if (autoRunToken > 0 && matchId) run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunToken])
+
   const rows = result ? [
     ['Radiant name', result.valve?.radiantName, result.openDota?.radiantName],
     ['Dire name', result.valve?.direName, result.openDota?.direName],
@@ -384,7 +400,7 @@ function ComparePanel({ token, matchId, setMatchId }) {
   ] : []
 
   return (
-    <section className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+    <section id="compare-panel" className="bg-gray-900 rounded-xl border border-gray-800 p-5 scroll-mt-4">
       <h2 className="text-white font-bold uppercase tracking-widest text-sm mb-2">
         Valve vs OpenDota — same match, side by side
       </h2>
@@ -448,7 +464,19 @@ function ComparePanel({ token, matchId, setMatchId }) {
 export default function AdminLiveStoryPage() {
   const { token, save, clear } = useAdminToken()
   const [selectedMatchId, setSelectedMatchId] = useState('')
+  const [autoRunToken, setAutoRunToken] = useState(0)
   const captureIntervalRef = useRef(null)
+
+  // "Inspect →" on a tracked match must visibly DO something — just filling the compare/
+  // crosscheck panels' input fields (both far below the fold) looked like nothing happened.
+  // Populates the id, scrolls the compare panel into view, and bumps autoRunToken so it fetches
+  // immediately (crosscheck is deliberately NOT auto-run — for a still-live match it's a
+  // guaranteed no-op 404 against OpenDota, see liveStoryAdmin.js's actionCrosscheck).
+  function handleSelectMatch(id) {
+    setSelectedMatchId(id)
+    setAutoRunToken(t => t + 1)
+    document.getElementById('compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   // The capture trigger. Unauthenticated (same idempotent/KV-throttled shape as
   // ?mode=od-live-capture) — visiting this page IS the ambient viewer presence that makes the KV
@@ -485,9 +513,9 @@ export default function AdminLiveStoryPage() {
           </button>
         </div>
 
-        <OverviewPanel token={token} onSelectMatch={setSelectedMatchId} />
+        <OverviewPanel token={token} onSelectMatch={handleSelectMatch} />
         <SnapshotPairPanel token={token} />
-        <ComparePanel token={token} matchId={selectedMatchId} setMatchId={setSelectedMatchId} />
+        <ComparePanel token={token} matchId={selectedMatchId} setMatchId={setSelectedMatchId} autoRunToken={autoRunToken} />
         <CrosscheckPanel token={token} matchId={selectedMatchId} setMatchId={setSelectedMatchId} />
       </div>
     </div>

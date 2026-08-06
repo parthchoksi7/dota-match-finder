@@ -115,9 +115,18 @@ async function actionCrosscheck(req, res) {
       const data = await r.json()
       objectives = data.objectives || []
       // OpenDota returns an empty/absent objectives array both when a match genuinely has none
-      // and when it simply hasn't finished parsing yet — a null duration is the tell for "not
-      // ready", so this is surfaced as a distinct case rather than a silent empty-array pass.
-      if (data.duration == null) odFetchError = 'not_yet_parsed'
+      // and when it simply hasn't finished the DETAILED replay parse yet. `duration` is NOT the
+      // right tell — verified live 2026-08-06 against a real match (8931981851): duration,
+      // scores, and basic player stats were populated (from OD's quick match-summary layer)
+      // while objectives/purchase_log were still empty and `version` was null. `version` is OD's
+      // own signal for "has been through the detailed parser" — that's the real gate.
+      if (data.version == null) odFetchError = 'not_yet_parsed'
+    } else if (r.status === 404) {
+      // The common case, not an error: OpenDota only indexes a match once it's OVER (30-90+ min
+      // lag even then, per project_stratz_api_access-adjacent OD lag notes elsewhere in this
+      // codebase) — a still-running match 404s here as a matter of course, not a fault. Verified
+      // live 2026-08-06 against a real in-progress EPL Masters match.
+      odFetchError = 'match_still_in_progress_or_not_yet_indexed'
     } else {
       odFetchError = `http_${r.status}`
     }
