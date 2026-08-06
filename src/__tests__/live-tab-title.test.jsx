@@ -13,6 +13,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act } from '@testing-library/react'
 import SeriesLivePulse from '../components/SeriesLivePulse.jsx'
 
+// The tab title now mirrors the Valve pulse (fetchLiveValvePulse), not the OD one — see
+// SeriesLivePulse.jsx's 2026-08-06 cutover (useLiveScoreTabTitle is now called with valvePulse).
 function pulseWith(overrides = {}) {
   return {
     matchId: '8913598312',
@@ -22,8 +24,10 @@ function pulseWith(overrides = {}) {
     radiantScore: 24,
     direScore: 19,
     gameTime: 1930,
-    radiantHeroIds: [],
-    direHeroIds: [],
+    players: { radiant: [], dire: [] },
+    towers: { radiant: null, dire: null },
+    barracks: { radiant: null, dire: null },
+    draft: { radiantPicks: [], direPicks: [], radiantBans: [], direBans: [] },
     capturedAt: new Date().toISOString(),
     ...overrides,
   }
@@ -31,13 +35,13 @@ function pulseWith(overrides = {}) {
 
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, fetchLiveGamePulse: vi.fn(), fetchHeroes: vi.fn().mockResolvedValue({}) }
+  return { ...actual, fetchLiveGamePulse: vi.fn(), fetchLiveValvePulse: vi.fn(), fetchHeroes: vi.fn().mockResolvedValue({}) }
 })
 vi.mock('../utils', async (importOriginal) => {
   const real = await importOriginal()
   return { ...real, trackEvent: vi.fn() }
 })
-import { fetchLiveGamePulse } from '../api'
+import { fetchLiveGamePulse, fetchLiveValvePulse } from '../api'
 import { trackEvent } from '../utils'
 
 const ORIGINAL_TITLE = 'Spectate Esports — Watch Pro Dota 2 Match VODs Instantly'
@@ -60,8 +64,9 @@ beforeEach(() => {
 
 afterEach(() => vi.clearAllMocks())
 
-async function renderWithPulse(pulse, props = {}) {
-  fetchLiveGamePulse.mockResolvedValue(pulse)
+async function renderWithPulse(valvePulse, props = {}) {
+  fetchLiveGamePulse.mockResolvedValue(valvePulse ? pulseWith() : null)
+  fetchLiveValvePulse.mockResolvedValue(valvePulse)
   let result
   await act(async () => { result = render(<SeriesLivePulse {...baseProps} {...props} />) })
   return result

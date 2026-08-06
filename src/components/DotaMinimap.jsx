@@ -56,6 +56,53 @@ const LANE_KEYS = ['top', 'mid', 'bot']
 const LANE_LABELS = { top: 'top', mid: 'mid', bot: 'bot' }
 export const BASE_POSITIONS = { radiant: [40, 468], dire: [468, 40] }
 
+// ---------------------------------------------------------------------------------------------
+// Tier-4 (Ancient guardian) + barracks marker positions — 2026-08-06, Valve-sourced live surface.
+//
+// UNLIKE TOWER_POSITIONS above, these are NOT owner-verified against a coordinate-gridded render
+// of the texture. They're derived programmatically from the coordinates that WERE hand-verified
+// (each side's own T3 lane towers + its base) via linear interpolation, so placement is principled
+// rather than eyeballed, but it has not been checked pixel-by-pixel the way TOWER_POSITIONS was
+// (that took two wrong passes before landing — see this file's own history above). Treat as
+// "reasonable, pending the same verification pass," not as settled fact.
+function lerp([x1, y1], [x2, y2], t) {
+  return [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]
+}
+
+// Tier-4 towers sit between the base and the lane approaches, guarding the Ancient. Placed 32% of
+// the way from base toward each of the two T3 towers whose lane most directly fronts that base
+// (mid + the lane whose T3 sits closest to base) — the two guardian towers in real Dota don't
+// stand on a lane's own axis, so this is a deliberate approximation, not an attempt to reuse
+// TOWER_POSITIONS' verified precision.
+export const TIER4_POSITIONS = {
+  radiant: [
+    lerp(BASE_POSITIONS.radiant, TOWER_POSITIONS.mid.radiant[2], 0.34),
+    lerp(BASE_POSITIONS.radiant, TOWER_POSITIONS.bot.radiant[2], 0.34),
+  ],
+  dire: [
+    lerp(BASE_POSITIONS.dire, TOWER_POSITIONS.mid.dire[2], 0.34),
+    lerp(BASE_POSITIONS.dire, TOWER_POSITIONS.top.dire[2], 0.34),
+  ],
+}
+
+// Barracks sit just outside a lane's T3 tower, on the base side of it. Melee/ranged are offset a
+// few units apart perpendicular to the base->T3 line so the two markers don't overlap.
+function barracksPairFor(side, lane) {
+  const base = BASE_POSITIONS[side]
+  const t3 = TOWER_POSITIONS[lane][side][2]
+  const [mx, my] = lerp(base, t3, 0.68)
+  const dx = t3[0] - base[0]
+  const dy = t3[1] - base[1]
+  const len = Math.hypot(dx, dy) || 1
+  const px = (-dy / len) * 9
+  const py = (dx / len) * 9
+  return { melee: [mx + px, my + py], ranged: [mx - px, my - py] }
+}
+export const BARRACKS_POSITIONS = {
+  radiant: Object.fromEntries(LANE_KEYS.map(lane => [lane, barracksPairFor('radiant', lane)])),
+  dire: Object.fromEntries(LANE_KEYS.map(lane => [lane, barracksPairFor('dire', lane)])),
+}
+
 // Which of the 3 [T1,T2,T3]-ordered positions are destroyed, given a standing count (0-3).
 // standing=2 -> the single OUTERMOST tower (index 0) is destroyed, the 2 innermost stand.
 function destroyedFlags(standing) {
@@ -117,6 +164,30 @@ function TowerMarker({ x, y, destroyed, side }) {
   )
 }
 
+// Small square marker for a barracks — deliberately NOT the diamond shape TowerMarker uses, so
+// the two building types are distinguishable by silhouette alone, not just position. Same
+// halo-behind-fill treatment for the same reason (legibility against varied real terrain).
+function BarracksMarker({ x, y, destroyed, side }) {
+  const size = 10
+  const fill = destroyed ? 'rgba(255,255,255,0.10)' : side === 'radiant' ? '#22c55e' : '#ef4444'
+  const stroke = destroyed ? 'rgba(255,255,255,0.85)' : '#ffffff'
+  return (
+    <g>
+      <rect
+        x={x - size / 2 - 1.5} y={y - size / 2 - 1.5} width={size + 3} height={size + 3} rx={2}
+        fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth={destroyed ? 1.5 : 2}
+        strokeDasharray={destroyed ? '2,2' : undefined}
+      />
+      <rect
+        data-barracks-marker="true"
+        x={x - size / 2} y={y - size / 2} width={size} height={size} rx={1.5}
+        fill={fill} stroke={stroke} strokeWidth={destroyed ? 1.25 : 1.5}
+        strokeDasharray={destroyed ? '2,2' : undefined}
+      />
+    </g>
+  )
+}
+
 // Legend swatches sit on the card's own flat background (bg-gray-50/bg-gray-950), not the
 // texture, so they keep the original theme-neutral gray rather than TowerMarker's white —
 // white-on-near-white would be unreadable in light mode here. Shape still matches TowerMarker's
@@ -143,10 +214,29 @@ function LegendSwatch({ destroyed, label }) {
 // radiant/dire: [top, mid, bot] standing-tower counts (0-3 each), from pulse.objectives.
 // Renders null on missing data — same "absent means don't render" rule as the rest of the
 // owner-only R4 surfaces (never a skeleton/placeholder map).
-export default function DotaMinimap({ radiant, dire, radiantName, direName }) {
+//
+// OPTIONAL richer props (2026-08-06, Valve-sourced live surface):
+//   radiantTowerState / direTowerState   — decodeTowerState()'s shape, EXACT per-tower booleans,
+//                                           used in place of the count-based reconstruction above
+//                                           when present (more precise: a count alone can't say
+//                                           WHICH tower fell if the destruction order was unusual).
+//   radiantBarracksState / direBarracksState — decodeBarracksState()'s shape. Adds 12 new markers
+//                                           and the caption below reads differently, since barracks
+//                                           genuinely ARE known now (Valve's dedicated
+//                                           barracks_state field, unlike OD's building_state — see
+//                                           _buildingState.js's disproof).
+// Absent -> the component behaves EXACTLY as it did before this change (verified by the existing
+// count-only test suite, none of which pass these new props).
+export default function DotaMinimap({
+  radiant, dire, radiantName, direName,
+  radiantTowerState, direTowerState, radiantBarracksState, direBarracksState,
+}) {
   if (!radiant || !dire) return null
 
-  const ariaLabel = buildMinimapAriaLabel(radiant, dire, radiantName, direName)
+  const hasRichTowers = !!(radiantTowerState && direTowerState)
+  const hasBarracks = !!(radiantBarracksState && direBarracksState)
+  const ariaLabel = buildMinimapAriaLabel(radiant, dire, radiantName, direName) +
+    (hasBarracks ? ' Barracks status is also known and shown.' : '')
 
   return (
     <div className="mb-1.5 border border-gray-200 dark:border-gray-800 rounded bg-gray-50 dark:bg-gray-950 p-2.5">
@@ -169,8 +259,12 @@ export default function DotaMinimap({ radiant, dire, radiantName, direName }) {
         <text x={BASE_POSITIONS.dire[0]} y={BASE_POSITIONS.dire[1] - 12} textAnchor="middle" fontSize={14} fontWeight="bold" fill="#ef4444" stroke="#2a0a0a" strokeWidth={3} paintOrder="stroke">DIRE</text>
 
         {LANE_KEYS.map(lane => {
-          const rFlags = destroyedFlags(radiant[LANE_KEYS.indexOf(lane)])
-          const dFlags = destroyedFlags(dire[LANE_KEYS.indexOf(lane)])
+          const rFlags = hasRichTowers
+            ? radiantTowerState.lanes[lane].map(standing => !standing)
+            : destroyedFlags(radiant[LANE_KEYS.indexOf(lane)])
+          const dFlags = hasRichTowers
+            ? direTowerState.lanes[lane].map(standing => !standing)
+            : destroyedFlags(dire[LANE_KEYS.indexOf(lane)])
           return (
             <g key={lane}>
               {TOWER_POSITIONS[lane].radiant.map(([x, y], i) => (
@@ -182,11 +276,54 @@ export default function DotaMinimap({ radiant, dire, radiantName, direName }) {
             </g>
           )
         })}
+
+        {hasRichTowers && (
+          <g>
+            {TIER4_POSITIONS.radiant.map(([x, y], i) => (
+              <TowerMarker key={`r-t4-${i}`} x={x} y={y} destroyed={!radiantTowerState.tier4[i]} side="radiant" />
+            ))}
+            {TIER4_POSITIONS.dire.map(([x, y], i) => (
+              <TowerMarker key={`d-t4-${i}`} x={x} y={y} destroyed={!direTowerState.tier4[i]} side="dire" />
+            ))}
+          </g>
+        )}
+
+        {hasBarracks && (
+          <g>
+            {LANE_KEYS.map(lane => (
+              <g key={`rax-${lane}`}>
+                <BarracksMarker
+                  x={BARRACKS_POSITIONS.radiant[lane].melee[0]} y={BARRACKS_POSITIONS.radiant[lane].melee[1]}
+                  destroyed={!radiantBarracksState.lanes[lane].melee} side="radiant"
+                />
+                <BarracksMarker
+                  x={BARRACKS_POSITIONS.radiant[lane].ranged[0]} y={BARRACKS_POSITIONS.radiant[lane].ranged[1]}
+                  destroyed={!radiantBarracksState.lanes[lane].ranged} side="radiant"
+                />
+                <BarracksMarker
+                  x={BARRACKS_POSITIONS.dire[lane].melee[0]} y={BARRACKS_POSITIONS.dire[lane].melee[1]}
+                  destroyed={!direBarracksState.lanes[lane].melee} side="dire"
+                />
+                <BarracksMarker
+                  x={BARRACKS_POSITIONS.dire[lane].ranged[0]} y={BARRACKS_POSITIONS.dire[lane].ranged[1]}
+                  destroyed={!direBarracksState.lanes[lane].ranged} side="dire"
+                />
+              </g>
+            ))}
+          </g>
+        )}
       </svg>
 
       <p className="text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 mt-1.5">
-        Towers only — barracks, base towers &amp; Ancient status unknown
+        {hasBarracks
+          ? 'Towers & barracks — Ancient HP still unknown'
+          : 'Towers only — barracks, base towers & Ancient status unknown'}
       </p>
+      {hasRichTowers && radiantTowerState.laneVerified === false && (
+        <p className="text-center text-[9px] text-gray-400 dark:text-gray-600 mt-0.5">
+          Lane labels (which side is "top" vs "bot") are provisional pending validation
+        </p>
+      )}
     </div>
   )
 }

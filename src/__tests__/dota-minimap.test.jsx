@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import DotaMinimap, { buildMinimapAriaLabel, TOWER_POSITIONS, BASE_POSITIONS } from '../components/DotaMinimap.jsx'
+import DotaMinimap, { buildMinimapAriaLabel, TOWER_POSITIONS, BASE_POSITIONS, TIER4_POSITIONS, BARRACKS_POSITIONS } from '../components/DotaMinimap.jsx'
 
 function dist([x1, y1], [x2, y2]) {
   return Math.hypot(x1 - x2, y1 - y2)
@@ -73,6 +73,101 @@ describe('DotaMinimap — rendering', () => {
     const image = container.querySelector('svg[role="img"] image')
     expect(image).not.toBeNull()
     expect(image.getAttribute('href')).toBe('/dota-minimap-7.40.webp')
+  })
+})
+
+describe('DotaMinimap — Valve-sourced rich props (2026-08-06)', () => {
+  const allStanding = { lanes: { top: [true, true, true], mid: [true, true, true], bot: [true, true, true] }, tier4: [true, true], laneVerified: false }
+  const allStandingRax = { lanes: { top: { melee: true, ranged: true }, mid: { melee: true, ranged: true }, bot: { melee: true, ranged: true } }, laneVerified: false }
+
+  it('falls back to count-based rendering (18 markers) when rich props are absent — no behavior change', () => {
+    const { container } = render(<DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B" />)
+    expect(container.querySelectorAll('rect[data-tower-marker]').length).toBe(18)
+    expect(container.querySelectorAll('rect[data-barracks-marker]')).toHaveLength(0)
+  })
+
+  it('adds 4 tier-4 markers (2 per side) when tower state props are present', () => {
+    const { container } = render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantTowerState={allStanding} direTowerState={allStanding} />
+    )
+    // 18 lane towers + 4 tier-4 = 22
+    expect(container.querySelectorAll('rect[data-tower-marker]').length).toBe(22)
+  })
+
+  it('uses the EXACT per-tower boolean, not the count-based reconstruction, when tower state is present', () => {
+    // Count says 3 standing (nothing destroyed) but the exact state says the FIRST tower (T1) is
+    // down — count-based destroyedFlags(3) would never produce this, proving the exact path wins.
+    const state = { lanes: { top: [false, true, true], mid: [true, true, true], bot: [true, true, true] }, tier4: [true, true], laneVerified: false }
+    const { container } = render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantTowerState={state} direTowerState={allStanding} />
+    )
+    const destroyed = [...container.querySelectorAll('rect[data-tower-marker]')].filter(r => r.getAttribute('stroke-dasharray') === '2,2')
+    expect(destroyed).toHaveLength(1)
+  })
+
+  it('adds 24 barracks markers (12 per side) and swaps the caption when barracks state is present', () => {
+    const { container } = render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantBarracksState={allStandingRax} direBarracksState={allStandingRax} />
+    )
+    expect(container.querySelectorAll('rect[data-barracks-marker]')).toHaveLength(12)
+    expect(screen.getByText(/towers & barracks — ancient hp still unknown/i)).toBeInTheDocument()
+    expect(screen.queryByText(/barracks, base towers & ancient status unknown/i)).not.toBeInTheDocument()
+  })
+
+  it('renders a destroyed barracks marker when a lane reports it down', () => {
+    const raxState = { lanes: { top: { melee: false, ranged: true }, mid: { melee: true, ranged: true }, bot: { melee: true, ranged: true } }, laneVerified: false }
+    const { container } = render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantBarracksState={raxState} direBarracksState={allStandingRax} />
+    )
+    const destroyed = [...container.querySelectorAll('rect[data-barracks-marker]')].filter(r => r.getAttribute('stroke-dasharray') === '2,2')
+    expect(destroyed).toHaveLength(1)
+  })
+
+  it('does not render barracks markers when only tower state is given', () => {
+    const { container } = render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantTowerState={allStanding} direTowerState={allStanding} />
+    )
+    expect(container.querySelectorAll('rect[data-barracks-marker]')).toHaveLength(0)
+  })
+
+  it('shows the provisional-lane-labels caveat when laneVerified is false', () => {
+    render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantTowerState={allStanding} direTowerState={allStanding} />
+    )
+    expect(screen.getByText(/lane labels.*are provisional/i)).toBeInTheDocument()
+  })
+})
+
+describe('TIER4_POSITIONS / BARRACKS_POSITIONS — placement sanity (approximate, not pixel-verified)', () => {
+  it('places each side\'s tier-4 towers closer to its OWN base than to the enemy base', () => {
+    for (const side of ['radiant', 'dire']) {
+      const enemy = side === 'radiant' ? 'dire' : 'radiant'
+      for (const pos of TIER4_POSITIONS[side]) {
+        const own = Math.hypot(pos[0] - BASE_POSITIONS[side][0], pos[1] - BASE_POSITIONS[side][1])
+        const enemyDist = Math.hypot(pos[0] - BASE_POSITIONS[enemy][0], pos[1] - BASE_POSITIONS[enemy][1])
+        expect(own).toBeLessThan(enemyDist)
+      }
+    }
+  })
+
+  it('places each lane\'s barracks pair closer to that side\'s base than that lane\'s own T3 tower is', () => {
+    for (const lane of ['top', 'mid', 'bot']) {
+      for (const side of ['radiant', 'dire']) {
+        const base = BASE_POSITIONS[side]
+        const t3 = TOWER_POSITIONS[lane][side][2]
+        const t3ToBase = Math.hypot(t3[0] - base[0], t3[1] - base[1])
+        for (const pos of [BARRACKS_POSITIONS[side][lane].melee, BARRACKS_POSITIONS[side][lane].ranged]) {
+          const posToBase = Math.hypot(pos[0] - base[0], pos[1] - base[1])
+          expect(posToBase).toBeLessThan(t3ToBase)
+        }
+      }
+    }
   })
 })
 

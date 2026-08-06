@@ -1,9 +1,10 @@
 import { kv } from '../_kv.js'
+import { getSupabaseAdmin } from '../_supabase.js'
 import { createLogger, validateId } from '../_shared.js'
 import { fetchPsMatchDetail } from './liveSeriesGames.js'
 import { captureLiveStoryOnce, LIVE_STORY_KEYS, ITEM_MAP_KV_KEY } from './liveStoryCapture.js'
 import { indexGamesById } from '../_liveStoryDiff.js'
-import { shapeValvePulse, collectItemIds } from '../_liveValveState.js'
+import { shapeValvePulse, collectItemIds, shapeLiveEvents, shapeValveGoldHistory } from '../_liveValveState.js'
 import { teamPairMatch, resolveRadiantSide } from '../../src/teamMatching.js'
 
 // Valve-sourced live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
@@ -120,6 +121,11 @@ export async function resolveValvePulse(pandaId, log) {
 
     const pulse = shapeValvePulse(hit.game, { radiantName: hit.radiantName, direName: hit.direName })
     if (!pulse) return { pulse: null }
+    // Response-build-time stamp (there's no single DB row to inherit one from, unlike the OD
+    // pulse's `row.captured_at`) — consumed by the client's retain-last-known-good bound
+    // (nextPulseState/STALE_AFTER_MS in SeriesLivePulse.jsx) so a transient correlation miss
+    // doesn't blank the whole Valve-sourced UI on one bad poll.
+    pulse.capturedAt = new Date().toISOString()
 
     // Scoped item-name map for exactly the items on the board (~60 ids max), so the client's
     // existing `ItemSlot` can resolve CDN keys without shipping the full ~1,500-entry constants
@@ -137,6 +143,59 @@ export async function resolveValvePulse(pandaId, log) {
       }
     } catch (err) {
       log.warn('item map read failed', { error: err?.message })
+    }
+
+    // Net-worth history — a BRAND-NEW, isolated Supabase table (live_valve_gold,
+    // scripts/create-live-valve-gold.sql), never `live_game_gold`. This is genuinely new work
+    // (Valve's feed gives only a point-in-time reading per poll), not a swap of an existing
+    // pipeline: nothing here reads or writes live_game_gold, so the shipped OD-sourced graph
+    // cannot regress no matter what happens in this block. Both steps are best-effort — a
+    // Supabase hiccup degrades to "no history yet" (LiveGoldGraph's own empty state), never a
+    // failed pulse. Requires scripts/create-live-valve-gold.sql to have been run; a missing-table
+    // error is caught and logged the same as any other failure here.
+    if (Number.isFinite(pulse.gameTime) && pulse.gameTime >= 0) {
+      try {
+        const { error: insertErr } = await getSupabaseAdmin()
+          .from('live_valve_gold')
+          .upsert(
+            {
+              valve_match_id: pulse.matchId,
+              game_time: pulse.gameTime,
+              radiant_lead: pulse.radiantLead,
+              radiant_score: pulse.radiantScore,
+              dire_score: pulse.direScore,
+            },
+            { onConflict: 'valve_match_id,game_time', ignoreDuplicates: true },
+          )
+        if (insertErr) log.warn('live_valve_gold insert failed', { error: insertErr.message })
+      } catch (err) {
+        log.warn('live_valve_gold insert threw', { error: err?.message })
+      }
+    }
+    try {
+      const { data: goldRows, error: goldErr } = await getSupabaseAdmin()
+        .from('live_valve_gold')
+        .select('game_time, radiant_lead, radiant_score, dire_score, captured_at')
+        .eq('valve_match_id', pulse.matchId)
+      if (goldErr) log.warn('live_valve_gold history read failed', { error: goldErr.message })
+      else pulse.history = shapeValveGoldHistory(goldRows)
+    } catch (err) {
+      log.warn('live_valve_gold history read threw', { error: err?.message })
+    }
+
+    // Live event feed — reads the SAME event ring the differ already writes on every capture tick
+    // (`live-story:events:v1:{matchId}`), keyed by Valve's own match_id, which is the identical id
+    // space as `pulse.matchId` here (confirmed in the audit doc: "Same ID space as OpenDota's
+    // match_id"). No new capture path, no new storage — this is read-only reuse of data that was
+    // already being derived for the admin verification console, now surfaced publicly for the
+    // first time. `shapeLiveEvents` enforces its own whitelist (kills/Roshan/marquee items only,
+    // never tower/barracks events — see that function's comment) independent of anything here.
+    try {
+      const events = await kv.get(LIVE_STORY_KEYS.EVENTS_KEY(pulse.matchId))
+      pulse.events = shapeLiveEvents(events)
+    } catch (err) {
+      log.warn('event feed read failed', { error: err?.message })
+      pulse.events = []
     }
 
     return { pulse }

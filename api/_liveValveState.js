@@ -99,6 +99,17 @@ export function decodeUltimateState(state, cooldown) {
 }
 
 /**
+ * Reduces `decodeTowerState`'s exact per-tower lanes down to `[top, mid, bot]` standing counts —
+ * the shape `DotaMinimap`'s original OD-fed props (and its aria-label summarizer) already expect.
+ * Lets the richer Valve data feed the SAME component prop contract the count-based path uses,
+ * rather than needing two different "is there tower data" checks in the caller.
+ */
+export function towerStateToCounts(towerState) {
+  if (!towerState?.lanes) return null
+  return ['top', 'mid', 'bot'].map(lane => towerState.lanes[lane].filter(Boolean).length)
+}
+
+/**
  * Sums a side's per-player `net_worth`. Returns null when the side has no usable players, so a
  * caller can tell "no data" apart from a genuine 0 — never fabricate a 0-0 net-worth lead.
  */
@@ -209,6 +220,86 @@ export function collectItemIds(pulse) {
     }
   }
   return [...ids]
+}
+
+// Event types safe to show a viewer today. An explicit WHITELIST, not "everything except
+// uncertain" — TowerDestroyed/BarracksDestroyed both carry `confidence: 'uncertain'` by design
+// (`_liveStoryDiff.js`'s own comment: "never rendered to a user") because lane NAMING isn't at
+// the CONTEXT.md graduation bar yet (currently 2 of 3 validated matches). A blacklist would
+// silently start showing them the moment some future event type forgets to set 'uncertain', which
+// is the wrong failure direction for a data point this codebase has explicitly gated.
+const FEED_EVENT_TYPES = new Set(['HeroKilled', 'RoshanKilled', 'ItemPurchased'])
+
+/**
+ * Shapes the differ's raw event ring (`live-story:events:v1:{matchId}`) into the live feed's
+ * display model. Filters to `FEED_EVENT_TYPES` only — silently drops anything else, including any
+ * `confidence: 'uncertain'` event regardless of type, as a second, redundant safety check.
+ *
+ * Deliberately returns STRUCTURED fields (heroId, victimName, killerName, ...) rather than
+ * pre-built display text: hero-name resolution belongs client-side, where the hero map is already
+ * fetched (`fetchHeroes()`), the same place every other component in this codebase resolves a
+ * heroId. Baking English text server-side would also make this payload impossible to localize
+ * later without a second code path.
+ *
+ * `events` is expected newest-LAST (the capture's own ring order — see `liveStoryCapture.js`'s
+ * "Appends events to each match's ring, newest last"). Output preserves that order. `limit` caps
+ * payload size for a long game; the most RECENT events are kept, matching `GOLD_HISTORY_MAX_POINTS`'s
+ * same "cap after sorting, keep the tail" rule in `liveGamePulse.js`.
+ */
+export function shapeLiveEvents(events, limit = 40) {
+  if (!Array.isArray(events)) return []
+  const out = []
+  for (const e of events) {
+    if (!e || !FEED_EVENT_TYPES.has(e.eventType) || e.confidence === 'uncertain') continue
+    const base = { time: e.gameTime, type: e.eventType, side: e.team === 3 ? 'dire' : e.team === 2 ? 'radiant' : null }
+    if (e.eventType === 'HeroKilled') {
+      out.push({
+        ...base,
+        // Colored by the KILLER's side (same convention GoldGraph's event markers use — "marker
+        // color = the side that triggered the event"), not the victim's team `base.side` carries.
+        // Falls back to null (neutral) when attribution was declined as ambiguous.
+        side: e.payload?.killerTeam === 3 ? 'dire' : e.payload?.killerTeam === 2 ? 'radiant' : null,
+        victimHeroId: e.heroId,
+        victimName: e.payload?.victimName ?? null,
+        killerHeroId: e.payload?.killerHeroId ?? null,
+        killerName: e.payload?.killerName ?? null,
+        ambiguous: !!e.payload?.ambiguous,
+      })
+    } else if (e.eventType === 'RoshanKilled') {
+      // team is always null at the source — see _liveStoryDiff.js's own comment on why attribution
+      // is never guessed here. base.side is already null in this case.
+      out.push({ ...base })
+    } else if (e.eventType === 'ItemPurchased') {
+      out.push({
+        ...base,
+        heroId: e.heroId,
+        playerName: e.payload?.playerName ?? null,
+        itemId: e.payload?.itemId ?? null,
+      })
+    }
+  }
+  return out.slice(-limit)
+}
+
+/**
+ * Shapes `live_valve_gold` rows into LiveGoldGraph's `{ t, lead }[]` timeseries — the Valve-sourced
+ * analogue of `liveGamePulse.js`'s `shapeGoldHistory`. Same dedup/sort/cap contract: keeps the
+ * latest `captured_at` per `game_time` (defensive even though the unique constraint should already
+ * guarantee this at write time), sorts ascending, and caps to the most RECENT `maxPoints` so a long
+ * game's tail is never silently dropped.
+ */
+export function shapeValveGoldHistory(rows, maxPoints = 150) {
+  if (!Array.isArray(rows)) return []
+  const byTime = new Map()
+  for (const r of rows) {
+    if (!r || r.game_time == null || r.game_time < 0 || r.radiant_lead == null) continue
+    const existing = byTime.get(r.game_time)
+    if (!existing || (r.captured_at || '') > (existing.captured_at || '')) byTime.set(r.game_time, r)
+  }
+  return [...byTime.values()]
+    .sort((a, b) => a.game_time - b.game_time)
+    .slice(-maxPoints)
+    .map(r => ({ t: r.game_time, lead: r.radiant_lead, rk: r.radiant_score, dk: r.dire_score }))
 }
 
 /**

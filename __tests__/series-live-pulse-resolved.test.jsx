@@ -12,7 +12,12 @@ import SeriesLivePulse from '../src/components/SeriesLivePulse.jsx'
 
 // vi.mock factories are hoisted above regular const declarations, so the fixture referenced
 // inside must be declared via vi.hoisted() to survive the hoist.
-const { pulse } = vi.hoisted(() => ({
+//
+// Names/score/net-worth-lead/clock now all read from the VALVE pulse (fetchLiveValvePulse), not
+// the OD one — see SeriesLivePulse.jsx's 2026-08-06 cutover. `pulse` (OD) is kept only so the
+// component has SOMETHING resolved and doesn't fall into its "neither source has arrived"
+// watch-links-only branch; every assertion below exercises `valvePulse`.
+const { pulse, valvePulse } = vi.hoisted(() => ({
   pulse: {
     radiantName: 'Team Falcons',
     direName: 'Xtreme Gaming',
@@ -24,6 +29,19 @@ const { pulse } = vi.hoisted(() => ({
     direHeroIds: [],
     capturedAt: '2026-07-31T00:00:00.000Z',
   },
+  valvePulse: {
+    radiantName: 'Team Falcons',
+    direName: 'Xtreme Gaming',
+    radiantScore: 18,
+    direScore: 15,
+    radiantLead: 5000,
+    gameTime: 1520,
+    players: { radiant: [], dire: [] },
+    towers: { radiant: null, dire: null },
+    barracks: { radiant: null, dire: null },
+    draft: { radiantPicks: [], direPicks: [], radiantBans: [], direBans: [] },
+    capturedAt: '2026-07-31T00:00:00.000Z',
+  },
 }))
 
 vi.mock('../src/api', async (importOriginal) => {
@@ -31,6 +49,7 @@ vi.mock('../src/api', async (importOriginal) => {
   return {
     ...actual,
     fetchLiveGamePulse: vi.fn().mockResolvedValue(pulse),
+    fetchLiveValvePulse: vi.fn().mockResolvedValue(valvePulse),
     fetchHeroes: vi.fn().mockResolvedValue({}),
   }
 })
@@ -82,8 +101,8 @@ describe('SeriesLivePulse resolved-pulse names/score (mirrors MatchDrawer)', () 
   })
 
   it('shows "Score pending" instead of fabricated digits when the pulse has no score yet', async () => {
-    const { fetchLiveGamePulse } = await import('../src/api')
-    fetchLiveGamePulse.mockResolvedValueOnce({ ...pulse, radiantScore: null, direScore: null })
+    const { fetchLiveValvePulse } = await import('../src/api')
+    fetchLiveValvePulse.mockResolvedValueOnce({ ...valvePulse, radiantScore: null, direScore: null })
     await renderPulse({})
     expect(screen.getByText('Score pending')).toBeInTheDocument()
     expect(screen.queryByText('18')).not.toBeInTheDocument()

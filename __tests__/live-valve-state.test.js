@@ -7,6 +7,10 @@ import {
   indexLiveIgns,
   shapeSidePlayers,
   shapeValvePulse,
+  towerStateToCounts,
+  shapeLiveEvents,
+  shapeValveGoldHistory,
+  normalizeHeroIdList,
 } from '../api/_liveValveState.js'
 
 describe('decodeTowerState', () => {
@@ -315,5 +319,135 @@ describe('shapeValvePulse', () => {
 
   it('returns null for a missing game', () => {
     expect(shapeValvePulse(null)).toBeNull()
+  })
+})
+
+describe('towerStateToCounts', () => {
+  it('reduces exact per-tower booleans to [top,mid,bot] standing counts', () => {
+    const state = decodeTowerState(2047 & ~(1 << 8) & ~1) // clear bot-T3 and top-T1
+    expect(towerStateToCounts(state)).toEqual([2, 3, 2])
+  })
+
+  it('returns null when given a non-decoded value', () => {
+    expect(towerStateToCounts(null)).toBeNull()
+    expect(towerStateToCounts(undefined)).toBeNull()
+  })
+})
+
+describe('normalizeHeroIdList', () => {
+  it('passes bare hero ids through unchanged (the shape trimSide actually produces)', () => {
+    expect(normalizeHeroIdList([41, 13, 96])).toEqual([41, 13, 96])
+  })
+
+  it('flattens raw {hero_id} objects too, for callers reaching this with an untrimmed snapshot', () => {
+    expect(normalizeHeroIdList([{ hero_id: 41 }, { hero_id: 13 }])).toEqual([41, 13])
+  })
+
+  it('drops non-finite entries rather than passing them through', () => {
+    expect(normalizeHeroIdList([41, null, undefined, {}, 13])).toEqual([41, 13])
+  })
+
+  it('degrades to an empty array for non-array input', () => {
+    expect(normalizeHeroIdList(null)).toEqual([])
+    expect(normalizeHeroIdList(undefined)).toEqual([])
+  })
+})
+
+describe('shapeLiveEvents', () => {
+  const base = { odMatchId: '1', gameTime: 90 }
+
+  it('keeps HeroKilled, RoshanKilled, and ItemPurchased events', () => {
+    const events = [
+      { ...base, eventType: 'HeroKilled', team: 3, confidence: 'exact', heroId: 1, payload: { victimName: 'V' } },
+      { ...base, eventType: 'RoshanKilled', team: null, confidence: 'exact', payload: {} },
+      { ...base, eventType: 'ItemPurchased', team: 2, confidence: 'exact', heroId: 5, payload: { itemId: 42, playerName: 'P' } },
+    ]
+    expect(shapeLiveEvents(events)).toHaveLength(3)
+  })
+
+  it('drops TowerDestroyed and BarracksDestroyed unconditionally, even if somehow marked non-uncertain', () => {
+    const events = [
+      { ...base, eventType: 'TowerDestroyed', team: 2, confidence: 'exact', payload: { bit: 0 } },
+      { ...base, eventType: 'BarracksDestroyed', team: 2, confidence: 'exact', payload: { bit: 0 } },
+    ]
+    expect(shapeLiveEvents(events)).toHaveLength(0)
+  })
+
+  it('drops any event carrying confidence "uncertain", regardless of type — a second, redundant safety check', () => {
+    const events = [{ ...base, eventType: 'HeroKilled', team: 3, confidence: 'uncertain', heroId: 1, payload: {} }]
+    expect(shapeLiveEvents(events)).toHaveLength(0)
+  })
+
+  it('colors a kill by the KILLER\'s side, not the victim\'s (matches GoldGraph marker convention)', () => {
+    const events = [{
+      ...base, eventType: 'HeroKilled', team: 3 /* victim was dire */, confidence: 'inferred', heroId: 1,
+      payload: { victimName: 'V', killerTeam: 2, killerName: 'K' },
+    }]
+    expect(shapeLiveEvents(events)[0].side).toBe('radiant')
+  })
+
+  it('leaves side null for an ambiguous/unattributed kill', () => {
+    const events = [{
+      ...base, eventType: 'HeroKilled', team: 3, confidence: 'exact', heroId: 1,
+      payload: { victimName: 'V', ambiguous: true },
+    }]
+    expect(shapeLiveEvents(events)[0].side).toBeNull()
+  })
+
+  it('Roshan events always carry side null — team attribution is never guessed', () => {
+    const events = [{ ...base, eventType: 'RoshanKilled', team: null, confidence: 'exact', payload: {} }]
+    expect(shapeLiveEvents(events)[0].side).toBeNull()
+  })
+
+  it('preserves newest-last order and caps to the most recent `limit` events', () => {
+    const events = Array.from({ length: 10 }, (_, i) => ({
+      ...base, gameTime: i, eventType: 'RoshanKilled', team: null, confidence: 'exact', payload: {},
+    }))
+    const out = shapeLiveEvents(events, 3)
+    expect(out.map(e => e.time)).toEqual([7, 8, 9])
+  })
+
+  it('degrades to an empty array for non-array input', () => {
+    expect(shapeLiveEvents(null)).toEqual([])
+    expect(shapeLiveEvents(undefined)).toEqual([])
+  })
+})
+
+describe('shapeValveGoldHistory', () => {
+  it('shapes rows into {t, lead} points sorted ascending by game_time', () => {
+    const rows = [
+      { game_time: 60, radiant_lead: 500, radiant_score: 1, dire_score: 0, captured_at: 'a' },
+      { game_time: 0, radiant_lead: 0, radiant_score: 0, dire_score: 0, captured_at: 'a' },
+    ]
+    expect(shapeValveGoldHistory(rows)).toEqual([
+      { t: 0, lead: 0, rk: 0, dk: 0 },
+      { t: 60, lead: 500, rk: 1, dk: 0 },
+    ])
+  })
+
+  it('keeps the latest captured_at when two rows share a game_time (defensive dedup)', () => {
+    const rows = [
+      { game_time: 60, radiant_lead: 100, captured_at: '2026-01-01T00:00:00Z' },
+      { game_time: 60, radiant_lead: 900, captured_at: '2026-01-01T00:01:00Z' },
+    ]
+    expect(shapeValveGoldHistory(rows)).toEqual([{ t: 60, lead: 900, rk: undefined, dk: undefined }])
+  })
+
+  it('drops rows with a negative game_time or a null lead', () => {
+    const rows = [
+      { game_time: -5, radiant_lead: 100, captured_at: 'a' },
+      { game_time: 10, radiant_lead: null, captured_at: 'a' },
+    ]
+    expect(shapeValveGoldHistory(rows)).toEqual([])
+  })
+
+  it('caps to the most recent maxPoints after sorting, keeping the tail', () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ game_time: i, radiant_lead: i * 10, captured_at: 'a' }))
+    expect(shapeValveGoldHistory(rows, 2).map(p => p.t)).toEqual([3, 4])
+  })
+
+  it('degrades to an empty array for non-array input', () => {
+    expect(shapeValveGoldHistory(null)).toEqual([])
+    expect(shapeValveGoldHistory(undefined)).toEqual([])
   })
 })

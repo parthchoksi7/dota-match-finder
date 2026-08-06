@@ -1,24 +1,24 @@
 import HeroIcon from './HeroIcon'
 import ItemSlot from './ItemSlot'
+import { RoshanSvg } from './GameIndicators'
+import { HoverCard } from './FloatingTooltip'
 
-// Valve-sourced live surfaces for a running game: Roshan status, a per-player telemetry board,
-// barracks state, and the ban list.
+// Valve-sourced live surfaces for a running game: Roshan status, a per-player telemetry board, the
+// ban list, and a chronological event feed.
 //
-// SCOPE — why these four and nothing else. Each renders a data point that has NO existing home in
-// the shipped UI. Everything a completed-match component already covers is deliberately left to
-// that component rather than restyled here:
-//   - team names / kill score / net-worth lead / clock -> SeriesLivePulse's own names+score section
-//   - net worth over time                              -> LiveGoldGraph
-//   - standing towers                                  -> DotaMinimap
-//   - the pick list                                    -> SeriesLivePulse's DraftPickRow grid
-// This file adds only what those cannot show, so the two never drift into two treatments of one
-// data point. Field-level provenance: `.claude/specs/live-story-valve-data-audit.md`.
+// SCOPE — why these and nothing else. Each renders a data point that had NO existing home in the
+// shipped UI when this file was created. Everything a completed-match component already covers is
+// deliberately left to that component rather than restyled here:
+//   - the pick list -> SeriesLivePulse's DraftPickRow grid
+// Team names, kill score, net-worth lead, clock, the net-worth graph, and standing towers/barracks
+// (via DotaMinimap's richer *TowerState/*BarracksState props) also run through Valve now, but stay
+// rendered by their existing components in `SeriesLivePulse.jsx` — this file adds only what those
+// components genuinely couldn't show before. Field-level provenance:
+// `.claude/specs/live-story-valve-data-audit.md`.
 //
 // Everything below is sourced from Valve's GetLiveLeagueGames. The only OpenDota-derived value in
 // the whole component is the item id -> CDN key map (`itemNames`), which is patch-static reference
 // data rather than match telemetry.
-
-const LANES = ['top', 'mid', 'bot']
 
 function formatClock(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return null
@@ -65,80 +65,6 @@ export function RoshanStatus({ respawnTimer }) {
   )
 }
 
-// ── Barracks ────────────────────────────────────────────────────────────────
-// Genuinely new to the live surface. The shipped DotaMinimap is fed by OpenDota's `building_state`,
-// from which barracks are provably NOT derivable — Valve's dedicated `barracks_state` has no such
-// ambiguity, which is why this can exist at all.
-function BarracksLane({ lane, state, side }) {
-  const upColor = side === 'radiant' ? 'bg-green-500' : 'bg-red-500'
-  return (
-    <div className="flex flex-col gap-1 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-800">
-      <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-500">
-        {lane}
-      </span>
-      <div className="flex gap-2">
-        {['melee', 'ranged'].map(kind => {
-          const standing = state?.[kind]
-          return (
-            <span key={kind} className="inline-flex items-center gap-1">
-              <span
-                className={`w-2 h-2 rounded-sm flex-shrink-0 ${
-                  standing ? upColor : 'border border-dashed border-gray-400 dark:border-gray-600'
-                }`}
-                aria-hidden="true"
-              />
-              <span
-                className={`text-[9px] font-semibold ${
-                  standing
-                    ? 'text-gray-600 dark:text-gray-400'
-                    : 'text-gray-400 dark:text-gray-600 line-through'
-                }`}
-              >
-                {kind === 'melee' ? 'Melee' : 'Ranged'}
-              </span>
-            </span>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-export function BarracksPanel({ barracks, radiantName, direName }) {
-  if (!barracks?.radiant && !barracks?.dire) return null
-
-  return (
-    <div className="space-y-3">
-      {[
-        { key: 'radiant', label: radiantName, state: barracks.radiant, cls: 'text-green-600 dark:text-green-500' },
-        { key: 'dire', label: direName, state: barracks.dire, cls: 'text-red-600 dark:text-red-500' },
-      ].map(({ key, label, state, cls }) => state && (
-        <div key={key}>
-          <p className={`text-[10px] font-bold uppercase tracking-widest mb-1.5 truncate ${cls}`}>
-            {label || (key === 'radiant' ? 'Radiant' : 'Dire')}
-          </p>
-          <div className="grid grid-cols-3 gap-1.5">
-            {LANES.map(lane => (
-              <BarracksLane key={lane} lane={lane} state={state.lanes?.[lane]} side={key} />
-            ))}
-          </div>
-        </div>
-      ))}
-      {/* Lane NAMING is still advisory: the bit STRUCTURE is proven (0 violations across 1,314
-          constraints), but which triple is genuinely "top" vs "bot" rests on 2 of the 3
-          independently-validated matches the graduation bar requires. This caption is what stops a
-          viewer reading an unverified lane label as settled fact — do not remove it while
-          `laneVerified` is false. */}
-      {barracks.radiant?.laneVerified === false && (
-        <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-snug">
-          Lane labels are provisional — melee/ranged and standing/destroyed are confirmed, which
-          lane each belongs to is still being validated
-        </p>
-      )}
-    </div>
-  )
-}
-
 // ── Player board ────────────────────────────────────────────────────────────
 // The ultimate ring is the cheapest genuinely-new signal in the whole audit: `ultimate_state` is
 // an undocumented bitmask decoded empirically at 99.5% reliability, and nothing on the site
@@ -175,9 +101,26 @@ function PlayerRow({ player, heroes, itemNames, maxNetWorth, side }) {
             sizeClassName="w-7 h-7"
           />
           <UltimateRing ultimate={player.ultimate} />
+          {/* A bare digit here is the exact ambiguity PlayerStatsSection's PositionBadge already
+              solves for a different bare digit (1-5 role number) — same fix, same component: wrap
+              in HoverCard rather than grow the badge to fit "Lv 6" at 13px. Absolute placement
+              lives on this OUTER span, not HoverCard's own className — HoverCard's wrapper always
+              applies `relative`, and merging `absolute` into it would race that same-specificity
+              utility on cascade order instead of resolving predictably. */}
           {Number.isFinite(player.level) && (
-            <span className="absolute -bottom-1 -right-1 min-w-[13px] h-[13px] px-0.5 rounded-sm bg-gray-800 dark:bg-gray-700 text-white text-[8px] font-bold leading-[13px] text-center tabular-nums">
-              {player.level}
+            <span className="absolute -bottom-1 -right-1">
+              <HoverCard
+                align="right"
+                content={<span className="text-[11px] font-medium">Level {player.level}</span>}
+              >
+                <span
+                  tabIndex={0}
+                  aria-label={`Level ${player.level}`}
+                  className="block min-w-[13px] h-[13px] px-0.5 rounded-sm bg-gray-800 dark:bg-gray-700 text-white text-[8px] font-bold leading-[13px] text-center tabular-nums"
+                >
+                  {player.level}
+                </span>
+              </HoverCard>
             </span>
           )}
         </span>
@@ -320,6 +263,111 @@ export function LiveBanList({ draft, heroes }) {
           </span>
         )
       })}
+    </div>
+  )
+}
+
+// ── Live event feed ─────────────────────────────────────────────────────────
+// Reuses the differ's already-derived events (`live-story:events:v1:{matchId}` — read, never
+// re-derived here) rather than inventing new detection logic. Only three event types ever reach
+// this component: kills, Roshan kills, and marquee item purchases — `shapeLiveEvents`
+// (`api/_liveValveState.js`) whitelists those and DROPS tower/barracks-destroyed events
+// unconditionally, because those still carry `confidence: 'uncertain'` at the source (lane naming
+// isn't at the CONTEXT.md graduation bar yet). That filtering already happened server-side; this
+// component trusts it rather than re-checking, since re-deriving a safety rule client-side is how
+// the two copies drift.
+function heroDisplayName(heroId, heroes) {
+  if (!heroId) return null
+  return heroes?.[heroId]?.name || null
+}
+
+function EventMarker({ side, children }) {
+  const cls =
+    side === 'radiant'
+      ? 'border-green-500 text-green-600 dark:text-green-500'
+      : side === 'dire'
+        ? 'border-red-500 text-red-600 dark:text-red-500'
+        : 'border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-600'
+  return (
+    <span className={`relative z-[1] flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center bg-white dark:bg-gray-950 ${cls}`}>
+      {children}
+    </span>
+  )
+}
+
+function EventRow({ event, heroes }) {
+  let icon, text, sub
+
+  if (event.type === 'HeroKilled') {
+    const victim = event.victimName || heroDisplayName(event.victimHeroId, heroes) || 'A hero'
+    icon = (
+      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <circle cx="8" cy="6" r="3" />
+        <path d="M4 14c0-2.5 1.8-4 4-4s4 1.5 4 4" />
+      </svg>
+    )
+    if (event.ambiguous || !event.killerName) {
+      text = `${victim} dies`
+      sub = event.ambiguous ? 'Killer not attributable at this poll cadence' : null
+    } else {
+      const killer = event.killerName || heroDisplayName(event.killerHeroId, heroes) || 'Unknown'
+      text = `${killer} kills ${victim}`
+      sub = null
+    }
+  } else if (event.type === 'RoshanKilled') {
+    icon = <RoshanSvg className="w-3 h-3" />
+    text = 'Roshan killed'
+    sub = 'Killing team not reported by this feed'
+  } else if (event.type === 'ItemPurchased') {
+    const player = event.playerName || heroDisplayName(event.heroId, heroes) || 'A player'
+    icon = (
+      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M8 1l1.8 4.6L14.5 6l-3.6 3 1 4.9L8 11.5 3.9 13.9l1-4.9L1.5 6l4.7-.4z" />
+      </svg>
+    )
+    text = `${player} buys a marquee item`
+    sub = null
+  } else {
+    return null
+  }
+
+  return (
+    <div className="relative flex items-start gap-2.5 py-1.5">
+      <EventMarker side={event.side}>{icon}</EventMarker>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 tabular-nums flex-shrink-0">
+            {formatClock(event.time)}
+          </span>
+          <span className="text-xs font-semibold text-gray-900 dark:text-white">{text}</span>
+        </div>
+        {sub && <p className="text-[10px] text-gray-500 dark:text-gray-500 mt-0.5">{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+export function LiveEventFeed({ events, heroes }) {
+  if (!events || events.length === 0) return null
+
+  return (
+    <div className="relative">
+      {/* Timeline rail — spans behind the markers, same left offset as EventMarker's 24px circle
+          centered under a 2.5px gap. */}
+      <div className="absolute left-[11px] top-2 bottom-2 w-px bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
+      <div className="space-y-0">
+        {events.map((e, i) => (
+          <EventRow key={`${e.type}-${e.time}-${i}`} event={e} heroes={heroes} />
+        ))}
+      </div>
+      <div className="flex items-center gap-2.5 pt-1.5">
+        <span className="relative z-[1] flex-shrink-0 w-6 h-6 flex items-center justify-center">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        </span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">
+          Live — feed continues
+        </span>
+      </div>
     </div>
   )
 }

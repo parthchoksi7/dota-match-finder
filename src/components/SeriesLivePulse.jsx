@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { fetchLiveGamePulse, fetchLiveValvePulse, fetchHeroes } from '../api'
-import { RoshanStatus, BarracksPanel, LivePlayerBoard, LiveBanList } from './LiveValveBoard'
+import { RoshanStatus, LivePlayerBoard, LiveBanList, LiveEventFeed } from './LiveValveBoard'
 import { trackEvent, getStreamLanguage, pickPreferredStream } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
 import { formatGoldMagnitude, formatLiveScoreTitle } from '../utils/liveScore'
@@ -195,7 +195,9 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
 
   // Called before every early return below — the tab title must keep tracking (and restoring)
   // even in the states where this component renders nothing.
-  useLiveScoreTabTitle(pulse, spoilerFree)
+  // Valve-sourced — same field shape formatLiveScoreTitle already expects
+  // (radiantScore/direScore/radiantLead/radiantName/direName), no changes needed there.
+  useLiveScoreTabTitle(valvePulse, spoilerFree)
 
   useEffect(() => {
     setScoreRevealed(false)
@@ -223,14 +225,17 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     return () => { cancelled = true; clearInterval(interval) }
   }, [psMatchId])
 
-  // Valve-sourced telemetry, polled independently of the OpenDota pulse above.
+  // Valve-sourced telemetry — now the PRIMARY source for score, clock, net-worth lead, the
+  // net-worth graph, and the tower/barracks map below (all switched off the OD pulse 2026-08-06).
+  // Still a separate state + effect rather than merged into the OD poll above: independent failure
+  // modes, and while the endpoint is fail-closed behind `feature:live-valve-pulse:enabled` (see
+  // CONTEXT.md's public-graduation bar), `valvePulse` staying null must not take the OD-only
+  // sections (draft, watch links) down with it.
   //
-  // Deliberately a SEPARATE state + effect rather than a merged fetch: the two are different
-  // sources with different failure modes, and the shipped OD pulse (names, score, net-worth graph,
-  // tower map) must keep rendering unchanged if the Valve path returns nothing — which is its
-  // DEFAULT state, since the endpoint is fail-closed behind `feature:live-valve-pulse:enabled`
-  // until CONTEXT.md's public-graduation bar closes. Same staleness contract as the OD pulse:
-  // cleared on series switch so a previous series' telemetry can never render under new names.
+  // Same retain-last-known-good bound as the OD pulse (`nextPulseState`/`STALE_AFTER_MS`) — added
+  // 2026-08-06 after watching a real correlation miss freeze the Valve UI mid-game live (Valve's
+  // team_name block intermittently drops for a poll or two; without this the whole section would
+  // have blanked on that single miss instead of holding the last good read for up to 90s).
   useLayoutEffect(() => {
     setValvePulse(null)
   }, [psMatchId])
@@ -239,7 +244,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     if (!psMatchId) return
     let cancelled = false
     function poll() {
-      fetchLiveValvePulse(psMatchId).then(p => { if (!cancelled) setValvePulse(p) }).catch(() => {})
+      fetchLiveValvePulse(psMatchId).then(p => { if (!cancelled) setValvePulse(prev => nextPulseState(p, prev)) }).catch(() => {})
     }
     poll()
     const interval = setInterval(poll, POLL_MS)
@@ -335,7 +340,12 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     </div>
   )
 
-  if (!pulse) {
+  // Gate on EITHER source, not just the OD `pulse` — everything below now runs primarily off
+  // `valvePulse`, and gating solely on `pulse` would hide the entire Valve-sourced section (score,
+  // map, player board, event feed) any time OD's own correlation hasn't resolved, even when Valve's
+  // has. Every section below already degrades gracefully when `valvePulse` alone is null (score
+  // shows "pending", map/graph/board sections don't render), so falling through here is safe.
+  if (!pulse && !valvePulse) {
     return hasWatchLinks ? (
       <div className={`${SHEET_PADDING} py-3`}>
         <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
@@ -346,32 +356,56 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     ) : null
   }
 
+  // Score/clock/net-worth-lead/momentum/draft/map all read from `valvePulse` (Valve-sourced) as of
+  // 2026-08-06 — the OD `pulse` object is no longer used for any in-game number in this render.
+  // `pulse` is retained only as a name fallback (see radiantName/direName below) for the brief
+  // window before the Valve pulse's own first resolve lands.
+  //
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
   // game, so radiant/dire has no fixed relationship to the header's team order).
-  const leadMag = formatGoldMagnitude(pulse.radiantLead)
-  const radiantAhead = Number.isFinite(pulse.radiantLead) && pulse.radiantLead > 0
+  const leadMag = formatGoldMagnitude(valvePulse?.radiantLead)
+  const radiantAhead = Number.isFinite(valvePulse?.radiantLead) && valvePulse.radiantLead > 0
   // Same advantage-color rule as GoldGraph's header row (finalColor): green when Radiant leads,
   // red when Dire leads. The badge was previously hardcoded green regardless of side — wrong on
   // any Dire-leading game, and inconsistent with this exact rule used everywhere else (GoldGraph,
   // event markers, TeamIndicators).
   const leadColor = radiantAhead ? 'rgb(34,197,94)' : 'rgb(239,68,68)'
-  const clock = formatClock(pulse.gameTime)
-  const hasScore = pulse.radiantScore != null && pulse.direScore != null
-  const radiantHeroes = zipDraftPicks(pulse.radiantHeroIds, pulse.radiantPlayerNames, heroMap)
-  const direHeroes = zipDraftPicks(pulse.direHeroIds, pulse.direPlayerNames, heroMap)
+  const clock = formatClock(valvePulse?.gameTime)
+  const hasScore = valvePulse?.radiantScore != null && valvePulse?.direScore != null
+  // Built from valvePulse.players (heroId + live IGN, joined server-side from the top-level
+  // players[] block — the only place a live IGN exists) rather than valvePulse.draft.*Picks,
+  // which is pick ORDER with no player association. zipDraftPicks itself is source-agnostic —
+  // same helper, new inputs.
+  const radiantHeroes = zipDraftPicks(
+    valvePulse?.players?.radiant?.map(p => p.heroId),
+    valvePulse?.players?.radiant?.map(p => p.name),
+    heroMap,
+  )
+  const direHeroes = zipDraftPicks(
+    valvePulse?.players?.dire?.map(p => p.heroId),
+    valvePulse?.players?.dire?.map(p => p.name),
+    heroMap,
+  )
 
-  const radiantName = pulse.radiantName || 'Radiant'
-  const direName = pulse.direName || 'Dire'
+  const radiantName = valvePulse?.radiantName || pulse?.radiantName || 'Radiant'
+  const direName = valvePulse?.direName || pulse?.direName || 'Dire'
   // Same contract as MatchDrawer's hideScore: spoiler-free hides the result until manually
   // revealed. Stakes/momentum/tower-map/net-worth-graph ride the same gate — they're all
   // outcome-adjacent, same as MatchDrawer's game-facts line riding its own hideScore.
   const hideScore = spoilerFree && !scoreRevealed
   const showLiveStory = !hideScore
   const stakes = showLiveStory ? computeStakes({ seriesLabel, seriesScore, teamA, teamB }) : null
-  const momentum = showLiveStory
-    ? computeMomentum({ radiantLead: pulse.radiantLead, gameTime: pulse.gameTime, radiantName: pulse.radiantName, direName: pulse.direName })
+  const momentum = showLiveStory && valvePulse
+    ? computeMomentum({ radiantLead: valvePulse.radiantLead, gameTime: valvePulse.gameTime, radiantName: valvePulse.radiantName, direName: valvePulse.direName })
     : null
+  // DotaMinimap's original prop contract is [top,mid,bot] STANDING COUNTS (0-3) — reduce Valve's
+  // exact per-tower booleans down to that shape so the same component/aria-label summarizer serves
+  // both data sources; the richer *TowerState/*BarracksState props (passed below) are what make it
+  // draw tier-4 + barracks instead of just falling back to the count-only rendering.
+  const laneCounts = state => state ? ['top', 'mid', 'bot'].map(lane => state.lanes[lane].filter(Boolean).length) : null
+  const radiantTowerCounts = laneCounts(valvePulse?.towers?.radiant)
+  const direTowerCounts = laneCounts(valvePulse?.towers?.dire)
 
   function follow(name) {
     trackEvent(followedTeams?.includes(name) ? 'unfollow_team' : 'follow_team', { team_name: name, source: 'live_series_sheet' })
@@ -398,7 +432,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
                 {momentum.band === 'EVEN' ? 'Even' : `${momentum.leaderName} ${momentum.band === 'FAR_AHEAD' ? 'Far Ahead' : 'Ahead'}`}
               </span>
               <span className="ml-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-600 normal-case tracking-normal">
-                game time {formatClock(pulse.gameTime)}
+                game time {formatClock(valvePulse?.gameTime)}
               </span>
             </p>
           )}
@@ -471,9 +505,9 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
             </span>
           ) : (
             <>
-              <span className="font-display text-4xl font-black text-gray-900 dark:text-white">{pulse.radiantScore}</span>
+              <span className="font-display text-4xl font-black text-gray-900 dark:text-white">{valvePulse.radiantScore}</span>
               <span className="text-gray-300 dark:text-gray-700 text-2xl font-medium select-none">—</span>
-              <span className="font-display text-4xl font-black text-gray-900 dark:text-white">{pulse.direScore}</span>
+              <span className="font-display text-4xl font-black text-gray-900 dark:text-white">{valvePulse.direScore}</span>
             </>
           )}
         </div>
@@ -512,13 +546,20 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
 
-      {showLiveStory && pulse.objectives && (
+      {/* Barracks + tier-4 now render ON the map itself (radiant/direBarracksState props), not as
+          a separate text panel — a prior pass had them as a text-only BarracksPanel below the map;
+          removed in favor of this once the map could actually place them (2026-08-06). */}
+      {showLiveStory && radiantTowerCounts && direTowerCounts && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
           <DotaMinimap
-            radiant={pulse.objectives.radiant}
-            dire={pulse.objectives.dire}
-            radiantName={pulse.radiantName}
-            direName={pulse.direName}
+            radiant={radiantTowerCounts}
+            dire={direTowerCounts}
+            radiantName={valvePulse.radiantName}
+            direName={valvePulse.direName}
+            radiantTowerState={valvePulse.towers.radiant}
+            direTowerState={valvePulse.towers.dire}
+            radiantBarracksState={valvePulse.barracks?.radiant}
+            direBarracksState={valvePulse.barracks?.dire}
           />
         </div>
       )}
@@ -531,23 +572,9 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
 
-      {/* Test the DECODED sides, not the container: `barracks` is always the object
-          `{ radiant, dire }` and is therefore always truthy, so gating on it alone renders a bare
-          "Barracks" heading with an empty body on the ~7% of games that carry no scoreboard. */}
-      {showLiveStory && (valvePulse?.barracks?.radiant || valvePulse?.barracks?.dire) && (
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Barracks</p>
-          <BarracksPanel
-            barracks={valvePulse.barracks}
-            radiantName={valvePulse.radiantName}
-            direName={valvePulse.direName}
-          />
-        </div>
-      )}
-
       {showLiveStory && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
-          <LiveGoldGraph history={pulse.history} radiantName={pulse.radiantName} direName={pulse.direName} />
+          <LiveGoldGraph history={valvePulse?.history} radiantName={valvePulse?.radiantName} direName={valvePulse?.direName} />
         </div>
       )}
 
@@ -603,6 +630,16 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
               <LiveBanList draft={valvePulse.draft} heroes={heroMap} />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Event feed sits last — a chronological log reads naturally as the final, most-detailed
+          section, after the state summaries (score, map, board) that answer "how's it going" at a
+          glance. Only kills/Roshan/marquee items ever reach here — see shapeLiveEvents' whitelist. */}
+      {showLiveStory && valvePulse?.events?.length > 0 && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Live Event Feed</p>
+          <LiveEventFeed events={valvePulse.events} heroes={heroMap} />
         </div>
       )}
     </div>
