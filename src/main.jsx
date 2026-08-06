@@ -11,6 +11,14 @@ Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
   tracesSampleRate: 0, // error tracking only — no perf/tracing spend until that's actually wanted
+  beforeSend(event) {
+    // Crawlers/bots (Google-Read-Aloud, Googlebot, Lighthouse, etc.) often run in sandboxed
+    // contexts where browser APIs like serviceWorker.register() reject — noise, not real bugs.
+    if (/bot|crawl|spider|read-aloud|lighthouse|headless/i.test(navigator.userAgent)) {
+      return null
+    }
+    return event
+  },
 })
 import App from './App.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
