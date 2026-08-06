@@ -9,13 +9,21 @@ import { teamPairMatch } from '../../src/teamMatching.js'
 // against the previous snapshot, append the derived events. Cost is independent of how many
 // games are live (~9% of the 100k/day Steam ToU cap even at a continuous 10s poll).
 //
-// TRIGGER — deliberately NO new QStash schedule. This mirrors liveOdCapture.js's proven shape:
-// a KV lock is the real cadence control, and whichever caller arrives first inside the window
-// does the work. Effective cadence is therefore ~LOCK_TTL_S while anyone has a live surface open
-// (their poll out-paces the lock), and the backstop schedule's own rate when nobody is watching.
-// QStash free tier is at 864/1000 msgs/day across five existing schedules; adding a sixth would
-// have left a 4% margin, and a minute-scale one would have blown the cap during TI and started
-// dropping the *existing* stream-capture / warm-streams / push-scan runs.
+// TRIGGER — no dedicated QStash schedule. Two callers of captureLiveStoryOnce:
+// (1) AdminLiveStoryPage.jsx's 15s client poll while the admin page is open — the KV lock (below)
+//     floors the real cadence to ~30s in this case.
+// (2) api/tournaments.js's `?mode=od-live-capture` branch, piggybacking every ~15 min onto the
+//     EXISTING QStash schedule of that name (scripts/setup-qstash-schedules.mjs) rather than
+//     adding a new one — zero new messages/schedules, same reliable-at-declared-cadence QStash
+//     behavior every other cron on this project already depends on. This is what covers
+//     unattended windows; before it was wired in (confirmed live 2026-08-06) capture only ran
+//     while a human had the admin page open, and a match's first ~10-12 minutes went uncaptured
+//     because nobody was polling yet.
+//
+// SNAPSHOT_TTL_S is set well above the ~15-min backstop interval (not equal to it) specifically
+// to survive real QStash jitter — a TTL sitting exactly on the trigger interval risks the
+// previous snapshot expiring moments before the next tick reads it, permanently stranding the
+// differ in a baseline-less "reseed and derive nothing" loop every single tick.
 //
 // STORAGE — KV only, deliberately. Supabase free tier is 500 MB shared with live_game_map,
 // live_game_gold, match_stream_history and push_subscriptions, and the real remaining headroom
@@ -35,9 +43,10 @@ const GLLG_URL = 'https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGame
 const LOCK_KEY = 'capture:live-story:lock'
 const LOCK_TTL_S = 30
 
-// The trimmed previous snapshot the differ compares against.
+// The trimmed previous snapshot the differ compares against. TTL (20 min) is deliberately wider
+// than the ~15-min backstop interval — see the jitter-margin note above.
 const SNAPSHOT_KEY = 'live-story:snap:v1'
-const SNAPSHOT_TTL_S = 900
+const SNAPSHOT_TTL_S = 1200
 
 // Per-match event ring. TTL comfortably outlives a long game plus a between-games gap.
 const EVENTS_KEY = (matchId) => `live-story:events:v1:${matchId}`
@@ -230,7 +239,15 @@ async function appendEvents(events, log) {
 export async function captureLiveStoryOnce(log) {
   const startedAt = Date.now()
   try {
-    if (!process.env.STEAM_API_KEY) return { ok: true, skipped: 'no_api_key' }
+    if (!process.env.STEAM_API_KEY) {
+      // Logged (unlike the throttled/no-lock skip below, which is routine): a missing key is a
+      // real misconfiguration, and this endpoint is now the primary unattended trigger — silently
+      // returning ok:true here would let a broken deploy report "healthy" indefinitely with zero
+      // events captured and no visibility, since there is no Log Drain to catch it any other way.
+      log.warn('STEAM_API_KEY not set — live story capture is disabled')
+      await writeHealth({ ok: false, error: 'no_api_key' }, log)
+      return { ok: true, skipped: 'no_api_key' }
+    }
 
     // Never released — the TTL expiring is what permits the next run. Same shape as
     // liveOdCapture's lock, and it doubles as abuse protection on an unauthenticated path.

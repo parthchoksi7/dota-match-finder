@@ -116,17 +116,42 @@ export default async function handler(req, res) {
   // write trigger — no PandaScore token needed, throttled by its own KV lock. Placed
   // before the PANDASCORE_TOKEN check and the shared s-maxage cache header (it sets its
   // own no-store).
+  //
+  // ALSO piggybacks Live Story's Valve capture onto this same QStash-triggered request (the
+  // existing `*/15` od-live-capture schedule — see scripts/setup-qstash-schedules.mjs) rather
+  // than adding a dedicated schedule for it. Same pattern SeriesLivePulse already uses elsewhere
+  // (folding its own od-live-capture nudge into live-game-pulse's resolve, 2026-08-02, to save an
+  // invocation) — reuse an existing reliable trigger instead of minting a new one. Zero new
+  // QStash messages/schedules.
   if (req.query?.mode === 'od-live-capture') {
     const { default: handleLiveOdCapture } = await import('./_handlers/liveOdCapture.js')
-    return handleLiveOdCapture(req, res)
+
+    // Fully isolated, own try/catch around the dynamic import itself (not just the call) — an
+    // earlier version of this piggyback awaited both imports before invoking either handler, so a
+    // Live Story import failure (a bug, a bad transitive dep) would have silently skipped the OD
+    // capture above entirely. This IIFE starts immediately but is never allowed to affect or
+    // delay handleLiveOdCapture's own invocation or response; awaited only AFTER that response is
+    // sent, so Vercel doesn't freeze the container before it finishes.
+    const liveStoryPromise = (async () => {
+      try {
+        const { captureLiveStoryOnce } = await import('./_handlers/liveStoryCapture.js')
+        await captureLiveStoryOnce(createLogger('/api/tournaments?mode=live-story-capture'))
+      } catch (err) {
+        log.warn('live story piggyback failed', { error: err?.message })
+      }
+    })()
+
+    await handleLiveOdCapture(req, res)
+    await liveStoryPromise
+    return
   }
 
   // ── live-story-capture mode ─────────────────────────────────────────────────
   // Valve GetLiveLeagueGames capture + event derivation (Live Story, admin-verification phase).
-  // Same shape as od-live-capture directly above: unauthenticated (idempotent, KV-throttled, no
-  // user input, no sensitive data), no new QStash schedule — a KV lock is the real cadence
-  // control, so the ambient client poll IS the trigger while anyone has a live surface open, and
-  // the existing */15 od-live-capture backstop schedule covers no-user windows for free.
+  // Unauthenticated (idempotent, KV-throttled, no user input, no sensitive data). Two triggers:
+  // (1) AdminLiveStoryPage.jsx's 15s client poll while the admin page is open — the KV lock
+  // (30s TTL) floors the real cadence to ~30s in this case; (2) the od-live-capture branch above,
+  // piggybacking every ~15 min via the existing QStash schedule, covering unattended windows.
   if (req.query?.mode === 'live-story-capture') {
     const { captureLiveStoryOnce } = await import('./_handlers/liveStoryCapture.js')
     const result = await captureLiveStoryOnce(createLogger('/api/tournaments?mode=live-story-capture'))
