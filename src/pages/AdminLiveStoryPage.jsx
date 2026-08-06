@@ -227,20 +227,22 @@ function SnapshotPairPanel({ token }) {
         </button>
       </div>
       <p className="text-[11px] text-gray-500 mb-3">
-        The exact prev/next snapshot pair the differ last saw, plus every event it derived. Root-cause
-        tool: without Vercel Log Drains (unavailable on the free plan), this is the only way to see
-        WHY a given event fired.
+        The exact prev/next snapshot pair from the SINGLE MOST RECENT poll tick, plus whatever events
+        that one diff derived — not the match's full history (see the per-match counts in the
+        Capture health panel above for cumulative totals). Root-cause tool: without Vercel Log Drains
+        (unavailable on the free plan), this is the only way to see WHY a given event fired. Zero
+        events here is normal and expected whenever nothing changed between two consecutive polls.
       </p>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
       {pair && (
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Pill>{pair.events?.length || 0} events derived</Pill>
+            <Pill>{pair.events?.length || 0} events in this tick</Pill>
             <Pill>{pair.next?.result?.games?.length || 0} games in pair</Pill>
             <span className="text-[10px] text-gray-600">{pair.at ? new Date(pair.at).toLocaleTimeString() : ''}</span>
           </div>
           <div>
-            <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-1.5">Derived events</h3>
+            <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-1.5">Events derived from this tick</h3>
             <Json value={pair.events} />
           </div>
           <button
