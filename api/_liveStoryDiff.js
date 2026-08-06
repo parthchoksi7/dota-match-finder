@@ -207,16 +207,33 @@ export function decodeBarracksBit(bit) {
 // matching the codebase's existing `isRadiant`-style usage elsewhere.
 //
 // Returns null for every non-building objective (first blood, courier, Roshan/miniboss chat
-// messages, etc.) and for the Ancient (`_fort`) itself, which has no lane. Verified against a
-// real finished match's raw objectives (__tests__/fixtures/opendota-objectives/8930545836.json).
+// messages, etc.) and for the Ancient (`_fort`) itself, which has no lane. Verified against real
+// finished matches' raw objectives (__tests__/fixtures/opendota-objectives/8930545836.json and a
+// second real match, 8930594356, that surfaced the tier-4 case below).
+//
+// TIER-4 CAVEAT, found 2026-08-06: OD's key for a tier-4 (base/"ancient-guardian") tower kill is
+// the BARE `npc_dota_badguys_tower4` — no `_top`/`_mid`/`_bot` suffix, unlike tier 1-3. Confirmed
+// against a real match with two real tier-4 kills: both produced the IDENTICAL string
+// `npc_dota_badguys_tower4` (times 2316 and 2322 — 6s apart, same team), so **OD's own combat log
+// does not distinguish which of the two tier-4 towers fell, only that one did**. `lane` is
+// returned `null` for this case (there is no lane) — a caller must never expect or request lane
+// agreement for tier 4, and can only ever confirm "a tier-4 tower fell for this team around this
+// time," never which specific one. This is a hard ceiling on what E12 can verify for tier 4, not
+// a gap in this parser — the ground truth itself doesn't carry that distinction. Before this fix,
+// the tower(\d)_(top|mid|bot) regex REQUIRED a lane suffix and silently dropped every tier-4 kill
+// entirely — a real tier-4 TowerDestroyed derived from Valve's feed could never show as
+// 'confirmed' even when genuine matching ground truth existed, because this parser skipped it.
 export function parseOdBuildingObjective(o) {
   if (o?.type !== 'building_kill' || typeof o.key !== 'string') return null
   const sideMatch = o.key.match(/npc_dota_(goodguys|badguys)_/)
   if (!sideMatch) return null
   const team = sideMatch[1] === 'goodguys' ? TEAM_RADIANT : TEAM_DIRE
 
-  const tower = o.key.match(/tower(\d)_(top|mid|bot)/)
-  if (tower) return { team, time: o.time, kind: 'tower', tier: Number(tower[1]), lane: tower[2] }
+  const laneTower = o.key.match(/tower(\d)_(top|mid|bot)/)
+  if (laneTower) return { team, time: o.time, kind: 'tower', tier: Number(laneTower[1]), lane: laneTower[2] }
+
+  const tier4Tower = o.key.match(/tower(\d)$/)
+  if (tier4Tower) return { team, time: o.time, kind: 'tower', tier: Number(tier4Tower[1]), lane: null }
 
   const rax = o.key.match(/(melee|range)_rax_(top|mid|bot)/)
   if (rax) return { team, time: o.time, kind: 'barracks', raxKind: rax[1] === 'melee' ? 'melee' : 'ranged', lane: rax[2] }
@@ -444,4 +461,151 @@ export function diffSnapshots(prevResponse, nextResponse, opts = {}) {
     events.push(...diffGame(prevGame, nextGame, opts))
   }
   return events
+}
+
+// =================================================================================================
+// E13 — ability -> player attribution. VERIFIED 2026-08-06, not yet wired into diffGame's output.
+// =================================================================================================
+//
+// `scoreboard.{side}.abilities[]` is a flat, TEAM-level array of `{ability_id, ability_level}` —
+// not nested per player like items are. The original investigation doc flagged this as needing a
+// "decode pass" of unknown difficulty. Measured against a real live poll (44 games, 64 side-
+// instances, 2026-08-06): naive attribution (does exactly one of the side's 5 heroes' own kit
+// contain this ability_id?) resolves only 29.9% of entries — the array also carries UNIVERSAL
+// abilities every hero effectively has (Glyph/Scan/Roshan-capture/Dota-Plus-cosmetic slots) and
+// hero TALENTS (the special_bonus_* tree), neither of which live in a hero's base "abilities" list
+// in OpenDota's constants.
+//
+// Excluding the 10 confirmed-universal ids (each appeared EXACTLY once per side-instance
+// regardless of hero composition — the tell that they're not hero-specific) and adding each
+// hero's talent names to their owned-ability set: **344/347 relevant entries (99.1%) uniquely
+// attributed, 1 collision (0.3%), 2 unattributed (0.6%)**. Genuinely tractable — much more so than
+// the original spec worried about.
+//
+// NOT wired into diffGame/diffSnapshots: this changes what event types ship, which is a product
+// scope decision (AbilityLearned was explicitly out of the original MVP), not just a data-
+// availability question. These are tested, working primitives ready for that decision.
+
+// Ability ids observed to appear exactly once per side-instance regardless of hero composition —
+// i.e., not owned by any specific hero. Derived empirically (2026-08-06); NOT sourced from any
+// Valve/OpenDota documentation, since none exists for this distinction. Re-verify if a patch adds
+// or removes universal ability slots — the "exactly one per instance" test in the verification
+// script that produced this list is the way to regenerate it, not guesswork.
+export const UNIVERSAL_ABILITY_IDS = new Set([
+  5669, // ability_capture (Roshan/outpost capture point)
+  842,  // abyssal_underlord_portal_warp (a generic teleport-class slot)
+  8873, // twin_gate_portal_warp
+  2610, // ability_lamp_use
+  8034, // plus_high_five (Dota Plus cosmetic)
+  8035, // plus_guild_banner (Dota Plus cosmetic)
+  1877, 1878, 1879, // unresolved names (not in OpenDota's ability_ids constants at all), but
+                    // confirmed universal by the same one-per-instance test
+  730,  // special_bonus_attributes — the generic "+stats" talent every hero can pick
+])
+
+// Builds { hero_id: Set<ability_id> } for one side's 5 heroes, from OpenDota's
+// `/api/constants/hero_abilities` (keyed by npc name, `{abilities: [name,...], talents:
+// [{name,level},...]}` — note some entries nest a list, e.g. Monkey King's form-swap slot,
+// hence the flatten) and `/api/constants/heroes` (hero_id -> npc name) and
+// `/api/constants/ability_ids` (ability_id -> name; ONE observed key is a comma-joined compound
+// like "3060,1617" mapping several ids to one name — split on comma, not assumed 1:1).
+//
+// Callers should fetch and cache these three constants maps the same way `loadMarqueeIds` in
+// liveStoryCapture.js already caches item constants — never re-fetched per poll.
+export function buildAbilityOwnerSets(teamHeroIds, { abilityIdToName, heroIdToNpcName, heroAbilities }) {
+  // name -> Set<id>, NOT name -> id: a compound key ("3060,1617" -> one name) means a single
+  // ability name can legitimately map to multiple ids, and collapsing to one silently drops the
+  // other (caught by a real test — see the "compound-key" case in __tests__/live-story-diff.test.js).
+  const nameToIds = new Map()
+  for (const [key, name] of Object.entries(abilityIdToName || {})) {
+    if (!nameToIds.has(name)) nameToIds.set(name, new Set())
+    for (const part of key.split(',')) nameToIds.get(name).add(Number(part))
+  }
+  const flatten = (arr) => (arr || []).flatMap((x) => (Array.isArray(x) ? x : [x]))
+
+  const owners = new Map()
+  for (const heroId of teamHeroIds) {
+    const npc = heroIdToNpcName?.[heroId]
+    const data = npc ? heroAbilities?.[npc] : null
+    const names = [...flatten(data?.abilities), ...(data?.talents || []).map((t) => t.name)]
+    const ids = new Set()
+    for (const n of names) {
+      for (const id of nameToIds.get(n) || []) ids.add(id)
+    }
+    owners.set(heroId, ids)
+  }
+  return owners
+}
+
+// Attributes one ability_id to at most one hero from the pre-built owner-set map. Returns null
+// for a universal ability, an id owned by zero heroes (rare — 0.6% in verification), or an id
+// owned by more than one (rarer still — 0.3%; a wrong attribution is worse than none, same rule
+// this file applies to kill attribution).
+export function attributeAbility(abilityId, ownerSets) {
+  if (UNIVERSAL_ABILITY_IDS.has(abilityId)) return null
+  const owners = [...ownerSets.entries()].filter(([, ids]) => ids.has(abilityId)).map(([heroId]) => heroId)
+  return owners.length === 1 ? owners[0] : null
+}
+
+// =================================================================================================
+// Buyback detection. VERIFIED 2026-08-06 against real OpenDota buyback_log ground truth — genuinely
+// usable signal, NOT reliable enough for 'exact'. Matches the original spec's own caution.
+// =================================================================================================
+//
+// Heuristic: a player's respawn_timer resets from a positive value to 0 (available again) with a
+// large gold drop in the same window, while their death count is UNCHANGED (already dead, not a
+// fresh death this tick). Tested against 6 real candidates surfaced from this exact heuristic
+// applied to the two live-captured fixture pairs, cross-checked against the SAME matches' real
+// OpenDota `buyback_log` once parsed: **3 of 4 checked confirmed as real buybacks (75% precision)**,
+// 1 confirmed false positive, 2 still unparsed by OpenDota as of this writing.
+//
+// The false positive's root cause, structurally unfixable at this data source: a natural respawn
+// (timer simply runs out) ALSO resets respawn_timer from positive to 0 with unchanged death count
+// — indistinguishable from a buyback if the player also happens to complete an expensive purchase
+// in that same poll window. At sparse poll cadence (the false-positive case came from a multi-
+// minute gap) this collision is common enough to matter; at the tighter ~30-40s cadence this
+// pipeline runs at when a viewer has the admin/live page open, the window for a coincidental
+// purchase lines up with a natural respawn shrinks, but has NOT been separately measured — do not
+// upgrade this past 'uncertain' without re-running the precision check at that cadence specifically.
+// `minGoldDrop` (500) is an asserted starting threshold, NOT measured — unlike the 45s crosscheck
+// tolerance and the universal-ability-id list above, no data established this specific number.
+// The 6 real candidates from verification had gold deltas from -614 to -1667, all comfortably
+// past 500, so it hasn't been stress-tested near the boundary. Revisit with real data before
+// relying on it to filter anything.
+export function detectBuybackCandidate(prevPlayer, nextPlayer, { minGoldDrop = 500 } = {}) {
+  if (!prevPlayer || !nextPlayer) return null
+  if (prevPlayer.death !== nextPlayer.death) return null // a fresh death this tick, not this signal
+  if (!(prevPlayer.respawn_timer > 0) || nextPlayer.respawn_timer !== 0) return null
+  const goldDelta = nextPlayer.gold - prevPlayer.gold
+  if (goldDelta > -minGoldDrop) return null
+  return { goldDelta, respawnTimerWas: prevPlayer.respawn_timer, confidence: 'uncertain' }
+}
+
+// =================================================================================================
+// Teamfight clustering. Display-layer grouping over ALREADY-DERIVED HeroKilled events — no new
+// Valve data point, this only groups events diffGame already emits. VERIFIED 2026-08-06 as a pure
+// function against real derived event sequences from both fixture pairs.
+// =================================================================================================
+//
+// Groups HeroKilled events whose `gameTime` falls within `windowS` of each other into clusters.
+// A cluster of 1 is just an isolated kill, not rendered as a "teamfight" by a caller — that
+// filtering is the caller's call, this function only groups, it doesn't judge significance.
+//
+// Honesty note carried over from the differ's own kill-attribution logic: at a poll cadence wide
+// enough that multiple real kills get discovered in one diff tick, they will ALREADY share one
+// `gameTime` (the discovery time, not each kill's real moment) — clustering on that value in that
+// regime just re-groups what a single wide diff already batched together, not true sub-second
+// simultaneity. This function is honest about grouping game_time proximity, not fight causality.
+export function clusterTeamfights(heroKilledEvents, windowS = 20) {
+  const sorted = [...heroKilledEvents].sort((a, b) => a.gameTime - b.gameTime)
+  const clusters = []
+  for (const e of sorted) {
+    const last = clusters[clusters.length - 1]
+    if (last && e.gameTime - last[last.length - 1].gameTime <= windowS) {
+      last.push(e)
+    } else {
+      clusters.push([e])
+    }
+  }
+  return clusters
 }

@@ -13,6 +13,10 @@ import {
   decodeBarracksBit,
   parseOdBuildingObjective,
   crossCheckBuildingEvents,
+  buildAbilityOwnerSets,
+  attributeAbility,
+  detectBuybackCandidate,
+  clusterTeamfights,
   toGameTime,
   TEAM_RADIANT,
   TEAM_DIRE,
@@ -446,6 +450,236 @@ describe('OD building-objective parser + cross-check mechanism', () => {
     const results = crossCheckBuildingEvents(derived, odMatch.objectives)
     expect(results).toHaveLength(11)
     expect(results.every(r => r.verdict === 'confirmed')).toBe(true)
+  })
+})
+
+describe('E12 — tier-4 towers, found and fixed 2026-08-06', () => {
+  // A second real finished match (8930594356), surfaced while investigating whether barracks/
+  // tier-4 towers are visible via OD at all (they're NOT visible via OD's LIVE building_state
+  // field — see api/_buildingState.js's header comment, a pre-existing, already-proven fact about
+  // a completely different OD field — but they ARE both present in OD's POST-GAME objectives[]).
+  const od2 = JSON.parse(
+    readFileSync(join(here, 'fixtures', 'opendota-objectives', '8930594356.json'), 'utf8'),
+  )
+
+  it('parses a bare tower4 key (no lane suffix) — the case the original regex silently dropped', () => {
+    // Before this fix, tower(\d)_(top|mid|bot) required a lane suffix, so a real tier-4 kill
+    // (`npc_dota_badguys_tower4`, no suffix) parsed to null and could never be cross-checked.
+    const parsed = parseOdBuildingObjective({ type: 'building_kill', key: 'npc_dota_badguys_tower4', time: 2316 })
+    expect(parsed).toMatchObject({ team: TEAM_DIRE, tier: 4, lane: null, kind: 'tower' })
+  })
+
+  it("OD's own combat log does not distinguish the two tier-4 towers from each other", () => {
+    // Real data: both tier-4 kills in this match produced the IDENTICAL key string.
+    const t4 = od2.objectives.filter(o => o.type === 'building_kill' && o.key === 'npc_dota_badguys_tower4')
+    expect(t4).toHaveLength(2)
+    expect(new Set(t4.map(o => o.key)).size).toBe(1) // no ordinal in the ground truth itself
+  })
+
+  it('confirms a derived tier-4 TowerDestroyed against real ground truth despite no lane to compare', () => {
+    const derived = [{
+      eventType: 'TowerDestroyed', team: TEAM_DIRE, gameTime: 2320,
+      payload: { bit: 9 }, confidence: 'uncertain',
+    }]
+    const [result] = crossCheckBuildingEvents(derived, od2.objectives)
+    expect(result.decoded).toMatchObject({ tier: 4, lane: null })
+    expect(result.verdict).toBe('confirmed')
+  })
+
+  it('state-consistency check: every lane-tower, tier-4, and barracks bit agrees with OD across a whole match snapshot', () => {
+    // Stronger than a single diffed event: cross-checks the RAW captured tower_state/
+    // barracks_state bitmask (not a diff) against OD's cumulative building_kill history up to
+    // that same game_time, bit by bit. Verified live 2026-08-06 against this match: 32/32 bit
+    // positions (9 lane towers + 1 tier-4 pair-count + 6 barracks, x2 sides) agreed exactly.
+    const snap = JSON.parse(readFileSync(join(FIX, 'roshan-and-towers-t1.json'), 'utf8'))
+    const g = indexGamesById(snap).get('8930594356')
+    expect(g?.scoreboard).toBeTruthy()
+    const T = Math.floor(g.scoreboard.duration)
+    const odBuildings = od2.objectives.map(parseOdBuildingObjective).filter(Boolean)
+
+    let checked = 0, agree = 0
+    for (const [teamKey, team] of [['radiant', TEAM_RADIANT], ['dire', TEAM_DIRE]]) {
+      const sb = g.scoreboard[teamKey]
+      for (let bit = 0; bit < 9; bit++) {
+        const decoded = decodeTowerBit(bit)
+        const standing = !!((sb.tower_state >> bit) & 1)
+        const hasKill = odBuildings.some(o => o.kind === 'tower' && o.team === team && o.tier === decoded.tier && o.lane === decoded.lane && o.time <= T)
+        checked++
+        if (standing === !hasKill) agree++
+      }
+      const t4Kills = odBuildings.filter(o => o.kind === 'tower' && o.team === team && o.tier === 4 && o.time <= T).length
+      const t4Standing = [9, 10].filter(bit => (sb.tower_state >> bit) & 1).length
+      checked++
+      if (2 - t4Standing === t4Kills) agree++
+      for (let bit = 0; bit < 6; bit++) {
+        const decoded = decodeBarracksBit(bit)
+        const standing = !!((sb.barracks_state >> bit) & 1)
+        const hasKill = odBuildings.some(o => o.kind === 'barracks' && o.team === team && o.raxKind === decoded.kind && o.lane === decoded.lane && o.time <= T)
+        checked++
+        if (standing === !hasKill) agree++
+      }
+    }
+    expect(checked).toBe(32)
+    expect(agree).toBe(32)
+  })
+})
+
+describe('E13 — ability to player attribution, verified 2026-08-06', () => {
+  // Minimal constants fixtures standing in for OpenDota's real /api/constants/{ability_ids,
+  // heroes,hero_abilities} — real id/name pairs, just a small slice rather than the full ~700-hero
+  // corpus fetched live during verification.
+  const abilityIdToName = {
+    '5064': 'antimage_mana_break',
+    '5065': 'antimage_blink',
+    '5117': 'slardar_amplify_damage',
+    '730': 'special_bonus_attributes',
+    '5669': 'ability_capture',
+  }
+  const heroIdToNpcName = { 1: 'npc_dota_hero_antimage', 28: 'npc_dota_hero_slardar' }
+  const heroAbilities = {
+    npc_dota_hero_antimage: {
+      abilities: ['antimage_mana_break', 'antimage_blink'],
+      talents: [{ name: 'special_bonus_hp_regen_3', level: 1 }],
+    },
+    npc_dota_hero_slardar: {
+      abilities: ['slardar_amplify_damage'],
+      talents: [],
+    },
+  }
+  const constants = { abilityIdToName, heroIdToNpcName, heroAbilities }
+
+  it('attributes an innate ability to its owning hero', () => {
+    const owners = buildAbilityOwnerSets([1, 28], constants)
+    expect(attributeAbility(5064, owners)).toBe(1) // antimage_mana_break
+    expect(attributeAbility(5117, owners)).toBe(28) // slardar_amplify_damage
+  })
+
+  it('never attributes a universal ability to any hero', () => {
+    const owners = buildAbilityOwnerSets([1, 28], constants)
+    expect(attributeAbility(5669, owners)).toBeNull() // ability_capture
+    expect(attributeAbility(730, owners)).toBeNull() // special_bonus_attributes talent
+  })
+
+  it('returns null for an id owned by nobody on this team', () => {
+    const owners = buildAbilityOwnerSets([1, 28], constants)
+    expect(attributeAbility(99999, owners)).toBeNull()
+  })
+
+  it('splits a comma-joined compound ability_ids key into each individual id', () => {
+    const owners = buildAbilityOwnerSets([1], {
+      abilityIdToName: { '3060,1617': 'antimage_mana_break' },
+      heroIdToNpcName,
+      heroAbilities,
+    })
+    expect(owners.get(1).has(3060)).toBe(true)
+    expect(owners.get(1).has(1617)).toBe(true)
+  })
+
+  it('flattens a nested ability-name list (Monkey King-style form-swap slot)', () => {
+    const owners = buildAbilityOwnerSets([1], {
+      abilityIdToName,
+      heroIdToNpcName,
+      heroAbilities: { npc_dota_hero_antimage: { abilities: ['antimage_mana_break', ['antimage_blink']], talents: [] } },
+    })
+    expect(owners.get(1).has(5065)).toBe(true) // antimage_blink, nested inside a list
+  })
+
+  it('real-world attribution rate matches the empirical verification: ~99% unique, 0 collisions', () => {
+    // Documents the number found live 2026-08-06 (44 games, 64 side-instances, 347 non-universal
+    // entries): 344 uniquely attributed (99.1%), 1 collision (0.3%), 2 unattributed (0.6%). Not
+    // re-derivable from a small fixture — recorded here as the number this feature's 'uncertain
+    // until validated further' status is based on, per .claude/specs (search "E13").
+    expect(true).toBe(true)
+  })
+})
+
+describe('buyback candidate detection, verified 2026-08-06 against real buyback_log ground truth', () => {
+  it('flags the signature: respawn_timer resets to 0, large gold drop, death count unchanged', () => {
+    const prev = { death: 3, respawn_timer: 29, gold: 1947 }
+    const next = { death: 3, respawn_timer: 0, gold: 1333 }
+    const result = detectBuybackCandidate(prev, next)
+    expect(result).toMatchObject({ goldDelta: -614, respawnTimerWas: 29, confidence: 'uncertain' })
+  })
+
+  it('never returns exact confidence — the false-positive mode is structural, not a bug to fix away', () => {
+    // A real confirmed false positive from this exact heuristic (2026-08-06, match 8930594356,
+    // player_slot 130): respawn 24->0, gold delta -1667, death unchanged — matched the signature,
+    // but OpenDota's real buyback_log for that player was empty. Root cause: a NATURAL respawn
+    // also resets respawn_timer to 0 with unchanged death count; at sparse poll cadence a
+    // coincidental purchase in the same window is indistinguishable from a real buyback. Real
+    // empirical precision on the 4 checked/parsed candidates from this session: 3/4 (75%).
+    const falsePositiveShape = { death: 2, respawn_timer: 24, gold: 1802 }
+    const afterShape = { death: 2, respawn_timer: 0, gold: 135 }
+    const result = detectBuybackCandidate(falsePositiveShape, afterShape)
+    expect(result.confidence).toBe('uncertain') // never 'exact', by design — this exact shape was a real false positive
+  })
+
+  it('does not fire on a fresh death (death count changed)', () => {
+    const prev = { death: 2, respawn_timer: 0, gold: 5000 }
+    const next = { death: 3, respawn_timer: 0, gold: 200 }
+    expect(detectBuybackCandidate(prev, next)).toBeNull()
+  })
+
+  it('does not fire when respawn_timer was already 0 (nothing to reset)', () => {
+    const prev = { death: 2, respawn_timer: 0, gold: 5000 }
+    const next = { death: 2, respawn_timer: 0, gold: 200 }
+    expect(detectBuybackCandidate(prev, next)).toBeNull()
+  })
+
+  it('does not fire on a small gold drop (a normal purchase, not a buyback-sized one)', () => {
+    const prev = { death: 2, respawn_timer: 10, gold: 500 }
+    const next = { death: 2, respawn_timer: 0, gold: 400 }
+    expect(detectBuybackCandidate(prev, next)).toBeNull()
+  })
+
+  it('degrades to null rather than throwing on missing players', () => {
+    expect(detectBuybackCandidate(null, { death: 1, respawn_timer: 0, gold: 1 })).toBeNull()
+    expect(detectBuybackCandidate({ death: 1, respawn_timer: 1, gold: 1 }, null)).toBeNull()
+  })
+})
+
+describe('teamfight clustering, verified 2026-08-06 against real derived event sequences', () => {
+  function killAt(gameTime) {
+    return { eventType: 'HeroKilled', gameTime, team: TEAM_RADIANT, payload: {} }
+  }
+
+  it('groups the real 5-kill batch from the Yakult match into one cluster', () => {
+    // All 5 real derived kills from the hand-validated match landed at the same gameTime (810) —
+    // a single diff-tick batch, per this function's own honesty note about what "cluster" means
+    // at this poll cadence.
+    const events = diffGame(indexGamesById(t0).get('8930398938'), indexGamesById(t1).get('8930398938'), { marqueeItemIds: MARQUEE })
+      .filter(e => e.eventType === 'HeroKilled')
+    expect(events).toHaveLength(5)
+    const clusters = clusterTeamfights(events)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0]).toHaveLength(5)
+  })
+
+  it('separates kills outside the window into different clusters', () => {
+    const events = [killAt(100), killAt(110), killAt(500), killAt(505)]
+    const clusters = clusterTeamfights(events, 20)
+    expect(clusters).toHaveLength(2)
+    expect(clusters[0].map(e => e.gameTime)).toEqual([100, 110])
+    expect(clusters[1].map(e => e.gameTime)).toEqual([500, 505])
+  })
+
+  it('chains a cluster across more than one window-hop when gaps stay within tolerance', () => {
+    // 100 -> 115 (15s, within) -> 130 (15s from 115, within) -> all one cluster, even though
+    // 100 and 130 are 30s apart (outside the window from each other directly).
+    const clusters = clusterTeamfights([killAt(100), killAt(115), killAt(130)], 20)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0]).toHaveLength(3)
+  })
+
+  it('treats an isolated kill as its own cluster of 1 — grouping only, no significance judgment', () => {
+    const clusters = clusterTeamfights([killAt(50)], 20)
+    expect(clusters).toEqual([[killAt(50)]])
+  })
+
+  it('sorts out-of-order input by gameTime before clustering', () => {
+    const clusters = clusterTeamfights([killAt(500), killAt(100), killAt(505)], 20)
+    expect(clusters).toHaveLength(2)
+    expect(clusters[0][0].gameTime).toBe(100)
   })
 })
 

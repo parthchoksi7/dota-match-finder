@@ -55,7 +55,16 @@ Exempt from RICE: work that literally cannot start yet.
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
 | 21 | Dead `patchSitemap`/`ARTICLE_SLUGS` logic in `api/pipeline/_publisher.js` | 2 | 2 | 90% | 0.25 | **14.4** |
+| 22 | No regression test for `UNIVERSAL_ABILITY_IDS` staleness | 1 | 2 | 90% | 0.25 | **7.2** |
 | 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
+
+---
+
+### 22. No regression test for `UNIVERSAL_ABILITY_IDS` staleness
+- **What:** `UNIVERSAL_ABILITY_IDS` (`api/_liveStoryDiff.js`) is a hardcoded Set of 10 ability ids (Glyph/Scan/Roshan-capture/Dota-Plus-cosmetics/generic-stat-talent) empirically derived 2026-08-06 by the property "appears exactly once per side-instance regardless of hero composition," checked against one live poll of 44 games in a throwaway verification script — not codified as a repeatable test in this repo. A future Valve patch that adds/removes a universal ability slot would silently degrade `attributeAbility()`'s accuracy (currently 99.1% on real data) with no test catching the drift.
+- **Found:** 2026-08-06, code review during the E13 (ability→player attribution) verification pass.
+- **Fix:** Either (a) add a script under `scripts/` that re-runs the "exactly once per side-instance" derivation against a fresh live poll and diffs it against the hardcoded constant, runnable on demand before any ability-tracking feature ships; or (b) accept the risk explicitly since `AbilityLearned` is not wired into the live differ output yet (per `.claude/specs/live-story-valve-data-audit.md`) and defer until it actually ships.
+- **Risk:** Low today — nothing in production consumes `attributeAbility()`. Becomes real the moment `AbilityLearned` is wired into the live event stream.
 
 ---
 
