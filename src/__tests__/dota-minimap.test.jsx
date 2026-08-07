@@ -156,6 +156,29 @@ describe('TIER4_POSITIONS / BARRACKS_POSITIONS — placement sanity (approximate
     }
   })
 
+  it('assigns each side\'s barracks to the correct LANE — not just "closer to base than T3", which a swapped lane could satisfy by accident', () => {
+    // Direct regression guard for the exact bug class TOWER_POSITIONS itself shipped once
+    // (2026-07-27, Dire top/bot swapped): DIRE_POSITIONS is derived from radiant's coordinates by
+    // point-reflection through the base-center, which requires a top<->bot lane swap (radiant's
+    // "top" and dire's "bot" occupy the same physical corridor from opposite ends — verified
+    // against the already owner-verified TOWER_POSITIONS in DotaMinimap.jsx's own header comment).
+    // If that swap were applied backwards, a side's "top" barracks would end up nearer its OWN
+    // bot T3 than its own top T3 — this test catches exactly that, which the base-distance-only
+    // test above would not (a swapped point can still legitimately be closer to base than T3).
+    for (const lane of ['top', 'mid', 'bot']) {
+      for (const side of ['radiant', 'dire']) {
+        const ownT3 = TOWER_POSITIONS[lane][side][2]
+        const otherLanes = ['top', 'mid', 'bot'].filter(l => l !== lane)
+        const distToOwn = dist(BARRACKS_POSITIONS[side][lane].melee, ownT3)
+        for (const other of otherLanes) {
+          const otherT3 = TOWER_POSITIONS[other][side][2]
+          const distToOther = dist(BARRACKS_POSITIONS[side][lane].melee, otherT3)
+          expect(distToOwn).toBeLessThan(distToOther)
+        }
+      }
+    }
+  })
+
   it('places each lane\'s barracks pair closer to that side\'s base than that lane\'s own T3 tower is', () => {
     for (const lane of ['top', 'mid', 'bot']) {
       for (const side of ['radiant', 'dire']) {

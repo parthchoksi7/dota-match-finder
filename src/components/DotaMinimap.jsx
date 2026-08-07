@@ -57,50 +57,70 @@ const LANE_LABELS = { top: 'top', mid: 'mid', bot: 'bot' }
 export const BASE_POSITIONS = { radiant: [40, 468], dire: [468, 40] }
 
 // ---------------------------------------------------------------------------------------------
-// Tier-4 (Ancient guardian) + barracks marker positions — 2026-08-06, Valve-sourced live surface.
+// Tier-4 (Ancient guardian) + barracks marker positions — 2026-08-06, re-placed 2026-08-07 against
+// the real texture (previous pass used blind linear interpolation with no image reference at all
+// and was visibly wrong — confirmed live).
 //
-// UNLIKE TOWER_POSITIONS above, these are NOT owner-verified against a coordinate-gridded render
-// of the texture. They're derived programmatically from the coordinates that WERE hand-verified
-// (each side's own T3 lane towers + its base) via linear interpolation, so placement is principled
-// rather than eyeballed, but it has not been checked pixel-by-pixel the way TOWER_POSITIONS was
-// (that took two wrong passes before landing — see this file's own history above). Treat as
-// "reasonable, pending the same verification pass," not as settled fact.
-function lerp([x1, y1], [x2, y2], t) {
-  return [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]
+// RADIANT positions below were read directly off the texture: cropping+upscaling
+// public/dota-minimap-7.40.webp's bottom-left (0,330)-(200,512) region shows the base's walled
+// compound clearly, with two visible gate openings in the fence — one facing the river/top-lane
+// side, one facing the bottom-lane side. Cross-checked against the already owner-verified
+// TOWER_POSITIONS: both gates sit almost exactly where top.radiant[2] (80,344) and
+// bot.radiant[2] (152,424) already are (T3 towers stand right at the base entrance in the real
+// game too), which corroborates the read rather than contradicting it.
+//
+// DIRE positions are DERIVED, not independently read off the texture — by point-reflection
+// through the center implied by the two (owner-verified) BASE_POSITIONS, (254,254). Verified as a
+// sound approximation first: reflecting mid.radiant's three owner-verified points through that
+// center lands within ~20-40px of the corresponding real mid.dire points (not exact — the art
+// isn't perfectly symmetric — but close enough to derive from confidently). Reflection requires a
+// LANE SWAP, not a straight per-lane mirror: reflecting top.radiant(80,210) lands next to
+// bot.dire(424,304), not top.dire — i.e. radiant's "top" and dire's "bot" occupy the same physical
+// corridor from opposite ends. Confirmed against dire_base.png crop, which shows the same wall
+// shape mirrored. Both sides visually spot-checked, not pixel-grid-verified the way TOWER_POSITIONS
+// was (that took two wrong passes + an owner grid-check before landing) — flag anything still off.
+function reflectThroughBaseCenter([x, y]) {
+  const cx = (BASE_POSITIONS.radiant[0] + BASE_POSITIONS.dire[0]) / 2
+  const cy = (BASE_POSITIONS.radiant[1] + BASE_POSITIONS.dire[1]) / 2
+  return [2 * cx - x, 2 * cy - y]
 }
 
-// Tier-4 towers sit between the base and the lane approaches, guarding the Ancient. Placed 32% of
-// the way from base toward each of the two T3 towers whose lane most directly fronts that base
-// (mid + the lane whose T3 sits closest to base) — the two guardian towers in real Dota don't
-// stand on a lane's own axis, so this is a deliberate approximation, not an attempt to reuse
-// TOWER_POSITIONS' verified precision.
+const TIER4_RADIANT = [[75, 335], [160, 455]] // [river/top-side gate, safelane/bot-side gate]
+
 export const TIER4_POSITIONS = {
-  radiant: [
-    lerp(BASE_POSITIONS.radiant, TOWER_POSITIONS.mid.radiant[2], 0.34),
-    lerp(BASE_POSITIONS.radiant, TOWER_POSITIONS.bot.radiant[2], 0.34),
-  ],
-  dire: [
-    lerp(BASE_POSITIONS.dire, TOWER_POSITIONS.mid.dire[2], 0.34),
-    lerp(BASE_POSITIONS.dire, TOWER_POSITIONS.top.dire[2], 0.34),
-  ],
+  radiant: TIER4_RADIANT,
+  // Order carries no meaning (decodeTowerState's tier4 pair is unordered — Valve's own combat log
+  // doesn't distinguish which of the two fell either, per the audit doc), so a straight reflection
+  // needs no lane-swap here unlike barracks below.
+  dire: TIER4_RADIANT.map(reflectThroughBaseCenter),
 }
 
-// Barracks sit just outside a lane's T3 tower, on the base side of it. Melee/ranged are offset a
-// few units apart perpendicular to the base->T3 line so the two markers don't overlap.
-function barracksPairFor(side, lane) {
-  const base = BASE_POSITIONS[side]
-  const t3 = TOWER_POSITIONS[lane][side][2]
-  const [mx, my] = lerp(base, t3, 0.68)
-  const dx = t3[0] - base[0]
-  const dy = t3[1] - base[1]
-  const len = Math.hypot(dx, dy) || 1
-  const px = (-dy / len) * 9
-  const py = (dx / len) * 9
-  return { melee: [mx + px, my + py], ranged: [mx - px, my - py] }
+const BARRACKS_RADIANT = {
+  top: { melee: [88, 352], ranged: [78, 358] },
+  mid: { melee: [148, 392], ranged: [140, 400] },
+  bot: { melee: [110, 431], ranged: [116, 448] },
 }
+
 export const BARRACKS_POSITIONS = {
-  radiant: Object.fromEntries(LANE_KEYS.map(lane => [lane, barracksPairFor('radiant', lane)])),
-  dire: Object.fromEntries(LANE_KEYS.map(lane => [lane, barracksPairFor('dire', lane)])),
+  radiant: BARRACKS_RADIANT,
+  dire: {
+    // Lane swap on reflection — see the header comment above (top.radiant <-> bot.dire).
+    top: {
+      melee: reflectThroughBaseCenter(BARRACKS_RADIANT.bot.melee),
+      ranged: reflectThroughBaseCenter(BARRACKS_RADIANT.bot.ranged),
+    },
+    // Mid is NOT reflected like top/bot above — reflecting radiant's mid barracks landed at
+    // (360,116), closer to dire's own TOP T3 (344,96) than to its own MID T3 (368,160). Mid
+    // lane's reflection symmetry is looser than top/bot's (confirmed separately: reflecting the
+    // three owner-verified TOWER_POSITIONS.mid.radiant points lands 20-40px off their real
+    // TOWER_POSITIONS.mid.dire counterparts, vs. a much tighter match on top/bot). Computed
+    // directly off dire's own verified mid T3 instead, same interpolation shape used for radiant.
+    mid: { melee: [405, 130], ranged: [391, 118] },
+    bot: {
+      melee: reflectThroughBaseCenter(BARRACKS_RADIANT.top.melee),
+      ranged: reflectThroughBaseCenter(BARRACKS_RADIANT.top.ranged),
+    },
+  },
 }
 
 // Which of the 3 [T1,T2,T3]-ordered positions are destroyed, given a standing count (0-3).
