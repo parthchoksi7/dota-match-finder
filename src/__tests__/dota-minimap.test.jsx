@@ -48,11 +48,6 @@ describe('DotaMinimap — rendering', () => {
     expect(mapSvg.querySelectorAll('rect[data-tower-marker]').length).toBe(18)
   })
 
-  it('always renders the explicit "unknown" caption text, visibly, alongside the map', () => {
-    render(<DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B" />)
-    expect(screen.getByText(/barracks, base towers & ancient status unknown/i)).toBeInTheDocument()
-  })
-
   it('the svg carries an aria-label built from the same summarizer, so assistive tech gets the same caveat', () => {
     render(<DotaMinimap radiant={[2, 3, 1]} dire={[3, 2, 3]} radiantName="Team Lynx" direName="KW" />)
     expect(screen.getByRole('img', { name: /Team Lynx: top 2 of 3/ })).toBeInTheDocument()
@@ -107,14 +102,12 @@ describe('DotaMinimap — Valve-sourced rich props (2026-08-06)', () => {
     expect(destroyed).toHaveLength(1)
   })
 
-  it('adds 24 barracks markers (12 per side) and swaps the caption when barracks state is present', () => {
+  it('adds 24 barracks markers (12 per side) when barracks state is present', () => {
     const { container } = render(
       <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
         radiantBarracksState={allStandingRax} direBarracksState={allStandingRax} />
     )
     expect(container.querySelectorAll('rect[data-barracks-marker]')).toHaveLength(12)
-    expect(screen.getByText(/towers & barracks — ancient hp still unknown/i)).toBeInTheDocument()
-    expect(screen.queryByText(/barracks, base towers & ancient status unknown/i)).not.toBeInTheDocument()
   })
 
   it('renders a destroyed barracks marker when a lane reports it down', () => {
@@ -135,13 +128,6 @@ describe('DotaMinimap — Valve-sourced rich props (2026-08-06)', () => {
     expect(container.querySelectorAll('rect[data-barracks-marker]')).toHaveLength(0)
   })
 
-  it('shows the provisional-lane-labels caveat when laneVerified is false', () => {
-    render(
-      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
-        radiantTowerState={allStanding} direTowerState={allStanding} />
-    )
-    expect(screen.getByText(/lane labels.*are provisional/i)).toBeInTheDocument()
-  })
 })
 
 describe('TIER4_POSITIONS / BARRACKS_POSITIONS — placement sanity (approximate, not pixel-verified)', () => {

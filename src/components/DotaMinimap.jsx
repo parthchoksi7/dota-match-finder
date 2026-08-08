@@ -17,13 +17,11 @@
 // Root cause diagnosed 2026-07-27: no amount of surface polish fixes a shape that doesn't match
 // the real map's geometry/orientation. A real texture sidesteps that entirely.
 //
-// SCOPE, still load-bearing: only towers are ever drawn. `decodeBuildingState`
-// (api/_buildingState.js) cannot determine barracks, tier-4 ("base") tower, or Ancient state —
-// confirmed by direct disproof, not just an unresolved signal (see CONTEXT.md, "R4.0 decode
-// spike"). This component must never draw a marker, icon, or implied state for any of those —
-// doing so would show the owner information we don't actually have. The caption below the map
-// is not decorative; it is the thing preventing that misread, so it must never be removed or
-// visually de-emphasized below legibility.
+// SCOPE (updated 2026-08-08): T1-T3 towers, tier-4 ("base") towers, and barracks are all drawn
+// when decoded state is available (see decodeBarracksState / hasBarracks below) — the original
+// "only towers, barracks/T4/Ancient are undecodable" scope note is stale, superseded once
+// barracks decoding shipped. Ancient HP specifically remains unknown and undrawn; the caption
+// below the map was removed 2026-08-08 (owner call) now that it no longer matched what's shown.
 
 export const MAP_TEXTURE_SRC = '/dota-minimap-7.40.webp'
 export const MAP_VIEWBOX_SIZE = 512
@@ -41,7 +39,7 @@ export const MAP_VIEWBOX_SIZE = 512
 export const TOWER_POSITIONS = {
   top: {
     radiant: [[80, 210], [80, 264], [80, 344]],
-    dire: [[136, 96], [232, 88], [344, 96]],
+    dire: [[136, 96], [232, 88], [344, 100]],
   },
   mid: {
     radiant: [[224, 280], [184, 316], [136, 364]],
@@ -49,7 +47,7 @@ export const TOWER_POSITIONS = {
   },
   bot: {
     radiant: [[384, 424], [264, 424], [152, 424]],
-    dire: [[424, 304], [424, 256], [424, 184]],
+    dire: [[424, 304], [424, 256], [428, 184]],
   },
 }
 const LANE_KEYS = ['top', 'mid', 'bot']
@@ -57,69 +55,38 @@ const LANE_LABELS = { top: 'top', mid: 'mid', bot: 'bot' }
 export const BASE_POSITIONS = { radiant: [40, 468], dire: [468, 40] }
 
 // ---------------------------------------------------------------------------------------------
-// Tier-4 (Ancient guardian) + barracks marker positions — 2026-08-06, re-placed 2026-08-07 against
-// the real texture (previous pass used blind linear interpolation with no image reference at all
-// and was visibly wrong — confirmed live).
-//
-// RADIANT positions below were read directly off the texture: cropping+upscaling
-// public/dota-minimap-7.40.webp's bottom-left (0,330)-(200,512) region shows the base's walled
-// compound clearly, with two visible gate openings in the fence — one facing the river/top-lane
-// side, one facing the bottom-lane side. Cross-checked against the already owner-verified
-// TOWER_POSITIONS: both gates sit almost exactly where top.radiant[2] (80,344) and
-// bot.radiant[2] (152,424) already are (T3 towers stand right at the base entrance in the real
-// game too), which corroborates the read rather than contradicting it.
-//
-// DIRE positions are DERIVED, not independently read off the texture — by point-reflection
-// through the center implied by the two (owner-verified) BASE_POSITIONS, (254,254). Verified as a
-// sound approximation first: reflecting mid.radiant's three owner-verified points through that
-// center lands within ~20-40px of the corresponding real mid.dire points (not exact — the art
-// isn't perfectly symmetric — but close enough to derive from confidently). Reflection requires a
-// LANE SWAP, not a straight per-lane mirror: reflecting top.radiant(80,210) lands next to
-// bot.dire(424,304), not top.dire — i.e. radiant's "top" and dire's "bot" occupy the same physical
-// corridor from opposite ends. Confirmed against dire_base.png crop, which shows the same wall
-// shape mirrored. Both sides visually spot-checked, not pixel-grid-verified the way TOWER_POSITIONS
-// was (that took two wrong passes + an owner grid-check before landing) — flag anything still off.
-function reflectThroughBaseCenter([x, y]) {
-  const cx = (BASE_POSITIONS.radiant[0] + BASE_POSITIONS.dire[0]) / 2
-  const cy = (BASE_POSITIONS.radiant[1] + BASE_POSITIONS.dire[1]) / 2
-  return [2 * cx - x, 2 * cy - y]
-}
-
-const TIER4_RADIANT = [[75, 335], [160, 455]] // [river/top-side gate, safelane/bot-side gate]
+// Tier-4 (Ancient guardian) + barracks marker positions — 2026-08-06, re-placed 2026-08-07 and
+// 2026-08-08 against the real texture (previous pass used blind linear interpolation with no
+// image reference at all and was visibly wrong — confirmed live). Both radiant and dire are now
+// read directly off public/dota-minimap-7.40.webp (cropped+upscaled per side) rather than one
+// side being derived from the other — an earlier point-reflection approach was tried and dropped
+// because dire's compound isn't a clean mirror of radiant's (confirmed on mid specifically, then
+// generalized once top/bot direct reads landed noticeably off their reflected counterparts too).
+const TIER4_RADIANT = [[96, 384], [112, 408]] // [river/top-side gate, safelane/bot-side gate]
 
 export const TIER4_POSITIONS = {
   radiant: TIER4_RADIANT,
-  // Order carries no meaning (decodeTowerState's tier4 pair is unordered — Valve's own combat log
-  // doesn't distinguish which of the two fell either, per the audit doc), so a straight reflection
-  // needs no lane-swap here unlike barracks below.
-  dire: TIER4_RADIANT.map(reflectThroughBaseCenter),
+  // Read directly off the dire compound art (2026-08-08) — reflection was only ever an
+  // approximation (see BARRACKS_POSITIONS.dire note); order still carries no meaning
+  // (decodeTowerState's tier4 pair is unordered, per the audit doc).
+  dire: [[384, 112], [416, 144]],
 }
 
 const BARRACKS_RADIANT = {
-  top: { melee: [88, 352], ranged: [78, 358] },
-  mid: { melee: [148, 392], ranged: [140, 400] },
-  bot: { melee: [110, 431], ranged: [116, 448] },
+  top: { melee: [72, 352], ranged: [88, 352] },
+  mid: { melee: [120, 360], ranged: [136, 376] },
+  bot: { melee: [144, 416], ranged: [144, 432] },
 }
 
 export const BARRACKS_POSITIONS = {
   radiant: BARRACKS_RADIANT,
   dire: {
-    // Lane swap on reflection — see the header comment above (top.radiant <-> bot.dire).
-    top: {
-      melee: reflectThroughBaseCenter(BARRACKS_RADIANT.bot.melee),
-      ranged: reflectThroughBaseCenter(BARRACKS_RADIANT.bot.ranged),
-    },
-    // Mid is NOT reflected like top/bot above — reflecting radiant's mid barracks landed at
-    // (360,116), closer to dire's own TOP T3 (344,96) than to its own MID T3 (368,160). Mid
-    // lane's reflection symmetry is looser than top/bot's (confirmed separately: reflecting the
-    // three owner-verified TOWER_POSITIONS.mid.radiant points lands 20-40px off their real
-    // TOWER_POSITIONS.mid.dire counterparts, vs. a much tighter match on top/bot). Computed
-    // directly off dire's own verified mid T3 instead, same interpolation shape used for radiant.
-    mid: { melee: [405, 130], ranged: [391, 118] },
-    bot: {
-      melee: reflectThroughBaseCenter(BARRACKS_RADIANT.top.melee),
-      ranged: reflectThroughBaseCenter(BARRACKS_RADIANT.top.ranged),
-    },
+    // top/mid read directly off the dire compound art (2026-08-08), same as mid always was —
+    // reflection through BASE_POSITIONS is unreliable here (see mid's original note below, now
+    // generalized: dire's compound isn't a clean mirror of radiant's).
+    top: { melee: [352, 112], ranged: [352, 88] },
+    mid: { melee: [384, 160], ranged: [368, 144] },
+    bot: { melee: [440, 176], ranged: [416, 176] },
   },
 }
 
@@ -241,7 +208,7 @@ function LegendSwatch({ destroyed, label }) {
 //                                           when present (more precise: a count alone can't say
 //                                           WHICH tower fell if the destruction order was unusual).
 //   radiantBarracksState / direBarracksState — decodeBarracksState()'s shape. Adds 12 new markers
-//                                           and the caption below reads differently, since barracks
+//                                           and an extra sentence on the aria-label, since barracks
 //                                           genuinely ARE known now (Valve's dedicated
 //                                           barracks_state field, unlike OD's building_state — see
 //                                           _buildingState.js's disproof).
@@ -333,17 +300,6 @@ export default function DotaMinimap({
           </g>
         )}
       </svg>
-
-      <p className="text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 mt-1.5">
-        {hasBarracks
-          ? 'Towers & barracks — Ancient HP still unknown'
-          : 'Towers only — barracks, base towers & Ancient status unknown'}
-      </p>
-      {hasRichTowers && radiantTowerState.laneVerified === false && (
-        <p className="text-center text-[9px] text-gray-400 dark:text-gray-600 mt-0.5">
-          Lane labels (which side is "top" vs "bot") are provisional pending validation
-        </p>
-      )}
     </div>
   )
 }
