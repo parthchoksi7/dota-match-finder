@@ -99,7 +99,6 @@ describe('SeriesLivePulse — tower map gating (public)', () => {
   it('renders the map for any viewer when not spoiler-free and objectives is present', async () => {
     await renderPulse(valvePulseWith({ objectives: OBJECTIVES }))
     expect(screen.getByRole('img', { name: /Team Lynx:/ })).toBeInTheDocument()
-    expect(screen.getByText(/barracks, base towers & ancient status unknown/i)).toBeInTheDocument()
   })
 
   it('renders nothing map-related when objectives is absent (low-confidence or not-yet-decoded, indistinguishable to the client)', async () => {

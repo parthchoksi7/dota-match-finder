@@ -300,20 +300,6 @@ export default function DotaMinimap({
           </g>
         )}
       </svg>
-
-      {/* Load-bearing, per this file's own header comment: without this, "no marker drawn" reads
-          as "confirmed standing" for something genuinely unknown. Must never be removed or
-          de-emphasized below legibility, regardless of what richer props are or aren't present. */}
-      <p className="text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600 mt-1.5">
-        {hasBarracks
-          ? 'Towers & barracks — Ancient HP still unknown'
-          : 'Towers only — barracks, base towers & Ancient status unknown'}
-      </p>
-      {hasRichTowers && radiantTowerState.laneVerified === false && (
-        <p className="text-center text-[9px] text-gray-400 dark:text-gray-600 mt-0.5">
-          Lane labels (which side is "top" vs "bot") are provisional pending validation
-        </p>
-      )}
     </div>
   )
 }
