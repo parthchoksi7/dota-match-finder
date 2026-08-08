@@ -851,6 +851,80 @@ The actual Dota 2 minimap texture (`public/dota-minimap-7.40.webp`, self-hosted,
 
 ---
 
+## Live timeline — colour semantics (2026-08-07)
+
+The live event feed (`LiveEventFeed`, `LiveValveBoard.jsx`) has **one** colour rule, and it is not
+"colour = whose event this is":
+
+> **A marker's colour answers: which side did this FAVOUR?**
+
+That reframing is what removed the grey markers an earlier pass shipped. Grey appeared whenever
+killer attribution was declined as ambiguous — but a death always tells you who *benefited* even
+when it doesn't tell you who landed the blow, so the "unknown" case never actually existed.
+
+| Event | Colour | Why |
+|---|---|---|
+| Kill, killer resolved | Killer's side (green/red) | Same convention as `GoldGraph`'s event markers |
+| Kill, killer ambiguous | **Inverse of the victim's side** | The beneficiary is always knowable; `shapeLiveEvents` resolves it server-side |
+| Roshan | `amber-500` | **Neutral, not unknown** — a different thing, deserving its own colour rather than a shrug. Matches the `RoshanStatus` card and `GoldGraph`'s `#f59e0b` Roshan hue |
+| Marquee item | Player's side | Team is always known |
+| Fight (group) | `cyan-500` | Event-**type** hue (matches `GoldGraph`'s teamfight marker). A fight has two sides by definition, so side lives in the kill-split badge instead |
+
+**There is no grey branch, and none should be reintroduced.** If a future event type has no
+resolvable side, give it a semantic colour (as Roshan has) rather than a fallback — grey encodes
+"we gave up", which is never the honest description of a state we chose to render.
+
+Inferring the beneficiary stays honest even when a hero dies to a tower/creep/neutral rather than an
+enemy hero: the enemy still benefits, and the row's copy renders a bare `"X dies"` that never names
+a killer. The colour adds information the text doesn't claim.
+
+---
+
+## Live timeline — grouped fight card (2026-08-07)
+
+The unit of storytelling in the live feed is the **fight**, not the kill. Five kills in eighteen
+seconds is one event a viewer cares about, not five rows.
+
+**Grouping** (server-side, `groupTimelineEvents` in `api/_liveValveState.js`, delegating the
+windowing to the already-tested `clusterTeamfights`): 3+ clustered kills → `Teamfight`; exactly 2 →
+`Trade`; 1 → stays an ungrouped row. Marquee items inside a fight's window attach to that fight.
+
+**Anatomy** (collapsed, fits 375px):
+```
+⚔  24:03  Teamfight            3–1   ⌄
+          Tundra +3.2k swing
+```
+- Card: `border border-gray-200 dark:border-gray-800 rounded`, **no tint** — tinted surfaces are
+  reserved (`EditorialCard` sky, My Teams amber); a fight is not personal/highlighted content
+- Full-row `<button>` with `aria-expanded` + chevron (`rotate-180` when open), `min-h-[44px]`
+- Kill split: the two digits carry the side colours. **This is the only place both sides appear
+  together**, which is what lets an even 2–2 fight render without a single colour meaning "both"
+- `aria-label` carries a complete sentence — the visual card is deliberately fragmentary
+- Collapsed by default; expansion reveals per-kill rows + in-window items
+
+**Two rules that must not be relaxed:**
+
+1. **No swing line unless the net-worth history brackets the window on BOTH sides.** Capture cadence
+   is ~30-60s and a fight lasts ~20s, so a fight can fall entirely between two samples. Render
+   nothing — never `+0`, never a placeholder dash. `netWorthSwingOverWindow` returns `null` for
+   exactly this reason. One wrong number costs more trust than an absent one.
+2. **Never state a fight duration.** At sparse cadence the differ stamps several kills with the same
+   discovery time, so a cluster can be "kills we found together" rather than "kills that happened
+   together". Describe the **outcome** (who won it, what the net worth did) — true either way — never
+   the event's shape.
+
+**Ordering is newest-first**, and the `LIVE` cue sits at the **top** beside the newest group. This is
+activity-feed convention (notifications, Sofascore incidents), not chat convention: chat puts newest
+at the bottom because its container auto-scrolls and owns focus, whereas this is one section inside a
+long sheet. Newest-last is what made the most recent event the hardest thing to reach.
+
+**Pagination, never an internal scroller.** 8 groups render, then a `Show earlier events` ghost
+button (+20 per tap). Nesting a scroll container inside the sheet would trap thumb-scroll on mobile —
+the same gesture conflict already documented for swipe-nav vs. `overflow-x-auto` regions. The rail
+terminates at the last *rendered* group, so it never implies history that isn't on screen.
+
+---
+
 ## Live feed row — "worth watching" signal badge (public, built owner-only 2026-08-01, flipped public 2026-08-03)
 
 A per-row badge in `LiveMatchRow.jsx`'s sub-row, answering a different question than everything in

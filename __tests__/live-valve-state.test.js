@@ -13,6 +13,8 @@ import {
   normalizeHeroIdList,
   collectItemIds,
   collectEventItemIds,
+  netWorthSwingOverWindow,
+  groupTimelineEvents,
 } from '../api/_liveValveState.js'
 
 describe('decodeTowerState', () => {
@@ -388,12 +390,15 @@ describe('shapeLiveEvents', () => {
     expect(shapeLiveEvents(events)[0].side).toBe('radiant')
   })
 
-  it('leaves side null for an ambiguous/unattributed kill', () => {
+  it('infers the beneficiary side for an ambiguous/unattributed kill instead of leaving it null', () => {
+    // Changed deliberately 2026-08-07: this previously asserted `null`, which is what produced the
+    // grey markers the owner flagged. A death always tells us which side BENEFITED even when the
+    // killer isn't resolvable, so there is no longer any "unknown side" case for a kill.
     const events = [{
       ...base, eventType: 'HeroKilled', team: 3, confidence: 'exact', heroId: 1,
       payload: { victimName: 'V', ambiguous: true },
     }]
-    expect(shapeLiveEvents(events)[0].side).toBeNull()
+    expect(shapeLiveEvents(events)[0].side).toBe('radiant')
   })
 
   it('Roshan events always carry side null — team attribution is never guessed', () => {
@@ -489,5 +494,172 @@ describe('shapeValveGoldHistory', () => {
   it('degrades to an empty array for non-array input', () => {
     expect(shapeValveGoldHistory(null)).toEqual([])
     expect(shapeValveGoldHistory(undefined)).toEqual([])
+  })
+})
+
+describe('shapeLiveEvents — kill side is always resolvable (no grey)', () => {
+  const base = { odMatchId: '1', gameTime: 90, confidence: 'exact' }
+
+  it('uses the real killer team when attribution succeeded', () => {
+    const [e] = shapeLiveEvents([{
+      ...base, eventType: 'HeroKilled', team: 3, heroId: 1,
+      payload: { victimName: 'V', killerTeam: 2, killerName: 'K' },
+    }])
+    expect(e.side).toBe('radiant')
+  })
+
+  it('infers the killer side as the OPPOSITE of the victim when attribution was declined', () => {
+    // The fix for the owner-reported grey markers: a dire hero died, so radiant benefited —
+    // knowable even though the specific killer is not.
+    const [e] = shapeLiveEvents([{
+      ...base, eventType: 'HeroKilled', team: 3, heroId: 1,
+      payload: { victimName: 'V', ambiguous: true },
+    }])
+    expect(e.side).toBe('radiant')
+    expect(e.victimSide).toBe('dire')
+    expect(e.ambiguous).toBe(true)
+  })
+
+  it('infers the other direction too', () => {
+    const [e] = shapeLiveEvents([{
+      ...base, eventType: 'HeroKilled', team: 2, heroId: 1,
+      payload: { victimName: 'V', ambiguous: true },
+    }])
+    expect(e.side).toBe('dire')
+    expect(e.victimSide).toBe('radiant')
+  })
+
+  it('never emits a null side for ANY kill, attributed or not — that was the grey-marker source', () => {
+    const events = shapeLiveEvents([
+      { ...base, eventType: 'HeroKilled', team: 2, heroId: 1, payload: { ambiguous: true } },
+      { ...base, eventType: 'HeroKilled', team: 3, heroId: 2, payload: { killerTeam: 2 } },
+      { ...base, eventType: 'HeroKilled', team: 3, heroId: 3, payload: {} },
+    ])
+    expect(events).toHaveLength(3)
+    for (const e of events) expect(e.side).not.toBeNull()
+  })
+})
+
+describe('netWorthSwingOverWindow', () => {
+  const history = [{ t: 0, lead: 0 }, { t: 60, lead: 500 }, { t: 120, lead: 2000 }, { t: 180, lead: 1200 }]
+
+  it('returns the lead delta across the window', () => {
+    expect(netWorthSwingOverWindow(history, 60, 120)).toBe(1500)
+  })
+
+  it('returns a negative swing when the lead moved toward dire', () => {
+    expect(netWorthSwingOverWindow(history, 120, 180)).toBe(-800)
+  })
+
+  it('uses the nearest sample BEFORE the start and the nearest AFTER the end', () => {
+    // window 70..110 sits between samples; brackets to 60 and 120.
+    expect(netWorthSwingOverWindow(history, 70, 110)).toBe(1500)
+  })
+
+  it('returns null — never 0 — when no sample exists before the window', () => {
+    expect(netWorthSwingOverWindow([{ t: 100, lead: 500 }], 50, 80)).toBeNull()
+  })
+
+  it('returns null when no sample exists after the window', () => {
+    expect(netWorthSwingOverWindow([{ t: 10, lead: 500 }], 50, 80)).toBeNull()
+  })
+
+  it('returns null on empty/missing history rather than fabricating a swing', () => {
+    expect(netWorthSwingOverWindow([], 0, 60)).toBeNull()
+    expect(netWorthSwingOverWindow(null, 0, 60)).toBeNull()
+    expect(netWorthSwingOverWindow(history, NaN, 60)).toBeNull()
+  })
+})
+
+describe('groupTimelineEvents', () => {
+  const kill = (time, side) => ({ type: 'HeroKilled', time, side, victimName: `v${time}` })
+  const HISTORY = [{ t: 0, lead: 0 }, { t: 600, lead: 1000 }, { t: 1200, lead: 4000 }]
+
+  it('groups 3+ nearby kills into one Teamfight', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant'), kill(608, 'radiant'), kill(615, 'dire')], HISTORY)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].kind).toBe('fight')
+    expect(groups[0].label).toBe('Teamfight')
+    expect(groups[0].radiantKills).toBe(2)
+    expect(groups[0].direKills).toBe(1)
+  })
+
+  it('labels exactly 2 nearby kills a Trade, not a Teamfight', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant'), kill(610, 'dire')], HISTORY)
+    expect(groups[0].kind).toBe('fight')
+    expect(groups[0].label).toBe('Trade')
+  })
+
+  it('leaves a lone kill ungrouped — one death is not a fight', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant')], HISTORY)
+    expect(groups[0].kind).toBe('event')
+    expect(groups[0].event.type).toBe('HeroKilled')
+  })
+
+  it('separates kills that are far apart into distinct groups', () => {
+    const groups = groupTimelineEvents([kill(100, 'radiant'), kill(900, 'dire')], HISTORY)
+    expect(groups).toHaveLength(2)
+    expect(groups.every(g => g.kind === 'event')).toBe(true)
+  })
+
+  it('attaches a fight net-worth swing from history', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant'), kill(605, 'radiant'), kill(610, 'radiant')], HISTORY)
+    expect(groups[0].swing).toBe(3000) // lead 1000 at t=600 -> 4000 at t=1200
+  })
+
+  it('sets swing to null when history cannot bracket the fight, rather than showing a wrong number', () => {
+    const groups = groupTimelineEvents([kill(5000, 'radiant'), kill(5005, 'radiant'), kill(5010, 'radiant')], HISTORY)
+    expect(groups[0].swing).toBeNull()
+  })
+
+  it('attaches items bought inside a fight window to that fight, not as separate rows', () => {
+    const events = [
+      kill(600, 'radiant'), kill(605, 'radiant'), kill(610, 'radiant'),
+      { type: 'ItemPurchased', time: 612, side: 'radiant', itemId: 63, playerName: 'p' },
+    ]
+    const groups = groupTimelineEvents(events, HISTORY)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].items).toHaveLength(1)
+    expect(groups[0].items[0].itemId).toBe(63)
+  })
+
+  it('keeps an item far from any fight as its own standalone row', () => {
+    const events = [
+      kill(600, 'radiant'), kill(605, 'radiant'), kill(610, 'radiant'),
+      { type: 'ItemPurchased', time: 2000, side: 'dire', itemId: 63, playerName: 'p' },
+    ]
+    const groups = groupTimelineEvents(events, HISTORY)
+    expect(groups).toHaveLength(2)
+    expect(groups[0].kind).toBe('event') // newest first -> the t=2000 item leads
+    expect(groups[0].event.itemId).toBe(63)
+  })
+
+  it('keeps Roshan as a standalone event, never folded into a fight', () => {
+    const events = [kill(600, 'radiant'), kill(605, 'radiant'), { type: 'RoshanKilled', time: 607, side: null }]
+    const groups = groupTimelineEvents(events, HISTORY)
+    const rosh = groups.find(g => g.kind === 'event' && g.event.type === 'RoshanKilled')
+    expect(rosh).toBeDefined()
+  })
+
+  it('returns groups NEWEST FIRST, so the live state needs no scrolling', () => {
+    const groups = groupTimelineEvents([kill(100, 'radiant'), kill(900, 'dire')], HISTORY)
+    expect(groups[0].time).toBe(900)
+    expect(groups[1].time).toBe(100)
+  })
+
+  it('never reports a fight duration — cadence makes it unknowable (see the honesty note)', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant'), kill(605, 'radiant'), kill(610, 'radiant')], HISTORY)
+    expect(groups[0]).not.toHaveProperty('duration')
+  })
+
+  it('degrades to an empty array for empty/missing input', () => {
+    expect(groupTimelineEvents([], HISTORY)).toEqual([])
+    expect(groupTimelineEvents(null, HISTORY)).toEqual([])
+  })
+
+  it('works with no history at all — fights still group, swings are just null', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant'), kill(605, 'radiant'), kill(610, 'radiant')])
+    expect(groups[0].kind).toBe('fight')
+    expect(groups[0].swing).toBeNull()
   })
 })

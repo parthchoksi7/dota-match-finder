@@ -4,7 +4,7 @@ import { createLogger, validateId } from '../_shared.js'
 import { fetchPsMatchDetail } from './liveSeriesGames.js'
 import { captureLiveStoryOnce, LIVE_STORY_KEYS, ITEM_MAP_KV_KEY } from './liveStoryCapture.js'
 import { indexGamesById } from '../_liveStoryDiff.js'
-import { shapeValvePulse, collectItemIds, collectEventItemIds, shapeLiveEvents, shapeValveGoldHistory } from '../_liveValveState.js'
+import { shapeValvePulse, collectItemIds, collectEventItemIds, shapeLiveEvents, shapeValveGoldHistory, groupTimelineEvents } from '../_liveValveState.js'
 import { teamPairMatch, resolveRadiantSide } from '../../src/teamMatching.js'
 
 // Valve-sourced live pulse. Given a PandaScore series match id, resolves the CURRENTLY RUNNING
@@ -202,6 +202,12 @@ export async function resolveValvePulse(pandaId, log) {
     } catch (err) {
       log.warn('live_valve_gold history read threw', { error: err?.message })
     }
+
+    // Timeline grouping runs LAST, after history — fight net-worth swings are read off
+    // `pulse.history`, so grouping before it would silently produce a swing-less timeline whenever
+    // the history read succeeded. Pure and in-memory; no extra I/O. An absent/failed history simply
+    // yields fights with `swing: null`, which the client renders without a swing line.
+    pulse.timeline = groupTimelineEvents(pulse.events, pulse.history || [])
 
     return { pulse }
   } catch (err) {

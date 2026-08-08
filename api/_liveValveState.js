@@ -10,7 +10,7 @@
 // are the single source for that mapping (proven over 146 real observed states, 0/1,314 constraint
 // violations) and this module calls them rather than hand-rolling a second copy that could drift.
 
-import { decodeTowerBit, decodeBarracksBit } from './_liveStoryDiff.js'
+import { decodeTowerBit, decodeBarracksBit, clusterTeamfights } from './_liveStoryDiff.js'
 
 // Valve's own side encoding inside `game.players[]`: 0=Radiant, 1=Dire, 2=broadcaster/caster.
 // This is NOT the 2=Radiant/3=Dire convention used everywhere else in this codebase (see
@@ -271,12 +271,24 @@ export function shapeLiveEvents(events, limit = 40) {
     if (!e || !FEED_EVENT_TYPES.has(e.eventType) || e.confidence === 'uncertain') continue
     const base = { time: e.gameTime, type: e.eventType, side: e.team === 3 ? 'dire' : e.team === 2 ? 'radiant' : null }
     if (e.eventType === 'HeroKilled') {
+      // `base.side` is the VICTIM's team (from e.team). The killer's side is the opposite — and
+      // that inference is always available, because a death is always recorded against someone.
+      const victimSide = base.side
+      const inferredKillerSide = victimSide === 'radiant' ? 'dire' : victimSide === 'dire' ? 'radiant' : null
       out.push({
         ...base,
-        // Colored by the KILLER's side (same convention GoldGraph's event markers use — "marker
-        // color = the side that triggered the event"), not the victim's team `base.side` carries.
-        // Falls back to null (neutral) when attribution was declined as ambiguous.
-        side: e.payload?.killerTeam === 3 ? 'dire' : e.payload?.killerTeam === 2 ? 'radiant' : null,
+        // Color encodes WHICH SIDE THIS FAVOURED, not who pressed the button — same "marker color =
+        // the side that triggered the event" convention GoldGraph uses, extended to stay resolvable
+        // when attribution is declined as ambiguous. Prefer the real killer's team; fall back to
+        // the inverse of the victim's.
+        //
+        // Falling back this way is honest even when a hero dies to a tower, creep or neutral rather
+        // than an enemy hero: the enemy side still BENEFITS from the death regardless of what landed
+        // the blow, and the row's own copy never names a killer in that case (it renders a bare
+        // "X dies"). The colour adds information the text doesn't claim. This is what removes the
+        // last "unknown -> grey" case from the feed.
+        side: e.payload?.killerTeam === 3 ? 'dire' : e.payload?.killerTeam === 2 ? 'radiant' : inferredKillerSide,
+        victimSide,
         victimHeroId: e.heroId,
         victimName: e.payload?.victimName ?? null,
         killerHeroId: e.payload?.killerHeroId ?? null,
@@ -297,6 +309,117 @@ export function shapeLiveEvents(events, limit = 40) {
     }
   }
   return out.slice(-limit)
+}
+
+/**
+ * Net-worth swing across a time window, read off the `live_valve_gold` history the pulse already
+ * fetches (`{ t, lead }[]`, ascending). No extra query — this is a scan over data in hand.
+ *
+ * Returns `null` — never 0, never a partial figure — unless a sample exists on BOTH sides of the
+ * window. This is the spec's single most important honesty rule: the capture cadence is ~30-60s
+ * while a fight lasts ~20s, so a fight can fall entirely between two samples. A one-sided lookup
+ * would produce a confidently wrong number, and one wrong number costs more trust than an absent
+ * one. Callers must render nothing when this is null (not "+0", not an em-dash placeholder).
+ *
+ * The value is a WINDOW delta, not a fight-attributable one: farm elsewhere on the map lands in the
+ * same window. Callers must word it "swing", never "from this fight".
+ */
+export function netWorthSwingOverWindow(history, startT, endT) {
+  if (!Array.isArray(history) || history.length === 0) return null
+  if (!Number.isFinite(startT) || !Number.isFinite(endT)) return null
+  let before = null
+  let after = null
+  for (const p of history) {
+    if (!p || !Number.isFinite(p.t) || !Number.isFinite(p.lead)) continue
+    if (p.t <= startT) before = p            // ascending -> last match wins (nearest before)
+    if (p.t >= endT && after === null) after = p  // first match wins (nearest after)
+  }
+  if (!before || !after) return null
+  return after.lead - before.lead
+}
+
+// A fight needs at least 2 kills. A single kill stays an ungrouped row — calling one death a
+// "fight" would be the same over-claiming the colour system was just fixed to avoid.
+const FIGHT_MIN_KILLS = 2
+// 3+ kills reads as a teamfight; exactly 2 is a trade/pickoff pair. Two labels, not three — the
+// kill-split badge carries the nuance, so more vocabulary would be redundant.
+const TEAMFIGHT_MIN_KILLS = 3
+
+/**
+ * Groups a shaped event list into the live timeline's display model: kill clusters become single
+ * `fight` groups, everything else stays a standalone `event`.
+ *
+ * Clustering is delegated to `clusterTeamfights` (`_liveStoryDiff.js`) — already written, tested,
+ * and until now unwired; this is its first consumer. Do not reimplement the windowing here.
+ *
+ * HONESTY NOTE on clustering: at sparse capture cadence the differ discovers several kills in one
+ * tick and stamps them with the SAME gameTime, so a cluster can be "kills we found together"
+ * rather than "kills that happened together". That's why a group describes its OUTCOME (who won it,
+ * what the net worth did) and never a duration — the outcome is true either way, a duration would
+ * not be.
+ *
+ * Items landing inside a fight's window are attached to that fight rather than listed separately,
+ * so a marquee purchase reads as part of the fight it belongs to.
+ *
+ * Output is newest-first (see the spec's ordering decision): the newest group sits directly under
+ * the section header, so the live state needs no scrolling and history extends downward.
+ */
+export function groupTimelineEvents(events, history = [], windowS = 20) {
+  if (!Array.isArray(events) || events.length === 0) return []
+
+  const kills = events.filter(e => e.type === 'HeroKilled')
+  const others = events.filter(e => e.type !== 'HeroKilled')
+
+  // clusterTeamfights sorts and windows by `gameTime`; the shaped events use `time`. Map across
+  // rather than duplicating the windowing logic, then map back.
+  const clusters = clusterTeamfights(kills.map(k => ({ ...k, gameTime: k.time })), windowS)
+
+  const groups = []
+  const claimedItemTimes = new Set()
+
+  for (const cluster of clusters) {
+    if (cluster.length < FIGHT_MIN_KILLS) {
+      groups.push({ kind: 'event', time: cluster[0].time, event: cluster[0] })
+      continue
+    }
+    const startT = cluster[0].time
+    const endT = cluster[cluster.length - 1].time
+    let radiantKills = 0
+    let direKills = 0
+    for (const k of cluster) {
+      // Credit the kill to the side that benefited — the same resolved `side` the colour uses, so
+      // the split badge and the row markers can never disagree.
+      if (k.side === 'radiant') radiantKills++
+      else if (k.side === 'dire') direKills++
+    }
+    // Items bought inside the fight's window belong to the fight. Window is inclusive of the
+    // clustering slack on the trailing edge so a purchase moments after the last kill still lands.
+    const items = others.filter(e =>
+      e.type === 'ItemPurchased' && e.time >= startT && e.time <= endT + windowS)
+    for (const it of items) claimedItemTimes.add(it)
+
+    groups.push({
+      kind: 'fight',
+      time: startT,
+      endTime: endT,
+      label: cluster.length >= TEAMFIGHT_MIN_KILLS ? 'Teamfight' : 'Trade',
+      radiantKills,
+      direKills,
+      // null whenever the history can't bracket the window — callers render no swing line at all.
+      swing: netWorthSwingOverWindow(history, startT, endT + windowS),
+      kills: cluster,
+      items,
+    })
+  }
+
+  for (const e of others) {
+    if (claimedItemTimes.has(e)) continue
+    groups.push({ kind: 'event', time: e.time, event: e })
+  }
+
+  // Newest first. Ties broken so a fight outranks a loose event at the same timestamp — the fight
+  // is the more consequential read.
+  return groups.sort((a, b) => (b.time - a.time) || ((a.kind === 'fight' ? -1 : 0) - (b.kind === 'fight' ? -1 : 0)))
 }
 
 /**

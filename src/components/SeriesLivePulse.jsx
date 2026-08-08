@@ -578,6 +578,25 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
 
+      {/* Directly under the graph, on purpose (moved up from the bottom of the sheet 2026-08-07):
+          the feed is what EXPLAINS the graph's swings, so the two read as cause and effect, and a
+          fight card's swing figure references the same quantity as the graph's y-axis. It also puts
+          the match narrative ahead of per-player stats, which is the right order for a viewer
+          arriving mid-game asking "what did I miss". Timeline is grouped + newest-first server-side
+          (groupTimelineEvents); only kills/Roshan/marquee items ever reach it. */}
+      {showLiveStory && valvePulse?.timeline?.length > 0 && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Live Event Feed</p>
+          <LiveEventFeed
+            groups={valvePulse.timeline}
+            heroes={heroMap}
+            itemNames={valvePulse.itemNames}
+            radiantName={valvePulse.radiantName}
+            direName={valvePulse.direName}
+          />
+        </div>
+      )}
+
       {/* Per-player telemetry sits after the graph, mirroring MatchDrawer's completed-match order
           (gold graph, then player stats) so the two surfaces read the same way. */}
       {/* Same always-truthy-container trap as Barracks above: gate on there actually being a
@@ -633,15 +652,6 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
 
-      {/* Event feed sits last — a chronological log reads naturally as the final, most-detailed
-          section, after the state summaries (score, map, board) that answer "how's it going" at a
-          glance. Only kills/Roshan/marquee items ever reach here — see shapeLiveEvents' whitelist. */}
-      {showLiveStory && valvePulse?.events?.length > 0 && (
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Live Event Feed</p>
-          <LiveEventFeed events={valvePulse.events} heroes={heroMap} itemNames={valvePulse.itemNames} />
-        </div>
-      )}
     </div>
   )
 }

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import HeroIcon from './HeroIcon'
 import ItemSlot from './ItemSlot'
-import { RoshanSvg } from './GameIndicators'
+import { RoshanSvg, TeamFightSvg } from './GameIndicators'
 import { HoverCard } from './FloatingTooltip'
+import { formatGoldMagnitude } from '../utils/liveScore'
 
 // Valve-sourced live surfaces for a running game: Roshan status, a per-player telemetry board, the
 // ban list, and a chronological event feed.
@@ -293,107 +295,221 @@ function heroDisplayName(heroId, heroes) {
 // same reasoning as `aegis`, unambiguous in every patch.
 const PICKUP_ONLY_ITEM_KEYS = new Set(['aegis', 'cheese'])
 
-function EventMarker({ side, children }) {
-  const cls =
-    side === 'radiant'
-      ? 'border-green-500 text-green-600 dark:text-green-500'
-      : side === 'dire'
-        ? 'border-red-500 text-red-600 dark:text-red-500'
-        : 'border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-600'
+
+// ── Timeline colour semantics ───────────────────────────────────────────────
+// One rule, no exceptions: a colour answers "WHICH SIDE DID THIS FAVOUR?" — never "who pressed the
+// button". That reframing is what removes the grey markers the owner flagged: an unattributed kill
+// still has a knowable beneficiary (the enemy of whoever died), so `shapeLiveEvents` always
+// resolves a side for a kill and there is no "unknown" branch left to paint grey.
+//
+// Roshan is the one event with genuinely no side — but it is not UNKNOWN, it is NEUTRAL, which is a
+// different thing and deserves its own colour rather than a shrug. Amber, matching both the
+// RoshanStatus card above and GoldGraph's own Roshan marker hue (#f59e0b).
+//
+// A fight is coloured by EVENT TYPE (cyan, matching GoldGraph's teamfight marker) rather than by a
+// side, because a fight has two sides by definition. Its kill-split badge carries the side
+// information instead, which is also what lets an even 2-2 fight render honestly without needing a
+// single colour to mean "both".
+const SIDE_MARKER = {
+  radiant: 'border-green-500 text-green-600 dark:text-green-500',
+  dire: 'border-red-500 text-red-600 dark:text-red-500',
+}
+const NEUTRAL_MARKER = 'border-amber-500 text-amber-600 dark:text-amber-400'
+const FIGHT_MARKER = 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
+
+function Marker({ tone, children, size = 'w-6 h-6' }) {
   return (
-    <span className={`relative z-[1] flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center bg-white dark:bg-gray-950 ${cls}`}>
+    <span className={`relative z-[1] flex-shrink-0 ${size} rounded-full border-2 flex items-center justify-center bg-white dark:bg-gray-950 ${tone}`}>
       {children}
     </span>
   )
 }
 
-function EventRow({ event, heroes, itemNames }) {
-  let icon, text, sub
+const KillIcon = () => (
+  <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <circle cx="8" cy="6" r="3" />
+    <path d="M4 14c0-2.5 1.8-4 4-4s4 1.5 4 4" />
+  </svg>
+)
+const ItemIcon = () => (
+  <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <path d="M8 1l1.8 4.6L14.5 6l-3.6 3 1 4.9L8 11.5 3.9 13.9l1-4.9L1.5 6l4.7-.4z" />
+  </svg>
+)
 
+// Resolves one event to its display sentence + marker tone. Kept pure and separate from rendering
+// so both the standalone row and the in-fight nested row share one wording source — two copies of
+// this is exactly how "buys Aegis" style bugs get fixed in one place and survive in the other.
+function describeEvent(event, heroes, itemNames) {
   if (event.type === 'HeroKilled') {
     const victim = event.victimName || heroDisplayName(event.victimHeroId, heroes) || 'A hero'
-    icon = (
-      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <circle cx="8" cy="6" r="3" />
-        <path d="M4 14c0-2.5 1.8-4 4-4s4 1.5 4 4" />
-      </svg>
-    )
     if (event.ambiguous || !event.killerName) {
       // No sub-line explaining WHY the killer is unnamed — "poll cadence" is internal jargon a
-      // viewer has no use for, and the bare fact ("X dies") is already honest on its own; it
-      // doesn't claim a killer that isn't there.
-      text = `${victim} dies`
-      sub = null
-    } else {
-      const killer = event.killerName || heroDisplayName(event.killerHeroId, heroes) || 'Unknown'
-      text = `${killer} kills ${victim}`
-      sub = null
+      // viewer has no use for, and the bare fact is already honest on its own.
+      return { text: `${victim} dies`, tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER, icon: <KillIcon /> }
     }
-  } else if (event.type === 'RoshanKilled') {
-    icon = <RoshanSvg className="w-3 h-3" />
-    text = 'Roshan killed'
-    sub = 'Killing team not reported by this feed'
-  } else if (event.type === 'ItemPurchased') {
-    const player = event.playerName || heroDisplayName(event.heroId, heroes) || 'A player'
-    // itemNames is the SAME scoped {id: {key, dname}} map ItemSlot already reads — the server
-    // unions it with every event's itemId (see collectEventItemIds in _liveValveState.js) so an
-    // item bought and since sold/displaced still resolves here even though it's no longer in
-    // anyone's visible 6 slots. A miss (map not loaded yet, or a genuinely unresolved id) degrades
-    // to the generic phrasing rather than blank/undefined text.
-    const itemName = itemNames?.[event.itemId]?.dname
-    const isPickup = PICKUP_ONLY_ITEM_KEYS.has(itemNames?.[event.itemId]?.key)
-    const verb = isPickup ? 'picks up' : 'buys'
-    icon = (
-      <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M8 1l1.8 4.6L14.5 6l-3.6 3 1 4.9L8 11.5 3.9 13.9l1-4.9L1.5 6l4.7-.4z" />
-      </svg>
-    )
-    // Neutral verb when the name itself didn't resolve — "buys" would be a real guess in that
-    // case (the item could just as easily be an unresolved pickup), and there's nothing to lose
-    // by staying accurate here since the item name is missing either way.
-    text = itemName ? `${player} ${verb} ${itemName}` : `${player} gets a marquee item`
-    sub = null
-  } else {
-    return null
+    const killer = event.killerName || heroDisplayName(event.killerHeroId, heroes) || 'Unknown'
+    return { text: `${killer} kills ${victim}`, tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER, icon: <KillIcon /> }
   }
+  if (event.type === 'RoshanKilled') {
+    return { text: 'Roshan killed', tone: NEUTRAL_MARKER, icon: <RoshanSvg className="w-3 h-3" /> }
+  }
+  if (event.type === 'ItemPurchased') {
+    const player = event.playerName || heroDisplayName(event.heroId, heroes) || 'A player'
+    const meta = itemNames?.[event.itemId]
+    const verb = PICKUP_ONLY_ITEM_KEYS.has(meta?.key) ? 'picks up' : 'buys'
+    return {
+      text: meta?.dname ? `${player} ${verb} ${meta.dname}` : `${player} gets a marquee item`,
+      tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
+      icon: <ItemIcon />,
+    }
+  }
+  return null
+}
 
+function EventRow({ event, heroes, itemNames, compact = false }) {
+  const d = describeEvent(event, heroes, itemNames)
+  if (!d) return null
   return (
     <div className="relative flex items-start gap-2.5 py-1.5">
-      <EventMarker side={event.side}>{icon}</EventMarker>
+      <Marker tone={d.tone} size={compact ? 'w-5 h-5' : 'w-6 h-6'}>{d.icon}</Marker>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 tabular-nums flex-shrink-0">
             {formatClock(event.time)}
           </span>
-          <span className="text-xs font-semibold text-gray-900 dark:text-white">{text}</span>
+          <span className={`${compact ? 'text-[11px]' : 'text-xs'} font-semibold text-gray-900 dark:text-white`}>
+            {d.text}
+          </span>
         </div>
-        {sub && <p className="text-[10px] text-gray-500 dark:text-gray-500 mt-0.5">{sub}</p>}
       </div>
     </div>
   )
 }
 
-export function LiveEventFeed({ events, heroes, itemNames }) {
-  if (!events || events.length === 0) return null
+// Kill split, e.g. "3–1". The two digits carry the side colours, which is how a fight communicates
+// BOTH sides without any single element needing to mean "both" — and why an even 2-2 fight needs no
+// special-case colour.
+function KillSplit({ radiantKills, direKills }) {
+  return (
+    <span className="flex-shrink-0 text-[11px] font-bold tabular-nums">
+      <span className="text-green-600 dark:text-green-500">{radiantKills}</span>
+      <span className="text-gray-300 dark:text-gray-700 mx-0.5">–</span>
+      <span className="text-red-600 dark:text-red-500">{direKills}</span>
+    </span>
+  )
+}
+
+function FightCard({ group, heroes, itemNames, radiantName, direName }) {
+  const [expanded, setExpanded] = useState(false)
+  const swing = group.swing
+  // `formatGoldMagnitude` already carries its own sign — never prepend another (the `++5.0k` bug
+  // this codebase shipped once and documents in DESIGN_GUIDELINES.md).
+  const swingMag = Number.isFinite(swing) ? formatGoldMagnitude(Math.abs(swing)) : null
+  const swingTeam = swing > 0 ? (radiantName || 'Radiant') : (direName || 'Dire')
+  const swingClass = swing > 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
+
+  const label = `${group.label} at ${formatClock(group.time)}. ` +
+    `${radiantName || 'Radiant'} ${group.radiantKills}, ${direName || 'Dire'} ${group.direKills}.` +
+    (swingMag ? ` ${swingTeam} gained ${swingMag} net worth over this window.` : '')
+
+  return (
+    <div className="relative border border-gray-200 dark:border-gray-800 rounded my-1.5 bg-white dark:bg-gray-950">
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        aria-expanded={expanded}
+        aria-label={label}
+        className="focus-ring w-full flex items-start gap-2.5 p-2 min-h-[44px] text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors rounded"
+      >
+        <Marker tone={FIGHT_MARKER}><TeamFightSvg className="w-3 h-3" compact /></Marker>
+        <span className="min-w-0 flex-1 pt-0.5">
+          <span className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 tabular-nums flex-shrink-0">
+              {formatClock(group.time)}
+            </span>
+            <span className="text-xs font-bold text-gray-900 dark:text-white flex-1">{group.label}</span>
+            <KillSplit radiantKills={group.radiantKills} direKills={group.direKills} />
+          </span>
+          {/* Rendered ONLY when the history could bracket the window. Never "+0", never a dash —
+              a wrong swing costs more trust than an absent one. See netWorthSwingOverWindow. */}
+          {swingMag && (
+            <span className={`block text-[10px] font-semibold tabular-nums mt-0.5 ${swingClass}`}>
+              {swingTeam} {swingMag} swing
+            </span>
+          )}
+        </span>
+        <svg
+          className={`w-3 h-3 mt-1 text-gray-400 transition-transform duration-150 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"
+        >
+          <path d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="px-2 pb-2 pl-4">
+          {group.kills.map((k, i) => (
+            <EventRow key={`k${i}`} event={k} heroes={heroes} itemNames={itemNames} compact />
+          ))}
+          {group.items.map((it, i) => (
+            <EventRow key={`i${i}`} event={it} heroes={heroes} itemNames={itemNames} compact />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// How many groups render before the "show earlier" affordance. Bounds DOM cost on a long game —
+// uncapped, a 60-minute match re-renders ~150 rows on every 40s poll.
+const INITIAL_GROUPS = 8
+const PAGE_SIZE = 20
+
+/**
+ * `groups` is the server-shaped `pulse.timeline` (newest first — see groupTimelineEvents).
+ *
+ * Deliberately NOT an internally-scrolling container: the sheet already owns vertical scroll, and
+ * nesting a scroller here traps thumb-scroll on mobile (the same gesture-conflict rule
+ * DESIGN_GUIDELINES.md already documents for swipe-nav vs. overflow regions). Pagination gives
+ * explicit scrollback control instead, without fighting the page.
+ */
+export function LiveEventFeed({ groups, heroes, itemNames, radiantName, direName }) {
+  const [visible, setVisible] = useState(INITIAL_GROUPS)
+  if (!groups || groups.length === 0) return null
+
+  const shown = groups.slice(0, visible)
+  const remaining = groups.length - shown.length
 
   return (
     <div className="relative">
-      {/* Timeline rail — spans behind the markers, same left offset as EventMarker's 24px circle
-          centered under a 2.5px gap. */}
-      <div className="absolute left-[11px] top-2 bottom-2 w-px bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
-      <div className="space-y-0">
-        {events.map((e, i) => (
-          <EventRow key={`${e.type}-${e.time}-${i}`} event={e} heroes={heroes} itemNames={itemNames} />
-        ))}
-      </div>
-      <div className="flex items-center gap-2.5 pt-1.5">
+      {/* Live cue sits at the TOP because the newest group is at the top — pairing it with the
+          section head is the whole point of the newest-first ordering. */}
+      <div className="flex items-center gap-2.5 pb-1">
         <span className="relative z-[1] flex-shrink-0 w-6 h-6 flex items-center justify-center">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         </span>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">
-          Live — feed continues
-        </span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">Live</span>
       </div>
+
+      {/* Rail terminates at the last RENDERED group — running it past them would imply history
+          that isn't on screen. */}
+      <div className="absolute left-[11px] top-7 bottom-10 w-px bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
+
+      {shown.map((g, i) => (
+        g.kind === 'fight'
+          ? <FightCard key={`g${i}`} group={g} heroes={heroes} itemNames={itemNames} radiantName={radiantName} direName={direName} />
+          : <EventRow key={`g${i}`} event={g.event} heroes={heroes} itemNames={itemNames} />
+      ))}
+
+      {remaining > 0 && (
+        <button
+          type="button"
+          onClick={() => setVisible(v => v + PAGE_SIZE)}
+          className="focus-ring mt-2 w-full min-h-[44px] rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 transition-colors"
+        >
+          Show earlier events
+        </button>
+      )}
     </div>
   )
 }
