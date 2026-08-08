@@ -104,6 +104,18 @@ Everything that floats above the page pulls its surface from `src/components/Flo
 Never hand-roll a floating card — that's what produced the three-radii/three-shadow drift the
 2026-07-21 audit found (`.claude/design-consistency-audit-2026-07.md` §3).
 
+**THE RULE, no exceptions: every floating element is `position: fixed`, computed from measured
+rects, never `position: absolute`.** `absolute` is clipped by ANY ancestor with `overflow:hidden`
+— and nearly everything a tooltip renders inside (`Sheet.jsx`'s drawer/companion shell, any card
+with horizontal scroll) has one on at least one axis. This shipped as a real, visible bug
+(2026-08-08: `HoverCard`'s tooltip clipped by the sheet when hovering the live player board's level
+badge) specifically because `HoverCard` — the component every new hover tooltip reaches for first —
+was the one floating-layer primitive still using `absolute`, while `InfoButton` below and
+`GoldGraph`'s scrub tooltip had already learned this lesson. It is now fixed **in `HoverCard`
+itself**, so this is a property of the shared component, not something each call site has to get
+right — but if you are ever tempted to position a NEW floating element by hand instead of through
+`HoverCard`/`InfoButton`, `position: fixed` + the clamp helpers below is not optional.
+
 **One radius/shadow pair for the whole layer:** `rounded-md shadow-xl`. A new floating element
 only has to pick a surface:
 
@@ -113,17 +125,19 @@ only has to pick a surface:
 | `TOOLTIP_PANEL` | `bg-white dark:bg-gray-900` + `border-gray-200 dark:border-gray-700` | Click-opened informational popovers carrying body copy or links (e.g. the tournament stage-info card). Theme-aware, matches the card system. |
 
 **Geometry helpers** (don't re-inline the `Math.max`/`Math.min` sandwich):
-- `clampLeft(left, width)` / `clampTop(top)` — keep a floating element fully on screen, 8px margin (`TOOLTIP_EDGE_MARGIN`). Any `position: fixed` tooltip needs this: `fixed` is what lets it escape the drawer's `overflow-x-hidden`, and clamping is what stops it clipping at a screen edge.
+- `clampLeft(left, width)` / `clampTop(top)` — keep a `fixed`, measured-rect floating element fully on screen, 8px margin (`TOOLTIP_EDGE_MARGIN`). Every floating element needs this — clamping is what stops a correctly-`fixed` element from clipping at a screen edge instead of an ancestor's overflow.
 - `SCRUB_TOOLTIP_WIDTH` — clamp width for the compact graph-scrub readout.
 
 **Components:**
-- `HoverCard` — hover-delayed card anchored above its trigger. Owns the show/hide timers (120ms show so a mouse crossing a dense item row doesn't strobe, 80ms hide so travel onto the card doesn't dismiss it), the invisible hover bridge that makes that travel possible, timer cleanup on unmount, and `align="left" | "right" | "center"` for row-edge items. Used by `ItemSlot` and `PlayerStatsSection`'s consumed-upgrade icons.
+- `HoverCard` — hover-delayed card anchored above its trigger. Owns the show/hide timers (120ms show so a mouse crossing a dense item row doesn't strobe, 150ms hide so travel onto the card doesn't dismiss it), timer cleanup on unmount, and `align="left" | "right" | "center"` for row-edge items. **Two-pass measured positioning**: on show, renders once off-screen (`useLayoutEffect` runs before paint, so nothing visibly flashes there), measures BOTH the trigger's rect and the tooltip's own rendered rect (content is dynamic-width, so the tooltip's size can't be assumed from the trigger alone), then commits a `clampLeft`/`clampTop`-clamped `fixed` position. Re-measures whenever `content` changes too, since a different tooltip body can be a different width. No more "invisible hover bridge" element — a `fixed`, clamped tooltip can land anywhere relative to its trigger, so a bridge shaped to sit directly above the trigger no longer lines up with anything real; the longer 150ms hide delay covers the gap instead. Used by `ItemSlot`, `PlayerStatsSection`'s consumed-upgrade icons and position badge, and the live player board's level badge.
 - `HoverCardTitle`, `WikiLink` — the title line and the Dota 2 Wiki footer row (divider + external link + `aria-label`) shared by both item hover cards.
 - `InfoButton` — click-opened "i" info button + `TOOLTIP_PANEL` popover for explaining a UI term inline (props: `ariaLabel`, `title`, `description`, `width`, `buttonClassName` for a non-default hit area). Fixed-position, anchored below the button, clamped on-screen, closes on outside click. Used by the match drawer's "Channel link" explainer (see "Stream picker" below) and by `TournamentDetail.jsx`'s `StageInfoTooltip` (a thin wrapper passing `buttonClassName="p-[15px]"` to keep its 44px touch target).
 
 Use the raw `TOOLTIP_SURFACE` constant (not `HoverCard`) when the trigger already owns its own
 open/close mechanism — a portal-positioned tooltip, a caller-measured `fixed` position, or a
 pure-CSS `group-hover` label where a component's timers and re-renders would be disproportionate.
+Whatever you build, it still needs to be `fixed` + clamped — the exemption here is from `HoverCard`'s
+timer/measurement machinery, not from the positioning rule itself.
 
 ### Buttons
 | Variant | Classes |

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 
 /**
  * FloatingTooltip — the shared surface + geometry for everything in the app's floating layer
@@ -59,29 +59,42 @@ export function clampTop(top, margin = TOOLTIP_EDGE_MARGIN) {
   return Math.max(margin, top)
 }
 
-const ALIGN_CLASSES = {
-  left: 'left-0',
-  right: 'right-0',
-  center: 'left-1/2 -translate-x-1/2',
-}
-
 /**
  * Hover-delayed card anchored above its trigger.
  *
  * Owns the open/close timers (a show delay so a mouse crossing a dense item row doesn't strobe
- * tooltips, a shorter hide delay so travel onto the card itself doesn't dismiss it), the
- * invisible hover bridge that makes that travel possible, and the surface. Both item-hover
- * cards (`ItemSlot`, `PlayerStatsSection`'s `ConsumedUpgrade`) had independently hand-rolled
- * byte-identical copies of all of it.
+ * tooltips, a longer hide delay so travel onto the card itself doesn't dismiss it) and the
+ * surface. Both item-hover cards (`ItemSlot`, `PlayerStatsSection`'s `ConsumedUpgrade`) had
+ * independently hand-rolled byte-identical copies of all of it before this was extracted.
+ *
+ * POSITIONING: `fixed`, computed from real measured rects, not CSS `absolute` + `bottom-full`.
+ * This is not a style preference — an `absolute` tooltip is clipped by ANY ancestor with
+ * `overflow:hidden`, and nearly everything this renders inside (`Sheet.jsx`'s drawer/companion
+ * shell) has one on at least one axis. That clipping bug shipped for real (level badge in the
+ * live player board, 2026-08-08) specifically because `HoverCard` — the default reach for any new
+ * hover tooltip — was the one floating-layer primitive that never got the `fixed`-escapes-overflow
+ * treatment `InfoButton` below and `GoldGraph`'s scrub tooltip already use. See
+ * DESIGN_GUIDELINES.md's "Floating layer" section: THIS is now the one rule for every floating
+ * element in the app, no exceptions.
+ *
+ * Two-pass measure: render once (off-screen, so nothing paints there — `useLayoutEffect` runs
+ * before the browser paints, so there's no visible flash), measure both the trigger's and the
+ * tooltip's OWN rendered rect (content is dynamic-width, so the tooltip's size can't be assumed),
+ * then commit a `clampLeft`/`clampTop`-clamped fixed position. Re-runs on `content` too — a
+ * changing tooltip body (e.g. hover moves to a different item) can change its own width.
  *
  * @param {object}          props
  * @param {React.ReactNode} props.content    Tooltip body, rendered inside the surface.
  * @param {React.ReactNode} props.children   The trigger.
- * @param {'left'|'right'|'center'} [props.align='center']  Horizontal pin, for row-edge items.
- * @param {string}          [props.className]  Classes for the positioning wrapper.
+ * @param {'left'|'right'|'center'} [props.align='center']  Horizontal pin, for row-edge items —
+ *   which edge of the TRIGGER the tooltip's own edge lines up with before clamping.
+ * @param {string}          [props.className]  Classes for the trigger wrapper.
  */
 export function HoverCard({ content, children, align = 'center', className = '' }) {
   const [visible, setVisible] = useState(false)
+  const [pos, setPos] = useState(null)
+  const triggerRef = useRef(null)
+  const tooltipRef = useRef(null)
   const showTimer = useRef(null)
   const hideTimer = useRef(null)
 
@@ -92,7 +105,12 @@ export function HoverCard({ content, children, align = 'center', className = '' 
 
   const scheduleHide = useCallback(() => {
     clearTimeout(showTimer.current)
-    hideTimer.current = setTimeout(() => setVisible(false), 80)
+    // Longer than the old 80ms: this used to be paired with an "invisible bridge" element that
+    // covered the gap while the pointer travelled from trigger to card. A `fixed`-positioned
+    // tooltip can land anywhere relative to its trigger once clamped, so that bridge no longer
+    // lines up with anything real — dropped in favor of a bit more grace period instead of a
+    // geometrically-wrong bridge.
+    hideTimer.current = setTimeout(() => setVisible(false), 150)
   }, [])
 
   // Neither original call site cleaned these up, so unmounting mid-delay (closing the sheet
@@ -102,8 +120,24 @@ export function HoverCard({ content, children, align = 'center', className = '' 
     clearTimeout(hideTimer.current)
   }, [])
 
+  useLayoutEffect(() => {
+    if (!visible || !triggerRef.current || !tooltipRef.current) {
+      setPos(null)
+      return
+    }
+    const trig = triggerRef.current.getBoundingClientRect()
+    const tip = tooltipRef.current.getBoundingClientRect()
+    let left
+    if (align === 'left') left = trig.left
+    else if (align === 'right') left = trig.right - tip.width
+    else left = trig.left + trig.width / 2 - tip.width / 2
+    // Anchored above the trigger, same as the old bottom-full — mb-2 was 8px, matched here.
+    setPos({ top: clampTop(trig.top - tip.height - 8), left: clampLeft(left, tip.width) })
+  }, [visible, align, content])
+
   return (
     <div
+      ref={triggerRef}
       className={`relative ${className}`}
       onMouseEnter={scheduleShow}
       onMouseLeave={scheduleHide}
@@ -112,20 +146,14 @@ export function HoverCard({ content, children, align = 'center', className = '' 
     >
       {children}
 
-      {/* Invisible bridge: keeps the card open while the pointer travels from trigger to card. */}
       {visible && content && (
         <div
-          className="absolute bottom-full left-0 right-0 h-2"
-          aria-hidden="true"
-          onMouseEnter={scheduleShow}
-          onMouseLeave={scheduleHide}
-        />
-      )}
-
-      {visible && content && (
-        <div
+          ref={tooltipRef}
           role="tooltip"
-          className={`absolute bottom-full mb-2 z-[9999] ${ALIGN_CLASSES[align] ?? ALIGN_CLASSES.center}`}
+          className="fixed z-[9999]"
+          // Off-screen and invisible until the layout effect above has measured the tooltip's
+          // real size and computed a clamped position — never render at a guessed spot.
+          style={pos ? { top: pos.top, left: pos.left } : { top: -9999, left: -9999, visibility: 'hidden' }}
           onMouseEnter={scheduleShow}
           onMouseLeave={scheduleHide}
         >
