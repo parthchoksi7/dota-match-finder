@@ -68,17 +68,44 @@ export function RoshanStatus({ respawnTimer }) {
 // The ultimate ring is the cheapest genuinely-new signal in the whole audit: `ultimate_state` is
 // an undocumented bitmask decoded empirically at 99.5% reliability, and nothing on the site
 // currently exposes it from either pipeline.
+// Same solid/dashed ring convention the legend below explains — a native `title` alone (the
+// original implementation) is slow to appear, unstyled, and invisible on touch, so this uses the
+// same HoverCard treatment as the level badge below it rather than a second, weaker affordance.
 function UltimateRing({ ultimate }) {
   if (!ultimate?.unlocked) return null
   const ready = ultimate.ready
+  const label = ready ? 'Ultimate ready' : `Ultimate on cooldown${ultimate.cooldown ? ` — ${ultimate.cooldown}s` : ''}`
   return (
-    <span
-      className={`pointer-events-none absolute -inset-0.5 rounded border-2 ${
-        ready ? 'border-green-500' : 'border-dashed border-gray-400 dark:border-gray-600'
-      }`}
-      aria-hidden="true"
-      title={ready ? 'Ultimate ready' : `Ultimate on cooldown${ultimate.cooldown ? ` — ${ultimate.cooldown}s` : ''}`}
-    />
+    <span className="absolute -inset-0.5">
+      <HoverCard className="block w-full h-full" content={<span className="text-[11px] font-medium">{label}</span>}>
+        <span
+          tabIndex={0}
+          aria-label={label}
+          className={`block w-full h-full rounded border-2 ${
+            ready ? 'border-green-500' : 'border-dashed border-gray-400 dark:border-gray-600'
+          }`}
+        />
+      </HoverCard>
+    </span>
+  )
+}
+
+// Persistent legend, not hover-only — a ring around the hero portrait isn't a self-explanatory
+// affordance (confirmed: an owner looking at the real board couldn't tell it meant anything
+// without asking), so the meaning needs to be visible without requiring the interaction that
+// explains it. Same swatch convention DotaMinimap's tower legend already uses.
+function UltimateLegend() {
+  return (
+    <div className="flex items-center gap-3 mb-2">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full border-2 border-green-500 flex-shrink-0" aria-hidden="true" />
+        <span className="text-[9px] text-gray-400 dark:text-gray-600">Ultimate ready</span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-gray-400 dark:border-gray-600 flex-shrink-0" aria-hidden="true" />
+        <span className="text-[9px] text-gray-400 dark:text-gray-600">On cooldown</span>
+      </span>
+    </div>
   )
 }
 
@@ -207,6 +234,7 @@ export function LivePlayerBoard({ players, heroes, itemNames, radiantName, direN
 
   return (
     <div className="space-y-4">
+      <UltimateLegend />
       {[
         { key: 'radiant', label: radiantName, list: players.radiant, cls: 'text-green-600 dark:text-green-500' },
         { key: 'dire', label: direName, list: players.dire, cls: 'text-red-600 dark:text-red-500' },
