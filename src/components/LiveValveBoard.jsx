@@ -54,9 +54,6 @@ export function RoshanStatus({ respawnTimer }) {
         <p className="text-xs font-bold text-gray-900 dark:text-white">
           {alive ? 'Roshan is up' : 'Roshan respawning'}
         </p>
-        <p className="text-[10px] text-gray-500 dark:text-gray-500 leading-snug">
-          Killing team not reported by this feed
-        </p>
       </div>
       {!alive && (
         <span className="flex-shrink-0 text-xs font-bold tabular-nums text-amber-600 dark:text-amber-400">
@@ -337,10 +334,28 @@ const ItemIcon = () => (
   </svg>
 )
 
+// Real item art inside the marker circle instead of a generic glyph — same CDN pattern ItemSlot
+// already uses. Falls back to the generic ItemIcon glyph on a 404/missing key rather than a
+// broken-image box, matching ItemSlot's own degrade-safe convention.
+function ItemEventIcon({ itemKey, compact }) {
+  const [errored, setErrored] = useState(false)
+  if (!itemKey || errored) return <ItemIcon />
+  return (
+    <img
+      src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${itemKey}_lg.png`}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      className={`${compact ? 'w-4 h-4' : 'w-[18px] h-[18px]'} rounded-full object-cover`}
+      onError={() => setErrored(true)}
+    />
+  )
+}
+
 // Resolves one event to its display sentence + marker tone. Kept pure and separate from rendering
 // so both the standalone row and the in-fight nested row share one wording source — two copies of
 // this is exactly how "buys Aegis" style bugs get fixed in one place and survive in the other.
-function describeEvent(event, heroes, itemNames) {
+function describeEvent(event, heroes, itemNames, compact = false) {
   if (event.type === 'HeroKilled') {
     const victim = event.victimName || heroDisplayName(event.victimHeroId, heroes) || 'A hero'
     if (event.ambiguous || !event.killerName) {
@@ -361,14 +376,14 @@ function describeEvent(event, heroes, itemNames) {
     return {
       text: meta?.dname ? `${player} ${verb} ${meta.dname}` : `${player} gets a marquee item`,
       tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
-      icon: <ItemIcon />,
+      icon: <ItemEventIcon itemKey={meta?.key} compact={compact} />,
     }
   }
   return null
 }
 
 function EventRow({ event, heroes, itemNames, compact = false }) {
-  const d = describeEvent(event, heroes, itemNames)
+  const d = describeEvent(event, heroes, itemNames, compact)
   if (!d) return null
   return (
     <div className="relative flex items-start gap-2.5 py-1.5">

@@ -178,3 +178,51 @@ describe('LiveEventFeed — event wording (retained guards)', () => {
     expect(screen.queryByText(/not attributable/)).not.toBeInTheDocument()
   })
 })
+
+describe('LiveEventFeed — item purchase marker shows real item art', () => {
+  it('renders the item\'s own icon (not the generic glyph) inside the side-coloured marker', () => {
+    const { container } = renderFeed([
+      { kind: 'event', time: 600, event: { type: 'ItemPurchased', time: 600, side: 'radiant', playerName: 'bashka', itemId: 63 } },
+    ])
+    const img = container.querySelector('img[src*="black_king_bar"]')
+    expect(img).not.toBeNull()
+    // The marker circle itself still carries the side colour — the icon swap doesn't remove it.
+    expect(img.closest('span').className).toMatch(/border-green-500/)
+  })
+
+  it('colours the marker red for a dire purchase, green for radiant', () => {
+    const { container } = renderFeed([
+      { kind: 'event', time: 600, event: { type: 'ItemPurchased', time: 600, side: 'dire', playerName: 'Norma', itemId: 63 } },
+    ])
+    const img = container.querySelector('img[src*="black_king_bar"]')
+    expect(img.closest('span').className).toMatch(/border-red-500/)
+  })
+
+  it('falls back to the generic glyph (no broken image) when the item name never resolved', () => {
+    const { container } = renderFeed([
+      { kind: 'event', time: 600, event: { type: 'ItemPurchased', time: 600, side: 'radiant', playerName: 'bashka', itemId: 999 } },
+    ])
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('falls back to the generic glyph on an image load error, rather than a broken-image box', () => {
+    const { container } = renderFeed([
+      { kind: 'event', time: 600, event: { type: 'ItemPurchased', time: 600, side: 'radiant', playerName: 'bashka', itemId: 63 } },
+    ])
+    const img = container.querySelector('img')
+    fireEvent.error(img)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('sizes the icon smaller inside a compact (in-fight) row than a standalone row', () => {
+    const fightWithItem = fightGroup({
+      items: [{ type: 'ItemPurchased', time: 1450, side: 'radiant', playerName: 'bashka', itemId: 63 }],
+    })
+    const { container } = renderFeed([fightWithItem])
+    fireEvent.click(screen.getByRole('button', { name: /teamfight/i }))
+    const img = container.querySelector('img[src*="black_king_bar"]')
+    expect(img.className).toMatch(/w-4 h-4/)
+  })
+})
