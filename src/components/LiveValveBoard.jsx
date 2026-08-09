@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import HeroIcon from './HeroIcon'
+import HeroIcon, { HERO_ICON_BASE } from './HeroIcon'
 import ItemSlot from './ItemSlot'
 import { RoshanSvg, TeamFightSvg } from './GameIndicators'
 import { HoverCard } from './FloatingTooltip'
@@ -309,6 +309,11 @@ function heroDisplayName(heroId, heroes) {
   return heroes?.[heroId]?.name || null
 }
 
+function heroDisplayKey(heroId, heroes) {
+  if (!heroId) return null
+  return heroes?.[heroId]?.key || null
+}
+
 // Items that can NEVER be bought from the shop — they only ever enter an inventory as a Roshan or
 // Tormentor drop. The differ's underlying event (`_liveStoryDiff.js`'s `ItemPurchased`, name
 // inherited from its original shop-purchase-only design) fires on ANY marquee item's first
@@ -381,6 +386,26 @@ function ItemEventIcon({ itemKey, compact }) {
   )
 }
 
+// Same circular-crop convention as ItemEventIcon, applied to whichever hero describeEvent has
+// named as the row's grammatical subject (killer when attributed, victim when not — never
+// "always the killer", since that would show a portrait contradicting the sentence next to it).
+// Falls back to the generic KillIcon glyph — never a broken image, never a guess — exactly
+// today's default state when the key can't be resolved.
+function KillHeroIcon({ heroKey, compact }) {
+  const [errored, setErrored] = useState(false)
+  if (!heroKey || errored) return <KillIcon />
+  return (
+    <img
+      src={`${HERO_ICON_BASE}${heroKey}.png`}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      className={`${compact ? 'w-4 h-4' : 'w-[18px] h-[18px]'} rounded-full object-cover`}
+      onError={() => setErrored(true)}
+    />
+  )
+}
+
 // Resolves one event to its display sentence + marker tone. Kept pure and separate from rendering
 // so both the standalone row and the in-fight nested row share one wording source — two copies of
 // this is exactly how "buys Aegis" style bugs get fixed in one place and survive in the other.
@@ -389,11 +414,20 @@ function describeEvent(event, heroes, itemNames, compact = false) {
     const victim = event.victimName || heroDisplayName(event.victimHeroId, heroes) || 'A hero'
     if (event.ambiguous || !event.killerName) {
       // No sub-line explaining WHY the killer is unnamed — "poll cadence" is internal jargon a
-      // viewer has no use for, and the bare fact is already honest on its own.
-      return { text: `${victim} dies`, tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER, icon: <KillIcon /> }
+      // viewer has no use for, and the bare fact is already honest on its own. The portrait tracks
+      // the same subject the sentence does — the victim here, never a guessed killer.
+      return {
+        text: `${victim} dies`,
+        tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
+        icon: <KillHeroIcon heroKey={heroDisplayKey(event.victimHeroId, heroes)} compact={compact} />,
+      }
     }
     const killer = event.killerName || heroDisplayName(event.killerHeroId, heroes) || 'Unknown'
-    return { text: `${killer} kills ${victim}`, tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER, icon: <KillIcon /> }
+    return {
+      text: `${killer} kills ${victim}`,
+      tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
+      icon: <KillHeroIcon heroKey={heroDisplayKey(event.killerHeroId, heroes)} compact={compact} />,
+    }
   }
   if (event.type === 'RoshanKilled') {
     return { text: 'Roshan killed', tone: NEUTRAL_MARKER, icon: <RoshanSvg className="w-3 h-3" /> }

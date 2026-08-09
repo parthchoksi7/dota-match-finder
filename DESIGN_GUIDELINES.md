@@ -894,6 +894,30 @@ a killer. The colour adds information the text doesn't claim.
 
 ---
 
+## Live timeline — kill marker hero portrait (2026-08-09)
+
+A kill row's marker shows the **real hero portrait of whichever hero the sentence names**, not a
+generic person-silhouette glyph — same circular-crop CDN convention `ItemEventIcon` already
+established for marquee-item markers (`rounded-full object-cover`, `w-4 h-4` compact / `w-[18px]
+h-[18px]` standard), not `HeroIcon`'s square treatment, since the marker itself is a circular ring.
+
+**Subject-matching, never "always the killer":**
+
+| Row text | Portrait shown |
+|---|---|
+| `"{killer} kills {victim}"` (attributed) | Killer's hero |
+| `"{victim} dies"` (ambiguous / no killer) | Victim's hero |
+| Roshan | Unchanged — `RoshanSvg`, no player involved |
+| Marquee item purchase | Unchanged — `ItemEventIcon` shows the item, not the buyer's hero, so the row keeps showing what was bought rather than competing with a second portrait |
+
+The portrait must always match the sentence's own subject — showing the killer's face next to a
+"X dies" sentence that deliberately doesn't name a killer would contradict the copy's own honesty
+rule above. Falls back to the generic `KillIcon` glyph (never a broken image, never a guessed
+portrait) whenever the hero key can't be resolved — missing hero map, unresolved `heroId`, or an
+image load error — the exact same degrade-safe contract `ItemEventIcon` already follows.
+
+---
+
 ## Live timeline — grouped fight card (2026-08-07)
 
 The unit of storytelling in the live feed is the **fight**, not the kill. Five kills in eighteen

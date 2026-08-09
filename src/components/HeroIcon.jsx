@@ -14,7 +14,7 @@
 // same CDN URL but carry their own layout and hover treatments, and folding them in was not part
 // of this refactor's scope.
 
-const HERO_ICON_BASE = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/'
+export const HERO_ICON_BASE = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/icons/'
 
 /**
  * @param {object} props

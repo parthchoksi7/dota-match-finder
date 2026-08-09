@@ -24,6 +24,11 @@ const ITEM_NAMES = {
   138: { key: 'aegis', dname: 'Aegis of the Immortal' },
 }
 
+const HEROES = {
+  1: { key: 'antimage', name: 'Anti-Mage' },
+  2: { key: 'axe', name: 'Axe' },
+}
+
 const ev = (over = {}) => ({ type: 'HeroKilled', time: 600, side: 'radiant', victimName: 'v', killerName: 'k', ...over })
 const eventGroup = (over = {}) => ({ kind: 'event', time: over.time ?? 600, event: ev(over) })
 const fightGroup = (over = {}) => ({
@@ -246,6 +251,62 @@ describe('LiveEventFeed — item purchase marker shows real item art', () => {
     const { container } = renderFeed([fightWithItem])
     fireEvent.click(screen.getByRole('button', { name: /teamfight/i }))
     const img = container.querySelector('img[src*="black_king_bar"]')
+    expect(img.className).toMatch(/w-4 h-4/)
+  })
+})
+
+describe('LiveEventFeed — kill marker shows the subject hero\'s portrait', () => {
+  it('shows the KILLER\'s portrait when the kill is attributed — text names the killer', () => {
+    const { container } = renderFeed(
+      [eventGroup({ killerHeroId: 2, victimHeroId: 1 })],
+      { heroes: HEROES },
+    )
+    expect(screen.getByText('k kills v')).toBeInTheDocument()
+    expect(container.querySelector('img[src*="/axe.png"]')).not.toBeNull()
+    expect(container.querySelector('img[src*="/antimage.png"]')).toBeNull()
+  })
+
+  it('shows the VICTIM\'s portrait when unattributed — text names the victim, never a guessed killer', () => {
+    const { container } = renderFeed(
+      [eventGroup({ ambiguous: true, killerName: null, killerHeroId: 2, victimHeroId: 1 })],
+      { heroes: HEROES },
+    )
+    expect(screen.getByText('v dies')).toBeInTheDocument()
+    expect(container.querySelector('img[src*="/antimage.png"]')).not.toBeNull()
+    expect(container.querySelector('img[src*="/axe.png"]')).toBeNull()
+  })
+
+  it('falls back to the generic glyph (no broken image) when the hero key never resolved', () => {
+    const { container } = renderFeed([eventGroup({ killerHeroId: 999, victimHeroId: 1 })], { heroes: HEROES })
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('falls back to the generic glyph on an image load error', () => {
+    const { container } = renderFeed([eventGroup({ killerHeroId: 2, victimHeroId: 1 })], { heroes: HEROES })
+    const img = container.querySelector('img')
+    fireEvent.error(img)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('does not swap Roshan or item-purchase markers for a hero portrait', () => {
+    const { container } = renderFeed(
+      [
+        { kind: 'event', time: 870, event: { type: 'RoshanKilled', time: 870, side: null } },
+        { kind: 'event', time: 600, event: { type: 'ItemPurchased', time: 600, side: 'radiant', playerName: 'bashka', itemId: 63, heroId: 2 } },
+      ],
+      { heroes: HEROES },
+    )
+    expect(container.querySelector('img[src*="/axe.png"]')).toBeNull()
+    expect(container.querySelector('img[src*="black_king_bar"]')).not.toBeNull()
+  })
+
+  it('sizes the hero portrait smaller inside a compact (in-fight) row than a standalone row', () => {
+    const fightWithHeroKill = fightGroup({ kills: [ev({ time: 1450, killerHeroId: 2, victimHeroId: 1 })] })
+    const { container } = renderFeed([fightWithHeroKill], { heroes: HEROES })
+    fireEvent.click(screen.getByRole('button', { name: /teamfight/i }))
+    const img = container.querySelector('img[src*="/axe.png"]')
     expect(img.className).toMatch(/w-4 h-4/)
   })
 })
