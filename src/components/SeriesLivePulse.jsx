@@ -385,16 +385,13 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   // window, not missing data. Without this check the player board rendered a full grid of blank
   // portraits and 0/0/0 stats, which reads as broken rather than "starting soon."
   const valveMatchLoading = usingValve && !(valvePulse.gameTime > 0)
-  // Valve's own broadcast delay for this tournament (anti-stream-sniping, varies 10s-15min by
-  // event) — surfaced because it's a real spoiler risk specific to this data source: everything
-  // below reflects the game RIGHT NOW, while the public Twitch/Kick stream a fan is watching
-  // alongside this sheet lags behind it by exactly this much.
-  const streamDelayS = usingValve && Number.isFinite(valvePulse.streamDelayS) && valvePulse.streamDelayS > 0
-    ? valvePulse.streamDelayS
-    : null
-  const streamDelayLabel = streamDelayS != null
-    ? (streamDelayS < 60 ? `${streamDelayS}s` : `${Math.round(streamDelayS / 60)}m`)
-    : null
+  // Originally surfaced Valve's own configured broadcast delay (stream_delay_s) as a specific
+  // "~15m ahead of the stream" figure — corrected 2026-08-09 after real usage showed the opposite
+  // can also be true: this sheet's own pipeline (poll cadence, Valve's snapshot lag, caching) adds
+  // latency of its own, so the number never reliably described which direction — or how far —
+  // this sheet actually sits from any given broadcast. Showing a specific figure was a false
+  // precision the data can't back up; the honest version is a plain sync caveat with no number.
+  const showSyncCaveat = usingValve
 
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
@@ -458,15 +455,15 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
 
   return (
     <div className={`${SHEET_PADDING} py-3 space-y-6`}>
-      {streamDelayLabel && (
+      {showSyncCaveat && (
         <div className="-mt-1 flex items-center gap-1">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600">
-            Broadcast delay ~{streamDelayLabel}
+            Data may be ahead or behind the stream
           </span>
           <InfoButton
-            ariaLabel="What does broadcast delay mean?"
-            title="Broadcast delay"
-            description={`This tournament holds its public stream back ${streamDelayLabel} to stop players from watching it for an edge. Everything below reflects the game right now — if you're also watching the stream, it can spoil what you're about to see.`}
+            ariaLabel="Why might this be out of sync with the stream?"
+            title="Not perfectly in sync"
+            description="This data comes straight from the game, not the broadcast — depending on the tournament's own stream delay and how recently this page last updated, what you see here can run ahead of or behind whatever stream you're watching."
           />
         </div>
       )}

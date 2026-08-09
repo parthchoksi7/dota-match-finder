@@ -1,9 +1,10 @@
 /**
- * Coverage for the broadcast-delay indicator (2026-08-09). Valve's `stream_delay_s` is a real
- * spoiler risk specific to this data source: the live pulse reflects the game right now, while
- * the tournament's public Twitch/Kick stream a fan might be watching alongside it lags behind by
- * however many seconds/minutes the tournament configured (10s-15min observed). Surfaced as a
- * small label + InfoButton near the top of the sheet whenever the Valve pulse carries it.
+ * Coverage for the data-sync caveat (corrected 2026-08-09). Originally showed Valve's own
+ * `stream_delay_s` as a specific "Broadcast delay ~15m ahead of the stream" figure — corrected
+ * after real usage showed the opposite direction can also happen (this sheet's own poll cadence
+ * and Valve's own snapshot lag add latency that isn't accounted for by stream_delay_s alone), so
+ * a specific number/direction was false precision the data can't back up. Now a plain, direction-
+ * agnostic caveat shown whenever the Valve pulse is active, independent of the delay's value.
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
@@ -64,30 +65,38 @@ async function renderPulse(valvePulse) {
   return result
 }
 
-describe('SeriesLivePulse — broadcast delay indicator', () => {
-  it('shows the delay in minutes for a real tournament delay (900s -> ~15m)', async () => {
+describe('SeriesLivePulse — data-sync caveat', () => {
+  it('shows a direction-agnostic caveat whenever Valve data is active', async () => {
     await renderPulse(valvePulseWith({ streamDelayS: 900 }))
-    expect(screen.getByText('Broadcast delay ~15m')).toBeInTheDocument()
+    expect(screen.getByText('Data may be ahead or behind the stream')).toBeInTheDocument()
   })
 
-  it('shows the delay in seconds when under a minute', async () => {
-    await renderPulse(valvePulseWith({ streamDelayS: 10 }))
-    expect(screen.getByText('Broadcast delay ~10s')).toBeInTheDocument()
+  it('never claims a specific number or a one-way "ahead of the stream" direction', async () => {
+    await renderPulse(valvePulseWith({ streamDelayS: 900 }))
+    expect(screen.queryByText(/Broadcast delay/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/~\d+[ms]/)).not.toBeInTheDocument()
   })
 
-  it('renders no indicator when the delay is zero (no delay configured)', async () => {
+  it('still shows the caveat even when streamDelayS is absent or zero — the risk is not tied to that field', async () => {
     await renderPulse(valvePulseWith({ streamDelayS: 0 }))
-    expect(screen.queryByText(/Broadcast delay/)).not.toBeInTheDocument()
-  })
-
-  it('renders no indicator when streamDelayS is absent (missing field, or OD fallback path)', async () => {
+    expect(screen.getByText('Data may be ahead or behind the stream')).toBeInTheDocument()
     await renderPulse(valvePulseWith())
-    expect(screen.queryByText(/Broadcast delay/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('Data may be ahead or behind the stream').length).toBeGreaterThan(0)
   })
 
-  it('explains the spoiler risk via the info popover', async () => {
+  it('renders no caveat on the OD-only fallback path (no Valve pulse)', async () => {
+    fetchLiveGamePulse.mockResolvedValue({
+      radiantName: 'Level UP', direName: 'MOUZ', radiantScore: 1, direScore: 0, gameTime: 300,
+      capturedAt: new Date().toISOString(),
+    })
+    fetchLiveValvePulse.mockResolvedValue(null)
+    await act(async () => { render(<SeriesLivePulse {...baseProps} />) })
+    expect(screen.queryByText('Data may be ahead or behind the stream')).not.toBeInTheDocument()
+  })
+
+  it('explains the caveat via the info popover without claiming a direction or number', async () => {
     await renderPulse(valvePulseWith({ streamDelayS: 900 }))
-    fireEvent.click(screen.getByRole('button', { name: /what does broadcast delay mean/i }))
-    expect(screen.getByText(/can spoil what you're about to see/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /why might this be out of sync/i }))
+    expect(screen.getByText(/can run ahead of or behind/i)).toBeInTheDocument()
   })
 })
