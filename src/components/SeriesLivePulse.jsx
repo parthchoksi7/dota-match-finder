@@ -589,28 +589,8 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
         </div>
       )}
 
-      {/* Barracks + tier-4 now render ON the map itself (radiant/direBarracksState props), not as
-          a separate text panel — a prior pass had them as a text-only BarracksPanel below the map;
-          removed in favor of this once the map could actually place them (2026-08-06). */}
-      {showLiveStory && radiantTowerCounts && direTowerCounts && (
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
-          <DotaMinimap
-            radiant={radiantTowerCounts}
-            dire={direTowerCounts}
-            radiantName={radiantName}
-            direName={direName}
-            {...(usingValve ? {
-              radiantTowerState: valvePulse.towers.radiant,
-              direTowerState: valvePulse.towers.dire,
-              radiantBarracksState: valvePulse.barracks?.radiant,
-              direBarracksState: valvePulse.barracks?.dire,
-            } : {})}
-          />
-        </div>
-      )}
-
-      {/* Roshan sits directly under the tower map: both answer "how close is this to ending," and
-          they read together as one objective-state block ahead of the graph's history. */}
+      {/* Roshan leads the objective-state block, ahead of the graph's history — both answer "how
+          close is this to ending." */}
       {showLiveStory && valvePulse && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
           <RoshanStatus respawnTimer={valvePulse.roshanRespawnTimer} />
@@ -663,6 +643,29 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
               direName={direName}
             />
           )}
+        </div>
+      )}
+
+      {/* Tower map sits directly above Draft, not near the top (moved 2026-08-09 — owner feedback:
+          the map read as too prominent above the fold for a stat that matters most once you
+          already know who's playing what). Barracks + tier-4 render ON the map itself
+          (radiant/direBarracksState props), not as a separate text panel — a prior pass had them
+          as a text-only BarracksPanel below the map; removed in favor of this once the map could
+          actually place them (2026-08-06). */}
+      {showLiveStory && radiantTowerCounts && direTowerCounts && (
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+          <DotaMinimap
+            radiant={radiantTowerCounts}
+            dire={direTowerCounts}
+            radiantName={radiantName}
+            direName={direName}
+            {...(usingValve ? {
+              radiantTowerState: valvePulse.towers.radiant,
+              direTowerState: valvePulse.towers.dire,
+              radiantBarracksState: valvePulse.barracks?.radiant,
+              direBarracksState: valvePulse.barracks?.dire,
+            } : {})}
+          />
         </div>
       )}
 

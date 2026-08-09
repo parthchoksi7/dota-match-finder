@@ -117,4 +117,18 @@ describe('SeriesLivePulse — tower map gating (public)', () => {
     await act(async () => { render(<SeriesLivePulse {...baseProps} />) })
     expect(screen.queryByRole('img', { name: /Team Lynx:/ })).not.toBeInTheDocument()
   })
+
+  it('sits directly above Draft, not near the top of the sheet (moved 2026-08-09)', async () => {
+    await renderPulse(valvePulseWith({
+      objectives: OBJECTIVES,
+      players: {
+        radiant: [{ playerSlot: 0, accountId: '1', name: 'p1', heroId: 41, items: [0, 0, 0, 0, 0, 0] }],
+        dire: [{ playerSlot: 128, accountId: '2', name: 'p2', heroId: 8, items: [0, 0, 0, 0, 0, 0] }],
+      },
+    }))
+    const map = screen.getByRole('img', { name: /Team Lynx:/ })
+    const draftHeading = screen.getByText('Draft')
+    // eslint-disable-next-line no-bitwise
+    expect(map.compareDocumentPosition(draftHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
