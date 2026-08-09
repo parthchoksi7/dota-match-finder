@@ -11,6 +11,7 @@ import LiveStreamPicker from './LiveStreamPicker'
 import { streamLabel } from './StreamPicker'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
 import { SHEET_PADDING } from './Sheet'
+import { InfoButton } from './FloatingTooltip'
 
 const POLL_MS = 40000
 // Bounds the retain-last-known-good behavior below: a failed/empty poll and a routine "no game
@@ -384,6 +385,16 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   // window, not missing data. Without this check the player board rendered a full grid of blank
   // portraits and 0/0/0 stats, which reads as broken rather than "starting soon."
   const valveMatchLoading = usingValve && !(valvePulse.gameTime > 0)
+  // Valve's own broadcast delay for this tournament (anti-stream-sniping, varies 10s-15min by
+  // event) — surfaced because it's a real spoiler risk specific to this data source: everything
+  // below reflects the game RIGHT NOW, while the public Twitch/Kick stream a fan is watching
+  // alongside this sheet lags behind it by exactly this much.
+  const streamDelayS = usingValve && Number.isFinite(valvePulse.streamDelayS) && valvePulse.streamDelayS > 0
+    ? valvePulse.streamDelayS
+    : null
+  const streamDelayLabel = streamDelayS != null
+    ? (streamDelayS < 60 ? `${streamDelayS}s` : `${Math.round(streamDelayS / 60)}m`)
+    : null
 
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
@@ -434,6 +445,18 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
 
   return (
     <div className={`${SHEET_PADDING} py-3 space-y-6`}>
+      {streamDelayLabel && (
+        <div className="-mt-1 flex items-center gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-600">
+            Broadcast delay ~{streamDelayLabel}
+          </span>
+          <InfoButton
+            ariaLabel="What does broadcast delay mean?"
+            title="Broadcast delay"
+            description={`This tournament holds its public stream back ${streamDelayLabel} to stop players from watching it for an edge. Everything below reflects the game right now — if you're also watching the stream, it can spoil what you're about to see.`}
+          />
+        </div>
+      )}
       {(stakes?.kind || momentum) && (
         <div>
           {stakes?.kind && (
