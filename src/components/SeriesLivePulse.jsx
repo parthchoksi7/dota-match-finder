@@ -379,6 +379,11 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   }
 
   const usingValve = !!valvePulse
+  // Valve's feed can mark a game "live" before its clock actually starts (draft just locked in,
+  // world still loading) — every per-player field is a real, honest 0/starting-value in that
+  // window, not missing data. Without this check the player board rendered a full grid of blank
+  // portraits and 0/0/0 stats, which reads as broken rather than "starting soon."
+  const valveMatchLoading = usingValve && !(valvePulse.gameTime > 0)
 
   // Attribute the gold lead to a NAMED team by position: the badge sits next to radiant when
   // radiantLead > 0, else next to dire. Never a bare, unattributable "+500" (sides swap game to
@@ -622,13 +627,19 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
       {showLiveStory && (valvePulse?.players?.radiant?.length > 0 || valvePulse?.players?.dire?.length > 0) && (
         <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Player Stats</p>
-          <LivePlayerBoard
-            players={valvePulse.players}
-            heroes={heroMap}
-            itemNames={valvePulse.itemNames}
-            radiantName={radiantName}
-            direName={direName}
-          />
+          {valveMatchLoading ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
+              Match starting — waiting for players to load in.
+            </p>
+          ) : (
+            <LivePlayerBoard
+              players={valvePulse.players}
+              heroes={heroMap}
+              itemNames={valvePulse.itemNames}
+              radiantName={radiantName}
+              direName={direName}
+            />
+          )}
         </div>
       )}
 
