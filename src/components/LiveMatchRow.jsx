@@ -57,6 +57,16 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
   // too — hasScore-only was a leftover from before the companion had anything worth showing then.
   const isClickable = !!onSelectLiveMatch
 
+  // Only expand when the keypress originates from this element, not a child link (watch buttons) —
+  // same guard MatchCard.jsx's handleExpandKeyDown uses for its own div[role="button"] row.
+  function handleRowKeyDown(e) {
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelectLiveMatch(match.id)
+    }
+  }
+
   const hasSubRow = match.currentGame || match.bracketRound || watchUrl || match.youtubeStream || badge
 
   // The centered sub-row label must not sit under the mobile-only (sm:hidden) 44px watch
@@ -76,14 +86,20 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
     <div
       ref={rootRef}
       onClick={() => { if (isClickable) onSelectLiveMatch(match.id) }}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? handleRowKeyDown : undefined}
+      aria-label={isClickable ? `View live match details: ${match.teamA} vs ${match.teamB}` : undefined}
       className={`border-b border-gray-100 dark:border-gray-900 last:border-b-0 transition-shadow duration-700 ${
         isFollowedMatch ? amberStyle : redStyle
-      } ${isHighlighted ? 'ring-2 ring-inset ring-amber-400 dark:ring-amber-500' : ''} ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02]' : ''}`}
+      } ${isHighlighted ? 'ring-2 ring-inset ring-amber-400 dark:ring-amber-500' : ''} ${isClickable ? 'cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.02] focus-ring' : ''}`}
     >
-      {/* Main row: Team A · Score · Team B */}
+      {/* Main row: Team A · Score · Team B · chevron (clickable-row affordance — otherwise nothing
+          on the row itself signals it opens live match details, especially on mobile where there's
+          no hover state to discover it). */}
       <div
         className="grid items-center gap-2 px-4 pt-2.5 pb-1 min-h-[40px]"
-        style={{ gridTemplateColumns: '1fr auto 1fr' }}
+        style={{ gridTemplateColumns: isClickable ? '1fr auto 1fr auto' : '1fr auto 1fr' }}
       >
         {/* Team A (left) */}
         <div className="flex items-center min-w-0">
@@ -125,6 +141,12 @@ function LiveMatchRow({ match, onSelectMatchId, onSelectLiveMatch, spoilerFree, 
             {match.teamB}
           </span>
         </div>
+
+        {isClickable && (
+          <svg className="w-3.5 h-3.5 text-gray-300 dark:text-gray-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        )}
       </div>
 
       {/* Sub-row: G{n} · bracket stage (centered) + watch button (right) */}

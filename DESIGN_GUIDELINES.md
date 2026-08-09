@@ -980,6 +980,30 @@ kill switch (`isFeatureEnabled`, `api/_shared.js`), not viewer identity.
 
 ---
 
+## Live feed row — clickable-row affordance (2026-08-09)
+
+`LiveMatchRow.jsx` was clickable (onClick + `hover:bg-black/[0.02]`) with nothing on the row
+itself signaling that — no chevron, no keyboard access, no screen-reader affordance. Invisible on
+mobile in particular, since there's no hover state to discover it there. Fixed to match
+`MatchCard.jsx`'s existing clickable-header pattern rather than inventing a new one:
+
+- **Trailing chevron** (`w-3.5 h-3.5 text-gray-300 dark:text-gray-700`, `M9 5l7 7-7 7` path — the
+  same right-chevron `SearchSuggestions.jsx` already uses, not the down-chevron/`rotate-180`
+  expand affordance used elsewhere) added as a 4th grid column (`1fr auto 1fr auto`) at the end of
+  the main Team A / Score / Team B row, only when the row is actually clickable
+  (`onSelectLiveMatch` provided). `aria-hidden` — purely decorative, the row's own `aria-label`
+  carries the meaning for assistive tech.
+- **`role="button"`, `tabIndex={0}`, `onKeyDown`** on the row (Enter/Space activates, guarded by
+  `e.target !== e.currentTarget` so a keypress on a nested watch link doesn't also open the row —
+  identical guard to `MatchCard.jsx`'s `handleExpandKeyDown`), plus `focus-ring` for a visible
+  keyboard-focus outline. `aria-label="View live match details: {teamA} vs {teamB}"` since the row
+  has no single accessible name of its own (team names render as two separate spans either side of
+  the score).
+- None of this renders when `onSelectLiveMatch` isn't passed — a row with nothing to click into
+  stays a plain, non-interactive summary, same as before.
+
+---
+
 ## Glanceable live score — browser tab title, PWA badge, score notification
 
 Three surfaces that render a running game's state **outside the app's own chrome**, for a fan who
