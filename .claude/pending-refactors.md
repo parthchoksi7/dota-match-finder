@@ -55,11 +55,81 @@ Exempt from RICE: work that literally cannot start yet.
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
 | 21 | Dead `patchSitemap`/`ARTICLE_SLUGS` logic in `api/pipeline/_publisher.js` | 2 | 2 | 90% | 0.25 | **14.4** |
+| 25 | `resolveValvePulse` awaits independent I/O sequentially instead of `Promise.all` | 3 | 2 | 90% | 0.5 | **10.8** |
+| 24 | Duplicated `formatClock`/`formatNetWorth` have drifted, not just duplicated | 2 | 3 | 85% | 0.5 | **10.2** |
 | 23 | `ITEM_MAP_KV_KEY` defined in two places, consumed in three | 1 | 2 | 95% | 0.25 | **7.6** |
 | 22 | No regression test for `UNIVERSAL_ABILITY_IDS` staleness | 1 | 2 | 90% | 0.25 | **7.2** |
+| 26 | `correlateValveGame` has no scored fallback pass like `findBestPsMatch` | 3 | 3 | 75% | 1 | **6.75** |
+| 27 | Hardcoded green/red lead-color literals repeated 9x across 5 files | 3 | 2 | 85% | 1 | **5.1** |
+| 28 | No single-flight lock on Valve pulse cache-miss path | 3 | 2 | 80% | 1 | **4.8** |
+| 29 | No prune/retention job for `live_valve_gold` | 2 | 3 | 70% | 1 | **4.2** |
+| 33 | Tower/barracks map markers may be too small to read on a real phone | 3 | 2 | 70% | 1 | **4.2** |
+| 30 | `SIDE_MARKER[event.side] \|\| NEUTRAL_MARKER` duplicated 3x in `describeEvent` | 1 | 1 | 95% | 0.25 | **3.8** |
+| 31 | `PlayerRow`'s four stat columns are copy-pasted markup | 2 | 1 | 90% | 0.5 | **3.6** |
+| 32 | `LiveBanList` and `DraftDisplay` independently reimplement the same ban-chip look | 2 | 1 | 85% | 1 | **1.7** |
 | 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
 
 ---
+
+### 25. `resolveValvePulse` awaits independent I/O sequentially instead of `Promise.all`
+- **What:** `resolveValvePulse` (`api/_handlers/liveValvePulse.js:88-217`) `await`s the events-ring KV read (~142), the item-map KV read (~155-166), and the `live_valve_gold` Supabase upsert (~176-194) one after another, but none of the three depends on another's result — they're independent I/O that could run concurrently via `Promise.all`.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Group the three into a single `Promise.all([...])` (or `Promise.allSettled` if any one failing shouldn't fail the others) and destructure the results.
+- **Risk:** Low — pure latency win, no behavior change, each call is already independently error-handled.
+
+### 24. Duplicated `formatClock`/`formatNetWorth` have drifted, not just duplicated
+- **What:** `formatClock` is defined separately in `LiveValveBoard.jsx:26-31` and `SeriesLivePulse.jsx:75-80` (the latter exported and correctly reused by `LiveGoldGraph.jsx`) — the two floor seconds differently, equivalent only for integer input today but a latent trap. `formatNetWorth` is duplicated in `LiveValveBoard.jsx:33-36` (guards with `Number.isFinite`, returns `'—'` on bad input) and `PlayerStatsSection.jsx:6-9` (no guard — would render `NaN`/`undefined`).
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Hoist both to a shared module (`src/utils.js` or a new `src/utils/liveFormat.js`), keeping the `LiveValveBoard.jsx` versions (the `Number.isFinite`-guarded ones) as canonical, and update all four call sites.
+- **Risk:** Low — mechanical hoist, but touch `PlayerStatsSection.jsx`'s render path so verify its existing tests still pass.
+
+### 26. `correlateValveGame` has no scored fallback pass like `findBestPsMatch`
+- **What:** `api/_shared.js`'s `findBestPsMatch` tries a strict `teamPairMatch` first, then falls back to a `teamPairScore`-based best-match with tie detection. `correlateValveGame` (`api/_handlers/liveValvePulse.js:60-82`) only does the strict `teamPairMatch` pass (line 68) and returns `null` on zero or multiple hits — no scored fallback, so a correlation that `findBestPsMatch` would resolve elsewhere in the codebase can fail here.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Either call `findBestPsMatch` directly if its shape fits, or port its fallback scoring pass into `correlateValveGame`.
+- **Risk:** Medium-low — degrades gracefully today (no Valve pulse for that match, not a crash), but is worth verifying against real name-variant matches before widening it, since a wrong scored match would misattribute an entire game's live telemetry.
+
+### 27. Hardcoded green/red lead-color literals repeated 9x across 5 files
+- **What:** `'rgb(34,197,94)'`/`'rgb(239,68,68)'` are hardcoded independently in `src/utils/momentum.js:51`, `src/components/LiveGoldGraph.jsx:75,232,238`, `src/components/GoldGraph.jsx:421,449,479,485`, and `src/components/SeriesLivePulse.jsx:384`.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Export `LEAD_COLOR_RADIANT`/`LEAD_COLOR_DIRE` (or similar) constants from one shared module and import everywhere instead of re-typing the literal.
+- **Risk:** Low — pure dedup, no visual change if the values are copied verbatim.
+
+### 28. No single-flight lock on Valve pulse cache-miss path
+- **What:** `handleLiveValvePulse` (`api/_handlers/liveValvePulse.js:219-252`) has no lock around `resolveValvePulse` at the cache-miss branch (~247), so N concurrent viewers of the same live match each trigger a redundant resolve/upstream fetch simultaneously. `_kv.js` has no generic lock helper — other call sites (`liveStoryCapture.js:289`, `draft-posts.js:96`) each hand-roll their own `kv.set(key, val, {nx:true, ex:...})`.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Extract a shared `withLock(key, ttl, fn)` helper into `_kv.js` (there are now 3+ hand-rolled copies of this pattern across the codebase) and wrap the cache-miss path with it.
+- **Risk:** Low-medium — a lock bug (never releasing, wrong TTL) could stall real requests, so this needs its own test coverage, not just a copy-paste of an existing pattern.
+
+### 29. No prune/retention job for `live_valve_gold`
+- **What:** `scripts/create-live-valve-gold.sql:41-44` explicitly notes no prune job exists yet. Nothing in `vercel.json`'s crons (currently just `/api/draft-posts`) deletes old rows. This table shares Supabase's free-tier budget with every other table in the app.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Add a retention pass (either a new lightweight cron, or piggybacked onto an existing one) that deletes rows for matches finished more than N days ago.
+- **Risk:** Low today — table is new and empty in production (flag off). Becomes real once the flag is on and this accumulates a full live-tournament season of rows.
+
+### 33. Tower/barracks map markers may be too small to read on a real phone
+- **What:** `DotaMinimap.jsx`'s `viewBox` is 512×512 but capped at `max-w-[240px]` (~line 251), so `TowerMarker`'s 16-unit diamond renders at roughly 7.5 CSS px on screen and `BarracksMarker`'s 10-unit square at roughly 4.7 CSS px — small enough that the diamond-vs-square silhouette distinction the component's own comment relies on (and the destroyed dashed-vs-solid cue) may not be legible on a real phone. This is a fixed cap, not something that only shows up small at 375px — it's this size everywhere — but a phone is this feature's primary consumption context.
+- **Found:** 2026-08-08, static mobile-viewport audit ahead of first production deploy (no real device/browser available in this environment — needs confirming on an actual phone before prioritizing a fix).
+- **Fix:** If confirmed illegible on a real device, either raise `max-w` for the map on narrow viewports, or scale marker stroke-width/size independently of the map's own scale so they stay legible at any map size.
+- **Risk:** Low to fix once confirmed — purely visual, no data/behavior change. Don't act on this without an actual device check first; the audit that found it was static-only.
+
+### 30. `SIDE_MARKER[event.side] || NEUTRAL_MARKER` duplicated 3x in `describeEvent`
+- **What:** The same lookup expression appears at `LiveValveBoard.jsx:393`, `:396`, and `:407` inside `describeEvent`. Only one branch runs per call (one event type per event), so this is duplicated source, not triplicated runtime work.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Compute `const tone = SIDE_MARKER[event.side] || NEUTRAL_MARKER` once at the top of `describeEvent` and reference it in each branch.
+- **Risk:** Trivial — pure local simplification.
+
+### 31. `PlayerRow`'s four stat columns are copy-pasted markup
+- **What:** `PlayerRow` (`LiveValveBoard.jsx:173-203`) repeats near-identical `<span className="text-right">...label...</span>` blocks for KDA, LH/DN, GPM, and Net four times. The radiant/dire traversal itself is already shared (`LivePlayerBoard` maps one config array through this component) — the duplication is inside `PlayerRow`, not across sides.
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Extract a `STAT_COLUMNS` config array (`[{key, label, value}, ...]`) and `.map()` over it instead of four hand-written blocks.
+- **Risk:** Low — purely cosmetic markup consolidation, verify column order/spacing is pixel-identical after.
+
+### 32. `LiveBanList` and `DraftDisplay` independently reimplement the same ban-chip look
+- **What:** `LiveBanList` (`LiveValveBoard.jsx:271-296`) renders a `HeroIcon` + `<span className="line-through">` chip at 10px text; `DraftDisplay.jsx:265-272` renders a plain strikethrough span (no icon) at `text-xs` with different padding — same "ghost strikethrough chip" visual language, built twice. (`LiveValveBoard.jsx:270`'s comment claims it reuses `DraftDisplay`'s treatment — it doesn't; the comment is stale.)
+- **Found:** 2026-08-08, independent review pass ahead of first production deploy.
+- **Fix:** Extract a shared `BanChip` component and use it from both, or confirm the visual divergence is intentional and correct the stale comment.
+- **Risk:** Low — cosmetic only, but check both call sites' surrounding spacing before unifying since they currently differ.
 
 ### 23. `ITEM_MAP_KV_KEY` defined in two places, consumed in three
 - **What:** The KV key `'opendota:item_map_v2'` is declared as a local const inside `api/_handlers/matchStats.js` (function-scoped, line ~24) AND as a module const in `api/_handlers/liveStoryCapture.js` (line ~77, carrying a comment that explicitly notes they must stay identical). `api/_handlers/liveValvePulse.js` now imports the latter rather than adding a third literal, but the two declarations are still hand-synchronized. A key-format bump applied to one and not the other would silently split the cache in two — each writer refilling a key the other never reads, doubling OpenDota constants fetches with no error anywhere.

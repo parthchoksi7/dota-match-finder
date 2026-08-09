@@ -94,6 +94,25 @@ These tests verify the PandaScore → OpenDota match ID connection and the VOD r
 - [ ] For a recent BO2 match: the series label shows "BO2" not "BO3" — confirms `format:match:{odId}` KV entry was written and the completed-match feed read it correctly
 - [ ] For a match with no cached channel: the drawer shows "No VOD found" rather than crashing or showing a wrong channel
 
+### Valve-sourced Live Telemetry (`?mode=live-valve-pulse`, flag-gated)
+
+This surface is **FLAG-OFF and fail-CLOSED in production** — see `CONTEXT.md`'s "Valve-sourced live telemetry" section. Testing it requires setting `feature:live-valve-pulse:enabled` to `"on"` in KV for your own local/preview session; **never leave it `"on"` in the shared production KV database** (Production/Preview/Development share the same KV credentials — confirmed 2026-08-08), since flipping it live-serves an unvalidated data path to real users. Turn it back off (delete the key) the moment you're done testing.
+
+**Flag-off (default/production) regression — the state every real user is in today**
+- [ ] Open a live match with the flag off — score, clock, tower map, draft grid, and net-worth graph all still render from OpenDota, exactly as before this branch (covered by `src/__tests__/series-live-pulse-od-fallback.test.jsx`, but worth eyeballing once against a real live match)
+- [ ] Confirm the Valve-exclusive sections (Roshan status, player stat board, live ban list, event feed) do NOT render at all — no blank boxes, no loading spinners stuck forever
+
+**Flag-on (local testing only)**
+- [ ] Score/clock/net-worth-lead/draft/tower map switch to the Valve-sourced values (may differ slightly from OD's in the seconds right after a poll tick — that's expected, not a bug)
+- [ ] Roshan status card shows "up" / "dead, respawning" / "respawn window open" correctly against what's actually happening in the game
+- [ ] Player stat board shows real per-player KDA, LH/DN, GPM, items, and level for all 10 players
+- [ ] Tower/barracks icons on the minimap match the game's real destroyed-structure state (spot check against the client's own minimap or a stream overlay)
+- [ ] Ultimate-ready ring: solid green on an off-cooldown ultimate, dashed gray while on cooldown, no ring pre-level-6 — confirm against a hero you can see the cooldown timer for
+- [ ] Live event feed: kills/Roshan/marquee-item-purchase rows appear within one poll cycle (~40s) of the real event; a teamfight (3+ kills within the clustering window) collapses into one expandable fight card, not N separate rows
+- [ ] Expand a fight card, then wait for the next poll to land a new event ahead of it — the fight stays expanded (regression guard for the stable-list-keys fix, `src/__tests__/live-event-feed.test.jsx`)
+- [ ] Item purchase markers show the real item icon ringed in the buyer's team color; Aegis/Cheese pickups say "picks up," never "buys" (they can't be bought)
+- [ ] Hover the level badge or an ultimate ring while the sheet is scrolled near its edge — the tooltip must never clip against the sheet's edge, and must follow the trigger if you scroll while it's open (regression guard for the `HoverCard` fixed-position + scroll-tracking fix, `src/__tests__/hover-card.test.jsx`)
+
 ### Auto-Tweet (owner only)
 
 1. Manually trigger the GitHub Actions workflow: Actions tab → "Auto Tweet Dota 2 Results" → Run workflow
@@ -152,6 +171,7 @@ For features that touch core match data, series grouping, or new API integration
 | Tier filter changes | At least one known tier-S or tier-A event (e.g. DreamLeague, PGL, Premier Series, ESL Challenger) appears in live/upcoming/tournaments; a known non-pro event is absent; `/api/live-matches?bust=1` and `/api/tournaments?bust=1` return non-empty results. Any new `filter[param]=value` added to a PandaScore URL must be tested for multi-value support before using comma-separated syntax -- write a unit test that mocks `fetch` and asserts the URL contains the expected single-value parameter |
 | `live-matches.js` / `match-streams.js` / `_shared.js` changes | Run the PS ↔ OD VOD Linking scenarios above; confirm `stream:match:*` and `live:game:*` entries are written during live matches; confirm `format:match:*` is written for at least one running game; verify `findOdMatchByTime` still uses bidirectional substring matching |
 | Push notification changes (`utils/push.js`, `ManageTeamsModal`, `SettingsSheet`, `sw.js`, push paths in `live-matches.js`) | Run the **Push Notifications** manual scenarios above on a real Android browser AND an installed iOS PWA — the OS prompt and delivery can't be validated headlessly. Run the Chromium primer E2E (`node scripts/push-primer-e2e.mjs` against `npm run preview`). Confirm exactly one push card renders per state (matrix test) and that "Not now" never calls `Notification.requestPermission` |
+| `api/_liveValveState.js`, `api/_handlers/liveValvePulse.js`, `LiveValveBoard.jsx`, `DotaMinimap.jsx` (tower/barracks props), `SeriesLivePulse.jsx` changes | Run the **Valve-sourced Live Telemetry** scenarios above — flag-off first (this is what production actually serves today), then flag-on locally. Never leave `feature:live-valve-pulse:enabled` set to `"on"` in the shared KV database. |
 
 ---
 

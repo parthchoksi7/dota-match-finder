@@ -97,15 +97,28 @@ function destroyedFlags(standing) {
   return [0, 1, 2].map(i => i < destroyedCount)
 }
 
+// Explicit 4-way table rather than composing grammar dynamically (join a variable list of nouns,
+// capitalize the first, etc.) — a hand-written sentence per combination can't accidentally produce
+// the self-contradicting "are not shown... are also known and shown" text a patch-on-top approach
+// shipped once (2026-08-08, confirmed by review: hasBarracks appended a corrective clause without
+// ever touching the base sentence's now-false "base towers... not shown" claim).
+function unknownScopeSentence(hasTier4, hasBarracks) {
+  if (hasTier4 && hasBarracks) return 'Base towers and barracks are also known and shown. Ancient status is not known and is not shown.'
+  if (hasTier4) return 'Base towers are also known and shown. Barracks and Ancient status are not known and are not shown.'
+  if (hasBarracks) return 'Barracks are also known and shown. Base towers and Ancient status are not known and are not shown.'
+  return 'Barracks, base towers, and Ancient status are not known and are not shown.'
+}
+
 // Pure so it's unit-testable without rendering. Summarizes exactly what's known — and states
-// outright what isn't — so a screen-reader user gets the same "towers only" caveat a sighted
-// user reads below the map, not just a bare tower count.
-export function buildMinimapAriaLabel(radiant, dire, radiantName, direName) {
+// outright what isn't — so a screen-reader user gets the same caveat a sighted user reads below
+// the map, not just a bare tower count. `hasTier4`/`hasBarracks` default false, so an existing
+// 4-arg call (the OD-fed, count-only path) gets the exact original sentence unchanged.
+export function buildMinimapAriaLabel(radiant, dire, radiantName, direName, { hasTier4 = false, hasBarracks = false } = {}) {
   const laneSummary = counts => LANE_KEYS.map(k => `${LANE_LABELS[k]} ${counts[LANE_KEYS.indexOf(k)]} of 3`).join(', ')
   const rName = radiantName || 'Radiant'
   const dName = direName || 'Dire'
   return `Tower map. ${rName}: ${laneSummary(radiant)} standing. ${dName}: ${laneSummary(dire)} standing. ` +
-    `Barracks, base towers, and Ancient status are not known and are not shown.`
+    unknownScopeSentence(hasTier4, hasBarracks)
 }
 
 // Diamond marker (rotated square), white-stroked so it pops against the real texture's varied
@@ -222,8 +235,7 @@ export default function DotaMinimap({
 
   const hasRichTowers = !!(radiantTowerState && direTowerState)
   const hasBarracks = !!(radiantBarracksState && direBarracksState)
-  const ariaLabel = buildMinimapAriaLabel(radiant, dire, radiantName, direName) +
-    (hasBarracks ? ' Barracks status is also known and shown.' : '')
+  const ariaLabel = buildMinimapAriaLabel(radiant, dire, radiantName, direName, { hasTier4: hasRichTowers, hasBarracks })
 
   return (
     <div className="mb-1.5 border border-gray-200 dark:border-gray-800 rounded bg-gray-50 dark:bg-gray-950 p-2.5">

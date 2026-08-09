@@ -120,11 +120,8 @@ export function HoverCard({ content, children, align = 'center', className = '' 
     clearTimeout(hideTimer.current)
   }, [])
 
-  useLayoutEffect(() => {
-    if (!visible || !triggerRef.current || !tooltipRef.current) {
-      setPos(null)
-      return
-    }
+  const measure = useCallback(() => {
+    if (!triggerRef.current || !tooltipRef.current) return
     const trig = triggerRef.current.getBoundingClientRect()
     const tip = tooltipRef.current.getBoundingClientRect()
     let left
@@ -133,7 +130,29 @@ export function HoverCard({ content, children, align = 'center', className = '' 
     else left = trig.left + trig.width / 2 - tip.width / 2
     // Anchored above the trigger, same as the old bottom-full — mb-2 was 8px, matched here.
     setPos({ top: clampTop(trig.top - tip.height - 8), left: clampLeft(left, tip.width) })
-  }, [visible, align, content])
+  }, [align])
+
+  useLayoutEffect(() => {
+    if (!visible || !triggerRef.current || !tooltipRef.current) {
+      setPos(null)
+      return
+    }
+    measure()
+  }, [visible, content, measure])
+
+  // `fixed` escapes overflow clipping but also means the tooltip has no idea when its trigger
+  // moves — a sheet or page scrolling (or a viewport resize) while the tooltip is open would
+  // otherwise leave it floating over the wrong element. Scroll doesn't bubble to window from an
+  // inner scroll container, so this listens in the capture phase.
+  useEffect(() => {
+    if (!visible) return undefined
+    window.addEventListener('scroll', measure, true)
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('scroll', measure, true)
+      window.removeEventListener('resize', measure)
+    }
+  }, [visible, measure])
 
   return (
     <div

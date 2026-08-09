@@ -120,6 +120,29 @@ describe('LiveEventFeed — fight cards', () => {
   })
 })
 
+describe('LiveEventFeed — stable keys across reorder', () => {
+  it('keeps a fight expanded after a new poll prepends a newer group, and the new group starts collapsed', () => {
+    const staleFight = fightGroup({ time: 1443, endTime: 1460, label: 'Teamfight' })
+    const { rerender } = renderFeed([staleFight])
+
+    fireEvent.click(screen.getByRole('button', { expanded: false, name: /teamfight/i }))
+    expect(screen.getByRole('button', { expanded: true })).toBeInTheDocument()
+
+    // Simulate the next 40s poll: a new kill lands and is prepended, pushing the same physical
+    // fight to index 1. With index-based keys this would hand the new group the stale "expanded"
+    // state and collapse the fight the user actually opened.
+    const freshKill = eventGroup({ time: 1500, victimName: 'freshvictim' })
+    rerender(
+      <LiveEventFeed groups={[freshKill, staleFight]} heroes={{}} itemNames={ITEM_NAMES}
+        radiantName="Tundra" direName="BetBoom" />
+    )
+
+    expect(screen.getByRole('button', { expanded: true, name: /teamfight/i })).toBeInTheDocument()
+    expect(screen.getAllByText('k kills v').length).toBeGreaterThan(0)
+    expect(screen.getByText('k kills freshvictim')).toBeInTheDocument()
+  })
+})
+
 describe('LiveEventFeed — pagination and ordering', () => {
   it('caps the initial render and offers a "show earlier" affordance', () => {
     const groups = Array.from({ length: 15 }, (_, i) => eventGroup({ time: 100 + i }))

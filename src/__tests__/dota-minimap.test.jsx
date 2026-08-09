@@ -32,6 +32,39 @@ describe('buildMinimapAriaLabel', () => {
     const label = buildMinimapAriaLabel([0, 0, 0], [3, 3, 3], 'A', 'B')
     expect(label).toContain('Barracks, base towers, and Ancient status are not known and are not shown.')
   })
+
+  // Regression guard (2026-08-08): an earlier version appended a "Barracks status is also known
+  // and shown" clause on top of the base sentence without ever removing that same base sentence's
+  // "barracks... are not known and are not shown" claim — self-contradicting in one string, and
+  // the "base towers... not shown" half of the claim was never corrected even when tier-4 towers
+  // were actively drawn. Each combination below must be internally consistent: known things are
+  // never also claimed unknown.
+  describe('known/unknown scope never contradicts itself', () => {
+    it('states neither barracks nor base towers are known, absent both flags', () => {
+      const label = buildMinimapAriaLabel([3, 3, 3], [3, 3, 3], 'A', 'B')
+      expect(label).toContain('Barracks, base towers, and Ancient status are not known and are not shown.')
+      expect(label).not.toMatch(/also known and shown/)
+    })
+
+    it('states base towers ARE known, and the ONLY thing still called unknown is barracks + Ancient, when hasTier4 alone', () => {
+      const label = buildMinimapAriaLabel([3, 3, 3], [3, 3, 3], 'A', 'B', { hasTier4: true })
+      // Exact scope sentence, not a substring check — the only way to prove "base towers" never
+      // co-occurs with "not known" is to pin down the complete sentence, since a substring/regex
+      // check spanning the whole label can bridge across an unrelated LATER clause that legitimately
+      // does say "not known" (about barracks/Ancient) and produce a false positive either way.
+      expect(label.endsWith('Base towers are also known and shown. Barracks and Ancient status are not known and are not shown.')).toBe(true)
+    })
+
+    it('states barracks ARE known, and the ONLY thing still called unknown is base towers + Ancient, when hasBarracks alone', () => {
+      const label = buildMinimapAriaLabel([3, 3, 3], [3, 3, 3], 'A', 'B', { hasBarracks: true })
+      expect(label.endsWith('Barracks are also known and shown. Base towers and Ancient status are not known and are not shown.')).toBe(true)
+    })
+
+    it('states both are known, only Ancient stays unknown, when both flags are set', () => {
+      const label = buildMinimapAriaLabel([3, 3, 3], [3, 3, 3], 'A', 'B', { hasTier4: true, hasBarracks: true })
+      expect(label.endsWith('Base towers and barracks are also known and shown. Ancient status is not known and is not shown.')).toBe(true)
+    })
+  })
 })
 
 describe('DotaMinimap — rendering', () => {
@@ -88,6 +121,17 @@ describe('DotaMinimap — Valve-sourced rich props (2026-08-06)', () => {
     )
     // 18 lane towers + 4 tier-4 = 22
     expect(container.querySelectorAll('rect[data-tower-marker]').length).toBe(22)
+  })
+
+  it('rendered aria-label matches what is actually drawn — base towers ARE announced known once tier-4 renders', () => {
+    render(
+      <DotaMinimap radiant={[3, 3, 3]} dire={[3, 3, 3]} radiantName="A" direName="B"
+        radiantTowerState={allStanding} direTowerState={allStanding} />
+    )
+    const map = screen.getByRole('img', { name: /A:/ })
+    expect(map.getAttribute('aria-label').endsWith(
+      'Base towers are also known and shown. Barracks and Ancient status are not known and are not shown.'
+    )).toBe(true)
   })
 
   it('uses the EXACT per-tower boolean, not the count-based reconstruction, when tower state is present', () => {

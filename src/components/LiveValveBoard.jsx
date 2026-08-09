@@ -4,6 +4,7 @@ import ItemSlot from './ItemSlot'
 import { RoshanSvg, TeamFightSvg } from './GameIndicators'
 import { HoverCard } from './FloatingTooltip'
 import { formatGoldMagnitude } from '../utils/liveScore'
+import { trackEvent } from '../utils'
 
 // Valve-sourced live surfaces for a running game: Roshan status, a per-player telemetry board, the
 // ban list, and a chronological event feed.
@@ -443,8 +444,18 @@ function KillSplit({ radiantKills, direKills }) {
   )
 }
 
-function FightCard({ group, heroes, itemNames, radiantName, direName }) {
+function FightCard({ group, heroes, itemNames, radiantName, direName, matchId }) {
   const [expanded, setExpanded] = useState(false)
+
+  function toggle() {
+    setExpanded(v => {
+      const next = !v
+      // Fire on expand only, same convention as the stream picker's `stream_picker_expand` —
+      // collapsing isn't a meaningful engagement signal on its own.
+      if (next) trackEvent('live_timeline_fight_expand', { matchId, label: group.label, kills: group.kills.length })
+      return next
+    })
+  }
   const swing = group.swing
   // `formatGoldMagnitude` already carries its own sign — never prepend another (the `++5.0k` bug
   // this codebase shipped once and documents in DESIGN_GUIDELINES.md).
@@ -460,7 +471,7 @@ function FightCard({ group, heroes, itemNames, radiantName, direName }) {
     <div className="relative border border-gray-200 dark:border-gray-800 rounded my-1.5 bg-white dark:bg-gray-950">
       <button
         type="button"
-        onClick={() => setExpanded(v => !v)}
+        onClick={toggle}
         aria-expanded={expanded}
         aria-label={label}
         className="focus-ring w-full flex items-start gap-2.5 p-2 min-h-[44px] text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors rounded"
@@ -508,6 +519,20 @@ function FightCard({ group, heroes, itemNames, radiantName, direName }) {
 const INITIAL_GROUPS = 8
 const PAGE_SIZE = 20
 
+// Content-derived, NOT positional. `groups` is rebuilt fresh every 40s poll and is newest-first,
+// so a new event landing at the top shifts every existing group's ARRAY INDEX down one slot on the
+// very next render — an index key would make React reuse each fight's per-instance state
+// (expanded/collapsed, image-load-errored) for whatever group now happens to occupy that index,
+// silently jumping expand state onto the wrong card. Keyed on each group's own defining fields so
+// the same physical fight/event keeps the same key regardless of where it sits in the array.
+function groupKey(g) {
+  if (g.kind === 'fight') return `fight-${g.time}-${g.endTime}-${g.label}`
+  const e = g.event
+  if (e.type === 'HeroKilled') return `kill-${e.time}-${e.victimHeroId}-${e.side}`
+  if (e.type === 'ItemPurchased') return `item-${e.time}-${e.heroId}-${e.itemId}`
+  return `${e.type}-${e.time}`
+}
+
 /**
  * `groups` is the server-shaped `pulse.timeline` (newest first — see groupTimelineEvents).
  *
@@ -516,12 +541,17 @@ const PAGE_SIZE = 20
  * DESIGN_GUIDELINES.md already documents for swipe-nav vs. overflow regions). Pagination gives
  * explicit scrollback control instead, without fighting the page.
  */
-export function LiveEventFeed({ groups, heroes, itemNames, radiantName, direName }) {
+export function LiveEventFeed({ groups, heroes, itemNames, radiantName, direName, matchId }) {
   const [visible, setVisible] = useState(INITIAL_GROUPS)
   if (!groups || groups.length === 0) return null
 
   const shown = groups.slice(0, visible)
   const remaining = groups.length - shown.length
+
+  function showMore() {
+    trackEvent('live_timeline_show_earlier', { matchId, revealed: Math.min(remaining, PAGE_SIZE), remainingAfter: Math.max(0, remaining - PAGE_SIZE) })
+    setVisible(v => v + PAGE_SIZE)
+  }
 
   return (
     <div className="relative">
@@ -538,16 +568,16 @@ export function LiveEventFeed({ groups, heroes, itemNames, radiantName, direName
           that isn't on screen. */}
       <div className="absolute left-[11px] top-7 bottom-10 w-px bg-gray-200 dark:bg-gray-800" aria-hidden="true" />
 
-      {shown.map((g, i) => (
+      {shown.map(g => (
         g.kind === 'fight'
-          ? <FightCard key={`g${i}`} group={g} heroes={heroes} itemNames={itemNames} radiantName={radiantName} direName={direName} />
-          : <EventRow key={`g${i}`} event={g.event} heroes={heroes} itemNames={itemNames} />
+          ? <FightCard key={groupKey(g)} group={g} heroes={heroes} itemNames={itemNames} radiantName={radiantName} direName={direName} matchId={matchId} />
+          : <EventRow key={groupKey(g)} event={g.event} heroes={heroes} itemNames={itemNames} />
       ))}
 
       {remaining > 0 && (
         <button
           type="button"
-          onClick={() => setVisible(v => v + PAGE_SIZE)}
+          onClick={showMore}
           className="focus-ring mt-2 w-full min-h-[44px] rounded border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 transition-colors"
         >
           Show earlier events

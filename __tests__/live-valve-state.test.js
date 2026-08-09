@@ -123,8 +123,14 @@ describe('decodeUltimateState', () => {
     expect(decodeUltimateState(2, 0).ready).toBe(false) // bit1 set without bit0 — nonsensical, still locked
   })
 
-  it('rounds fractional cooldowns', () => {
+  it('rounds fractional cooldowns up, never down to zero', () => {
     expect(decodeUltimateState(1, 12.7).cooldown).toBe(13)
+  })
+
+  it('does not report ready on a genuine sub-1s remaining cooldown (Math.round would floor 0.4 to 0)', () => {
+    // Regression: Math.round(0.4) === 0, which used to fall through to the ready bit and could
+    // report ready=true for an ultimate that's still 0.4s from coming off cooldown.
+    expect(decodeUltimateState(3, 0.4)).toEqual({ unlocked: true, ready: false, cooldown: 1 })
   })
 
   it('degrades safely on a missing state field', () => {

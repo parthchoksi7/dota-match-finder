@@ -10,7 +10,7 @@
 // are the single source for that mapping (proven over 146 real observed states, 0/1,314 constraint
 // violations) and this module calls them rather than hand-rolling a second copy that could drift.
 
-import { decodeTowerBit, decodeBarracksBit, clusterTeamfights } from './_liveStoryDiff.js'
+import { decodeTowerBit, decodeBarracksBit, clusterTeamfights, TEAM_RADIANT, TEAM_DIRE } from './_liveStoryDiff.js'
 
 // Valve's own side encoding inside `game.players[]`: 0=Radiant, 1=Dire, 2=broadcaster/caster.
 // This is NOT the 2=Radiant/3=Dire convention used everywhere else in this codebase (see
@@ -93,7 +93,10 @@ export function decodeUltimateState(state, cooldown) {
   if (!Number.isFinite(state)) return { unlocked: false, ready: false, cooldown: null }
   const unlocked = (state & 1) === 1
   if (!unlocked) return { unlocked: false, ready: false, cooldown: null }
-  const cd = Number.isFinite(cooldown) && cooldown > 0 ? Math.round(cooldown) : 0
+  // Math.round would floor a sub-1s remaining cooldown (e.g. 0.4s) to 0, which then falls
+  // through to the `state` bit below and can wrongly report ready. Math.ceil guarantees any
+  // genuinely-positive cooldown reports as at least 1s, so "cooldown wins over bit" always holds.
+  const cd = Number.isFinite(cooldown) && cooldown > 0 ? Math.ceil(cooldown) : 0
   const ready = cd > 0 ? false : (state & 2) === 2
   return { unlocked: true, ready, cooldown: cd }
 }
@@ -269,7 +272,7 @@ export function shapeLiveEvents(events, limit = 40) {
   const out = []
   for (const e of events) {
     if (!e || !FEED_EVENT_TYPES.has(e.eventType) || e.confidence === 'uncertain') continue
-    const base = { time: e.gameTime, type: e.eventType, side: e.team === 3 ? 'dire' : e.team === 2 ? 'radiant' : null }
+    const base = { time: e.gameTime, type: e.eventType, side: e.team === TEAM_DIRE ? 'dire' : e.team === TEAM_RADIANT ? 'radiant' : null }
     if (e.eventType === 'HeroKilled') {
       // `base.side` is the VICTIM's team (from e.team). The killer's side is the opposite — and
       // that inference is always available, because a death is always recorded against someone.
@@ -287,7 +290,7 @@ export function shapeLiveEvents(events, limit = 40) {
         // the blow, and the row's own copy never names a killer in that case (it renders a bare
         // "X dies"). The colour adds information the text doesn't claim. This is what removes the
         // last "unknown -> grey" case from the feed.
-        side: e.payload?.killerTeam === 3 ? 'dire' : e.payload?.killerTeam === 2 ? 'radiant' : inferredKillerSide,
+        side: e.payload?.killerTeam === TEAM_DIRE ? 'dire' : e.payload?.killerTeam === TEAM_RADIANT ? 'radiant' : inferredKillerSide,
         victimSide,
         victimHeroId: e.heroId,
         victimName: e.payload?.victimName ?? null,
@@ -375,7 +378,9 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
   const clusters = clusterTeamfights(kills.map(k => ({ ...k, gameTime: k.time })), windowS)
 
   const groups = []
-  const claimedItemTimes = new Set()
+  // Holds the actual item-purchase event objects absorbed into a fight (checked by reference
+  // below), not their timestamps — a name like `claimedItemTimes` would suggest otherwise.
+  const claimedItems = new Set()
 
   for (const cluster of clusters) {
     if (cluster.length < FIGHT_MIN_KILLS) {
@@ -396,7 +401,7 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
     // clustering slack on the trailing edge so a purchase moments after the last kill still lands.
     const items = others.filter(e =>
       e.type === 'ItemPurchased' && e.time >= startT && e.time <= endT + windowS)
-    for (const it of items) claimedItemTimes.add(it)
+    for (const it of items) claimedItems.add(it)
 
     groups.push({
       kind: 'fight',
@@ -413,7 +418,7 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
   }
 
   for (const e of others) {
-    if (claimedItemTimes.has(e)) continue
+    if (claimedItems.has(e)) continue
     groups.push({ kind: 'event', time: e.time, event: e })
   }
 

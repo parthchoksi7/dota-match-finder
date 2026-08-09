@@ -88,6 +88,45 @@ describe('HoverCard positioning', () => {
   })
 })
 
+describe('HoverCard tracks its trigger during scroll/resize', () => {
+  it('re-measures on a window scroll event and moves the tooltip with the trigger', async () => {
+    vi.useFakeTimers()
+    const { container } = renderCard()
+    const trigger = container.querySelector('.relative')
+    mockRect(trigger, { top: 300, left: 300, right: 340, bottom: 320, width: 40, height: 20 })
+    fireEvent.mouseEnter(screen.getByRole('button'))
+    await act(async () => { vi.advanceTimersByTime(120) })
+    mockRect(screen.getByRole('tooltip'), { width: 120, height: 40 })
+    await act(async () => {})
+    const topBefore = screen.getByRole('tooltip').style.top
+
+    // Simulate the sheet scrolling under the tooltip: the trigger moves, but nothing re-renders
+    // this component on its own — only a scroll listener would catch it.
+    mockRect(trigger, { top: 120, left: 300, right: 340, bottom: 140, width: 40, height: 20 })
+    await act(async () => { window.dispatchEvent(new Event('scroll')) })
+
+    const topAfter = screen.getByRole('tooltip').style.top
+    expect(topAfter).not.toBe(topBefore)
+  })
+
+  it('stops listening for scroll once hidden, so no stray listener fires after close', async () => {
+    vi.useFakeTimers()
+    const { container } = renderCard()
+    const trigger = container.querySelector('.relative')
+    mockRect(trigger, { top: 300, left: 300, right: 340, bottom: 320, width: 40, height: 20 })
+    fireEvent.mouseEnter(screen.getByRole('button'))
+    await act(async () => { vi.advanceTimersByTime(120) })
+    mockRect(screen.getByRole('tooltip'), { width: 120, height: 40 })
+    await act(async () => {})
+    fireEvent.mouseLeave(screen.getByRole('button'))
+    await act(async () => { vi.advanceTimersByTime(150) })
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+
+    // Would throw if a stale scroll listener tried to read a rect after the tooltip unmounted.
+    expect(() => window.dispatchEvent(new Event('scroll'))).not.toThrow()
+  })
+})
+
 describe('HoverCard show/hide behavior', () => {
   it('does not show immediately on hover — waits out the show delay', () => {
     vi.useFakeTimers()
