@@ -48,7 +48,7 @@ vi.mock('../utils', async (importOriginal) => {
   const real = await importOriginal()
   return { ...real, trackEvent: vi.fn() }
 })
-import { fetchLiveGamePulse, fetchLiveValvePulse } from '../api'
+import { fetchLiveGamePulse, fetchLiveValvePulse, fetchHeroes } from '../api'
 
 const baseProps = {
   psMatchId: 'ps1',
@@ -103,5 +103,47 @@ describe('SeriesLivePulse — Valve pre-game loading state', () => {
     delete pulse.gameTime
     await renderPulse(pulse)
     expect(screen.getByText(/Match starting/i)).toBeInTheDocument()
+  })
+})
+
+describe('SeriesLivePulse — Draft picks during the pre-game window (real bug, 2026-08-09)', () => {
+  // Zero Tenacity vs Natus Vincere, EPL Masters S1: players[].heroId was 0 for all 10 players
+  // (gameTime: 0, same pre-game window as above) while valvePulse.draft.radiantPicks/direPicks
+  // already had real hero ids — the Draft section read heroId from players[] only, so it rendered
+  // blank placeholder tiles with just player names instead of the real, already-known picks.
+  it('shows real hero picks from draft.picks while players[].heroId is still 0', async () => {
+    fetchHeroes.mockResolvedValue({ 80: { key: 'lina', name: 'Lina' }, 123: { key: 'hoodwink', name: 'Hoodwink' } })
+    await renderPulse(valvePulseWith({
+      draft: { radiantPicks: [80], direPicks: [123], radiantBans: [], direBans: [] },
+    }))
+    expect(screen.getByText('Lina')).toBeInTheDocument()
+    expect(screen.getByText('Hoodwink')).toBeInTheDocument()
+  })
+
+  it('does not attribute a pre-game pick to a player name — pick order is not slot order', async () => {
+    fetchHeroes.mockResolvedValue({ 80: { key: 'lina', name: 'Lina' } })
+    await renderPulse(valvePulseWith({
+      draft: { radiantPicks: [80], direPicks: [], radiantBans: [], direBans: [] },
+    }))
+    expect(screen.getByText('Lina')).toBeInTheDocument()
+    // 'pray' is the radiant player fixture's name — showing it next to a pick-order-only hero
+    // would be a fabricated pairing, since draft.picks has no slot alignment.
+    expect(screen.queryByText('pray')).not.toBeInTheDocument()
+  })
+
+  it('switches to real per-player picks (with attributed names) once the clock actually starts', async () => {
+    fetchHeroes.mockResolvedValue({ 41: { key: 'faceless_void', name: 'Faceless Void' } })
+    await renderPulse(valvePulseWith({
+      gameTime: 30,
+      draft: { radiantPicks: [80], direPicks: [], radiantBans: [], direBans: [] },
+      players: {
+        radiant: [pregamePlayer({ heroId: 41 })],
+        dire: [pregamePlayer({ name: 'Crystallis' })],
+      },
+    }))
+    // Both the Draft section and the (now-rendering) Player Stats board legitimately show the
+    // same hero name once the game has actually started — assert presence, not uniqueness.
+    expect(screen.getAllByText('Faceless Void').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('bb3px').length).toBeGreaterThan(0)
   })
 })

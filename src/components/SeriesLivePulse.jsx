@@ -412,11 +412,24 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   // the top-level players[] block — the only place a live IGN exists); OD gives parallel hero-id/
   // name arrays. Genuinely different shapes, so this branches by source instead of going through
   // liveSource. zipDraftPicks itself is source-agnostic — same helper, different inputs.
+  //
+  // players[].heroId stays 0 for every player until the game clock actually starts (same window
+  // valveMatchLoading guards above) — during the real draft phase the ONLY place a real pick
+  // exists is valvePulse.draft.{radiant,dire}Picks. That field is pick ORDER, not slot order
+  // (_liveValveState.js's own comment), so it can't be reliably zipped with player names — a
+  // wrong pairing would be worse than no pairing. zipDraftPicks already degrades a null
+  // playerName to a hero-only row (DraftPickRow's own documented contract), so this shows real
+  // heroes with no player attribution while loading, then switches to fully-attributed rows once
+  // players[].heroId populates for real.
   const radiantHeroes = usingValve
-    ? zipDraftPicks(valvePulse.players?.radiant?.map(p => p.heroId), valvePulse.players?.radiant?.map(p => p.name), heroMap)
+    ? (valveMatchLoading
+      ? zipDraftPicks(valvePulse.draft?.radiantPicks, null, heroMap)
+      : zipDraftPicks(valvePulse.players?.radiant?.map(p => p.heroId), valvePulse.players?.radiant?.map(p => p.name), heroMap))
     : zipDraftPicks(pulse?.radiantHeroIds, pulse?.radiantPlayerNames, heroMap)
   const direHeroes = usingValve
-    ? zipDraftPicks(valvePulse.players?.dire?.map(p => p.heroId), valvePulse.players?.dire?.map(p => p.name), heroMap)
+    ? (valveMatchLoading
+      ? zipDraftPicks(valvePulse.draft?.direPicks, null, heroMap)
+      : zipDraftPicks(valvePulse.players?.dire?.map(p => p.heroId), valvePulse.players?.dire?.map(p => p.name), heroMap))
     : zipDraftPicks(pulse?.direHeroIds, pulse?.direPlayerNames, heroMap)
 
   const radiantName = liveSource?.radiantName || 'Radiant'
