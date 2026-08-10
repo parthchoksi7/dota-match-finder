@@ -56,7 +56,17 @@ function valvePulseWith(overrides = {}) {
 
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, fetchLiveGamePulse: vi.fn(), fetchLiveValvePulse: vi.fn(), fetchHeroes: vi.fn().mockResolvedValue({}) }
+  const fetchLiveGamePulse = vi.fn()
+  const fetchLiveValvePulse = vi.fn()
+  // SeriesLivePulse polls both sources through ONE transport now (fetchLivePulse, 2026-08-09).
+  // Composing that mock from the two per-source mocks keeps every test below expressing the OD and
+  // Valve sources independently — which is the property these suites exist to check — instead of
+  // rewriting each case around a merged payload shape.
+  const fetchLivePulse = vi.fn(async (id, owner) => ({
+    od: await fetchLiveGamePulse(id, owner),
+    valve: await fetchLiveValvePulse(id),
+  }))
+  return { ...actual, fetchLiveGamePulse, fetchLiveValvePulse, fetchLivePulse, fetchHeroes: vi.fn().mockResolvedValue({}) }
 })
 vi.mock('../utils', async (importOriginal) => {
   const real = await importOriginal()

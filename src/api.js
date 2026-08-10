@@ -513,6 +513,33 @@ export async function fetchLiveValvePulse(psMatchId) {
   }
 }
 
+// Both live pulses in ONE request (?mode=live-pulse) — what SeriesLivePulse.jsx polls. This exists
+// because polling them separately cost two serverless invocations per tick per open live sheet
+// (2026-08-09, Fluid Active CPU budget — see api/_handlers/livePulseCombined.js).
+// NOTE: fetchLiveGamePulse/fetchLiveValvePulse above now have NO production callers — they are kept
+// only as the client counterparts of the still-live standalone `?mode=live-game-pulse` /
+// `?mode=live-valve-pulse` endpoints. Logged in .claude/pending-refactors.md rather than deleted
+// inline, since several test suites still compose their mocks from them.
+//
+// Resolves to `{ od, valve }`. Independence holds for SOURCE-level failures only — the server uses
+// Promise.allSettled, so a Valve flag-off/correlation miss still returns a populated `od`, and vice
+// versa. It does NOT hold for TRANSPORT failures: a non-2xx or a thrown fetch nulls BOTH, where two
+// separate requests would have kept the surviving one alive. That is the accepted cost of halving
+// this path's invocations; the retain-last-known-good bound in SeriesLivePulse (STALE_AFTER_MS)
+// covers a single bad tick. Never rejects.
+export async function fetchLivePulse(psMatchId, isOwner = false) {
+  if (!psMatchId) return { od: null, valve: null }
+  try {
+    const ownerParam = isOwner ? '&owner=1' : ''
+    const res = await fetch(`/api/tournaments?mode=live-pulse&id=${encodeURIComponent(psMatchId)}${ownerParam}`)
+    if (!res.ok) return { od: null, valve: null }
+    const data = await res.json()
+    return { od: data?.od?.pulse || null, valve: data?.valve?.pulse || null }
+  } catch {
+    return { od: null, valve: null }
+  }
+}
+
 const _tournamentPlayersCache = new Map()
 
 export async function fetchTournamentPlayers(tournamentId, serieName, isCompleted = false, beginAt = null) {

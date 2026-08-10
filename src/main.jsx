@@ -33,7 +33,6 @@ import GlossaryPage from './pages/GlossaryPage.jsx'
 import TeamsPage from './pages/TeamsPage.jsx'
 import AdminCoveragePage from './pages/AdminCoveragePage.jsx'
 import AdminReviewPage from './pages/AdminReviewPage.jsx'
-import AdminVodUrlsPage from './pages/AdminVodUrlsPage.jsx'
 import AdminLiveStoryPage from './pages/AdminLiveStoryPage.jsx'
 import ArticlesPage from './pages/ArticlesPage.jsx'
 import ArticlePage from './pages/ArticlePage.jsx'
@@ -56,7 +55,6 @@ function Root() {
   if (path === '/teams' || path.startsWith('/teams/')) return <TeamsPage />
   if (path === '/admin/coverage') return <AdminCoveragePage />
   if (path.startsWith('/admin/review/')) return <AdminReviewPage />
-  if (path === '/admin/vod-urls') return <AdminVodUrlsPage />
   if (path === '/admin/live-story') return <AdminLiveStoryPage />
   if (path === '/articles') return <ArticlesPage />
   if (path.startsWith('/articles/')) return <ArticlePage />

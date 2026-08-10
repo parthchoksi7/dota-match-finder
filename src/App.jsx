@@ -19,6 +19,7 @@ import SiteFooter from "./components/SiteFooter"
 import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
 import { countFollowedLive } from "./utils/liveScore"
 import { getPushPermission, subscribeToPush } from "./utils/push"
+import { useVisiblePolling } from "./utils/useVisiblePolling"
 import { canonicalTeamName } from "./teamMatching"
 
 const JUST_ENDED_ENABLED = true
@@ -578,10 +579,13 @@ function App() {
     loadMatches()
     fetchLiveData()
     fetchJustEnded()
-    const liveInterval = setInterval(fetchLiveData, 2 * 60 * 1000)
-    const justEndedInterval = setInterval(fetchJustEnded, 5 * 60 * 1000)
-    return () => { clearInterval(liveInterval); clearInterval(justEndedInterval) }
   }, [loadMatches, fetchLiveData, fetchJustEnded])
+
+  // Ambient polling. Both use useVisiblePolling rather than setInterval so a backgrounded tab
+  // stops hitting the API entirely and refreshes the instant the fan comes back — see the hook's
+  // header for the invocation-cost measurement that motivated it.
+  useVisiblePolling(fetchLiveData, 2 * 60 * 1000)
+  useVisiblePolling(fetchJustEnded, 5 * 60 * 1000)
 
   // PWA icon badge: how many of the fan's followed teams are playing right now. A badge means
   // "something of YOURS is happening", so it's gated on follows — a fan with none never sees one.

@@ -28,7 +28,11 @@ function pulseWith(overrides = {}) {
 
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, fetchLiveGamePulse: vi.fn(), fetchHeroes: vi.fn().mockResolvedValue({}) }
+  const fetchLiveGamePulse = vi.fn()
+  // SeriesLivePulse polls both sources through one transport (2026-08-09). Composed from the OD
+  // mock this suite already drives; Valve stays absent, which is what it asserted before.
+  const fetchLivePulse = vi.fn(async (id, owner) => ({ od: await fetchLiveGamePulse(id, owner), valve: null }))
+  return { ...actual, fetchLiveGamePulse, fetchLivePulse, fetchHeroes: vi.fn().mockResolvedValue({}) }
 })
 vi.mock('../utils', async (importOriginal) => {
   const real = await importOriginal()
@@ -105,5 +109,43 @@ describe('SeriesLivePulse — pulse reset on psMatchId change', () => {
     expect(screen.getByText('Team Falcons')).toBeInTheDocument()
     expect(screen.queryByText('Yakult Brothers')).not.toBeInTheDocument()
     expect(screen.queryByText('Rune Eaters')).not.toBeInTheDocument()
+  })
+
+  // Regression coverage for a bug introduced (and caught pre-deploy) during the 2026-08-09 poll
+  // merge: the OD and Valve pollers were collapsed into one shared `useCallback`, and the
+  // effect-local `let cancelled` each poller used to close over became a single boolean ref.
+  // That broke isolation — cleanup set it true, the new effect immediately set it back to false,
+  // and a STILL-IN-FLIGHT poll for the OLD series would then resolve, see false, and write the old
+  // series' data into the new series' sheet. Neither test above catches it, because both leave the
+  // old poll either already resolved or never resolving. Now guarded by a monotonic token.
+  it('drops a stale in-flight poll that resolves AFTER a switch to another series', async () => {
+    let resolveOld
+    fetchLiveGamePulse.mockReturnValueOnce(new Promise(r => { resolveOld = r }))
+
+    let rerender
+    await act(async () => {
+      const result = render(
+        <SeriesLivePulse {...baseProps} psMatchId="ps-yakult-rune" teamA="Yakult Brothers" teamB="Rune Eaters" />
+      )
+      rerender = result.rerender
+    })
+
+    // Switch before the first series' poll has come back; the new series' poll never resolves, so
+    // anything rendered afterwards can only have come from the stale response.
+    fetchLiveGamePulse.mockReturnValue(new Promise(() => {}))
+    await act(async () => {
+      rerender(
+        <SeriesLivePulse {...baseProps} psMatchId="ps-liquid-falcons" teamA="Team Liquid" teamB="Team Falcons" />
+      )
+    })
+
+    // The old series' request lands late — it must be discarded, not applied.
+    await act(async () => {
+      resolveOld(pulseWith({ radiantName: 'Yakult Brothers', direName: 'Rune Eaters', radiantScore: 31, direScore: 4 }))
+    })
+
+    expect(screen.queryByText('Yakult Brothers')).not.toBeInTheDocument()
+    expect(screen.queryByText('Rune Eaters')).not.toBeInTheDocument()
+    expect(screen.queryByText('31')).not.toBeInTheDocument()
   })
 })

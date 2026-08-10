@@ -46,10 +46,19 @@ const { pulse, valvePulse } = vi.hoisted(() => ({
 
 vi.mock('../src/api', async (importOriginal) => {
   const actual = await importOriginal()
+  const fetchLiveGamePulse = vi.fn().mockResolvedValue(pulse)
+  const fetchLiveValvePulse = vi.fn().mockResolvedValue(valvePulse)
   return {
     ...actual,
-    fetchLiveGamePulse: vi.fn().mockResolvedValue(pulse),
-    fetchLiveValvePulse: vi.fn().mockResolvedValue(valvePulse),
+    fetchLiveGamePulse,
+    fetchLiveValvePulse,
+    // Both pulses now arrive over ONE transport (2026-08-09). Composed from the two per-source
+    // mocks rather than given its own fixture, so per-case overrides below
+    // (`fetchLiveValvePulse.mockResolvedValueOnce(...)`) still reach the component.
+    fetchLivePulse: vi.fn(async (id, owner) => ({
+      od: await fetchLiveGamePulse(id, owner),
+      valve: await fetchLiveValvePulse(id),
+    })),
     fetchHeroes: vi.fn().mockResolvedValue({}),
   }
 })

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { trackEvent } from "../utils"
+import { useVisiblePolling } from "../utils/useVisiblePolling"
 
 const INITIAL_SHOW = 2
 const POLL_INTERVAL = 2 * 60 * 1000
@@ -96,9 +97,10 @@ function UpcomingMatches({ searchQuery = "", onSelectMatchId, spoilerFree = fals
 
   useEffect(() => {
     Promise.all([fetchLive(), fetchUpcoming()]).finally(() => setLoading(false))
-    const interval = setInterval(fetchLive, POLL_INTERVAL)
-    return () => clearInterval(interval)
   }, [])
+
+  // Visibility-gated so a backgrounded tab stops polling — see useVisiblePolling's header.
+  useVisiblePolling(fetchLive, POLL_INTERVAL)
 
   // Reset show-all when search query changes
   useEffect(() => {

@@ -28,7 +28,16 @@ function mapMatch(m) {
 export default async function handler(req, res) {
   const log = createLogger('/api/upcoming-matches')
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
+  // 60 -> 300 (2026-08-09, Fluid Active CPU budget). Unlike /api/live-matches this payload is a
+  // SCHEDULE, not live state — its KV TTL is already 15 min (`TTL` above), so callers have always
+  // tolerated multi-minute age here. The saving is real for a solo viewer specifically BECAUSE 300s
+  // exceeds the client's 120s poll interval: only requests landing inside s-maxage avoid an origin
+  // invocation (past it, stale-while-revalidate still revalidates in the background), so a TTL
+  // below the poll interval would save nothing at all.
+  // swr is held at 300 (not 900) so total edge age stays bounded at ~10 min; worst-case served age
+  // is ~15 min KV + ~10 min edge. That bound also caps how long a `?bust=1` stays invisible to real
+  // users, since busting deletes KV but cannot purge the normal key's already-cached response.
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=300')
 
   const token = process.env.PANDASCORE_TOKEN
   if (!token) {
@@ -36,6 +45,9 @@ export default async function handler(req, res) {
   }
 
   if (req.query?.bust === '1') {
+    // `?bust=1` is its own edge cache key — without this it would cache the busted response and
+    // defeat the next bust.
+    res.setHeader('Cache-Control', 'no-store')
     await kv.del(KV_KEY)
     log.info('cache cleared')
   }

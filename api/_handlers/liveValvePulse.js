@@ -216,15 +216,13 @@ export async function resolveValvePulse(pandaId, log) {
   }
 }
 
-export default async function handleLiveValvePulse(req, res) {
-  const log = createLogger('/api/tournaments?mode=live-valve-pulse')
-  res.setHeader('Cache-Control', 'private, no-store')
-
-  const pandaId = req.query?.id
-  if (!pandaId) return res.status(400).json({ pulse: null })
-  const idV = validateId(pandaId, { name: 'id' })
-  if (!idV.ok) return res.status(400).json({ pulse: null })
-
+/**
+ * The flag gate + cached resolve, extracted from the HTTP handler below (2026-08-09) so the
+ * combined `?mode=live-pulse` mode (livePulseCombined.js) reuses the EXACT same fail-closed gate,
+ * cache key and TTL rather than reimplementing them. The standalone handler below is now a thin
+ * wrapper over this. Never throws.
+ */
+export async function getCachedValvePulse(pandaId, log) {
   // Staged-rollout gate, FAIL-CLOSED — deliberately not `isFeatureEnabled`, which fails OPEN.
   //
   // CONTEXT.md holds an explicit written bar for this data path reaching the public live surfaces:
@@ -234,12 +232,12 @@ export default async function handleLiveValvePulse(req, res) {
   // off. Set `feature:live-valve-pulse:enabled` = "on" to enable; delete the key to kill it
   // instantly with no deploy.
   const flag = await kv.get('feature:live-valve-pulse:enabled').catch(() => null)
-  if (flag !== 'on') return res.status(200).json({ pulse: null, disabled: true })
+  if (flag !== 'on') return { pulse: null, disabled: true }
 
   const cacheKey = `valve-pulse:v1:${pandaId}`
   try {
     const cached = await kv.get(cacheKey)
-    if (cached) return res.status(200).json(cached)
+    if (cached) return cached
   } catch (err) {
     log.warn('valve pulse cache read failed', { pandaId, error: err?.message })
   }
@@ -248,5 +246,17 @@ export default async function handleLiveValvePulse(req, res) {
   kv.set(cacheKey, result, { ex: PULSE_CACHE_TTL_S })
     .catch(err => log.warn('valve pulse cache write failed', { pandaId, error: err?.message }))
 
-  return res.status(200).json(result)
+  return result
+}
+
+export default async function handleLiveValvePulse(req, res) {
+  const log = createLogger('/api/tournaments?mode=live-valve-pulse')
+  res.setHeader('Cache-Control', 'private, no-store')
+
+  const pandaId = req.query?.id
+  if (!pandaId) return res.status(400).json({ pulse: null })
+  const idV = validateId(pandaId, { name: 'id' })
+  if (!idV.ok) return res.status(400).json({ pulse: null })
+
+  return res.status(200).json(await getCachedValvePulse(pandaId, log))
 }

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useVisiblePolling } from '../utils/useVisiblePolling'
 
-// Internal-only Live Story verification page. Token-gated (CRON_SECRET as Bearer, same pattern
-// as AdminVodUrlsPage.jsx), never linked. `Disallow: /admin` in robots.txt covers generic
+// Internal-only Live Story verification page. Token-gated (CRON_SECRET as Bearer, the same pattern
+// api/pipeline.js's admin endpoints use), never linked. `Disallow: /admin` in robots.txt covers generic
 // crawlers, though named AI bots get their own `Allow: /` blocks in that file and aren't bound by
 // the wildcard rule — the real protection here is the token gate: a crawler hits the login form,
 // never the data. Purpose: validate the Valve GetLiveLeagueGames-sourced event pipeline against real
@@ -117,11 +118,11 @@ function OverviewPanel({ token, onSelectMatch }) {
       .catch(err => setError(err.message))
   }, [token])
 
-  useEffect(() => {
-    load()
-    const id = setInterval(load, CAPTURE_POLL_MS)
-    return () => clearInterval(id)
-  }, [load])
+  useEffect(() => { load() }, [load])
+  // Visibility-gated so this console stops polling when it isn't the foreground tab — it is
+  // routinely left open for hours during a tournament, which is exactly the case that was
+  // burning invocations. See useVisiblePolling's header.
+  useVisiblePolling(load, CAPTURE_POLL_MS)
 
   const health = data?.health
   const matches = data?.matches || []
@@ -467,7 +468,6 @@ export default function AdminLiveStoryPage() {
   const { token, save, clear } = useAdminToken()
   const [selectedMatchId, setSelectedMatchId] = useState('')
   const [autoRunToken, setAutoRunToken] = useState(0)
-  const captureIntervalRef = useRef(null)
 
   // "Inspect →" on a tracked match must visibly DO something — just filling the compare/
   // crosscheck panels' input fields (both far below the fold) looked like nothing happened.
@@ -483,15 +483,21 @@ export default function AdminLiveStoryPage() {
   // The capture trigger. Unauthenticated (same idempotent/KV-throttled shape as
   // ?mode=od-live-capture) — visiting this page IS the ambient viewer presence that makes the KV
   // lock's cadence the effective poll rate, no QStash schedule needed.
+  const triggerCapture = useCallback(() => {
+    fetch('/api/tournaments?mode=live-story-capture').catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!token) return
-    function poll() {
-      fetch('/api/tournaments?mode=live-story-capture').catch(() => {})
-    }
-    poll()
-    captureIntervalRef.current = setInterval(poll, CAPTURE_POLL_MS)
-    return () => clearInterval(captureIntervalRef.current)
-  }, [token])
+    triggerCapture()
+  }, [token, triggerCapture])
+
+  // Visibility-gated (see useVisiblePolling's header). Note this changes the *capture* cadence,
+  // not just a read: while this tab is hidden the console stops acting as ambient viewer presence
+  // for the capture. That is acceptable because the QStash `*/15` backstop still covers no-viewer
+  // windows, and an operator who has backgrounded the console is by definition not verifying
+  // against it — bringing the tab forward fires an immediate capture again.
+  useVisiblePolling(triggerCapture, CAPTURE_POLL_MS, { enabled: Boolean(token) })
 
   if (!token) return <LoginGate onLogin={save} />
 

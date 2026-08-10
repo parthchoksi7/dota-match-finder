@@ -997,11 +997,31 @@ export default async function handler(req, res) {
     }
   }
 
-  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
-
+  // Edge TTL deliberately LEFT AT 30s (2026-08-09, Fluid Active CPU budget pass). Raising it was
+  // tried and reverted, because the arithmetic doesn't work for this endpoint:
+  //
+  // With stale-while-revalidate, ANY request past s-maxage still costs an origin invocation — it's
+  // served stale and revalidated in the background. So invocations are only saved by requests that
+  // land INSIDE s-maxage, which for a solo viewer means s-maxage must exceed the client's 120s poll
+  // interval. Anything below that (30s, 60s, even 110s) saves a solo viewer exactly nothing and
+  // only dedups genuinely concurrent viewers in the same POP. Meanwhile the cost is real and paid
+  // by everyone: edge age COMPOUNDS with this payload's KV age (`TTL` = 120s above) AND with the
+  // swr window. Going to 60/120 would have bought ~0 invocations while pushing worst-case served
+  // age from ~210s to ~300s — a straight freshness regression on the homepage's live scores, which
+  // is the product's core surface. Clearing 120s to get a real saving would be worse still.
+  //
+  // If this ever needs to change, the only version that saves anything is s-maxage > the client
+  // poll interval, and that trade has to be made deliberately against live-score freshness.
+  //
+  // `?bust=1` is a distinct edge cache key, so it must opt out explicitly or the busted response
+  // would itself be cached and defeat the next bust. NOTE this does NOT purge the normal key's
+  // cached response — a bust is visible to real users only after the 30s+60s edge window drains.
   if (req.query?.bust === '1') {
+    res.setHeader('Cache-Control', 'no-store')
     await kv.del(KV_KEY)
     log.info('cache cleared')
+  } else {
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
   }
 
   try {

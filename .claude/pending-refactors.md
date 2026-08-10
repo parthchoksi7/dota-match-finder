@@ -228,3 +228,21 @@ Exempt from RICE: work that literally cannot start yet.
 ~~[CORRECTNESS] JSDoc type annotations for shared data shapes~~ ✅ Done — `@typedef` blocks for `PSMatch`, `ODMatch`, `SeriesGame`, `SeriesGroup`, `StreamResult`, `GameIndicators` added to `api/_shared.js`; `jsconfig.json` created with `checkJs: true`.
 ~~"1win Team" PS↔OD name mapping~~ ✅ Done (2026-07-15) — confirmed live: PandaScore names the org "1win" (EWC 2026 match id 1565904), OpenDota's team_id 8291895 still carries per-match `radiant_name`/`dire_name` "Tundra Esports" (pre-June-2026-roster-swap identity, OD ties team_id to Steam group continuity, not branding). No substring relationship, so added `['1win', 'tundraesports']` to `TEAM_NAME_ALIAS_GROUPS` in `src/teamMatching.js`. Surfaced by a favorites-highlighting bug report (team followed via its OD name didn't highlight its PS-sourced upcoming fixture).
 ~~Match-drawer game switcher groups by raw seriesId, unlike groupIntoSeries~~ ✅ Done (2026-07-11) — reported live via a PTime vs Nigma Galaxy (EWC 2026) BO2 that OD split across two series_ids; the drawer showed only game 1 with no switcher. Extracted the null/split-seriesId merge passes out of `groupIntoSeries` into exported `buildSeriesGroups(matches)` (returns the pre-sort, pre-trim seriesMap); `groupIntoSeries` now calls it before its sort + drop-oldest-incomplete trim. `App.jsx`'s `seriesMatchMap` was originally keyed per-game by each game's own raw `seriesId` so `selectedMatch.seriesId` lookups hit — **superseded 2026-07-20, see below: that keying had a null/0/undefined collision bug of its own.** Regression tests added in `utils.test.js`.
+
+[DEAD CODE] `fetchLiveGamePulse` / `fetchLiveValvePulse` have no production callers (2026-08-09)
+- `src/api.js:482` (`fetchLiveGamePulse`) and `src/api.js:504` (`fetchLiveValvePulse`).
+- The 2026-08-09 poll merge moved `SeriesLivePulse.jsx` — their only production caller — onto
+  `fetchLivePulse` (`?mode=live-pulse`). The two remain as the client counterparts of the still-live
+  standalone `?mode=live-game-pulse` / `?mode=live-valve-pulse` endpoints, which are themselves kept
+  only as a debugging surface for isolating one source.
+- Not removed inline because six pulse test suites compose their `fetchLivePulse` mock from these
+  two, so deleting them means reshaping those mocks around a merged payload — more churn than
+  belongs in a CPU-budget change.
+- Decide together: either delete both fetchers AND the two standalone API modes, or keep both as the
+  documented single-source debug path. Don't leave it ambiguous.
+
+[TEST HYGIENE] `__tests__/series-live-pulse-watch.test.jsx` doesn't mock the pulse fetcher (2026-08-09)
+- It passes only because it falls through to the real `fetchLivePulse` against a stubbed
+  `global.fetch`. That's accidental, not intended coverage — a change to the fetch shape would make
+  it fail for reasons unrelated to what it tests. Add an explicit `fetchLivePulse` mock like the
+  other pulse suites.

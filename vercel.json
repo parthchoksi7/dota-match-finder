@@ -29,7 +29,6 @@
     { "source": "/tournaments/the-international", "destination": "/" },
     { "source": "/admin/coverage", "destination": "/" },
     { "source": "/admin/review/:jobId", "destination": "/" },
-    { "source": "/admin/vod-urls", "destination": "/" },
     { "source": "/admin/live-story", "destination": "/" }
   ],
   "headers": [

@@ -35,12 +35,21 @@ const { odPulse } = vi.hoisted(() => ({
 
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal()
+  const fetchLiveGamePulse = vi.fn().mockResolvedValue(odPulse)
+  // The documented default/current production state: the endpoint is fail-closed behind the
+  // KV flag, so this ALWAYS resolves null until an owner explicitly turns it on.
+  const fetchLiveValvePulse = vi.fn().mockResolvedValue(null)
   return {
     ...actual,
-    fetchLiveGamePulse: vi.fn().mockResolvedValue(odPulse),
-    // The documented default/current production state: the endpoint is fail-closed behind the
-    // KV flag, so this ALWAYS resolves null until an owner explicitly turns it on.
-    fetchLiveValvePulse: vi.fn().mockResolvedValue(null),
+    fetchLiveGamePulse,
+    fetchLiveValvePulse,
+    // SeriesLivePulse polls both sources through one transport (2026-08-09); composed from the
+    // per-source mocks so this suite keeps asserting the OD-only fallback in the exact terms it
+    // was written in — Valve null, OD populated.
+    fetchLivePulse: vi.fn(async (id, owner) => ({
+      od: await fetchLiveGamePulse(id, owner),
+      valve: await fetchLiveValvePulse(id),
+    })),
     fetchHeroes: vi.fn().mockResolvedValue({
       1: { key: 'antimage', name: 'Anti-Mage' },
       2: { key: 'puck', name: 'Puck' },

@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { fetchLiveGamePulse, fetchLiveValvePulse, fetchHeroes } from '../api'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { fetchLivePulse, fetchHeroes } from '../api'
+import { useVisiblePolling } from '../utils/useVisiblePolling'
 import { RoshanStatus, LivePlayerBoard, LiveBanList, LiveEventFeed } from './LiveValveBoard'
 import { trackEvent, getStreamLanguage, pickPreferredStream } from '../utils'
 import { computeMomentum, computeStakes } from '../utils/momentum'
@@ -185,6 +186,11 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   const [pulse, setPulse] = useState(null)
   // Valve telemetry. Null is the normal, expected state — see the poll effect below.
   const [valvePulse, setValvePulse] = useState(null)
+  // Identifies the most recent in-flight poll, so a superseded response is dropped instead of
+  // applied. A ref (not an effect-local `let`) because the poll function is a useCallback shared
+  // by the mount effect and useVisiblePolling, so both must observe the same counter. See the
+  // comment on `pollPulses` for the stale-write this specifically prevents.
+  const pollTokenRef = useRef(0)
   const [heroMap, setHeroMap] = useState(null)
   // Mirrors MatchDrawer's scoreRevealed: spoiler-free hides the score/outcome-adjacent surfaces
   // behind a "Reveal score" button rather than the site-wide spoiler-free setting being the only
@@ -229,23 +235,44 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     setPulse(null)
   }, [psMatchId])
 
-  useEffect(() => {
+  // One poll, both sources. This used to be two independent 40s pollers (OD here, Valve below)
+  // staggered half a cycle apart — two serverless invocations per tick per viewer, ~4,320/day for
+  // one fan leaving a series open (2026-08-09, Fluid Active CPU budget). `?mode=live-pulse` returns
+  // both, with each side independently nullable, so the independent-failure-mode property the two
+  // separate states were built around is preserved: `valvePulse` going null still cannot take the
+  // OD-only sections (draft, watch links) down, and vice versa. The two states stay separate for
+  // exactly that reason — this merges the TRANSPORT, not the state.
+  const pollPulses = useCallback(() => {
     if (!psMatchId) return
-    let cancelled = false
-    function poll() {
-      fetchLiveGamePulse(psMatchId, true).then(p => { if (!cancelled) setPulse(prev => nextPulseState(p, prev)) }).catch(() => {})
-    }
-    poll()
-    const interval = setInterval(poll, POLL_MS)
-    return () => { cancelled = true; clearInterval(interval) }
+    // Monotonic token, NOT a boolean "cancelled" ref. A boolean is wrong here and was a real bug
+    // when this was first written: on a series switch the cleanup would set it true, the new
+    // effect would immediately set it back to false, and an ALREADY-IN-FLIGHT poll for the old
+    // series would then resolve, see false, and write the old series' score/draft into the new
+    // series' sheet. The two-poller version this replaced was immune because each effect run
+    // closed over its own `let cancelled`. Bumping a token on every poll AND in cleanup restores
+    // that isolation: a response is applied only if it belongs to the most recent poll.
+    const token = ++pollTokenRef.current
+    fetchLivePulse(psMatchId, true).then(({ od, valve }) => {
+      if (token !== pollTokenRef.current) return
+      setPulse(prev => nextPulseState(od, prev))
+      setValvePulse(prev => nextPulseState(valve, prev))
+    }).catch(() => {})
   }, [psMatchId])
 
-  // Valve-sourced telemetry — now the PRIMARY source for score, clock, net-worth lead, the
-  // net-worth graph, and the tower/barracks map below (all switched off the OD pulse 2026-08-06).
-  // Still a separate state + effect rather than merged into the OD poll above: independent failure
-  // modes, and while the endpoint is fail-closed behind `feature:live-valve-pulse:enabled` (see
-  // CONTEXT.md's public-graduation bar), `valvePulse` staying null must not take the OD-only
-  // sections (draft, watch links) down with it.
+  useEffect(() => {
+    pollPulses()
+    // Invalidates any in-flight poll on series switch AND on unmount.
+    return () => { pollTokenRef.current++ }
+  }, [pollPulses])
+
+  useVisiblePolling(pollPulses, POLL_MS, { enabled: Boolean(psMatchId) })
+
+  // Valve-sourced telemetry — the PRIMARY source for score, clock, net-worth lead, the net-worth
+  // graph, and the tower/barracks map below (all switched off the OD pulse 2026-08-06). It keeps
+  // its OWN state, deliberately, even though it now shares a transport with the OD pulse: the
+  // endpoint is fail-closed behind `feature:live-valve-pulse:enabled` (see CONTEXT.md's
+  // public-graduation bar), and `valvePulse` staying null must not take the OD-only sections
+  // (draft, watch links) down with it.
   //
   // Same retain-last-known-good bound as the OD pulse (`nextPulseState`/`STALE_AFTER_MS`) — added
   // 2026-08-06 after watching a real correlation miss freeze the Valve UI mid-game live (Valve's
@@ -253,25 +280,6 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   // have blanked on that single miss instead of holding the last good read for up to 90s).
   useLayoutEffect(() => {
     setValvePulse(null)
-  }, [psMatchId])
-
-  useEffect(() => {
-    if (!psMatchId) return
-    let cancelled = false
-    let interval
-    function poll() {
-      fetchLiveValvePulse(psMatchId).then(p => { if (!cancelled) setValvePulse(prev => nextPulseState(p, prev)) }).catch(() => {})
-    }
-    // First fetch stays immediate so the Valve-sourced sections don't lag the OD ones on mount.
-    // The recurring cadence is staggered half a cycle behind the OD poller above (same POLL_MS,
-    // same mount tick) so the two independent pollers don't double up on every outbound-request
-    // burst — only the interval's phase is offset, not the first paint.
-    poll()
-    const stagger = setTimeout(() => {
-      poll()
-      interval = setInterval(poll, POLL_MS)
-    }, POLL_MS / 2)
-    return () => { cancelled = true; clearTimeout(stagger); clearInterval(interval) }
   }, [psMatchId])
 
   useEffect(() => {

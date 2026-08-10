@@ -28,6 +28,9 @@ vi.mock('../api', async (importOriginal) => {
   return {
     ...real,
     fetchLiveGamePulse: vi.fn().mockResolvedValue(null),
+    // SeriesLivePulse's single combined transport (2026-08-09). This suite only needs both pulses
+    // absent — it exercises the stream-language surfaces, which render off props, not the pulse.
+    fetchLivePulse: vi.fn().mockResolvedValue({ od: null, valve: null }),
     fetchHeroes: vi.fn().mockResolvedValue({}),
     fetchMatchIndicators: vi.fn().mockResolvedValue({}),
     fetchMatchStats: vi.fn().mockResolvedValue(null),

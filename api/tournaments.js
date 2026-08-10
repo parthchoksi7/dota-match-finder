@@ -274,6 +274,14 @@ export default async function handler(req, res) {
     return handleLiveValvePulse(req, res)
   }
 
+  // Both of the above in ONE request/invocation — what SeriesLivePulse.jsx actually polls. The two
+  // standalone modes above are kept for the admin console and any external caller. See
+  // livePulseCombined.js for why the merge is safe w.r.t. their independent failure modes.
+  if (req.query?.mode === 'live-pulse') {
+    const { default: handleLivePulseCombined } = await import('./_handlers/livePulseCombined.js')
+    return handleLivePulseCombined(req, res)
+  }
+
   // ── series mode ─────────────────────────────────────────────────────────────
   if (req.query?.mode === 'series') {
     const { default: handleSeriesList } = await import('./_handlers/seriesList.js')

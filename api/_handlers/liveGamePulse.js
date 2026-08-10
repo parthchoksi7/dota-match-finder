@@ -168,22 +168,20 @@ export async function resolvePulse(pandaId, isOwner, log) {
   }
 }
 
-export default async function handleLiveGamePulse(req, res) {
-  const log = createLogger('/api/tournaments?mode=live-game-pulse')
-  res.setHeader('Cache-Control', 'private, no-store')
-  const pandaId = req.query?.id
-  if (!pandaId) return res.status(400).json({ pulse: null })
-  const idV = validateId(pandaId, { name: 'id' })
-  if (!idV.ok) return res.status(400).json({ pulse: null })
-
-  const isOwner = req.query?.owner === '1'
+/**
+ * The cached resolve, extracted from the HTTP handler below (2026-08-09) so the combined
+ * `?mode=live-pulse` mode (livePulseCombined.js) can reuse the EXACT same cache key, TTL and
+ * od-live-capture nudge rather than reimplementing them and letting the two drift. The standalone
+ * handler below is now a thin wrapper over this. Never throws.
+ */
+export async function getCachedPulse(pandaId, isOwner, log) {
   // Owner status is baked into the cache key itself so a public request can never be served a
   // cached response that was resolved (and cached) for an owner request carrying `history`.
   const cacheKey = `live:pulse:v1:${pandaId}${isOwner ? ':owner' : ''}`
 
   try {
     const cached = await kv.get(cacheKey)
-    if (cached) return res.status(200).json(cached)
+    if (cached) return cached
   } catch (err) {
     log.warn('pulse cache read failed', { pandaId, error: err?.message })
   }
@@ -213,5 +211,16 @@ export default async function handleLiveGamePulse(req, res) {
     log.warn('pulse cache write failed', { pandaId, error: err?.message })
   }
 
-  return res.status(200).json(result)
+  return result
+}
+
+export default async function handleLiveGamePulse(req, res) {
+  const log = createLogger('/api/tournaments?mode=live-game-pulse')
+  res.setHeader('Cache-Control', 'private, no-store')
+  const pandaId = req.query?.id
+  if (!pandaId) return res.status(400).json({ pulse: null })
+  const idV = validateId(pandaId, { name: 'id' })
+  if (!idV.ok) return res.status(400).json({ pulse: null })
+
+  return res.status(200).json(await getCachedPulse(pandaId, req.query?.owner === '1', log))
 }

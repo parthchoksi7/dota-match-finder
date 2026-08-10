@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 9, 2026",
+    tag: "improvement",
+    title: "Live data refreshes the moment you come back to the tab",
+    desc: "Background tabs no longer keep fetching live data you can't see. When you switch back to Spectate, anything that went stale while you were away refreshes straight away instead of waiting out the next update cycle.",
+  },
+  {
     date: "August 4, 2026",
     tag: "fix",
     title: "Live companion no longer shows the wrong match's score",

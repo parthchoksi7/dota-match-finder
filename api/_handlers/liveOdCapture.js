@@ -16,7 +16,14 @@ import { createLogger } from '../_shared.js'
 // via findOdMatchByTime() — not here.
 //
 // Trigger: App.jsx's ambient 2-min live poll fires `?mode=od-live-capture` directly (0 QStash
-// cost); a */15 QStash backstop covers no-user windows. The live-sheet pulse (SeriesLivePulse)
+// cost); a */15 QStash backstop covers no-user windows. **2026-08-09: that ambient poll is now
+// visibility-gated (useVisiblePolling), so it only fires while a homepage tab is in the
+// FOREGROUND.** A backgrounded tab is no longer ambient presence, which means the */15 backstop is
+// the real floor far more often than before — in a low-traffic window with no foreground tab and no
+// live sheet open, capture density drops from ~60-120s to ~15 min (a live gold graph accrues ~4
+// points for that stretch instead of ~40). Accepted as part of the Fluid Active CPU budget pass;
+// if Live Story capture density regresses noticeably, exempting THIS call from the gate (while
+// leaving the /api/live-matches read gated) is the targeted fix. The live-sheet pulse (SeriesLivePulse)
 // used to fire this same endpoint separately every 20s too — as of 2026-08-02 that call is folded
 // into `?mode=live-game-pulse` itself (liveGamePulse.js calls the exported captureOdLiveOnce()
 // below as its own first step, on a pulse-cache miss) so the poll costs one serverless invocation
