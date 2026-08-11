@@ -33,12 +33,12 @@ export default async function handleCalendarTournament(req, res) {
         fetch(`${PANDASCORE_BASE}/series/upcoming?filter[id]=${seriesId}`, { headers }),
         fetch(`${PANDASCORE_BASE}/series/past?filter[id]=${seriesId}`, { headers }),
       ])
+      // A non-OK response means PandaScore failed to answer that bucket (rate limit, timeout, 5xx) —
+      // that's not the same as "series isn't in this bucket" and must not be silently treated as [].
+      const failed = [runSR, upSR, pastSR].filter(r => !r.ok)
+      if (failed.length) throw new Error(`PandaScore series lookup failed: ${failed.map(r => r.status).join(', ')}`)
       const toArr = async (r) => { try { const d = await r.json(); return Array.isArray(d) ? d : [] } catch { return [] } }
-      const [runSD, upSD, pastSD] = await Promise.all([
-        runSR.ok ? toArr(runSR) : Promise.resolve([]),
-        upSR.ok ? toArr(upSR) : Promise.resolve([]),
-        pastSR.ok ? toArr(pastSR) : Promise.resolve([]),
-      ])
+      const [runSD, upSD, pastSD] = await Promise.all([toArr(runSR), toArr(upSR), toArr(pastSR)])
       series = [...runSD, ...upSD, ...pastSD][0]
       if (!series) throw new Error(`Series ${seriesId} not found`)
       // Fetch matches using filter[serie_id] on running/upcoming/past endpoints
