@@ -43,7 +43,11 @@ const TEAM_HANDLES = [
   { patterns: ['natus vincere', 'navi'], handle: 'natusvincere' },
   { patterns: ['virtus.pro', 'virtus'], handle: 'virtuspro' },
   { patterns: ['aurora'], handle: 'AuroraDota2_GG' },
-  { patterns: ['tundra'], handle: 'TundraEsports' },
+  // 2026-08-10: owner-confirmed the org formerly known as Tundra Esports (then 1win, then 1w
+  // Team) has rebranded again to "Iron Wing" (see src/teamMatching.js). Removed the
+  // "tundra" -> @TundraEsports mapping rather than guess Iron Wing's real X handle — tagging an
+  // unconfirmed or wrong handle in a live auto-post is worse than tagging no one. Add back once
+  // the correct @handle for Iron Wing is confirmed.
   { patterns: ['parivision', 'pari visions', 'pari'], handle: 'PARIVISIONdota2' },
   { patterns: ['xtreme gaming', 'xtreme'], handle: 'xtremegamingcn' },
   { patterns: ['glyph'], handle: 'glyphdota' },

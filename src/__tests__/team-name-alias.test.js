@@ -18,18 +18,15 @@ describe('TEAM_NAME_ALIAS_GROUPS', () => {
     expect(namesAlias(normalizeTeamName('1win'), normalizeTeamName('1W'))).toBe(true)
   })
 
-  // TI 2026 rebrand scrub (`.claude/specs/ti-2026-day-one-spec.md` T0.2): PandaScore's "Iron Wing"
-  // (id 138994) is backed by OpenDota Steam group 10150413, whose per-match name still reads
-  // "Tundra Esports" as of its last indexed match — a second, unrelated OD label from a different
-  // org than the 1win/8291895 lineage above and the real still-active "Tundra Esports" (PS id
-  // 128439) below.
-  it('aliases Iron Wing (PS) with the stale OD label "Tundra Esports"', () => {
+  // 2026-08-10 owner confirmation: "1w Team" rebranded again to "Iron Wing", and PandaScore's
+  // separately-tracked "Iron Wing" (id 138994, OD Steam group 10150413, stale OD label "Tundra
+  // Esports") plus the previously-assumed-separate "real, currently active Tundra Esports" (PS
+  // id 128439) are the SAME lineage as the 1win/8291895 chain, not distinct orgs. A prior
+  // session (2026-08-02) had concluded otherwise from OD's rename lag alone — corrected here.
+  it('aliases Iron Wing with the full 1win/1w Team/Tundra Esports lineage', () => {
     expect(namesAlias(normalizeTeamName('Iron Wing'), normalizeTeamName('Tundra Esports'))).toBe(true)
-  })
-
-  it('does not transitively alias Iron Wing with the 1win lineage', () => {
-    expect(namesAlias(normalizeTeamName('Iron Wing'), normalizeTeamName('1win'))).toBe(false)
-    expect(namesAlias(normalizeTeamName('Iron Wing'), normalizeTeamName('1w Team'))).toBe(false)
+    expect(namesAlias(normalizeTeamName('Iron Wing'), normalizeTeamName('1win'))).toBe(true)
+    expect(namesAlias(normalizeTeamName('Iron Wing'), normalizeTeamName('1w Team'))).toBe(true)
   })
 
   it('does not alias unrelated team names', () => {

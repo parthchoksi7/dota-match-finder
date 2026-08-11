@@ -31,27 +31,19 @@ const TEAM_NAME_ALIAS_GROUPS = [
   // was "1win", but OpenDota still had no "1win" team_id at all — team_id 8291895's most
   // recent match (OD match 8815912139, ~2026-05) carried radiant_name "Tundra Esports", the
   // pre-roster-swap identity (OD ties team_id to Steam group continuity, not org branding).
-  // 2026-08-01: owner-confirmed the org has since rebranded again, from "1win" to "1w Team"
-  // — PandaScore's own synced team list (?mode=teams) still returns "1win" as of this date
-  // (not yet caught up, same lag pattern as the original Tundra→1win transition), and
-  // OpenDota's per-match name is the short form "1W". None of "1wteam"/"1w"/"1win"/
-  // "tundraesports" have a substring relationship with each other, so all four need explicit
-  // alias membership, not just normalizeTeamName. Revisit/prune the older entries once
-  // PandaScore's sync and OD's per-match name both catch up to "1w Team".
-  ['1wteam', '1w', '1win', 'tundraesports'],
-  // TI 2026 rebrand scrub, 2026-08-02 (`.claude/specs/ti-2026-day-one-spec.md` T0.2): PandaScore's
-  // "Iron Wing" (team id 138994, confirmed via live `dota2/teams` search) is backed by OpenDota
-  // Steam group 10150413 — PandaScore's own logo asset for this team is literally named
-  // `10150413.png`. OD's per-match radiant_name/dire_name for that same team_id still reads
-  // "Tundra Esports" as of its most recent indexed match (2026-05-30) — a second, UNRELATED
-  // OD-side "Tundra Esports" label from the org's pre-rebrand identity, distinct from the
-  // 8291895/1win lineage above. This is NOT the same org as the real, currently active "Tundra
-  // Esports" (PandaScore id 128439, roster incl. Saksa, still competing under its own name) — that
-  // org's own matches carry the literal "Tundra Esports" name on BOTH sides and need no alias at
-  // all. Scoped as its own group (not merged into the 1win group above) precisely so a future
-  // cleanup doesn't collapse three distinct orgs that all happen to touch the string
-  // "tundraesports" into one.
-  ['ironwing', 'tundraesports'],
+  // 2026-08-01: owner-confirmed the org has since rebranded again, from "1win" to "1w Team".
+  // 2026-08-10: owner-confirmed a further rebrand, "1w Team" -> "Iron Wing" — this is the name
+  // carrying the TI2026 direct invite. This also folds in PandaScore's separately-tracked
+  // "Iron Wing" (team id 138994, backed by OD Steam group 10150413) — a previous session
+  // (2026-08-02) concluded that record was an unrelated org because its OD per-match name still
+  // read "Tundra Esports" as of its last indexed match; owner confirmation on 2026-08-10 is that
+  // it's the SAME lineage, OD was just lagging the rebrand the same way it lagged Tundra->1win.
+  // Per the same 2026-08-10 confirmation, the org previously tracked here as a fully separate
+  // "real, currently active Tundra Esports" (PandaScore id 128439, roster incl. Saksa) is ALSO
+  // this lineage, not a distinct org — folded in below rather than kept as its own group.
+  // None of "1wteam"/"1w"/"1win"/"tundraesports"/"ironwing" have a substring relationship with
+  // each other, so all need explicit alias membership, not just normalizeTeamName.
+  ['ironwing', '1wteam', '1w', '1win', 'tundraesports'],
 ]
 
 export function namesAlias(x, y) {
@@ -68,14 +60,20 @@ export function namesAlias(x, y) {
 // returns the old name at all) and twelve additions (real EWC group-stage/playoffs or BLAST Slam
 // Playoffs participants that had no entry here, 1win among them — it inherited Tundra Esports'
 // roster in June 2026, see TEAM_NAME_ALIAS_GROUPS above).
-// 2026-08-01: "1win" renamed to "1w Team" (owner-confirmed; PandaScore's own sync hasn't
-// caught up yet, see the alias-group comment above — "1win"/"1w"/"tundraesports" all resolve
-// here via alias). "Tundra Esports" is kept as its own separate entry (not merged into this
-// one) so a genuinely historical OD match from before the 1win/1w Team roster swap still
-// displays "Tundra Esports" — exact equality is checked before alias fallback, so it wins for
-// any OD name that's still literally "Tundra Esports".
+// 2026-08-01: "1win" renamed to "1w Team" (owner-confirmed). 2026-08-10: owner-confirmed a
+// further rebrand to "Iron Wing", and that this is the SAME lineage as the org previously
+// tracked as a separate "Tundra Esports" entry here — so that entry has been removed rather
+// than kept alongside. "1win"/"1w"/"1wteam"/"tundraesports"/"ironwing" all resolve to "Iron
+// Wing" via the alias group above. Note this is a deliberate behavior change from the
+// pre-2026-08-10 design: exact-equality used to win over alias so a historical OD match
+// literally named "Tundra Esports" (e.g. from the TI2022-winning run) would still display
+// "Tundra Esports" instead of the current name. Per owner instruction, that historical-display
+// nuance no longer applies to this lineage — canonicalTeamName() will now show "Iron Wing" even
+// for old completed matches under the former name. This does NOT touch narrative/historical
+// text (TIHistoryPage.jsx, players.js bios, teams.js "about" copy) describing the TI2022 win —
+// that content is static and independent of this resolution function.
 export const TIER1_TEAMS_SERVER = [
-  'Team Liquid', '1w Team', 'Tundra Esports', 'Team Spirit', 'BetBoom Team',
+  'Team Liquid', 'Iron Wing', 'Team Spirit', 'BetBoom Team',
   'Team Falcons', 'Gaimin Gladiators', 'Aurora', 'OG',
   'Natus Vincere', 'Virtus.pro', 'Team Secret', 'Team Aster',
   'Talon Esports', 'Nouns Esports', 'Team Yandex', 'LGD Gaming',
@@ -95,7 +93,6 @@ export const TIER1_TEAMS_SERVER = [
 // silently empty it out until KV is populated.
 export const TIER1_TEAMS_SERVER_SLUGS = {
   'Team Liquid': 'team-liquid',
-  'Tundra Esports': 'tundra-esports',
   'Team Spirit': 'team-spirit',
   'BetBoom Team': 'betboom-team',
   'Team Falcons': 'team-falcons-dota-2',
@@ -116,11 +113,11 @@ export const TIER1_TEAMS_SERVER_SLUGS = {
   'Thunder Awaken': 'thunder-awaken',
   'Parivision': 'parivision-dota-2',
   'Xtreme Gaming': 'xtreme-gaming',
-  // Carried over from the pre-rename "1win" slug — unverified against the "1w Team" rename
-  // (PandaScore's own sync hasn't caught up yet as of 2026-08-01, see TIER1_TEAMS_SERVER
-  // comment). This is only the last-resort static fallback (?mode=teams prefers the live
+  // Carried over from the pre-rename "1win" slug — unverified against the "Iron Wing" rebrand
+  // (owner-confirmed 2026-08-10, see TIER1_TEAMS_SERVER comment; PandaScore's own sync may not
+  // have caught up). This is only the last-resort static fallback (?mode=teams prefers the live
   // KV-synced slug); worst case until confirmed is Calendar's team picker excludes this org.
-  '1w Team': '1win-dota-2',
+  'Iron Wing': '1win-dota-2',
   'Vici Gaming': 'vici-gaming-dota-2',
   'Rune Eaters': 'rune-eaters',
   'GamerLegion': 'gamerlegion-dota-2',
@@ -145,9 +142,10 @@ export const TEAM_NICKNAMES = {
   'Natus Vincere': ['navi'],
   'Virtus.pro': ['vp'],
   'Team Liquid': ['tl'],
-  // "1win"/"1W" are the pre-rename names fans and older content still search by — no
-  // substring relationship with "1w Team" (renamed 2026-08-01, see TIER1_TEAMS_SERVER).
-  '1w Team': ['1win', '1win team', '1w'],
+  // "1win"/"1W"/"1w Team"/"Tundra" are the pre-rename names fans and older content still
+  // search by — no substring relationship with "Iron Wing" (renamed 2026-08-10, see
+  // TIER1_TEAMS_SERVER).
+  'Iron Wing': ['1win', '1win team', '1w', '1w team', 'tundra', 'tundra esports'],
   'Aurora': ['aurora gaming'],
   // LGD Gaming dropped the PSG sponsorship in its name; PandaScore no longer returns "PSG.LGD"
   // at all (confirmed 2026-07-19), but plenty of existing content/muscle memory still calls
@@ -168,14 +166,15 @@ export const TEAM_NICKNAMES = {
 // never silently dropped or misattributed.
 //
 // Exact-equality is checked across the WHOLE roster before any alias fallback, in its own pass
-// — not a single combined predicate. Two TIER1_TEAMS_SERVER entries can legitimately share one
-// alias group at once (e.g. "1w Team" and "Tundra Esports", kept separate so a genuinely
-// historical OD match from before the roster/branding swap still displays "Tundra Esports"); a
-// combined single-pass predicate would let array order alone decide the winner for an EXACT
-// match too (whichever entry `.find()` reached first), which broke the historical-accuracy
-// case — caught in review 2026-08-01 before shipping. With exact-first, alias-fallback array
-// order only matters for names that exactly match NEITHER entry (e.g. OD's abbreviated "1W"),
-// where it deliberately prefers whichever entry is listed first in TIER1_TEAMS_SERVER — keep the
+// — not a single combined predicate. This still matters when two TIER1_TEAMS_SERVER entries
+// share one alias group but one is meant to keep its own literal display name (the general
+// case a combined single-pass predicate would break, since array order alone would decide the
+// winner for an EXACT match too — caught in review 2026-08-01 before shipping). The "1w Team"/
+// "Tundra Esports" pair that originally motivated this no longer applies (owner-confirmed
+// 2026-08-10 merge into "Iron Wing" — see TIER1_TEAMS_SERVER comment), but the exact-first
+// design stays for any future case like it. With exact-first, alias-fallback array order only
+// matters for names that exactly match NEITHER entry (e.g. OD's abbreviated "1W"), where it
+// deliberately prefers whichever entry is listed first in TIER1_TEAMS_SERVER — keep the
 // current/preferred name of any such pair ahead of the retired one in that array.
 export function canonicalTeamName(name) {
   const n = normalizeTeamName(name)

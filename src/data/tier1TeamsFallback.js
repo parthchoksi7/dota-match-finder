@@ -14,10 +14,12 @@
 // among them). Mirrors TIER1_TEAMS_SERVER / TIER1_TEAMS_SERVER_SLUGS / TEAM_NICKNAMES in
 // src/teamMatching.js (moved there 2026-08-01, formerly api/_shared.js) — keep both in sync.
 export const TIER1_TEAMS_FALLBACK = [
-  // Renamed "1win" -> "1w Team" 2026-08-01 (owner-confirmed; PandaScore's own sync hasn't
-  // caught up yet, see TIER1_TEAMS_SERVER in src/teamMatching.js) — slug carried over from
-  // "1win-dota-2" and unverified against the rename.
-  { name: '1w Team', slug: '1win-dota-2', acronym: null, aliases: ['1win', '1win team', '1w'] },
+  // Renamed "1win" -> "1w Team" 2026-08-01, then "1w Team" -> "Iron Wing" 2026-08-10
+  // (owner-confirmed both times; PandaScore's own sync may not have caught up, see
+  // TIER1_TEAMS_SERVER in src/teamMatching.js) — slug carried over from "1win-dota-2" and
+  // unverified against the rename. This entry also absorbs the former standalone "Tundra
+  // Esports" fallback row (removed 2026-08-10, same owner confirmation — see teamMatching.js).
+  { name: 'Iron Wing', slug: '1win-dota-2', acronym: null, aliases: ['1win', '1win team', '1w', '1w team', 'tundra', 'tundra esports'] },
   { name: 'Aurora', slug: 'aurora-dota-2', acronym: null, aliases: ['aurora gaming'] },
   { name: 'beastcoast', slug: 'beastcoast', acronym: null, aliases: [] },
   { name: 'BetBoom Team', slug: 'betboom-team', acronym: null, aliases: ['boomboys', 'bb'] },
@@ -47,7 +49,6 @@ export const TIER1_TEAMS_FALLBACK = [
   { name: 'Team Spirit', slug: 'team-spirit', acronym: null, aliases: [] },
   { name: 'Team Yandex', slug: 'team-yandex', acronym: null, aliases: [] },
   { name: 'Thunder Awaken', slug: 'thunder-awaken', acronym: null, aliases: [] },
-  { name: 'Tundra Esports', slug: 'tundra-esports', acronym: null, aliases: [] },
   { name: 'Vici Gaming', slug: 'vici-gaming-dota-2', acronym: null, aliases: [] },
   { name: 'Virtus.pro', slug: 'virtus-pro', acronym: null, aliases: ['vp'] },
   { name: 'Xtreme Gaming', slug: 'xtreme-gaming', acronym: null, aliases: [] },

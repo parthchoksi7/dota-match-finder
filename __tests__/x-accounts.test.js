@@ -89,8 +89,12 @@ describe('lookupTeamHandle', () => {
     expect(lookupTeamHandle('Aurora')).toBe('AuroraDota2_GG')
   })
 
-  it('matches Tundra Esports', () => {
-    expect(lookupTeamHandle('Tundra Esports')).toBe('TundraEsports')
+  // 2026-08-10: the "tundra" -> @TundraEsports mapping was removed (org rebranded to Iron
+  // Wing, real handle unconfirmed — see api/_x-accounts.js). No X-account mapping exists for
+  // this org until the real Iron Wing handle is confirmed.
+  it('returns null for the rebranded org until Iron Wing\'s real handle is confirmed', () => {
+    expect(lookupTeamHandle('Tundra Esports')).toBeNull()
+    expect(lookupTeamHandle('Iron Wing')).toBeNull()
   })
 
   it('matches PARI Visions', () => {
@@ -121,7 +125,6 @@ describe('lookupTeamHandle', () => {
 
   it('is case-insensitive', () => {
     expect(lookupTeamHandle('team liquid')).toBe('teamliquiddota')
-    expect(lookupTeamHandle('TUNDRA ESPORTS')).toBe('TundraEsports')
   })
 
   it('returns null for unknown team', () => {

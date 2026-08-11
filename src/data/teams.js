@@ -58,22 +58,23 @@ export const TIER1_TEAMS = [
     basedIn: 'United Kingdom',
     tiWins: [2022],
     iconicPlayers: ['skiter', 'Nine', '33', 'Saksa', 'Sneyking'],
-    shortDesc: 'The International 2022 champions. Exited competitive Dota 2 in June 2026, with their entire roster transferring to 1w Team.',
-    about: 'Tundra Esports was founded on January 25, 2021, based in London, United Kingdom. The organization entered competitive Dota 2 by acquiring the mudgolems roster. Their defining moment came at The International 2022, where they dropped only one game across the entire playoff stage before defeating Team Secret 3-0 in the Grand Final to claim the TI11 championship. On June 1, 2026, Tundra announced their exit from competitive Dota 2, transferring their entire active roster and coaching staff to 1w Team (then branded 1win) — including their TI 2026 direct invite.',
+    shortDesc: 'The International 2022 champions. Exited competitive Dota 2 in June 2026, with their entire roster transferring to what is now Iron Wing.',
+    about: 'Tundra Esports was founded on January 25, 2021, based in London, United Kingdom. The organization entered competitive Dota 2 by acquiring the mudgolems roster. Their defining moment came at The International 2022, where they dropped only one game across the entire playoff stage before defeating Team Secret 3-0 in the Grand Final to claim the TI11 championship. On June 1, 2026, Tundra announced their exit from competitive Dota 2, transferring their entire active roster and coaching staff to the org now known as Iron Wing (branded 1win at the time, then 1w Team) — including their TI 2026 direct invite.',
     liquipedia: 'https://liquipedia.net/dota2/Tundra_Esports',
   },
   {
-    // 2026-08-01: org renamed "1win" -> "1w Team" (owner-confirmed; Liquipedia URL/slug left
-    // unchanged pending confirmation Liquipedia itself has moved the page — see
-    // src/teamMatching.js for the display-name canonicalization this feeds into).
+    // 2026-08-01: org renamed "1win" -> "1w Team" (owner-confirmed). 2026-08-10: owner-confirmed
+    // a further rebrand, "1w Team" -> "Iron Wing" — this is the name carrying the TI2026 direct
+    // invite. Liquipedia URL/slug left unchanged pending confirmation Liquipedia itself has moved
+    // the page — see src/teamMatching.js for the display-name canonicalization this feeds into.
     id: '1win',
-    name: '1w Team',
+    name: 'Iron Wing',
     region: 'EEU',
     basedIn: 'Russia',
     tiWins: [],
     iconicPlayers: [],
-    shortDesc: 'Russian Dota 2 organization (formerly branded 1win) that signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite.',
-    about: '1win entered competitive Dota 2 in February 2024. On June 1, 2026, the organization signed the full Tundra Esports lineup along with their TI 2026 direct invite, following Tundra\'s exit from the scene. The acquisition made 1w Team (then still branded 1win) the home of one of the most tournament-decorated rosters of the 2025–2026 era, with the squad bootcamping in Belgrade ahead of the Esports World Cup and The International 2026. Due to Valve regulations prohibiting multiple affiliated teams in official tournaments, the previous 1win Dota 2 squad departed to compete independently.',
+    shortDesc: 'Russian Dota 2 organization (formerly branded 1win, then 1w Team) that signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite.',
+    about: '1win entered competitive Dota 2 in February 2024. On June 1, 2026, the organization signed the full Tundra Esports lineup along with their TI 2026 direct invite, following Tundra\'s exit from the scene. The acquisition made the org (then still branded 1win, later 1w Team, now Iron Wing) the home of one of the most tournament-decorated rosters of the 2025–2026 era, with the squad bootcamping in Belgrade ahead of the Esports World Cup and The International 2026. Due to Valve regulations prohibiting multiple affiliated teams in official tournaments, the previous 1win Dota 2 squad departed to compete independently.',
     liquipedia: 'https://liquipedia.net/dota2/1win_Team',
   },
   {
