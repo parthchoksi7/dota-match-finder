@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 10, 2026",
+    tag: "improvement",
+    title: "1w Team is now Iron Wing",
+    desc: "The org formerly known as 1win, then 1w Team, has rebranded again to Iron Wing. Every match view, the Teams page, and search now show the current name, including for their earlier matches shown under the Tundra Esports or 1win name.",
+  },
+  {
     date: "August 9, 2026",
     tag: "improvement",
     title: "Live data refreshes the moment you come back to the tab",

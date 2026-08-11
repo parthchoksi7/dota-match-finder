@@ -109,13 +109,13 @@ Source: Liquipedia (https://liquipedia.net/dota2/). TI records verified against 
 - **TI wins**: TI11 (2022) — dropped only one game across the entire playoff stage
 - **Iconic players**: skiter, Nine, 33, Saksa, Sneyking
 - **Historic note**: Defeated Team Secret 3-0 in the TI11 Grand Final without losing a single series in the main event.
-- **Status**: Exited competitive Dota 2 on June 1, 2026. Full roster and TI 2026 direct invite transferred to 1w Team (then branded 1win).
+- **Status**: Exited competitive Dota 2 on June 1, 2026. Full roster and TI 2026 direct invite transferred to what is now Iron Wing (branded 1win at the time, then 1w Team).
 
-### 1w Team (EEU) — formerly branded 1win
+### Iron Wing (EEU) — formerly branded 1win, then 1w Team
 - **Organization based in**: Russia (entered Dota 2 February 2024)
 - **TI wins**: None
 - **Iconic players**: None established (org is new to Dota 2)
-- **Notable**: Renamed from "1win" to "1w Team" (2026-08-01). Signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite. Previous 1win Dota 2 squad departed to compete independently as "Enjoy" per Valve regulations prohibiting multiple affiliated teams in official tournaments.
+- **Notable**: Renamed from "1win" to "1w Team" (2026-08-01), then to "Iron Wing" (2026-08-10). Signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite. Previous 1win Dota 2 squad departed to compete independently as "Enjoy" per Valve regulations prohibiting multiple affiliated teams in official tournaments.
 
 ### Evil Geniuses (NA) — disbanded
 - **Organization based in**: United States (Dota 2 division est. October 2011; disbanded November 2023)

@@ -120,7 +120,7 @@ Dedicated pages for each Tier 1 Dota 2 organization at /teams/{slug}. Each page 
 - [Team Spirit](https://spectateesports.live/teams/team-spirit): 2× TI champion (2021, 2023). Iconic players: Yatoro, Collapse, TORONTOTOKYO, Miposhka, Mira.
 - [Team Falcons](https://spectateesports.live/teams/team-falcons): TI14 champion (2025). Iconic players: skiter, Malr1ne, ATF, Cr1t-, Sneyking.
 - [Tundra Esports](https://spectateesports.live/teams/tundra-esports): TI11 champion (2022), exited Dota 2 June 2026. Iconic players: skiter, Nine, 33, Saksa, Sneyking.
-- [1w Team](https://spectateesports.live/teams/1win): Russian EEU org (formerly branded 1win). Signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite.
+- [Iron Wing](https://spectateesports.live/teams/1win): Russian EEU org (formerly branded 1win, then 1w Team). Signed the full Tundra Esports roster in June 2026, inheriting their TI 2026 direct invite.
 - [Evil Geniuses](https://spectateesports.live/teams/evil-geniuses): TI5 champion (2015), disbanded November 2023. Iconic players: Fear, SumaiL, UNiVeRsE, ppd, Arteezy.
 - [Nigma Galaxy](https://spectateesports.live/teams/nigma-galaxy): Founded 2019 by four TI7 champions. Iconic players: Miracle-, KuroKy, GH, MinD_ContRoL, w33.
 - [BetBoom Team](https://spectateesports.live/teams/betboom-team): Russian EEU org est. 2022. Iconic players: save-, gpk, TORONTOTOKYO, Nightfall, SoNNeikO.
