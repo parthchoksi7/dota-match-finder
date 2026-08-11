@@ -78,7 +78,14 @@ describe('?mode=live-pulse — edge cache contract', () => {
     expect(effectiveCaptureCadence).toBe(LOCK_TTL_S)
   })
 
-  it('does NOT make the 400 validation responses shared-cacheable', async () => {
+  it('does not attach the pulse cache header to the 400 validation responses', async () => {
+    // Scope note, verified against production: this asserts the HANDLER adds nothing on the 400
+    // path, not that the served 400 is uncacheable. api/tournaments.js sets a generic
+    // `s-maxage=60, stale-while-revalidate=300` on the router before dispatching to this mode, so a
+    // real 400 goes out with that inherited default. Harmless — a 400 here is deterministic per URL
+    // (the id either parses or it does not), so a shared cache entry can only ever repeat the same
+    // answer, and it shields the origin from malformed-URL spam. What matters is that the
+    // capture-cadence-coupled header above is never applied to a response that skipped the capture.
     const missingId = mockRes()
     await handleLivePulseCombined({ query: {} }, missingId)
     expect(missingId.status).toHaveBeenCalledWith(400)
