@@ -216,6 +216,10 @@ export async function getCachedPulse(pandaId, isOwner, log) {
 
 export default async function handleLiveGamePulse(req, res) {
   const log = createLogger('/api/tournaments?mode=live-game-pulse')
+  // Deliberately NOT edge-cached, unlike the `?mode=live-pulse` combined endpoint that fans out to
+  // this handler's getCachedPulse(). No client polls this mode any more — it exists only to isolate
+  // the OD source when the combined response looks wrong, which is exactly the moment a cached body
+  // would mislead you. The invocation-count problem lives on the combined endpoint; fix it there.
   res.setHeader('Cache-Control', 'private, no-store')
   const pandaId = req.query?.id
   if (!pandaId) return res.status(400).json({ pulse: null })

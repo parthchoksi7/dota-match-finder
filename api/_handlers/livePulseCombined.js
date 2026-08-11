@@ -30,12 +30,43 @@ import { getCachedValvePulse } from './liveValvePulse.js'
  */
 export default async function handleLivePulseCombined(req, res) {
   const log = createLogger('/api/tournaments?mode=live-pulse')
-  res.setHeader('Cache-Control', 'private, no-store')
 
   const pandaId = req.query?.id
   if (!pandaId) return res.status(400).json({ od: { pulse: null }, valve: { pulse: null } })
   const idV = validateId(pandaId, { name: 'id' })
   if (!idV.ok) return res.status(400).json({ od: { pulse: null }, valve: { pulse: null } })
+
+  // Edge-cached per series (2026-08-11, Fluid Active CPU). Merging the two pollers above halved the
+  // invocations per viewer, but this endpoint was still `no-store`, so what remained scaled LINEARLY
+  // WITH VIEWERSHIP: every 40s tick of every concurrent viewer of the same series was its own
+  // invocation. That is why CPU stayed over budget after the earlier cold-start work — that reduced
+  // per-invocation COST, not invocation COUNT. The per-source KV caches dedup the WORK but not the
+  // INVOCATION; the function still boots to reach them. N viewers of one series now collapse to ~2
+  // origin hits/min instead of N x 1.5/min, and the saving grows with audience size — the property
+  // that actually matters going into TI. Set AFTER validation so the 400s above stay uncacheable.
+  //
+  // Safe to cache publicly: the body is series-level telemetry (score/gold/draft/objectives), never
+  // per-user — `isOwner` comes only from the `owner=1` query param, never from auth/cookies. The CDN
+  // keys on the full URL, so `?id=` partitions by series and the `owner=1` variant is a distinct
+  // entry. `max-age=0` keeps the BROWSER from holding its own copy: Vercel strips `s-maxage` before
+  // the response reaches the client, and without `max-age=0` the leftover directives are honored by
+  // the browser HTTP cache, which would hide fresh data from the very poll this exists to serve.
+  //
+  // WHY 30 AND NOT LONGER — this sets the OD capture cadence, so it is not free to tune. Each origin
+  // revalidation is what runs captureOdLiveOnce() inside getCachedPulse(), and that capture holds a
+  // never-released 60s KV lock (LOCK_TTL_S in liveOdCapture.js). Periodic attempts every P seconds
+  // against that lock yield a real capture every ceil(60/P)*P: P=30 gives exactly 60s (unchanged from
+  // today), but P=45 would give 90s — silently thinning the live_game_gold timeseries the net-worth
+  // graph is built from, and invalidating GOLD_HISTORY_MAX_POINTS, which liveGamePulse.js derives
+  // from the ~60s cadence. Any future change here must redo that ceil() calculation, not just check
+  // that s-maxage < 60.
+  //
+  // Known staleness interaction, accepted: worst-case body age is capture (<=60s) + KV
+  // (PULSE_CACHE_TTL_S) + edge (30 + swr), which can exceed SeriesLivePulse's STALE_AFTER_MS (90s)
+  // retain-last-known-good bound. That bound only applies when a poll returns null, and a null after
+  // an already-old pulse is far more likely a real game transition (where clearing is correct) than
+  // a transient miss — so the guard degrades toward correct behavior, not toward a stale display.
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=10')
 
   const isOwner = req.query?.owner === '1'
 

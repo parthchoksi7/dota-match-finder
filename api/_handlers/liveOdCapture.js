@@ -222,7 +222,26 @@ export async function captureOdLiveOnce(log) {
 
 export default async function handleLiveOdCapture(req, res) {
   const log = createLogger('/api/tournaments?mode=od-live-capture')
+
+  // Deliberately NOT edge-cached, despite this being a high-invocation path (App.jsx fires it
+  // fire-and-forget per open tab whenever a game is running, and most of those invocations only
+  // boot to read the KV lock and return `{skipped:'throttled'}`).
+  //
+  // An attempt to cache it for unauthenticated callers only — keeping `no-store` when an
+  // Authorization header marks the QStash caller — was reverted 2026-08-11 as unsound: the CDN
+  // performs its cache lookup BEFORE the function runs, so a response header can only control
+  // whether THIS response is stored, never whether an already-stored entry (populated by a browser
+  // caller at the same URL) is SERVED to a later request. The scheduled */15 caller could therefore
+  // be handed a cached body and skip the capture entirely — and with it `captureLiveStoryOnce`,
+  // which api/tournaments.js piggybacks onto this same mode as Live Story's only unattended trigger.
+  // Silently losing both during a no-user window is a far worse outcome than the invocations saved.
+  //
+  // Doing this safely needs the scheduled caller on a DISTINCT URL (the query string is part of the
+  // cache key — e.g. add `&cron=1` to the destination in scripts/setup-qstash-schedules.mjs and
+  // branch on it here), so the two callers can never share a cache entry. That requires re-running
+  // the QStash setup script, so it is a deliberate follow-up rather than a same-day change.
   res.setHeader('Cache-Control', 'private, no-store')
+
   const result = await captureOdLiveOnce(log)
   return res.status(200).json(result)
 }
