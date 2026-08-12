@@ -15,6 +15,18 @@ import { SHEET_PADDING } from './Sheet'
 import { InfoButton } from './FloatingTooltip'
 
 const POLL_MS = 40000
+// Backoff cadence once the series has left the live feed (2026-08-11, Fluid Active CPU). A sheet
+// left open on a finished series used to poll at the full 40s rate for as long as the tab stayed
+// VISIBLE — useVisiblePolling only stops hidden tabs, so one forgotten foreground tab was ~2,160
+// invocations/day on its own. That case is also the edge cache's blind spot: a lone viewer polling
+// every 40s against a 30s s-maxage misses on every single poll, so shared caching saves it nothing.
+//
+// Deliberately a BACKOFF, not a stop. The conclusion signal (see App.jsx's liveSeriesConcluded) is
+// "absent from /api/live-matches", which a successful-but-empty upstream response could assert
+// wrongly. Stopping outright would freeze the sheet until the fan closed and reopened it — an
+// unrecoverable, silent failure. At 5 min a wrong signal self-corrects on the next tick and costs
+// 7.5x fewer invocations than the live rate, keeping ~87% of the saving with none of that risk.
+const IDLE_POLL_MS = 5 * 60 * 1000
 // Bounds the retain-last-known-good behavior below: a failed/empty poll and a routine "no game
 // is running right now" (the ordinary gap between games in a BO3/BO5 — drafting, or the new
 // game's OD correlation hasn't landed yet) are indistinguishable from the client's point of view,
@@ -182,7 +194,7 @@ function StarIcon({ filled }) {
 // sections (2026-07-31 — the two were independently designed and had drifted for data that's
 // identical between a live and a completed game: team names, kill score, follow, watch position,
 // draft section label). MatchDrawer itself is the fixed baseline and was not changed.
-export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages, followedTeams, onToggleFollow }) {
+export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, seriesScore, teamA, teamB, tournament, streams, youtubeStream, otherStreams, primaryLanguages, seriesConcluded = false, followedTeams, onToggleFollow }) {
   const [pulse, setPulse] = useState(null)
   // Valve telemetry. Null is the normal, expected state — see the poll effect below.
   const [valvePulse, setValvePulse] = useState(null)
@@ -265,7 +277,15 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
     return () => { pollTokenRef.current++ }
   }, [pollPulses])
 
-  useVisiblePolling(pollPulses, POLL_MS, { enabled: Boolean(psMatchId) })
+  // Backs off to IDLE_POLL_MS once the series leaves the live feed — see both constants' comments.
+  // Changing the interval re-runs useVisiblePolling's effect, tearing down the old timer and
+  // starting the new cadence from now (its `lastRunAt` re-seeds on every effect run). Note the
+  // recovery path does NOT get an immediate poll: that hook's fire-if-a-full-interval-elapsed
+  // branch only runs on visibilitychange, not on an interval change. What matters is that it
+  // rebuilds at the FULL live rate rather than serving out the remainder of the 5-min idle tick —
+  // so worst-case idle->live is one ambient poll to notice the series returned (<=2 min) plus one
+  // fresh 40s interval, not 5 minutes.
+  useVisiblePolling(pollPulses, seriesConcluded ? IDLE_POLL_MS : POLL_MS, { enabled: Boolean(psMatchId) })
 
   // Valve-sourced telemetry — the PRIMARY source for score, clock, net-worth lead, the net-worth
   // graph, and the tower/barracks map below (all switched off the OD pulse 2026-08-06). It keeps

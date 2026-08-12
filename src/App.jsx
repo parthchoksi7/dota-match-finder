@@ -16,7 +16,7 @@ import { prefetchMatchStreams as prefetchMatchStreamsCache, clearVodPrefetchCach
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, hasPriorFootprint, orderSeriesGames } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, isLiveSeriesConcluded, hasPriorFootprint, orderSeriesGames } from "./utils"
 import { countFollowedLive } from "./utils/liveScore"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 import { useVisiblePolling } from "./utils/useVisiblePolling"
@@ -524,9 +524,25 @@ function App() {
 
   const fetchLiveData = useCallback(async () => {
     try {
+      // `r.ok` is checked BEFORE .json() on purpose (2026-08-11). Both endpoints answer their own
+      // failures with a JSON body and a non-2xx status (api/live-matches.js's 500 {error,message}
+      // and its 503 when PANDASCORE_TOKEN is unset), so `.then(r => r.json())` resolved happily on
+      // an outage and `liveRes.matches` came back undefined — collapsing both lists to [] exactly
+      // when upstream was broken, instead of holding the last good data as the catch below does for
+      // a thrown failure. That became load-bearing once liveSeriesConcluded started reading
+      // "series absent from liveMatches" as "series over": a PandaScore 5xx would have falsely
+      // concluded EVERY open live sheet and dropped them all to the idle poll cadence, even though
+      // the pulse endpoint they render from has a completely different upstream and was fine.
+      // Throwing routes non-2xx into the same retain-last-known-good path as a network error.
       const [liveRes, upcomingRes] = await Promise.all([
-        fetch("/api/live-matches").then(r => r.json()),
-        fetch("/api/upcoming-matches").then(r => r.json()),
+        fetch("/api/live-matches").then(r => {
+          if (!r.ok) throw new Error(`live-matches ${r.status}`)
+          return r.json()
+        }),
+        fetch("/api/upcoming-matches").then(r => {
+          if (!r.ok) throw new Error(`upcoming-matches ${r.status}`)
+          return r.json()
+        }),
       ])
       setLiveMatches(liveRes.matches || [])
       setUpcomingMatches(upcomingRes.matches || [])
@@ -724,6 +740,15 @@ function App() {
     if (fresh) setSelectedLiveSeries(fresh)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveMatches])
+
+  // "This series is no longer running" — the input to SeriesLivePulse's poll backoff (2026-08-11,
+  // Fluid Active CPU). Predicate lives in seriesLogic.js next to isSeriesComplete, with the full
+  // rationale for why it can't just reuse that one; it's pure and unit-tested there because this is
+  // the piece whose failure direction is dangerous (a false "concluded" slows a LIVE series).
+  //
+  // `!liveLoading` is the "first poll attempted" guard — liveLoading starts true and is only ever
+  // flipped false, once, so this is false on the initial paint where liveMatches is still [].
+  const liveSeriesConcluded = isLiveSeriesConcluded(selectedLiveSeries, liveMatches, !liveLoading)
 
   // Capture ?live=<psSeriesId> from the URL exactly ONCE, at mount — mirrors the ?m= push-landing
   // capture above ([] deps, read-then-strip-nothing). This must NOT be re-read from
@@ -1806,6 +1831,7 @@ function App() {
                 onReplay={handleLiveSeriesReplay}
                 loadingGameId={liveReplayLoadingId}
                 spoilerFree={spoilerFree}
+                seriesConcluded={liveSeriesConcluded}
                 followedTeams={followedTeams}
                 onToggleFollow={handleToggleFollow}
               />

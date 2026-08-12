@@ -27,3 +27,22 @@ export function isSeriesComplete(series) {
   if (isBO2 && series.games.length >= 2 && maxWins === 1 && Object.keys(teamWins).length === 2) return true
   return false
 }
+
+// Has an OPEN live-series sheet's series stopped running? (2026-08-11, Fluid Active CPU.)
+//
+// Note this deliberately does NOT reuse isSeriesComplete above: by the time a sheet needs this
+// answer, its `series` snapshot is frozen at whatever App.jsx last synced BEFORE the series left
+// the live feed, so its games/score never reach a completed state and isSeriesComplete would
+// answer false forever. Absence from the live feed is the only signal that actually arrives —
+// PandaScore lists a series as running until the series itself ends.
+//
+// `liveLoaded` must be false until the first live-matches poll has been ATTEMPTED, otherwise the
+// initial empty list would conclude every freshly-opened sheet. Callers must also ensure a failed
+// poll leaves `liveMatches` at its previous value rather than emptying it (see fetchLiveData's
+// r.ok check) — this predicate cannot distinguish "upstream said nothing is live" from "upstream
+// failed and someone handed us []", which is why its only consumer BACKS OFF rather than stopping.
+export function isLiveSeriesConcluded(selectedSeries, liveMatches, liveLoaded) {
+  if (!selectedSeries || !liveLoaded) return false
+  if (!Array.isArray(liveMatches)) return false
+  return !liveMatches.some(m => String(m?.id) === String(selectedSeries.id))
+}

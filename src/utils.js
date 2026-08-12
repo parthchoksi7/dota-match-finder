@@ -4,8 +4,8 @@ import { track } from '@vercel/analytics'
 // (not just re-exported) because buildSeriesGroups/groupIntoSeries below call isSeriesComplete
 // internally — `export { x } from 'y'` alone would NOT create a usable local binding for
 // those call sites. Do not redefine either function in this file.
-import { winsRequiredForSeries, isSeriesComplete } from './seriesLogic.js'
-export { winsRequiredForSeries, isSeriesComplete }
+import { winsRequiredForSeries, isSeriesComplete, isLiveSeriesConcluded } from './seriesLogic.js'
+export { winsRequiredForSeries, isSeriesComplete, isLiveSeriesConcluded }
 // isTeamFollowed lives in teamMatching.js (zero-import, also used server-side via
 // api/_shared.js) — imported (not just re-exported) because buildTournamentCards below calls
 // it internally. Do not redefine PS↔OD team matching here.

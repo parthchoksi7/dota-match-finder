@@ -46,7 +46,7 @@ function defaultPosition(match) {
 // currently running game's live pulse) via a chip switcher, so a fan reaches "what's happening
 // now" without scrolling past every earlier game first. `initialGamePosition` lets a future
 // per-game entry point open the sheet pre-scoped to a specific game; no caller passes it today.
-export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, followedTeams, onToggleFollow }) {
+export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGameId, spoilerFree, initialGamePosition, seriesConcluded = false, followedTeams, onToggleFollow }) {
   // Recover OD match_ids for finished games the live feed returned without one, so their draft
   // strips can render.
   const [resolvedIds, setResolvedIds] = useState({})
@@ -329,6 +329,7 @@ export default function LiveSeriesSheet({ match, onDismiss, onReplay, loadingGam
               youtubeStream={match.youtubeStream}
               otherStreams={otherStreams}
               primaryLanguages={primaryLanguages}
+              seriesConcluded={seriesConcluded}
               followedTeams={followedTeams}
               onToggleFollow={onToggleFollow}
             />
