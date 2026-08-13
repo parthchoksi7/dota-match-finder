@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 13, 2026",
+    tag: "fix",
+    title: "MVP and Impact badges now show up more reliably",
+    desc: "Some completed matches were missing their MVP badge and Impact scores even after STRATZ had fully processed the game. Once that data loads successfully for a match, it's now stored permanently instead of being fetched fresh on every visit, so a temporary hiccup on one visit can't hide the badge on the next.",
+  },
+  {
     date: "August 10, 2026",
     tag: "improvement",
     title: "1w Team is now Iron Wing",

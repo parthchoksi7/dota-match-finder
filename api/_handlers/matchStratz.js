@@ -1,4 +1,5 @@
 import { kv } from '../_kv.js'
+import { getSupabaseAdmin } from '../_supabase.js'
 import { createLogger, validateId } from '../_shared.js'
 import { fetchStratzMatchEnrichment, stratzPositionNumber, stratzPositionLabel, stratzAwardLabel } from '../_stratz.js'
 
@@ -38,21 +39,67 @@ export default async function handleMatchStratz(req, res) {
   if (cached != null) {
     rawPlayers = cached === STRATZ_MISS_MARKER ? null : cached
   } else {
-    rawPlayers = await fetchStratzMatchEnrichment(matchId)
-    if (!rawPlayers) log.warn('STRATZ enrichment unavailable', { matchId })
-    // STRATZ can return a match record (heroIds resolved) before it has finished
-    // post-game processing — position/role/imp/award all come back null in that case.
-    // Treat that the same as a true miss (short retry TTL) rather than caching an
-    // empty-looking result for 7 days, or the badges would never appear once STRATZ
-    // does finish processing.
-    const isUnprocessed = rawPlayers != null && rawPlayers.every(
-      p => p && p.position == null && p.role == null && p.imp == null && p.award == null
-    )
-    const isMiss = !rawPlayers || isUnprocessed
-    if (isUnprocessed) log.warn('STRATZ match not yet processed', { matchId })
-    kv.set(key, isMiss ? STRATZ_MISS_MARKER : rawPlayers, { ex: isMiss ? STRATZ_TTL_MISS : STRATZ_TTL_FOUND })
-      .catch(err => log.warn('STRATZ KV write failed', { error: err?.message }))
-    if (isUnprocessed) rawPlayers = null
+    // Durable fallback beneath the KV cache: STRATZ's token is IP-locked (confirmed
+    // live — some requests 403 depending on which Vercel egress IP serves them), so a
+    // live fetch succeeding is a coin flip even for a fully-processed match. Once a
+    // fetch DOES succeed, the result is permanent (match data never changes), so check
+    // Supabase before spending another live attempt against the IP lock.
+    let fromDb = null
+    try {
+      const { data, error } = await getSupabaseAdmin()
+        .from('stratz_match_enrichment')
+        .select('players')
+        .eq('od_match_id', Number(matchId))
+        .maybeSingle()
+      if (error) log.warn('Supabase STRATZ read failed', { error: error.message, matchId })
+      else if (data) fromDb = data.players
+    } catch (err) {
+      log.warn('Supabase STRATZ read failed', { error: err?.message, matchId })
+    }
+
+    if (fromDb) {
+      rawPlayers = fromDb
+      kv.set(key, rawPlayers, { ex: STRATZ_TTL_FOUND })
+        .catch(err => log.warn('STRATZ KV write failed', { error: err?.message }))
+    } else {
+      rawPlayers = await fetchStratzMatchEnrichment(matchId)
+      if (!rawPlayers) log.warn('STRATZ enrichment unavailable', { matchId })
+      // STRATZ can return a match record before it has finished post-game processing.
+      // Observed live (2026-08-13, match 8942262723): position/role can resolve on their
+      // own pass BEFORE imp does, so position != null is not proof of a complete result —
+      // only imp (a real number for every player once STRATZ is done) is. Gate on imp
+      // alone, not "all four fields null": award legitimately stays null for most players
+      // in a fully-processed match (only one player gets MVP), so it can't be part of the
+      // gate either. ANY player missing imp marks the whole response unprocessed, not just
+      // "all players missing imp" — a partial result (e.g. 9/10 resolved) is exactly as
+      // unsafe to permanently cache as a fully-null one, since the Supabase-hit path never
+      // re-checks a stored result. Treat an unprocessed result the same as a true miss
+      // (short retry TTL, never written to the permanent Supabase store) rather than
+      // caching a half-finished result for 7 days — or, worse, forever.
+      const isUnprocessed = rawPlayers != null && rawPlayers.some(p => !p || p.imp == null)
+      const isMiss = !rawPlayers || isUnprocessed
+      if (isUnprocessed) log.warn('STRATZ match not yet processed', { matchId })
+      kv.set(key, isMiss ? STRATZ_MISS_MARKER : rawPlayers, { ex: isMiss ? STRATZ_TTL_MISS : STRATZ_TTL_FOUND })
+        .catch(err => log.warn('STRATZ KV write failed', { error: err?.message }))
+      // Only a real result is worth persisting forever — a miss/unprocessed result
+      // isn't a fact about the match, it's "STRATZ didn't answer this time." Awaited
+      // (unlike the KV write above, which is deliberately fire-and-forget for latency):
+      // losing this write defeats the entire point of the permanent cache, whereas losing
+      // a duplicate KV write is harmless since the next request just repeats it. try/catch
+      // (not just checking `.error`) because getSupabaseAdmin()'s lazy client construction
+      // can itself throw — that must not lose an already-fetched, already-good result.
+      if (!isMiss) {
+        try {
+          const { error: dbErr } = await getSupabaseAdmin()
+            .from('stratz_match_enrichment')
+            .upsert({ od_match_id: Number(matchId), players: rawPlayers }, { onConflict: 'od_match_id' })
+          if (dbErr) log.warn('Supabase STRATZ write failed', { error: dbErr.message, matchId })
+        } catch (err) {
+          log.warn('Supabase STRATZ write failed', { error: err?.message, matchId })
+        }
+      }
+      if (isUnprocessed) rawPlayers = null
+    }
   }
 
   // Merge key on the client is heroId — a hero can only be picked once per match, so

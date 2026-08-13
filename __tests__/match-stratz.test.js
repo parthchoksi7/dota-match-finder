@@ -193,6 +193,40 @@ vi.mock('@upstash/redis', () => ({
   },
 }))
 
+// ── Supabase mock (stratz_match_enrichment durable fallback) ─────────────────
+// Same thenable fluent-builder pattern as pipeline-replay.test.js: chain methods
+// return `this`, awaiting the builder resolves the next queued value. Defaults to
+// an empty sequence (every call resolves { data: null, error: null }) so existing
+// tests that don't care about Supabase still hit the live STRATZ path unchanged.
+
+const { mockSupabaseFrom, mockGetSupabaseAdmin, setSupabaseSequence } = vi.hoisted(() => {
+  let sequence = []
+  let callCount = 0
+
+  function makeBuilder(resolveValue) {
+    const b = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      upsert: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn(() => Promise.resolve(resolveValue)),
+      then(resolve, reject) {
+        return Promise.resolve(resolveValue).then(resolve, reject)
+      },
+    }
+    return b
+  }
+
+  const mockSupabaseFrom = vi.fn(() => makeBuilder(sequence[callCount++] ?? { data: null, error: null }))
+  const mockGetSupabaseAdmin = vi.fn(() => ({ from: mockSupabaseFrom }))
+  const setSupabaseSequence = (seq) => { sequence = seq; callCount = 0 }
+  return { mockSupabaseFrom, mockGetSupabaseAdmin, setSupabaseSequence }
+})
+
+vi.mock('../api/_supabase.js', () => ({
+  getSupabaseAdmin: mockGetSupabaseAdmin,
+  getSupabaseAnon: vi.fn(),
+}))
+
 import handler from '../api/tournaments.js'
 
 function makeStratzReq(query = {}) {
@@ -219,6 +253,7 @@ describe('?mode=match-stratz handler', () => {
     vi.clearAllMocks()
     kvSetCalls.length = 0
     mockKv.get.mockResolvedValue(null)
+    setSupabaseSequence([])
     process.env.STRATZ_TOKEN = 'test-stratz-token'
   })
 
@@ -308,6 +343,63 @@ describe('?mode=match-stratz handler', () => {
     expect(write[0]).toBe('stratz:match:v1:7890123')
     expect(write[1]).toEqual(rawPlayers)
     expect(write[2]).toEqual({ ex: SEVEN_DAYS })
+
+    // Also persisted to Supabase — the durable fallback beneath the 7-day KV TTL.
+    expect(mockSupabaseFrom).toHaveBeenCalledWith('stratz_match_enrichment')
+    expect(mockSupabaseFrom.mock.results[1].value.upsert).toHaveBeenCalledWith(
+      { od_match_id: 7890123, players: rawPlayers },
+      { onConflict: 'od_match_id' },
+    )
+  })
+
+  it('on KV miss + Supabase hit, returns the stored result WITHOUT calling STRATZ, and backfills KV', async () => {
+    mockKv.get.mockResolvedValueOnce(null)
+    const storedPlayers = [{ heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' }]
+    setSupabaseSequence([{ data: { players: storedPlayers }, error: null }])
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const req = makeStratzReq({ id: '7890123' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(res._body.players).toEqual([
+      { heroId: 1, position: 1, positionLabel: 'Carry', imp: 9, award: 'MVP' },
+    ])
+
+    const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
+    expect(write).toBeDefined()
+    expect(write[1]).toEqual(storedPlayers)
+    expect(write[2]).toEqual({ ex: SEVEN_DAYS })
+  })
+
+  it('on cache miss + STRATZ miss/rate-limit (429), does NOT write anything to Supabase', async () => {
+    mockKv.get.mockResolvedValueOnce(null)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }))
+
+    const req = makeStratzReq({ id: '7890123' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body.players).toEqual([])
+    // Only the Supabase read happened (checking for a prior stored result) — no upsert.
+    expect(mockSupabaseFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('never throws when the Supabase read fails — falls through to a live STRATZ fetch', async () => {
+    mockKv.get.mockResolvedValueOnce(null)
+    setSupabaseSequence([{ data: null, error: { message: 'connection refused' } }])
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: [{ heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 4, award: null }] } } }),
+    }))
+
+    const req = makeStratzReq({ id: '7890123' })
+    const res = makeRes()
+    await expect(handler(req, res)).resolves.not.toThrow()
+    expect(res._status).toBe(200)
+    expect(res._body.players[0].position).toBe(1)
   })
 
   it('regression: a real 10-player match with NONE/MVP/TOP_CORE/TOP_SUPPORT never surfaces NONE/TOP_CORE/TOP_SUPPORT as awards', async () => {
@@ -376,6 +468,92 @@ describe('?mode=match-stratz handler', () => {
     expect(write).toBeDefined()
     expect(write[1]).toBe('MISS')
     expect(write[2]).toEqual({ ex: THIRTY_MIN })
+  })
+
+  it('regression: position/role resolved but imp still null is a soft-miss too, and is never written to Supabase', async () => {
+    // Reproduces the exact live response for match 8942262723 (2026-08-13): STRATZ can
+    // resolve position/role on an earlier pass than imp/award, so "position != null" is
+    // NOT proof of a complete result. Before the fix this was treated as "found" (isMiss
+    // was gated on ALL FOUR fields being null) and, combined with the new permanent
+    // Supabase store, would have cached a no-imp result forever instead of retrying.
+    mockKv.get.mockResolvedValueOnce(null)
+    const rawPlayers = [
+      { heroId: 145, position: 'POSITION_1', role: 'CORE', imp: null, award: null },
+      { heroId: 9, position: 'POSITION_5', role: 'HARD_SUPPORT', imp: null, award: null },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: rawPlayers } } }),
+    }))
+
+    const req = makeStratzReq({ id: '8942262723' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body.players).toEqual([])
+
+    const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
+    expect(write[1]).toBe('MISS')
+    expect(write[2]).toEqual({ ex: THIRTY_MIN })
+
+    // The whole point of the fix: this must NOT be persisted to Supabase forever.
+    const upsertCall = mockSupabaseFrom.mock.results.find(r => r.value.upsert.mock.calls.length > 0)
+    expect(upsertCall).toBeUndefined()
+  })
+
+  it('regression: a PARTIAL result (only some players missing imp) is also a soft-miss, not just an all-null one', async () => {
+    // isUnprocessed must key off ANY player missing imp, not "every player missing imp" —
+    // otherwise a 9/10-resolved result gets permanently written to Supabase with one
+    // player's imp stuck at null forever, since the Supabase-hit path never re-checks.
+    mockKv.get.mockResolvedValueOnce(null)
+    const rawPlayers = [
+      { heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' },
+      { heroId: 6, position: 'POSITION_5', role: 'HARD_SUPPORT', imp: null, award: null },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: rawPlayers } } }),
+    }))
+
+    const req = makeStratzReq({ id: '7777777' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._body.players).toEqual([])
+    const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
+    expect(write[1]).toBe('MISS')
+    expect(write[2]).toEqual({ ex: THIRTY_MIN })
+
+    const upsertCall = mockSupabaseFrom.mock.results.find(r => r.value.upsert.mock.calls.length > 0)
+    expect(upsertCall).toBeUndefined()
+  })
+
+  it('propagates the good result even if the Supabase upsert write throws (client construction failure)', async () => {
+    mockKv.get.mockResolvedValueOnce(null)
+    const rawPlayers = [{ heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: rawPlayers } } }),
+    }))
+    // Second call to getSupabaseAdmin() (the upsert) throws synchronously, simulating a
+    // lazy createClient() failure — the read succeeded (empty sequence default), only the
+    // write path breaks.
+    let calls = 0
+    mockGetSupabaseAdmin.mockImplementation(() => {
+      calls += 1
+      if (calls === 2) throw new Error('missing SUPABASE_SERVICE_ROLE_KEY')
+      return { from: mockSupabaseFrom }
+    })
+
+    const req = makeStratzReq({ id: '7890123' })
+    const res = makeRes()
+    await expect(handler(req, res)).resolves.not.toThrow()
+
+    expect(res._status).toBe(200)
+    expect(res._body.players).toEqual([
+      { heroId: 1, position: 1, positionLabel: 'Carry', imp: 9, award: 'MVP' },
+    ])
   })
 
   it('never throws and returns empty players when STRATZ returns a malformed player element', async () => {
