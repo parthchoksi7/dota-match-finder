@@ -15,7 +15,47 @@ const SATORI_OPTS = {
   fonts: [{ name: 'Inter', data: fontData, weight: 700, style: 'normal' }],
 }
 
-function renderPng(res, svgPromise, cacheControl = 'public, max-age=3600, s-maxage=3600') {
+// Rasterising one 1200x630 card costs ~600-860ms of ACTIVE CPU (measured 2026-08-12 with
+// process.cpuUsage around the real handler: satori layout + resvg rasterisation, no I/O in the
+// param-only modes). That is 75-100x a typical JSON handler here — /api/live-matches serves in
+// ~8ms — so this endpoint dominates the Fluid Active CPU bill despite being one of the LOWEST
+// endpoints by invocation count. Invocation count and CPU are not the same axis, and this file is
+// where they diverge hardest.
+//
+// The series and article cards are PURE FUNCTIONS OF THEIR URL — every input is a query param —
+// so the old 1h/24h TTLs were re-rendering byte-identical PNGs on a timer, forever. `immutable` is
+// the honest description of those two.
+//
+// `max-age` (browser) is deliberately MUCH shorter than `s-maxage` (CDN). The CPU saving is
+// entirely a CDN-side property, while a browser copy is the one layer no purge or redeploy can
+// reach — and the owner-facing "Draft X posts" preview renders these in an <img>, so a year-long
+// local copy would outlive a redesign precisely where it is most likely to be noticed and least
+// likely to be blamed on caching.
+//
+// TRADEOFF of `immutable`: a redesign cannot invalidate existing URLs, so changing the artwork
+// means changing the URL. FOUR generators must be version-bumped together, not three — the
+// non-obvious one is api/draft-posts.js's auto-tweet path, which builds `mode: 'series'` as an
+// object key and so does not turn up in a grep for "mode=series":
+//   middleware.js  (bare /api/og, and ?matchId=)   middleware.js  (?mode=article)
+//   src/App.jsx    (?mode=series)                   api/draft-posts.js (?mode=series, cron)
+const IMMUTABLE_CACHE = 'public, max-age=86400, s-maxage=31536000, immutable'
+
+// Resolved match cards get a long-but-FINITE TTL and no `immutable`, unlike the two above. They are
+// not pure functions of their URL: the URL carries only matchId, while the rendered team and league
+// names are echoes of OpenDota's `radiant_name`/`dire_name`/`league.name`, which come from joins
+// against OpenDota's own mutable teams/leagues tables. This repo has already observed those change
+// under a stable match id (CONTEXT.md's note that OD still reported "Tundra Esports" after the Iron
+// Wing rebrand). Scores and duration really are immutable history; the names are not. 30 days still
+// removes ~99.9% of the re-renders a 1h TTL caused, while leaving a self-healing path for a rename
+// or a late-populated field instead of pinning a wrong card forever.
+const MATCH_RESOLVED_CACHE = 'public, max-age=86400, s-maxage=2592000'
+
+// For a match OpenDota cannot fully describe yet. Short, so the card re-renders once the data
+// lands. Reached by: no matches row, a row whose display fields have not been joined yet, a
+// non-OK response (OpenDota rate-limits, which is realistic mid-TI), or a thrown fetch.
+const UNRESOLVED_CACHE = 'public, max-age=300, s-maxage=300'
+
+function renderPng(res, svgPromise, cacheControl = IMMUTABLE_CACHE) {
   return svgPromise.then(svg => {
     const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } })
     const png = resvg.render().asPng()
@@ -128,19 +168,42 @@ async function handleMatch(req, res) {
   let duration = ''
   let seriesLabel = ''
 
+  // Is this render complete enough to cache for a long time? Defaults FALSE for any matchId and is
+  // only raised on the one good path, so every failure mode (throw, non-OK, missing row, partial
+  // row) falls through to the short TTL rather than having to be enumerated.
+  //
+  // `!matchId` is the fixed branding card — no fetch, same artwork every time, genuinely immutable.
+  let renderIsComplete = !matchId
+
   if (matchId) {
     try {
       const r = await fetch(`https://api.opendota.com/api/matches/${matchId}`)
-      const data = await r.json()
+      // `r.ok` matters here: OpenDota rate-limits, and a 429 answers with a JSON error body that
+      // parses fine. Without this the body just lacks match_id and we'd fall through correctly by
+      // accident — stating it makes the safety explicit instead of emergent.
+      const data = r.ok ? await r.json() : null
       if (data && data.match_id) {
+        // A matches row EXISTING is not the same as it being renderable. OpenDota fills
+        // radiant_name/dire_name by joining its separately-populated teams table, so for the first
+        // minutes after a game ends the row can come back with the teams unresolved — which is
+        // exactly when a fan pastes the link into Discord and a crawler renders the card. Gate the
+        // long TTL on the fields this card actually draws, not on row existence, or a
+        // "WINNER: RADIANT / DIRE" card with a blank tournament gets pinned for the cache lifetime.
+        // radiant_win is checked against null (not truthiness) because false is a valid result and
+        // an absent value would silently render the wrong team as the winner.
+        renderIsComplete = Boolean(data.radiant_name) && Boolean(data.dire_name) && data.radiant_win != null
+
         radiantTeam = data.radiant_name || 'Radiant'
         direTeam = data.dire_name || 'Dire'
         radiantWin = data.radiant_win
         radiantScore = data.radiant_score ?? null
         direScore = data.dire_score ?? null
         tournament = data.league?.name || ''
+        // timeZone pinned so the pixels do not depend on the runtime's TZ — matches how
+        // middleware.js formats this same start_time for the page's meta description, which would
+        // otherwise disagree with the card for matches near UTC midnight.
         date = data.start_time
-          ? new Date(data.start_time * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          ? new Date(data.start_time * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
           : ''
         const totalSecs = data.duration || 0
         duration = `${Math.floor(totalSecs / 60)}:${String(totalSecs % 60).padStart(2, '0')}`
@@ -209,7 +272,7 @@ async function handleMatch(req, res) {
     SATORI_OPTS
   )
 
-  return renderPng(res, Promise.resolve(svg))
+  return renderPng(res, Promise.resolve(svg), !renderIsComplete ? UNRESOLVED_CACHE : matchId ? MATCH_RESOLVED_CACHE : IMMUTABLE_CACHE)
 }
 
 // ── Mode: article ─────────────────────────────────────────────────────────────
@@ -276,7 +339,9 @@ async function handleArticle(req, res) {
     SATORI_OPTS
   )
 
-  return renderPng(res, Promise.resolve(svg), 'public, max-age=86400, s-maxage=86400')
+  // Title/category/date are read straight off the query string, so this card is as deterministic
+  // as the series one — the previous 24h TTL re-rendered identical bytes once a day per URL.
+  return renderPng(res, Promise.resolve(svg), IMMUTABLE_CACHE)
 }
 
 // ── Router ───────────────────────────────────────────────────────────────────
