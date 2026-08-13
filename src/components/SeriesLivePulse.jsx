@@ -739,7 +739,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
               <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-500 mb-1.5">
                 Bans
               </p>
-              <LiveBanList draft={valvePulse.draft} heroes={heroMap} />
+              <LiveBanList draft={valvePulse.draft} heroes={heroMap} radiantName={radiantName} direName={direName} />
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { trimSnapshot, selectTier1MatchIds } from '../api/_handlers/liveStoryCapture.js'
+import { trimSnapshot, selectTier1MatchIds, dedupeKey } from '../api/_handlers/liveStoryCapture.js'
 import { diffSnapshots, indexGamesById, resolveMarqueeItemIds } from '../api/_liveStoryDiff.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -173,5 +173,37 @@ describe('selectTier1MatchIds', () => {
     for (const id of selectTier1MatchIds(r0, ps)) {
       expect(unnamed.some(g => String(g.match_id) === id)).toBe(false)
     }
+  })
+})
+
+describe('dedupeKey', () => {
+  // Regression for the "same kill shown twice" bug: a `SNAPSHOT_KEY` write can silently fail
+  // (caught and logged in captureLiveStoryOnce, never thrown), leaving the next tick's diff run
+  // against a stale `prev` and re-deriving a death it already emitted — the second time bundled
+  // with whatever else happened since, which also downgrades it from attributed to ambiguous.
+  // gameTime differs between the two discoveries (it's discovery time, not the real moment), so a
+  // dedup key built from it would miss this. deathNo — the victim's cumulative death count — does
+  // not, because it identifies "this exact death" independent of which tick found it.
+  it('collapses two re-derivations of the same death into one key', () => {
+    const firstDiscovery = {
+      eventType: 'HeroKilled', playerSlot: 2, payload: { deathNo: 1, ambiguous: false, killerName: 'skiter' },
+    }
+    const staleReplay = {
+      eventType: 'HeroKilled', playerSlot: 2, payload: { deathNo: 1, ambiguous: true, killerName: null },
+    }
+    expect(dedupeKey(firstDiscovery)).toBe(dedupeKey(staleReplay))
+  })
+
+  it('keeps two real, distinct deaths of the same player apart', () => {
+    const death1 = { eventType: 'HeroKilled', playerSlot: 2, payload: { deathNo: 1 } }
+    const death2 = { eventType: 'HeroKilled', playerSlot: 2, payload: { deathNo: 2 } }
+    expect(dedupeKey(death1)).not.toBe(dedupeKey(death2))
+  })
+
+  it('does not dedupe event types with no stable cross-tick identity yet', () => {
+    // ItemPurchased legitimately repeats (sell + rebuy) — a blanket key would wrongly suppress
+    // a real second purchase, so these are left alone (returns null, meaning "never dedupe").
+    expect(dedupeKey({ eventType: 'ItemPurchased', playerSlot: 2, payload: { itemId: 1 } })).toBeNull()
+    expect(dedupeKey({ eventType: 'RoshanKilled', playerSlot: null, payload: {} })).toBeNull()
   })
 })

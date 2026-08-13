@@ -243,6 +243,22 @@ async function loadMarqueeIds(log) {
   }
 }
 
+// The stable cross-tick identity of one HeroKilled event: the victim's cumulative death count
+// (see `deathNo` in _liveStoryDiff.js) IDs "this exact death" independent of which tick's diff
+// discovered it. Two diffs can legitimately re-derive the same underlying counter increment — the
+// documented failure mode is a `SNAPSHOT_KEY` write that silently fails (caught and logged, never
+// thrown, by design — see captureLiveStoryOnce), which leaves the next tick diffing against a
+// stale `prev` and re-emitting a death already appended, this time bundled with whatever ELSE
+// happened since, which also downgrades it to ambiguous. Other event types don't have an
+// equivalent stable identity yet (ItemPurchased legitimately repeats on a resell+rebuy, so a
+// blanket key would wrongly suppress it) and are left as before.
+export function dedupeKey(e) {
+  if (e.eventType === 'HeroKilled' && e.playerSlot != null && e.payload?.deathNo != null) {
+    return `HeroKilled:${e.playerSlot}:${e.payload.deathNo}`
+  }
+  return null
+}
+
 // Appends events to each match's ring, newest last, capped at EVENTS_MAX. Read-modify-write is
 // safe here because the KV lock guarantees a single writer per window. A per-match failure is
 // logged and skipped rather than aborting the whole run — one bad match must not cost the others
@@ -258,9 +274,18 @@ async function appendEvents(events, log) {
     try {
       const key = EVENTS_KEY(matchId)
       const existing = (await kv.get(key)) || []
-      const merged = [...(Array.isArray(existing) ? existing : []), ...list].slice(-EVENTS_MAX)
+      const existingArr = Array.isArray(existing) ? existing : []
+      const seenKeys = new Set(existingArr.map(dedupeKey).filter(Boolean))
+      const fresh = list.filter(e => {
+        const k = dedupeKey(e)
+        if (!k) return true
+        if (seenKeys.has(k)) return false
+        seenKeys.add(k)
+        return true
+      })
+      const merged = [...existingArr, ...fresh].slice(-EVENTS_MAX)
       await kv.set(key, merged, { ex: EVENTS_TTL_S })
-      written += list.length
+      written += fresh.length
     } catch (err) {
       log.warn('event ring write failed', { matchId, error: err?.message })
     }

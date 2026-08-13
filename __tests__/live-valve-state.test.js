@@ -596,6 +596,12 @@ describe('groupTimelineEvents', () => {
     expect(groups[0].label).toBe('Trade')
   })
 
+  it('leaves 2 same-side kills ungrouped instead of mislabeling them a Trade', () => {
+    const groups = groupTimelineEvents([kill(600, 'radiant'), kill(610, 'radiant')], HISTORY)
+    expect(groups).toHaveLength(2)
+    expect(groups.every(g => g.kind === 'event')).toBe(true)
+  })
+
   it('leaves a lone kill ungrouped — one death is not a fight', () => {
     const groups = groupTimelineEvents([kill(600, 'radiant')], HISTORY)
     expect(groups[0].kind).toBe('event')

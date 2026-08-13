@@ -344,8 +344,11 @@ export function netWorthSwingOverWindow(history, startT, endT) {
 // A fight needs at least 2 kills. A single kill stays an ungrouped row — calling one death a
 // "fight" would be the same over-claiming the colour system was just fixed to avoid.
 const FIGHT_MIN_KILLS = 2
-// 3+ kills reads as a teamfight; exactly 2 is a trade/pickoff pair. Two labels, not three — the
-// kill-split badge carries the nuance, so more vocabulary would be redundant.
+// 3+ kills reads as a teamfight regardless of split — that many deaths close together in time is
+// unambiguous evidence of one engagement. Exactly 2 kills only groups into a "Trade" when one death
+// landed on each side; two deaths on the SAME side within the window could be a gank, a pickoff, or
+// two unrelated kills that just happened to land close together — there's no way to tell which from
+// the data, so those are left ungrouped rather than guessing at a label.
 const TEAMFIGHT_MIN_KILLS = 3
 
 /**
@@ -387,8 +390,6 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
       groups.push({ kind: 'event', time: cluster[0].time, event: cluster[0] })
       continue
     }
-    const startT = cluster[0].time
-    const endT = cluster[cluster.length - 1].time
     let radiantKills = 0
     let direKills = 0
     for (const k of cluster) {
@@ -397,6 +398,16 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
       if (k.side === 'radiant') radiantKills++
       else if (k.side === 'dire') direKills++
     }
+
+    // A same-side pair of kills isn't provably a single engagement — see the comment on
+    // TEAMFIGHT_MIN_KILLS above. Fall back to listing each kill as its own ungrouped row.
+    if (cluster.length < TEAMFIGHT_MIN_KILLS && !(radiantKills > 0 && direKills > 0)) {
+      for (const k of cluster) groups.push({ kind: 'event', time: k.time, event: k })
+      continue
+    }
+
+    const startT = cluster[0].time
+    const endT = cluster[cluster.length - 1].time
     // Items bought inside the fight's window belong to the fight. Window is inclusive of the
     // clustering slack on the trailing edge so a purchase moments after the last kill still lands.
     const items = others.filter(e =>

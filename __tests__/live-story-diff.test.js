@@ -133,6 +133,16 @@ describe('diffGame — Yakult vs PlayTime, the hand-validated match', () => {
     expect(kills.every(e => e.confidence === 'exact')).toBe(true)
   })
 
+  it('gives each death a per-player deathNo distinct from every other death in this window', () => {
+    // deathNo is the cross-tick identity appendEvents dedupes on (see the "same kill shown twice"
+    // fix in liveStoryCapture.js) — it must be unique per (playerSlot, deathNo) even within one
+    // diff call's own output, or the dedupe would collapse two real, distinct deaths into one.
+    const kills = events.filter(e => e.eventType === 'HeroKilled')
+    const keys = kills.map(e => `${e.playerSlot}:${e.payload.deathNo}`)
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(kills.every(e => Number.isInteger(e.payload.deathNo) && e.payload.deathNo > 0)).toBe(true)
+  })
+
   it('emits no phantom purchase when items merely swap slots', () => {
     // Radiant hero 18: [1,172,63,116,252,36] -> [1,172,36,116,252,63]. Ids 63 and 36 changed
     // places and nothing was bought. A slot-wise diff would emit two purchases here.

@@ -265,13 +265,11 @@ export function LivePlayerBoard({ players, heroes, itemNames, radiantName, direN
 }
 
 // ── Bans ────────────────────────────────────────────────────────────────────
-// `bans[]` has no equivalent anywhere else in the feed and nothing on the site shows a live ban
-// list today. Reuses DraftDisplay's completed-match ban treatment (strikethrough ghost chip)
-// rather than inventing a second one.
-export function LiveBanList({ draft, heroes }) {
-  const bans = [...(draft?.radiantBans || []), ...(draft?.direBans || [])]
-  if (bans.length === 0) return null
-
+// Mirrors DraftDisplay's completed-match ban treatment (strikethrough ghost chip, split into
+// per-team columns) rather than inventing a second one. Live data already arrives as separate
+// radiantBans/direBans arrays, so no filter step is needed — just render each column.
+function BanChips({ bans, heroes }) {
+  if (!bans || bans.length === 0) return null
   return (
     <div className="flex flex-wrap gap-1">
       {bans.map((heroId, i) => {
@@ -291,6 +289,25 @@ export function LiveBanList({ draft, heroes }) {
           </span>
         )
       })}
+    </div>
+  )
+}
+
+export function LiveBanList({ draft, heroes, radiantName, direName }) {
+  const radiantBans = draft?.radiantBans || []
+  const direBans = draft?.direBans || []
+  if (radiantBans.length === 0 && direBans.length === 0) return null
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-1">
+        <p className="text-[10px] text-gray-400 dark:text-gray-600 mb-1 truncate">{radiantName}</p>
+        <BanChips bans={radiantBans} heroes={heroes} />
+      </div>
+      <div className="space-y-1">
+        <p className="text-[10px] text-gray-400 dark:text-gray-600 mb-1 truncate">{direName}</p>
+        <BanChips bans={direBans} heroes={heroes} />
+      </div>
     </div>
   )
 }

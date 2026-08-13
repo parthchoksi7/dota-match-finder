@@ -336,7 +336,7 @@ export function diffGame(prevGame, nextGame, opts = {}) {
 
   for (const s of sides) {
     const deaths = pairPlayers(prevSb[s.key]?.players, nextSb[s.key]?.players)
-      .map(({ prev, next }) => ({ player: next, died: (next.death ?? 0) - (prev.death ?? 0) }))
+      .map(({ prev, next }) => ({ player: next, prevDeath: prev.death ?? 0, died: (next.death ?? 0) - (prev.death ?? 0) }))
       .filter(x => x.died > 0)
 
     const enemyGains = killGains[s.enemy] || []
@@ -364,6 +364,14 @@ export function diffGame(prevGame, nextGame, opts = {}) {
             killerTeam: soleKiller ? s.enemyTeam : null,
             // Surfaced so the admin page can show WHY attribution was declined without re-deriving it.
             ambiguous: !soleKiller,
+            // The victim's cumulative death count AFTER this specific death (their 1st, 2nd, ...).
+            // This is the stable cross-tick identity of "this exact death" — unlike gameTime, which
+            // is only the DISCOVERY time and can differ between two diffs that both end up covering
+            // the same underlying counter increment (e.g. if a snapshot write silently failed and
+            // the next tick re-diffs against a stale `prev`). appendEvents in liveStoryCapture.js
+            // dedupes on (playerSlot, deathNo) for exactly that reason — see the "same kill shown
+            // twice" bug this was added to fix.
+            deathNo: d.prevDeath + i + 1,
           },
         })
       }
