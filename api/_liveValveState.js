@@ -364,9 +364,6 @@ const TEAMFIGHT_MIN_KILLS = 3
  * what the net worth did) and never a duration — the outcome is true either way, a duration would
  * not be.
  *
- * Items landing inside a fight's window are attached to that fight rather than listed separately,
- * so a marquee purchase reads as part of the fight it belongs to.
- *
  * Output is newest-first (see the spec's ordering decision): the newest group sits directly under
  * the section header, so the live state needs no scrolling and history extends downward.
  */
@@ -381,9 +378,6 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
   const clusters = clusterTeamfights(kills.map(k => ({ ...k, gameTime: k.time })), windowS)
 
   const groups = []
-  // Holds the actual item-purchase event objects absorbed into a fight (checked by reference
-  // below), not their timestamps — a name like `claimedItemTimes` would suggest otherwise.
-  const claimedItems = new Set()
 
   for (const cluster of clusters) {
     if (cluster.length < FIGHT_MIN_KILLS) {
@@ -408,11 +402,6 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
 
     const startT = cluster[0].time
     const endT = cluster[cluster.length - 1].time
-    // Items bought inside the fight's window belong to the fight. Window is inclusive of the
-    // clustering slack on the trailing edge so a purchase moments after the last kill still lands.
-    const items = others.filter(e =>
-      e.type === 'ItemPurchased' && e.time >= startT && e.time <= endT + windowS)
-    for (const it of items) claimedItems.add(it)
 
     groups.push({
       kind: 'fight',
@@ -424,12 +413,10 @@ export function groupTimelineEvents(events, history = [], windowS = 20) {
       // null whenever the history can't bracket the window — callers render no swing line at all.
       swing: netWorthSwingOverWindow(history, startT, endT + windowS),
       kills: cluster,
-      items,
     })
   }
 
   for (const e of others) {
-    if (claimedItems.has(e)) continue
     groups.push({ kind: 'event', time: e.time, event: e })
   }
 

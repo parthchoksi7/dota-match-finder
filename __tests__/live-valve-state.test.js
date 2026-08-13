@@ -624,15 +624,17 @@ describe('groupTimelineEvents', () => {
     expect(groups[0].swing).toBeNull()
   })
 
-  it('attaches items bought inside a fight window to that fight, not as separate rows', () => {
+  it('keeps items bought inside a fight window as their own standalone row, not nested in the fight', () => {
     const events = [
       kill(600, 'radiant'), kill(605, 'radiant'), kill(610, 'radiant'),
       { type: 'ItemPurchased', time: 612, side: 'radiant', itemId: 63, playerName: 'p' },
     ]
     const groups = groupTimelineEvents(events, HISTORY)
-    expect(groups).toHaveLength(1)
-    expect(groups[0].items).toHaveLength(1)
-    expect(groups[0].items[0].itemId).toBe(63)
+    expect(groups).toHaveLength(2)
+    const fight = groups.find(g => g.kind === 'fight')
+    expect(fight.items).toBeUndefined()
+    const item = groups.find(g => g.kind === 'event' && g.event.type === 'ItemPurchased')
+    expect(item.event.itemId).toBe(63)
   })
 
   it('keeps an item far from any fight as its own standalone row', () => {

@@ -30,6 +30,14 @@ function formatClock(seconds) {
   return `${m}:${s}`
 }
 
+// Same nearest-minute rounding LiveGoldGraph's computeDisplayClocks uses for its hover labels
+// (e.g. 9:59 -> "10m") — event timestamps are approximate capture points, not a precise combat
+// log, so showing exact seconds overstates precision the underlying poll cadence doesn't have.
+function formatEventClock(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return null
+  return `${Math.round(seconds / 60)}m`
+}
+
 function formatNetWorth(val) {
   if (!Number.isFinite(val)) return '—'
   return val >= 1000 ? `${(val / 1000).toFixed(1)}k` : String(val)
@@ -471,7 +479,7 @@ function EventRow({ event, heroes, itemNames, compact = false }) {
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 tabular-nums flex-shrink-0">
-            {formatClock(event.time)}
+            {formatEventClock(event.time)}
           </span>
           <span className={`${compact ? 'text-[11px]' : 'text-xs'} font-semibold text-gray-900 dark:text-white`}>
             {d.text}
@@ -514,7 +522,7 @@ function FightCard({ group, heroes, itemNames, radiantName, direName, matchId })
   const swingTeam = swing > 0 ? (radiantName || 'Radiant') : (direName || 'Dire')
   const swingClass = swing > 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
 
-  const label = `${group.label} at ${formatClock(group.time)}. ` +
+  const label = `${group.label} at ${formatEventClock(group.time)}. ` +
     `${radiantName || 'Radiant'} ${group.radiantKills}, ${direName || 'Dire'} ${group.direKills}.` +
     (swingMag ? ` ${swingTeam} gained ${swingMag} net worth over this window.` : '')
 
@@ -531,7 +539,7 @@ function FightCard({ group, heroes, itemNames, radiantName, direName, matchId })
         <span className="min-w-0 flex-1 pt-0.5">
           <span className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 tabular-nums flex-shrink-0">
-              {formatClock(group.time)}
+              {formatEventClock(group.time)}
             </span>
             <span className="text-xs font-bold text-gray-900 dark:text-white flex-1">{group.label}</span>
             <KillSplit radiantKills={group.radiantKills} direKills={group.direKills} />
@@ -555,9 +563,6 @@ function FightCard({ group, heroes, itemNames, radiantName, direName, matchId })
         <div className="px-2 pb-2 pl-4">
           {group.kills.map((k, i) => (
             <EventRow key={`k${i}`} event={k} heroes={heroes} itemNames={itemNames} compact />
-          ))}
-          {group.items.map((it, i) => (
-            <EventRow key={`i${i}`} event={it} heroes={heroes} itemNames={itemNames} compact />
           ))}
         </div>
       )}

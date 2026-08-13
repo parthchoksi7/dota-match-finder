@@ -35,7 +35,6 @@ const fightGroup = (over = {}) => ({
   kind: 'fight', time: 1443, endTime: 1460, label: 'Teamfight',
   radiantKills: 3, direKills: 1, swing: 3200,
   kills: [ev({ time: 1443 }), ev({ time: 1450, side: 'dire' })],
-  items: [],
   ...over,
 })
 
@@ -115,7 +114,7 @@ describe('LiveEventFeed — fight cards', () => {
   it('carries a complete sentence in aria-label, since the visual card is fragmentary', () => {
     renderFeed([fightGroup()])
     const btn = screen.getByRole('button')
-    expect(btn.getAttribute('aria-label')).toMatch(/Teamfight at 24:03/)
+    expect(btn.getAttribute('aria-label')).toMatch(/Teamfight at 24m/)
     expect(btn.getAttribute('aria-label')).toMatch(/Tundra 3, BetBoom 1/)
   })
 
@@ -244,15 +243,6 @@ describe('LiveEventFeed — item purchase marker shows real item art', () => {
     expect(container.querySelector('svg')).not.toBeNull()
   })
 
-  it('sizes the icon smaller inside a compact (in-fight) row than a standalone row', () => {
-    const fightWithItem = fightGroup({
-      items: [{ type: 'ItemPurchased', time: 1450, side: 'radiant', playerName: 'bashka', itemId: 63 }],
-    })
-    const { container } = renderFeed([fightWithItem])
-    fireEvent.click(screen.getByRole('button', { name: /teamfight/i }))
-    const img = container.querySelector('img[src*="black_king_bar"]')
-    expect(img.className).toMatch(/w-4 h-4/)
-  })
 })
 
 describe('LiveEventFeed — kill marker shows the subject hero\'s portrait', () => {
