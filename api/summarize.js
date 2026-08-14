@@ -13,7 +13,7 @@ const PLAYER_FIELDS = ['hero_id', 'personaname', 'name', 'isRadiant', 'kills', '
  * Per player (max 10): hero_id, personaname, isRadiant, kills, deaths, assists, net_worth, hero_damage.
  * Removes picks_bans, tower_damage, hero_healing, all item fields, and everything else.
  */
-function trimMatchDataForSummary(matchData) {
+export function trimMatchDataForSummary(matchData) {
   if (!matchData || typeof matchData !== 'object') return matchData
 
   const out = {
@@ -31,6 +31,13 @@ function trimMatchDataForSummary(matchData) {
       is_pick: pb.is_pick,
       hero_id: pb.hero_id,
       team: pb.team,
+      // pb.team: 0 = radiant, 1 = dire (OpenDota convention). Resolved server-side so the
+      // model never has to re-derive team identity from a bare index at generation time —
+      // that join was the root cause of players being attributed to the wrong team in the
+      // prose output (e.g. a Team Spirit player's action credited to Aurora Gaming). Left
+      // undefined (not defaulted to dire) when pb.team is neither 0 nor 1, so a malformed
+      // record produces a gap the prompt-builder can skip rather than a confidently wrong label.
+      team_name: pb.team === 0 ? out.radiant_name : pb.team === 1 ? out.dire_name : undefined,
       order: pb.order
     }))
   }
@@ -48,6 +55,13 @@ function trimMatchDataForSummary(matchData) {
       if (trimmed.isRadiant === undefined && p.player_slot != null) {
         trimmed.isRadiant = p.player_slot < 128
       }
+      // Same rationale as picks_bans.team_name above — give the model a ready-made,
+      // unambiguous team label instead of an isRadiant boolean it has to cross-reference
+      // against radiant_name/dire_name itself on every mention. Strict === check (not a
+      // truthy check) so a player with no isRadiant AND no player_slot — trimmed.isRadiant
+      // stays undefined — gets no team_name rather than silently defaulting to dire_name.
+      if (trimmed.isRadiant === true) trimmed.team_name = out.radiant_name
+      else if (trimmed.isRadiant === false) trimmed.team_name = out.dire_name
       return trimmed
     })
   }
@@ -56,7 +70,7 @@ function trimMatchDataForSummary(matchData) {
 }
 // Fetch hero names from OpenDota. KV-cached 7 days (heroes don't change between patches).
 // Falls back to empty map on any error so a slow OpenDota response never hangs the handler.
-async function getHeroNames() {
+export async function getHeroNames() {
   const HERO_KV_KEY = 'opendota:hero_names_v1'
   const HERO_TTL = 60 * 60 * 24 * 7
   try {
@@ -79,6 +93,91 @@ async function getHeroNames() {
     clearTimeout(timeout)
   }
 }
+export const MATCH_SUMMARY_MODEL = 'claude-haiku-4-5-20251001'
+// Lowered from the API default of 1.0 (2026-08-13): this is a factual/analytical task, not a
+// creative one, and a lower temperature reduces the model's tendency to embellish beyond what's
+// in the data (inventing narrative beats, rounding/misquoting stats) at negligible cost to
+// fluency. Kept above 0 so summaries for similar matches don't read as robotically identical.
+export const MATCH_SUMMARY_TEMPERATURE = 0.3
+
+/**
+ * Builds the full match-summary prompt from hero-name-resolved trimmed match data.
+ * Exported (not just used by the handler below) so scripts/eval-match-summary.mjs exercises the
+ * exact production prompt rather than a hand-copied approximation of it — a prompt eval that
+ * tests a drifted copy would pass or fail independently of what actually ships (see
+ * scripts/verify-prod.mjs's findLeague import for the same lesson learned the hard way).
+ */
+export function buildMatchSummaryPrompt(trimmedWithHeroNames, heroes) {
+  const trimmed = {
+    ...trimmedWithHeroNames,
+    players: Array.isArray(trimmedWithHeroNames.players)
+      ? trimmedWithHeroNames.players.map(p => ({ ...p, hero_name: p.hero_name || heroes[p.hero_id] || 'Unknown Hero' }))
+      : trimmedWithHeroNames.players,
+    picks_bans: Array.isArray(trimmedWithHeroNames.picks_bans)
+      ? trimmedWithHeroNames.picks_bans.map(pb => ({ ...pb, hero_name: pb.hero_name || heroes[pb.hero_id] || 'Unknown Hero' }))
+      : trimmedWithHeroNames.picks_bans,
+  }
+
+  // Pre-resolved roster text, grouped by team, given to the model as ready-made ground
+  // truth. Fixes a real bug: without this, the model had to re-derive each player's team
+  // from an isRadiant boolean at generation time and would drift mid-summary (e.g.
+  // crediting a Team Spirit player's action to Aurora Gaming in the STRATEGY section
+  // while correctly attributing the same player to Team Spirit in MVP).
+  // Strict === checks (not truthy/falsy) so a player whose team couldn't be resolved
+  // (isRadiant left undefined by trimMatchDataForSummary) is omitted from both rosters
+  // rather than falling into the dire bucket by default — an omission the model can't act
+  // on wrongly, versus a confident-but-wrong label it would.
+  const radiantRoster = (trimmed.players || [])
+    .filter(p => p.isRadiant === true)
+    .map(p => `${p.personaname} (${p.hero_name})`)
+    .join(', ')
+  const direRoster = (trimmed.players || [])
+    .filter(p => p.isRadiant === false)
+    .map(p => `${p.personaname} (${p.hero_name})`)
+    .join(', ')
+
+  return `You are a professional Dota 2 analyst. Analyze this match and give a summary in exactly 4 sections. Do NOT use markdown, hashtags, asterisks, or any special formatting. Use plain text only.
+
+TEAM ROSTERS (ground truth — every player belongs to exactly one of these two teams, for the entire match, no exceptions):
+${trimmed.radiant_name}: ${radiantRoster}
+${trimmed.dire_name}: ${direRoster}
+
+Before writing any sentence that names a player, find that player in the roster above and use only the team listed next to them. Never attribute a player's action, stat, or strategy to the other team. Every player object in the JSON below also carries an explicit team_name field — trust that field, do not infer team from anything else.
+
+Format your response exactly like this:
+
+DRAFT ANALYSIS
+Draft Winner: [Team Name]
+[2-3 sentences using ONLY the draft data above — analyze hero synergies, win conditions, counters, and team composition. Do NOT reference kills, deaths, damage, gold, game duration, or who actually won. Judge the draft purely on hero picks and the players/teams assigned to them, as if the game had not been played yet. If the draft was very even, say so.]
+
+STRATEGY
+[One sentence on each team's game plan and execution]
+
+MVP
+[Player name] — [Why they were the standout based on stats and impact]
+
+HIGHLIGHT
+[One exceptional moment or stat that defined the match]
+
+Rules:
+- Use pro player names from the personaname field
+- Use team names (radiant_name, dire_name), never say Radiant or Dire
+- Be specific and analytical, not generic
+- Keep the whole summary under 250 words
+- No markdown formatting whatsoever
+- Every number you state (kills, deaths, assists, net worth, hero damage) must be quoted exactly from the data below, not rounded, estimated, or invented
+- Only describe moments or stats present in the data below. Do not invent narrative events (e.g. a specific kill, gank, or team fight) that isn't backed by a field in the data
+
+Draft data (picks and bans only — use this for DRAFT ANALYSIS): ${JSON.stringify({
+  radiant_name: trimmed.radiant_name,
+  dire_name: trimmed.dire_name,
+  picks_bans: trimmed.picks_bans,
+  players: (trimmed.players || []).map(p => ({ personaname: p.personaname, hero_name: p.hero_name, team_name: p.team_name, lane_role: p.lane_role }))
+})}
+
+Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringify(trimmed)}`
+}
+
 // ── Tournament summary handler ───────────────────────────────────────────────
 // Called with POST { type: 'tournament', seriesId, name, leagueName, ... }
 // Caches 24h for live/upcoming, 30 days for completed.
@@ -216,18 +315,8 @@ export default async function handler(req, res) {
 
   try {
     const heroes = await getHeroNames()
-    if (Array.isArray(trimmed.players)) {
-      trimmed.players = trimmed.players.map(p => ({
-        ...p,
-        hero_name: heroes[p.hero_id] || 'Unknown Hero'
-      }))
-    }
-    if (Array.isArray(trimmed.picks_bans)) {
-      trimmed.picks_bans = trimmed.picks_bans.map(pb => ({
-        ...pb,
-        hero_name: heroes[pb.hero_id] || 'Unknown Hero'
-      }))
-    }
+    const prompt = buildMatchSummaryPrompt(trimmed, heroes)
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -236,45 +325,10 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: MATCH_SUMMARY_MODEL,
         max_tokens: 400,
-        messages: [
-          {
-            role: 'user',
-            content: `You are a professional Dota 2 analyst. Analyze this match and give a summary in exactly 4 sections. Do NOT use markdown, hashtags, asterisks, or any special formatting. Use plain text only.
-
-Format your response exactly like this:
-
-DRAFT ANALYSIS
-Draft Winner: [Team Name]
-[2-3 sentences using ONLY the draft data above — analyze hero synergies, win conditions, counters, and team composition. Do NOT reference kills, deaths, damage, gold, game duration, or who actually won. Judge the draft purely on hero picks and the players/teams assigned to them, as if the game had not been played yet. If the draft was very even, say so.]
-
-STRATEGY
-[One sentence on each team's game plan and execution]
-
-MVP
-[Player name] — [Why they were the standout based on stats and impact]
-
-HIGHLIGHT
-[One exceptional moment or stat that defined the match]
-
-Rules:
-- Use pro player names from the personaname field
-- Use team names (radiant_name, dire_name), never say Radiant or Dire
-- Be specific and analytical, not generic
-- Keep the whole summary under 250 words
-- No markdown formatting whatsoever
-
-Draft data (picks and bans only — use this for DRAFT ANALYSIS): ${JSON.stringify({
-  radiant_name: trimmed.radiant_name,
-  dire_name: trimmed.dire_name,
-  picks_bans: trimmed.picks_bans,
-  players: (trimmed.players || []).map(p => ({ personaname: p.personaname, hero_name: p.hero_name, isRadiant: p.isRadiant, lane_role: p.lane_role }))
-})}
-
-Full match data (use this for STRATEGY, MVP, and HIGHLIGHT only): ${JSON.stringify(trimmed)}`
-          }
-        ]
+        temperature: MATCH_SUMMARY_TEMPERATURE,
+        messages: [{ role: 'user', content: prompt }]
       })
     })
 

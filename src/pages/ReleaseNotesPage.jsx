@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "August 13, 2026",
     tag: "fix",
+    title: "AI match summaries no longer mix up which team a player is on",
+    desc: "The AI summary could occasionally credit a player's play to the wrong team when describing match strategy. Player-to-team assignment is now resolved before the summary is written, so every mention stays with the correct team.",
+  },
+  {
+    date: "August 13, 2026",
+    tag: "fix",
     title: "MVP and Impact badges now show up more reliably",
     desc: "Some completed matches were missing their MVP badge and Impact scores even after STRATZ had fully processed the game. Once that data loads successfully for a match, it's now stored permanently instead of being fetched fresh on every visit, so a temporary hiccup on one visit can't hide the badge on the next.",
   },
