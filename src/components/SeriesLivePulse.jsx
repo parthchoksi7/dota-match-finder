@@ -31,9 +31,23 @@ const IDLE_POLL_MS = 5 * 60 * 1000
 // is running right now" (the ordinary gap between games in a BO3/BO5 — drafting, or the new
 // game's OD correlation hasn't landed yet) are indistinguishable from the client's point of view,
 // since both surface as a null pulse. Retaining indefinitely would show a FINISHED game's numbers
-// captioned as if they described whichever game is running now. 90s survives a transient miss or
-// two at this component's 40s poll cadence without risking that.
-const STALE_AFTER_MS = 90000
+// captioned as if they described whichever game is running now.
+//
+// RAISED 90s -> 180s (2026-08-13). This bound measures `now - capturedAt`, i.e. how old the DATA
+// is, not how long ago the last successful poll was — and edge caching decoupled those two. Worst
+// case a body now arrives having already spent LOCK_TTL_S (60s) waiting for the next capture, up to
+// PULSE_CACHE_TTL_S in the pulse KV entry, and up to s-maxage + swr (70s) in the edge cache: ~140s
+// before the client has even looked at it. Against the old 90s bound that meant a perfectly healthy
+// body was routinely ALREADY "stale" on arrival, so the very next transient null — an ordinary OD
+// correlation miss mid-game — would blank the whole live section until the following poll landed
+// (>=40s of blackout, during a live TI game, on the flagship surface). 180s covers that worst-case
+// arrival age plus a poll interval, restoring the "survives a transient miss or two" property the
+// original 90s was chosen for.
+//
+// The cleaner fix is to stop conflating the two ages — retain on time since the last successful
+// non-null poll, and use capturedAt only as a secondary sanity bound — but that is a behavioural
+// change to the poll loop and this is a live-event hotfix. Logged as the follow-up.
+const STALE_AFTER_MS = 180000
 
 // Decides what the next pulse state should be after a poll. A fresh (non-null) result always
 // wins. A null/failed result retains the previous pulse ONLY while it's still recent (bounded by

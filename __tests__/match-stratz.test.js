@@ -442,11 +442,16 @@ describe('?mode=match-stratz handler', () => {
     expect(write[2]).toEqual({ ex: THIRTY_MIN })
   })
 
-  it('treats a match with heroIds resolved but all enrichment fields null as a soft-miss (30-min TTL, not the 7-day TTL)', async () => {
+  it('an all-null enrichment result keeps the 30-min retry TTL and is never persisted', async () => {
     // Reproduces the live 1win Essence II match (8924695153): STRATZ has indexed the
     // match (heroIds present) but hasn't finished post-game processing yet, so
     // position/role/imp/award all come back null. Caching that for 7 days would mean
     // the badges never appear once STRATZ does finish.
+    //
+    // The players array is still returned (all fields null) rather than blanked — the
+    // client renders that identically to no result, and NOT blanking is what keeps a
+    // partially-resolved match from losing the fields it does have. What must not happen
+    // is a long TTL or a permanent write.
     mockKv.get.mockResolvedValueOnce(null)
     const rawPlayers = [
       { heroId: 30, position: null, role: null, imp: null, award: null },
@@ -462,20 +467,26 @@ describe('?mode=match-stratz handler', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body.players).toEqual([])
+    expect(res._body.players).toEqual([
+      { heroId: 30, position: null, positionLabel: null, imp: null, award: null },
+      { heroId: 96, position: null, positionLabel: null, imp: null, award: null },
+    ])
 
     const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
     expect(write).toBeDefined()
-    expect(write[1]).toBe('MISS')
+    expect(write[1]).toEqual(rawPlayers)
     expect(write[2]).toEqual({ ex: THIRTY_MIN })
+
+    const upsertCall = mockSupabaseFrom.mock.results.find(r => r.value.upsert.mock.calls.length > 0)
+    expect(upsertCall).toBeUndefined()
   })
 
-  it('regression: position/role resolved but imp still null is a soft-miss too, and is never written to Supabase', async () => {
+  it('regression: position/role resolved but imp still null is SERVED, retried, and never persisted', async () => {
     // Reproduces the exact live response for match 8942262723 (2026-08-13): STRATZ can
     // resolve position/role on an earlier pass than imp/award, so "position != null" is
-    // NOT proof of a complete result. Before the fix this was treated as "found" (isMiss
-    // was gated on ALL FOUR fields being null) and, combined with the new permanent
-    // Supabase store, would have cached a no-imp result forever instead of retrying.
+    // NOT proof of a complete result — it must not earn the 7-day TTL or the permanent
+    // Supabase row. But the position labels it DID resolve must still reach the client;
+    // blanking them was the bug that left every match with no enrichment at all.
     mockKv.get.mockResolvedValueOnce(null)
     const rawPlayers = [
       { heroId: 145, position: 'POSITION_1', role: 'CORE', imp: null, award: null },
@@ -491,21 +502,30 @@ describe('?mode=match-stratz handler', () => {
     await handler(req, res)
 
     expect(res._status).toBe(200)
-    expect(res._body.players).toEqual([])
+    expect(res._body.players).toEqual([
+      { heroId: 145, position: 1, positionLabel: 'Carry', imp: null, award: null },
+      { heroId: 9, position: 5, positionLabel: 'Hard Support', imp: null, award: null },
+    ])
 
+    // Cached as itself (not the MISS marker) so the retry window still renders labels,
+    // but on the SHORT TTL so a complete result can replace it.
     const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
-    expect(write[1]).toBe('MISS')
+    expect(write[1]).toEqual(rawPlayers)
     expect(write[2]).toEqual({ ex: THIRTY_MIN })
 
-    // The whole point of the fix: this must NOT be persisted to Supabase forever.
+    // Incomplete must NOT be persisted to Supabase forever.
     const upsertCall = mockSupabaseFrom.mock.results.find(r => r.value.upsert.mock.calls.length > 0)
     expect(upsertCall).toBeUndefined()
+
+    // And it must not be parked at the CDN for an hour past the 30-min retry.
+    expect(res._headers['Cache-Control']).toBe('public, s-maxage=60')
   })
 
-  it('regression: a PARTIAL result (only some players missing imp) is also a soft-miss, not just an all-null one', async () => {
-    // isUnprocessed must key off ANY player missing imp, not "every player missing imp" —
-    // otherwise a 9/10-resolved result gets permanently written to Supabase with one
-    // player's imp stuck at null forever, since the Supabase-hit path never re-checks.
+  it('regression: a PARTIAL result (only some players missing imp) serves ALL resolved players, and is never persisted', async () => {
+    // The live failure this whole fix exists for. One unresolved imp out of ten used to
+    // null out the entire response — erasing the MVP badge and nine good impact scores,
+    // and (since the permanent write was gated on the same flag) guaranteeing the Supabase
+    // table stayed empty forever. Completeness may gate PERSISTENCE, never DISPLAY.
     mockKv.get.mockResolvedValueOnce(null)
     const rawPlayers = [
       { heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' },
@@ -520,13 +540,74 @@ describe('?mode=match-stratz handler', () => {
     const res = makeRes()
     await handler(req, res)
 
-    expect(res._body.players).toEqual([])
+    expect(res._body.players).toEqual([
+      { heroId: 1, position: 1, positionLabel: 'Carry', imp: 9, award: 'MVP' },
+      { heroId: 6, position: 5, positionLabel: 'Hard Support', imp: null, award: null },
+    ])
+
     const write = kvSetCalls.find(([key]) => key.startsWith('stratz:match:v1:'))
-    expect(write[1]).toBe('MISS')
+    expect(write[1]).toEqual(rawPlayers)
     expect(write[2]).toEqual({ ex: THIRTY_MIN })
 
     const upsertCall = mockSupabaseFrom.mock.results.find(r => r.value.upsert.mock.calls.length > 0)
     expect(upsertCall).toBeUndefined()
+  })
+
+  it('a null element in the players array drops only that element, not the whole match', async () => {
+    // The shaping step used to throw on a null player and degrade the entire response to
+    // empty. A response with holes is incomplete (short TTL, no permanent write) but the
+    // players that DID resolve must still render.
+    mockKv.get.mockResolvedValueOnce(null)
+    const rawPlayers = [
+      { heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' },
+      null,
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: rawPlayers } } }),
+    }))
+
+    const req = makeStratzReq({ id: '7777778' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._status).toBe(200)
+    expect(res._body.players).toEqual([
+      { heroId: 1, position: 1, positionLabel: 'Carry', imp: 9, award: 'MVP' },
+    ])
+
+    const upsertCall = mockSupabaseFrom.mock.results.find(r => r.value.upsert.mock.calls.length > 0)
+    expect(upsertCall).toBeUndefined()
+  })
+
+  it('?bust=1 responds no-store so the CDN cannot serve a cached copy of the bust itself', async () => {
+    // Vercel's CDN keys on the full URL including bust=1, so the bust response was itself
+    // being edge-cached: a repeat bust inside the window returned the cached copy and never
+    // invoked the function, making manual invalidation silently do nothing.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: [{ heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' }] } } }),
+    }))
+
+    const req = makeStratzReq({ id: '7890123', bust: '1' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._headers['Cache-Control']).toBe('no-store')
+  })
+
+  it('a complete result gets the long CDN cache', async () => {
+    mockKv.get.mockResolvedValueOnce(null)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { match: { players: [{ heroId: 1, position: 'POSITION_1', role: 'CORE', imp: 9, award: 'MVP' }] } } }),
+    }))
+
+    const req = makeStratzReq({ id: '7890124' })
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res._headers['Cache-Control']).toBe('public, s-maxage=3600, stale-while-revalidate=86400')
   })
 
   it('propagates the good result even if the Supabase upsert write throws (client construction failure)', async () => {
@@ -557,6 +638,9 @@ describe('?mode=match-stratz handler', () => {
   })
 
   it('never throws and returns empty players when STRATZ returns a malformed player element', async () => {
+    // Now reaches [] by filtering the bad element rather than by throwing into the shaping
+    // catch — same outcome here (the array is ALL holes), but see the null-element test
+    // above for the case where filtering is what saves the surrounding good players.
     mockKv.get.mockResolvedValueOnce(null)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,

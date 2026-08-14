@@ -75,8 +75,16 @@ describe('nextPulseState — retain-last-known-good, bounded (Live Story)', () =
     expect(nextPulseState(null, prev, NOW)).toBe(prev)
   })
 
-  it('a null poll does NOT retain a previous pulse older than the staleness bound — a real game transition must still clear', () => {
-    const stale = { matchId: '1', radiantLead: 5000, capturedAt: '2026-07-18T00:08:00.000Z' } // 120s old at NOW
+  it('a null poll STILL retains a pulse ~120s old — edge caching means a healthy body routinely arrives that stale, and clearing on it would blank the live section mid-game', () => {
+    // Was asserted as null when STALE_AFTER_MS was 90s. Raised to 180s on 2026-08-13 because worst-
+    // case arrival age is now ~140s (capture LOCK_TTL_S + pulse KV + edge s-maxage/swr), so 120s is
+    // an ordinary healthy body, not a stale one. See STALE_AFTER_MS's comment.
+    const recentlyCaptured = { matchId: '1', radiantLead: 5000, capturedAt: '2026-07-18T00:08:00.000Z' } // 120s old at NOW
+    expect(nextPulseState(null, recentlyCaptured, NOW)).toBe(recentlyCaptured)
+  })
+
+  it('a null poll does NOT retain a previous pulse past the staleness bound — a real game transition must still clear', () => {
+    const stale = { matchId: '1', radiantLead: 5000, capturedAt: '2026-07-18T00:06:30.000Z' } // 210s old at NOW
     expect(nextPulseState(null, stale, NOW)).toBeNull()
   })
 

@@ -40,10 +40,13 @@ function mockRes() {
   return res
 }
 
-// The capture's KV lock TTL (LOCK_TTL_S in liveOdCapture.js). Not exported, so it is read out of
-// the source below rather than restated, and the cadence arithmetic is asserted from the pair —
-// the two numbers are only correct RELATIVE to each other.
-const EXPECTED_CAPTURE_CADENCE_S = 60
+// liveOdCapture's LOCK_TTL_S is the ONLY thing that sets the real OD capture cadence: attempts on
+// that global lock arrive from one stream per (series x edge PoP) plus one per open homepage tab,
+// so they are effectively continuous and the lock is re-claimed right after it expires. Pinned
+// EXACTLY, because every dependent invariant is calibrated to this number — GOLD_HISTORY_MAX_POINTS
+// (150 points sized for a 2h game), the OpenDota keyless request budget, and live_game_gold's row
+// growth on a table with no prune job. Lowering it is a silent 1/L cost multiplier on all three.
+const EXPECTED_LOCK_TTL_S = 60
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -66,27 +69,27 @@ describe('?mode=live-pulse — edge cache contract', () => {
     expect(res.headers['Cache-Control']).toContain('max-age=0')
   })
 
-  it('pairs s-maxage with the capture lock so the real OD capture cadence stays at 60s', async () => {
-    const res = mockRes()
-    await handleLivePulseCombined({ query: { id: '123' } }, res)
-    const sMaxAge = Number(/s-maxage=(\d+)/.exec(res.headers['Cache-Control'])[1])
+  it('pins LOCK_TTL_S exactly — it is the sole control on real capture cadence, and lowering it silently multiplies OpenDota calls and unpruned live_game_gold rows', () => {
+    // Deliberately an EXACT equality rather than a relationship with s-maxage. A previous version of
+    // this test asserted `ceil(LOCK/s-maxage)*s-maxage === 60` plus `LOCK < s-maxage`, which encodes
+    // a single-periodic-attempter model this system does not have — and, worse, those two
+    // assertions are satisfied by EVERY LOCK_TTL_S from 1 to 59 when s-maxage is 60. That let a
+    // 60 -> 45 change (a 33% cost increase on three separate budgets) pass with a green suite. An
+    // exact pin is the only assertion that actually guards the axis this project is over budget on.
     const lockTtl = Number(/const LOCK_TTL_S = (\d+)/.exec(LIVE_OD_CAPTURE_SRC)[1])
-
-    // Each origin revalidation runs captureOdLiveOnce(); attempts every P seconds against a
-    // never-released lock of L produce a real capture every ceil(L/P)*P. Only the PAIR is
-    // meaningful — either number alone says nothing. A pairing that stretches this (the old
-    // P=45/L=60 would have given 90s) silently thins the live_game_gold timeseries behind the
-    // net-worth graph and invalidates GOLD_HISTORY_MAX_POINTS, which is sized from this cadence.
-    expect(Math.ceil(lockTtl / sMaxAge) * sMaxAge).toBe(EXPECTED_CAPTURE_CADENCE_S)
+    expect(lockTtl).toBe(EXPECTED_LOCK_TTL_S)
   })
 
-  it('keeps the lock strictly BELOW the revalidation interval, so the cadence is attempt-limited rather than decided by a lock/TTL phase race', () => {
-    const res = mockRes()
-    return handleLivePulseCombined({ query: { id: '123' } }, res).then(() => {
-      const sMaxAge = Number(/s-maxage=(\d+)/.exec(res.headers['Cache-Control'])[1])
-      const lockTtl = Number(/const LOCK_TTL_S = (\d+)/.exec(LIVE_OD_CAPTURE_SRC)[1])
-      expect(lockTtl).toBeLessThan(sMaxAge)
-    })
+  it('keeps GOLD_HISTORY_MAX_POINTS large enough for a long game at the pinned capture cadence', async () => {
+    const pulseSrc = readFileSync(path.resolve(process.cwd(), 'api/_handlers/liveGamePulse.js'), 'utf8')
+    const maxPoints = Number(/GOLD_HISTORY_MAX_POINTS = (\d+)/.exec(pulseSrc)[1])
+    // One gold row accrues per capture, so a game of D seconds yields D / LOCK_TTL_S points and
+    // shapeGoldHistory keeps only the most recent GOLD_HISTORY_MAX_POINTS — anything beyond that
+    // silently drops EARLY-game history off the net-worth graph. 2h is the long-game case the
+    // constant's own comment sizes for; this ties the two constants together so a cadence change
+    // cannot quietly outgrow the buffer again.
+    const pointsForTwoHourGame = (2 * 60 * 60) / EXPECTED_LOCK_TTL_S
+    expect(maxPoints).toBeGreaterThanOrEqual(pointsForTwoHourGame)
   })
 
   it('does not attach the pulse cache header to the 400 validation responses', async () => {

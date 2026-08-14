@@ -51,13 +51,25 @@ import { createLogger } from '../_shared.js'
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
-// Throttle ceiling, never released. Lowered 60 -> 45 on 2026-08-13 so it sits strictly BELOW the
-// live-pulse edge TTL (60s) that now paces the capture — see livePulseCombined.js's header. With
-// attempts arriving every 60s and the lock clearing after 45s, every attempt captures, so the real
-// cadence is set by the attempt interval (60s, unchanged) instead of by a lock/TTL race whose phase
-// could otherwise stretch it to 120s. This does NOT make the capture run more often than before;
-// it makes 60s deterministic rather than incidental.
-const LOCK_TTL_S = 45
+// Throttle ceiling, never released. THIS CONSTANT ALONE SETS THE REAL CAPTURE CADENCE — see the
+// header comment above: however many callers hit this, at most one OpenDota /live fetch runs per
+// LOCK_TTL_S, so the effective cadence is ~LOCK_TTL_S whenever attempts arrive faster than it.
+//
+// Briefly lowered to 45 on 2026-08-13 and reverted the same day. The reasoning for lowering it was
+// wrong: it modelled the capture as being paced by ONE periodic attempt stream (the live-pulse edge
+// revalidation at s-maxage), so that a lock clearing sooner would merely make that 60s interval
+// deterministic. In production the attempts are MANY and uncoordinated — one stream per (series x
+// edge PoP) plus one per open foreground homepage tab every 2 min — so arrivals are effectively
+// continuous and the lock is re-claimed almost immediately after it expires. Lowering it therefore
+// did not "make 60s deterministic", it moved the real cadence to 45s: +33% OpenDota /live calls on
+// an UNAUTHENTICATED keyless quota, +33% rows into live_game_gold (which has no prune job and grows
+// unbounded on a 500MB Supabase free tier), and it silently invalidated GOLD_HISTORY_MAX_POINTS,
+// which liveGamePulse.js sizes from a 60s cadence.
+//
+// Do not tune this to "pair" with an edge TTL. The two are not coupled: the edge TTL controls how
+// many INVOCATIONS happen, this controls how much WORK each capture window does, and the cadence
+// follows this number under any realistic load.
+const LOCK_TTL_S = 60
 
 // Splits a /live `players` array into each side's hero_id picks AND player names by `team`
 // (0=Radiant, 1=Dire — confirmed empirically 2026-07-16: every live league game splits players

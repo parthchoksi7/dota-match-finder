@@ -59,22 +59,23 @@ export default async function handleLivePulseCombined(req, res) {
   // largest line on the bill. Doubling the TTL halves that, and the saving scales with exactly the
   // two things TI increases (concurrent series and geographic spread).
   //
-  // THIS VALUE SETS THE OD CAPTURE CADENCE — it is not free to tune. Each origin revalidation is what
-  // runs captureOdLiveOnce() inside getCachedPulse(), gated by a never-released KV lock
-  // (LOCK_TTL_S). Attempts every P seconds against a lock of L yield a real capture every
-  // ceil(L/P)*P. The pair is currently P=60, L=45 -> captures every 60s, unchanged from the original
-  // P=30/L=60 pairing, and now attempt-limited rather than lock-limited (L < P), which removes the
-  // phase race the old P=30/L=60 pairing depended on. Keep L strictly below P. Changing either
-  // number means redoing that arithmetic — NOT merely checking that s-maxage is under the lock. A
-  // pairing that stretches the cadence silently thins the live_game_gold timeseries behind the
-  // net-worth graph and invalidates GOLD_HISTORY_MAX_POINTS, which liveGamePulse.js sizes from it.
+  // This value does NOT set the OD capture cadence, and an earlier version of this comment claiming
+  // a `ceil(L/P)*P` relationship with liveOdCapture's LOCK_TTL_S was wrong (corrected 2026-08-13).
+  // That formula assumes a single periodic attempter; in production there is one revalidation stream
+  // per (series x edge PoP) plus one per open homepage tab, so attempts on the GLOBAL capture lock
+  // are effectively continuous and the cadence follows LOCK_TTL_S alone. The two constants are
+  // independent: this one controls how many INVOCATIONS occur, LOCK_TTL_S controls how often a
+  // capture actually does work. Tune them separately, and do not "pair" them.
   //
-  // Known staleness interaction, accepted: worst-case body age is capture (<=60s) + KV
-  // (PULSE_CACHE_TTL_S) + edge (60 + swr), which exceeds SeriesLivePulse's STALE_AFTER_MS (90s)
-  // retain-last-known-good bound by more than it used to. That bound only applies when a poll
-  // returns null, and a null after an already-old pulse is far more likely a real game transition
-  // (where clearing is correct) than a transient miss — so the guard still degrades toward correct
-  // behaviour rather than toward a stale display.
+  // Known staleness cost, stated plainly because it is a real product trade and not free: worst-case
+  // displayed age is capture (<=LOCK_TTL_S) + pulse KV (PULSE_CACHE_TTL_S) + edge (60 + swr) + the
+  // client's own poll gap. At 60s this lands around ~140s, up from ~115s at 30s. SeriesLivePulse's
+  // STALE_AFTER_MS was raised alongside this change so a single transient null poll cannot blank the
+  // live section while a body that old is being retained — see that constant's comment.
+  //
+  // Also note the interval is unharmonic with SeriesLivePulse's 40s POLL_MS: a lone viewer now
+  // MISSes roughly every other poll (~1 origin hit per 80s rather than per 40s), which is where the
+  // solo-viewer saving comes from, at the cost of every other poll returning a byte-identical body.
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=10')
 
   const isOwner = req.query?.owner === '1'

@@ -1021,11 +1021,14 @@ export default async function handler(req, res) {
     await kv.del(KV_KEY)
     log.info('cache cleared')
   } else {
-    // 30 -> 60 (2026-08-13, TI traffic). Still stricter than this payload's OWN freshness: the KV
-    // entry above lives for TTL (120s), so the origin already serves data up to 2 min old. An edge
-    // TTL of 30 was therefore forcing 4x the origin work the data's own staleness justified, and
-    // that gap multiplied across every edge PoP once the audience went global for TI.
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30')
+    // Briefly raised to 60/30 on 2026-08-13 for TI traffic and reverted the same day, for the
+    // reasons the block above already gives. Measured saving was only ~4,800 invocations/day
+    // (~38s of CPU) because this endpoint's win is PoP-level dedup only — a solo viewer on a 120s
+    // poll misses at 30 and at 60 alike. That is not worth halving the fresh window on the
+    // homepage's live scores mid-tournament. The large, measured CPU win from that same pass was on
+    // `?mode=live-pulse` (~20k invocations/day), which is a different endpoint with a different
+    // access pattern; it kept its increase. Leaving this one alone.
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
   }
 
   try {
