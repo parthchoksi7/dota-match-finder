@@ -7,7 +7,7 @@ import TeamRoster from '../components/TeamRoster'
 import RegionBreakdown from '../components/RegionBreakdown'
 import { HorizontalBracket } from '../components/BracketView'
 import StatusBadge from '../components/StatusBadge'
-import { trackEvent, formatDateRange, buildTournamentName, getTournamentFormatKey, getStageFormatConfig } from '../utils'
+import { trackEvent, formatDateRange, buildTournamentName, getTournamentFormatKey, getStageFormatConfig, hasPriorFootprint, STORAGE_KEYS } from '../utils'
 import { InfoButton } from '../components/FloatingTooltip'
 
 function getSeriesIdFromPath() {
@@ -66,8 +66,14 @@ function AdvancementLadder({ rules }) {
   )
 }
 
-function StandingsTable({ standings }) {
+function StandingsTable({ standings, spoilerFree = false }) {
   if (!standings || standings.length === 0) return null
+
+  // Rank is itself a result spoiler, so alphabetize instead when spoiler-free.
+  const rows = spoilerFree
+    ? standings.slice().sort((a, b) => (a.teamName || '').localeCompare(b.teamName || ''))
+    : standings
+  const showPoints = standings[0]?.points != null && !spoilerFree
 
   return (
     <div className="overflow-x-auto">
@@ -78,23 +84,29 @@ function StandingsTable({ standings }) {
             <th className="text-left py-2 pr-4 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 font-medium">Team</th>
             <th className="text-center py-2 px-2 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 font-medium">W</th>
             <th className="text-center py-2 px-2 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 font-medium">L</th>
-            {standings[0]?.points != null && (
+            {showPoints && (
               <th className="text-center py-2 px-2 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 font-medium">Pts</th>
             )}
           </tr>
         </thead>
         <tbody>
-          {standings.map((row, i) => (
+          {rows.map((row, i) => (
             <tr key={i} className="border-b border-gray-50 dark:border-gray-800/50">
-              <td className="py-1.5 pr-4 text-xs text-gray-400 dark:text-gray-600 tabular-nums">{row.rank ?? i + 1}</td>
+              <td className="py-1.5 pr-4 text-xs text-gray-400 dark:text-gray-600 tabular-nums">{spoilerFree ? '–' : (row.rank ?? i + 1)}</td>
               <td className="py-1.5 pr-4 text-sm font-semibold text-gray-900 dark:text-white">{row.teamName}</td>
-              <td className="py-1.5 px-2 text-center text-sm tabular-nums text-gray-700 dark:text-gray-300">
-                {row.wins ?? '-'}
-              </td>
-              <td className="py-1.5 px-2 text-center text-sm tabular-nums text-gray-700 dark:text-gray-300">
-                {row.losses ?? '-'}
-              </td>
-              {standings[0]?.points != null && (
+              {spoilerFree ? (
+                <td colSpan={2} className="py-1.5 px-2 text-center text-sm tabular-nums text-gray-300 dark:text-gray-700 select-none">?·?</td>
+              ) : (
+                <>
+                  <td className="py-1.5 px-2 text-center text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                    {row.wins ?? '-'}
+                  </td>
+                  <td className="py-1.5 px-2 text-center text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                    {row.losses ?? '-'}
+                  </td>
+                </>
+              )}
+              {showPoints && (
                 <td className="py-1.5 px-2 text-center text-sm tabular-nums text-gray-700 dark:text-gray-300">
                   {row.points ?? '-'}
                 </td>
@@ -352,6 +364,34 @@ export default function TournamentDetail() {
   const [error, setError] = useState(null)
   const [teamsExpanded, setTeamsExpanded] = useState(true)
   const [stagesExpanded, setStagesExpanded] = useState(true)
+  // Mirrors the resolution order used on the home page (App.jsx): explicit
+  // stored choice wins, then legacy returning users default to scores-shown,
+  // then brand-new visitors default to spoiler-free. This page has no toggle
+  // of its own — it only reads the global preference set elsewhere.
+  const [spoilerFree, setSpoilerFree] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('spoilers') === 'off') return true
+    if (params.get('spoilers') === 'on') return false
+    let stored = null
+    try { stored = localStorage.getItem(STORAGE_KEYS.SPOILER_FREE) } catch {}
+    if (stored !== null) return stored === 'true'
+    if (hasPriorFootprint()) return false
+    return true
+  })
+
+  // Picks up a spoiler-free change made on another tab (e.g. the home page)
+  // while this page is open, so a mid-session toggle can't leave stale
+  // results showing here.
+  useEffect(() => {
+    const onStorage = e => {
+      if (e.key === STORAGE_KEYS.SPOILER_FREE) {
+        setSpoilerFree(e.newValue === 'true')
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   const seriesId = getSeriesIdFromPath()
 
@@ -461,7 +501,7 @@ export default function TournamentDetail() {
                 <StatusBadge status={data.status} />
               </div>
 
-              {data.status === 'completed' && data.winner?.name && (
+              {data.status === 'completed' && data.winner?.name && !spoilerFree && (
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-base">🏆</span>
                   <span className="text-sm font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
@@ -647,7 +687,7 @@ export default function TournamentDetail() {
                           {/* Bracket stages: show the bracket */}
                           {stage.hasBracket && stage.bracket?.length > 0 && (
                             <div className="border-t border-gray-100 dark:border-gray-800">
-                              <HorizontalBracket bracket={stage.bracket} />
+                              <HorizontalBracket bracket={stage.bracket} spoilerFree={spoilerFree} />
                             </div>
                           )}
 
@@ -657,7 +697,7 @@ export default function TournamentDetail() {
                               <p className="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-2">
                                 Standings
                               </p>
-                              <StandingsTable standings={stage.standings} />
+                              <StandingsTable standings={stage.standings} spoilerFree={spoilerFree} />
                             </div>
                           )}
                         </div>

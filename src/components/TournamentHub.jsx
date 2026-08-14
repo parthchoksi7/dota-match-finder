@@ -42,7 +42,7 @@ function getTabLabel(tournament, allOngoing) {
   return leagueLabel || region || cleanTournamentName(tournament.name).split(' ').slice(0, 2).join(' ')
 }
 
-function StandingsTable({ standings, advancement }) {
+export function StandingsTable({ standings, advancement, spoilerFree = false }) {
   if (!standings || standings.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
       No standings yet
@@ -53,7 +53,15 @@ function StandingsTable({ standings, advancement }) {
   // Before any game finishes, PandaScore ranks are meaningless (or absent for
   // synthesized rows) — show a dash rank and no advancement zone bars.
   const notStarted = standings.every(s => !s.wins && !s.losses)
-  const showZones = standings.length >= 4 && !notStarted
+  // Rank, zone bars, and elimination dimming are themselves result spoilers
+  // (they reveal who's winning/losing without showing a raw score), so they're
+  // suppressed in spoiler-free mode along with the W/L numbers.
+  const showZones = standings.length >= 4 && !notStarted && !spoilerFree
+  // Row order is itself a spoiler (it's a live win/loss ranking) — go
+  // alphabetical instead of by rank when spoiler-free.
+  const rows = spoilerFree
+    ? standings.slice().sort((a, b) => a.team.localeCompare(b.team))
+    : standings
 
   return (
     <div className="overflow-x-auto">
@@ -67,19 +75,19 @@ function StandingsTable({ standings, advancement }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-900">
-          {standings.map((s, i) => {
+          {rows.map((s, i) => {
             const rank = s.rank ?? i + 1
-            const advType = notStarted ? null : getAdvancementType(advancement, rank)
-            const isEliminated = advType
+            const advType = (notStarted || spoilerFree) ? null : getAdvancementType(advancement, rank)
+            const isEliminated = spoilerFree ? false : (advType
               ? advType === 'out'
-              : (showZones && i >= midpoint && s.losses > s.wins)
+              : (showZones && i >= midpoint && s.losses > s.wins))
             const barColor = advType === 'up' ? 'bg-green-500/60'
               : advType === 'conditional' ? 'bg-amber-500/60'
               : advType === 'out' ? 'bg-red-500/60'
               : isEliminated ? 'bg-red-500/60' : 'bg-green-500/60'
             return (
               <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{notStarted ? '–' : rank}</td>
+                <td className="py-2.5 px-3 tabular-nums text-gray-500 dark:text-gray-600 text-xs">{notStarted || spoilerFree ? '–' : rank}</td>
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     {showZones && (
@@ -90,8 +98,14 @@ function StandingsTable({ standings, advancement }) {
                     </span>
                   </div>
                 </td>
-                <td className="py-2.5 px-2 text-center tabular-nums font-bold text-green-600 dark:text-green-400">{s.wins}</td>
-                <td className="py-2.5 px-2 text-center tabular-nums font-bold text-red-500 dark:text-red-400">{s.losses}</td>
+                {spoilerFree ? (
+                  <td colSpan={2} className="py-2.5 px-2 text-center tabular-nums font-bold text-gray-300 dark:text-gray-700 select-none">?·?</td>
+                ) : (
+                  <>
+                    <td className="py-2.5 px-2 text-center tabular-nums font-bold text-green-600 dark:text-green-400">{s.wins}</td>
+                    <td className="py-2.5 px-2 text-center tabular-nums font-bold text-red-500 dark:text-red-400">{s.losses}</td>
+                  </>
+                )}
               </tr>
             )
           })}
@@ -103,15 +117,15 @@ function StandingsTable({ standings, advancement }) {
 
 // ── Overview match row (lightweight, no round headers) ─────────────────────
 
-function OverviewMatchRow({ match }) {
+function OverviewMatchRow({ match, spoilerFree = false }) {
   const isLive = match.status === 'running'
   const isDone = match.status === 'finished'
   const scoreA = match.scoreA ?? null
   const scoreB = match.scoreB ?? null
-  const hasScore = scoreA !== null && scoreB !== null
+  const hasScore = scoreA !== null && scoreB !== null && !spoilerFree
   const isTbd = match.teamA === 'TBD' && match.teamB === 'TBD'
-  const dimA = isDone && hasScore && scoreA < scoreB
-  const dimB = isDone && hasScore && scoreB < scoreA
+  const dimA = hasScore && isDone && scoreA < scoreB
+  const dimB = hasScore && isDone && scoreB < scoreA
 
   return (
     <div className="flex items-center gap-2 text-sm">
@@ -125,7 +139,9 @@ function OverviewMatchRow({ match }) {
         'text-gray-900 dark:text-white'
       }`}>{match.teamA}</span>
       <div className="w-16 flex-shrink-0 text-center">
-        {hasScore ? (
+        {spoilerFree && scoreA !== null && scoreB !== null ? (
+          <span className="font-black tabular-nums text-gray-300 dark:text-gray-700 select-none">?·?</span>
+        ) : hasScore ? (
           <span className="font-black tabular-nums text-gray-900 dark:text-white">
             <span className={dimA ? 'text-gray-400 dark:text-gray-600' : ''}>{scoreA}</span>
             <span className="text-gray-300 dark:text-gray-700 font-light mx-1">–</span>
@@ -585,16 +601,16 @@ function TournamentHub({ spoilerFree, tournamentId, onClose, hideStatusLabel, on
               </table>
             </div>
           ) : isPlayoffStage ? (
-            <HorizontalBracket bracket={effectiveDetail?.bracket} />
+            <HorizontalBracket bracket={effectiveDetail?.bracket} spoilerFree={spoilerFree} />
           ) : (
             <>
-              <StandingsTable standings={effectiveDetail?.standings} advancement={advancement} />
+              <StandingsTable standings={effectiveDetail?.standings} advancement={advancement} spoilerFree={spoilerFree} />
               {effectiveDetail?.bracket?.length > 0 && (
                 <>
                   <div className="px-3 sm:px-4 pt-3 pb-1 border-t border-gray-100 dark:border-gray-900">
                     <p className="text-[10px] font-semibold uppercase tracking-[4px] text-gray-400 dark:text-gray-600">Matches</p>
                   </div>
-                  <BracketFlatView bracket={effectiveDetail?.bracket} />
+                  <BracketFlatView bracket={effectiveDetail?.bracket} spoilerFree={spoilerFree} />
                 </>
               )}
             </>

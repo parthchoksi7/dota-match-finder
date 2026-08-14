@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 14, 2026",
+    tag: "fix",
+    title: "Spoiler-free mode now covers tournament standings and match results",
+    desc: "The tournament page's standings table and match list were showing win/loss records and scores even with spoiler-free mode on. Both now hide results the same way the rest of the site does.",
+  },
+  {
     date: "August 13, 2026",
     tag: "fix",
     title: "AI match summaries no longer mix up which team a player is on",

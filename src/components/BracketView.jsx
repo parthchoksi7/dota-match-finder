@@ -23,11 +23,11 @@ const H_GAP  = 28
 const V_GAP  = 10
 const LABEL_H = 20
 
-function MatchCard({ match }) {
+function MatchCard({ match, spoilerFree = false }) {
   const isLive = match.status === 'running'
   const isDone = match.status === 'finished'
   const isTbd  = match.teamA === 'TBD' && match.teamB === 'TBD'
-  const hasScore = match.scoreA !== null && match.scoreB !== null
+  const hasScore = match.scoreA !== null && match.scoreB !== null && !spoilerFree
   const winA = isDone && hasScore && match.scoreA > match.scoreB
   const winB = isDone && hasScore && match.scoreB > match.scoreA
 
@@ -68,7 +68,7 @@ function MatchCard({ match }) {
   )
 }
 
-function BracketSection({ label, rounds }) {
+function BracketSection({ label, rounds, spoilerFree = false }) {
   if (!rounds || rounds.length === 0) return null
 
   const maxMatches = Math.max(...rounds.map(r => r.matches.length))
@@ -146,7 +146,7 @@ function BracketSection({ label, rounds }) {
                 className="absolute"
                 style={{ left: x, top: LABEL_H + 4 + y, width: CARD_W, height: CARD_H }}
               >
-                <MatchCard match={match} />
+                <MatchCard match={match} spoilerFree={spoilerFree} />
               </div>
             )
           })
@@ -156,7 +156,7 @@ function BracketSection({ label, rounds }) {
   )
 }
 
-export function HorizontalBracket({ bracket }) {
+export function HorizontalBracket({ bracket, spoilerFree = false }) {
   if (!bracket || bracket.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
       No bracket yet
@@ -176,10 +176,10 @@ export function HorizontalBracket({ bracket }) {
     return (
       <div className="px-4 sm:px-5 py-4 overflow-x-auto">
         <div className="min-w-max flex flex-col gap-8">
-          <BracketSection label="Upper Bracket" rounds={notEmpty(upper)} />
-          <BracketSection label="Lower Bracket" rounds={notEmpty(lower)} />
+          <BracketSection label="Upper Bracket" rounds={notEmpty(upper)} spoilerFree={spoilerFree} />
+          <BracketSection label="Lower Bracket" rounds={notEmpty(lower)} spoilerFree={spoilerFree} />
           {grandFinal.length > 0 && (
-            <BracketSection label="Grand Final" rounds={notEmpty(grandFinal)} />
+            <BracketSection label="Grand Final" rounds={notEmpty(grandFinal)} spoilerFree={spoilerFree} />
           )}
         </div>
       </div>
@@ -190,14 +190,14 @@ export function HorizontalBracket({ bracket }) {
   return (
     <div className="px-4 sm:px-5 py-4 overflow-x-auto">
       <div className="min-w-max">
-        <BracketSection rounds={allRounds} />
+        <BracketSection rounds={allRounds} spoilerFree={spoilerFree} />
       </div>
     </div>
   )
 }
 
 // Flat round list — used for Swiss / Group Stage formats
-export function BracketFlatView({ bracket }) {
+export function BracketFlatView({ bracket, spoilerFree = false }) {
   if (!bracket || bracket.length === 0) return (
     <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center uppercase tracking-widest">
       No bracket yet
@@ -225,9 +225,9 @@ export function BracketFlatView({ bracket }) {
               const isTbd = m.teamA === 'TBD' && m.teamB === 'TBD'
               const scoreA = m.scoreA ?? null
               const scoreB = m.scoreB ?? null
-              const hasScore = scoreA !== null && scoreB !== null
-              const dimA = isDone && hasScore && scoreA < scoreB
-              const dimB = isDone && hasScore && scoreB < scoreA
+              const hasScore = scoreA !== null && scoreB !== null && !spoilerFree
+              const dimA = hasScore && isDone && scoreA < scoreB
+              const dimB = hasScore && isDone && scoreB < scoreA
 
               return (
                 <div key={m.id || i} className="flex items-center gap-2 text-sm">
@@ -241,7 +241,9 @@ export function BracketFlatView({ bracket }) {
                     'text-gray-900 dark:text-white'
                   }`}>{m.teamA}</span>
                   <div className="w-16 flex-shrink-0 text-center">
-                    {hasScore ? (
+                    {spoilerFree && scoreA !== null && scoreB !== null ? (
+                      <span className="font-black tabular-nums text-gray-300 dark:text-gray-700 select-none">?·?</span>
+                    ) : hasScore ? (
                       <span className="font-black tabular-nums text-gray-900 dark:text-white">
                         <span className={dimA ? 'text-gray-400 dark:text-gray-600' : ''}>{scoreA}</span>
                         <span className="text-gray-300 dark:text-gray-700 font-light mx-1">–</span>
