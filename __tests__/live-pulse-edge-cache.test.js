@@ -40,9 +40,10 @@ function mockRes() {
   return res
 }
 
-// The capture's KV lock TTL (LOCK_TTL_S in liveOdCapture.js). Not exported, so it is restated here
-// and asserted against the real module below, so the two can never drift apart unnoticed.
-const LOCK_TTL_S = 60
+// The capture's KV lock TTL (LOCK_TTL_S in liveOdCapture.js). Not exported, so it is read out of
+// the source below rather than restated, and the cadence arithmetic is asserted from the pair —
+// the two numbers are only correct RELATIVE to each other.
+const EXPECTED_CAPTURE_CADENCE_S = 60
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -65,17 +66,27 @@ describe('?mode=live-pulse — edge cache contract', () => {
     expect(res.headers['Cache-Control']).toContain('max-age=0')
   })
 
-  it('keeps s-maxage at a value that DIVIDES the capture lock, so the OD capture cadence is unchanged', async () => {
+  it('pairs s-maxage with the capture lock so the real OD capture cadence stays at 60s', async () => {
     const res = mockRes()
     await handleLivePulseCombined({ query: { id: '123' } }, res)
     const sMaxAge = Number(/s-maxage=(\d+)/.exec(res.headers['Cache-Control'])[1])
+    const lockTtl = Number(/const LOCK_TTL_S = (\d+)/.exec(LIVE_OD_CAPTURE_SRC)[1])
 
-    // Each origin revalidation runs captureOdLiveOnce(); periodic attempts every `sMaxAge` seconds
-    // against a never-released LOCK_TTL_S lock produce a real capture every ceil(LOCK/P)*P. Anything
-    // that is not an exact divisor stretches the real cadence (P=45 -> 90s, not 60s) and silently
-    // thins the live_game_gold timeseries behind the net-worth graph.
-    const effectiveCaptureCadence = Math.ceil(LOCK_TTL_S / sMaxAge) * sMaxAge
-    expect(effectiveCaptureCadence).toBe(LOCK_TTL_S)
+    // Each origin revalidation runs captureOdLiveOnce(); attempts every P seconds against a
+    // never-released lock of L produce a real capture every ceil(L/P)*P. Only the PAIR is
+    // meaningful — either number alone says nothing. A pairing that stretches this (the old
+    // P=45/L=60 would have given 90s) silently thins the live_game_gold timeseries behind the
+    // net-worth graph and invalidates GOLD_HISTORY_MAX_POINTS, which is sized from this cadence.
+    expect(Math.ceil(lockTtl / sMaxAge) * sMaxAge).toBe(EXPECTED_CAPTURE_CADENCE_S)
+  })
+
+  it('keeps the lock strictly BELOW the revalidation interval, so the cadence is attempt-limited rather than decided by a lock/TTL phase race', () => {
+    const res = mockRes()
+    return handleLivePulseCombined({ query: { id: '123' } }, res).then(() => {
+      const sMaxAge = Number(/s-maxage=(\d+)/.exec(res.headers['Cache-Control'])[1])
+      const lockTtl = Number(/const LOCK_TTL_S = (\d+)/.exec(LIVE_OD_CAPTURE_SRC)[1])
+      expect(lockTtl).toBeLessThan(sMaxAge)
+    })
   })
 
   it('does not attach the pulse cache header to the 400 validation responses', async () => {
@@ -116,7 +127,9 @@ describe('?mode=od-live-capture — deliberately NOT edge-cached', () => {
     expect(handlerBody).not.toMatch(/setHeader\([^)]*s-maxage/)
   })
 
-  it('LOCK_TTL_S is still the value the live-pulse cadence assertion above assumes', () => {
-    expect(Number(/const LOCK_TTL_S = (\d+)/.exec(LIVE_OD_CAPTURE_SRC)[1])).toBe(LOCK_TTL_S)
+  it('still declares a numeric LOCK_TTL_S for the cadence assertions above to read', () => {
+    const m = /const LOCK_TTL_S = (\d+)/.exec(LIVE_OD_CAPTURE_SRC)
+    expect(m).not.toBeNull()
+    expect(Number(m[1])).toBeGreaterThan(0)
   })
 })

@@ -51,7 +51,13 @@ import { createLogger } from '../_shared.js'
 
 const OD_LIVE_URL = 'https://api.opendota.com/api/live'
 const LOCK_KEY = 'capture:od-live:lock'
-const LOCK_TTL_S = 60 // throttle ceiling, never released — the TTL IS the cadence whenever a caller polls faster than it (the live-sheet pulse fires every 40s); the trigger's own rate floors it otherwise.
+// Throttle ceiling, never released. Lowered 60 -> 45 on 2026-08-13 so it sits strictly BELOW the
+// live-pulse edge TTL (60s) that now paces the capture — see livePulseCombined.js's header. With
+// attempts arriving every 60s and the lock clearing after 45s, every attempt captures, so the real
+// cadence is set by the attempt interval (60s, unchanged) instead of by a lock/TTL race whose phase
+// could otherwise stretch it to 120s. This does NOT make the capture run more often than before;
+// it makes 60s deterministic rather than incidental.
+const LOCK_TTL_S = 45
 
 // Splits a /live `players` array into each side's hero_id picks AND player names by `team`
 // (0=Radiant, 1=Dire — confirmed empirically 2026-07-16: every live league game splits players

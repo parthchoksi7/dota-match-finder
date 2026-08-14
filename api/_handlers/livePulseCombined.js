@@ -52,21 +52,30 @@ export default async function handleLivePulseCombined(req, res) {
   // the response reaches the client, and without `max-age=0` the leftover directives are honored by
   // the browser HTTP cache, which would hide fresh data from the very poll this exists to serve.
   //
-  // WHY 30 AND NOT LONGER — this sets the OD capture cadence, so it is not free to tune. Each origin
-  // revalidation is what runs captureOdLiveOnce() inside getCachedPulse(), and that capture holds a
-  // never-released 60s KV lock (LOCK_TTL_S in liveOdCapture.js). Periodic attempts every P seconds
-  // against that lock yield a real capture every ceil(60/P)*P: P=30 gives exactly 60s (unchanged from
-  // today), but P=45 would give 90s — silently thinning the live_game_gold timeseries the net-worth
-  // graph is built from, and invalidating GOLD_HISTORY_MAX_POINTS, which liveGamePulse.js derives
-  // from the ~60s cadence. Any future change here must redo that ceil() calculation, not just check
-  // that s-maxage < 60.
+  // TI-2026 UPDATE (2026-08-13): raised 30 -> 60. The original 30 was chosen against a single-series,
+  // roughly single-region audience. Under TI the cache key's `?id=` partition multiplied by the
+  // global PoP count: several concurrent series x many edge regions, each revalidating independently
+  // every 30s, drove /api/tournaments to ~20k invocations/day at ~14-43ms CPU each — the single
+  // largest line on the bill. Doubling the TTL halves that, and the saving scales with exactly the
+  // two things TI increases (concurrent series and geographic spread).
+  //
+  // THIS VALUE SETS THE OD CAPTURE CADENCE — it is not free to tune. Each origin revalidation is what
+  // runs captureOdLiveOnce() inside getCachedPulse(), gated by a never-released KV lock
+  // (LOCK_TTL_S). Attempts every P seconds against a lock of L yield a real capture every
+  // ceil(L/P)*P. The pair is currently P=60, L=45 -> captures every 60s, unchanged from the original
+  // P=30/L=60 pairing, and now attempt-limited rather than lock-limited (L < P), which removes the
+  // phase race the old P=30/L=60 pairing depended on. Keep L strictly below P. Changing either
+  // number means redoing that arithmetic — NOT merely checking that s-maxage is under the lock. A
+  // pairing that stretches the cadence silently thins the live_game_gold timeseries behind the
+  // net-worth graph and invalidates GOLD_HISTORY_MAX_POINTS, which liveGamePulse.js sizes from it.
   //
   // Known staleness interaction, accepted: worst-case body age is capture (<=60s) + KV
-  // (PULSE_CACHE_TTL_S) + edge (30 + swr), which can exceed SeriesLivePulse's STALE_AFTER_MS (90s)
-  // retain-last-known-good bound. That bound only applies when a poll returns null, and a null after
-  // an already-old pulse is far more likely a real game transition (where clearing is correct) than
-  // a transient miss — so the guard degrades toward correct behavior, not toward a stale display.
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=10')
+  // (PULSE_CACHE_TTL_S) + edge (60 + swr), which exceeds SeriesLivePulse's STALE_AFTER_MS (90s)
+  // retain-last-known-good bound by more than it used to. That bound only applies when a poll
+  // returns null, and a null after an already-old pulse is far more likely a real game transition
+  // (where clearing is correct) than a transient miss — so the guard still degrades toward correct
+  // behaviour rather than toward a stale display.
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=10')
 
   const isOwner = req.query?.owner === '1'
 

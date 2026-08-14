@@ -1021,7 +1021,11 @@ export default async function handler(req, res) {
     await kv.del(KV_KEY)
     log.info('cache cleared')
   } else {
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    // 30 -> 60 (2026-08-13, TI traffic). Still stricter than this payload's OWN freshness: the KV
+    // entry above lives for TTL (120s), so the origin already serves data up to 2 min old. An edge
+    // TTL of 30 was therefore forcing 4x the origin work the data's own staleness justified, and
+    // that gap multiplied across every edge PoP once the audience went global for TI.
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30')
   }
 
   try {
