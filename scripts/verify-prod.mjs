@@ -8,6 +8,18 @@
  * On failure, read Vercel runtime logs and fix before marking the deploy done.
  */
 
+// The league matcher is IMPORTED from production rather than reimplemented (2026-08-13). It used
+// to be an inlined copy annotated "mirrors api/_shared.js exactly", which had silently drifted:
+// production dedupes league tokens, converts roman numerals, and tie-breaks on a precision ratio
+// (overlap/tokenCount), none of which the copy did. The drift made the verifier resolve a
+// DIFFERENT league than the site for several tracked events — "The International 2026" matched the
+// excluded-tier "Lyceum International 2026" (0 games) and failed a correct production deploy on
+// 2026-08-13, while production itself resolved it fine. A verifier scoring differently from the
+// thing it verifies can both fail good deploys and pass broken ones, so there must be exactly one
+// implementation. Importing is safe: _shared.js has no module-scope side effects that need env
+// vars (its Redis and Sentry clients are both lazily constructed).
+import { findLeague } from '../api/_shared.js'
+
 const BASE = 'https://spectateesports.live'
 
 // How stale is too stale for "live" news? (hours)
@@ -165,45 +177,6 @@ async function checkTournamentsApi() {
 //     for why the most generous signal is the correct one
 //  3. Spectate's game count is cross-validated against OD's direct count
 
-// Inlined findLeague logic — mirrors api/_shared.js exactly.
-// Collects all candidates with ≥2 overlap, sorts by overlap (non-qualifier wins ties),
-// then iterates with an inverted numeric guard: skip a candidate only if it has a
-// numeric token NOT present in the search set. Leagues with no Arabic numerics
-// (e.g. "BLAST SLAM I") always pass, handling cross-source season numbering.
-const _STOP = new Set(['the', 'a', 'an', 'of', 'in', 'at', 'and', 'or', 'season'])
-function _tokens(s) {
-  return s.toLowerCase().split(/[\s\-_]+/).filter(t => (t.length > 1 || /^\d+$/.test(t)) && !_STOP.has(t))
-}
-function _findLeague(leagues, search) {
-  if (!search || !leagues?.length) return null
-  const searchTokens = new Set(_tokens(search))
-  const candidates = []
-  for (const league of leagues) {
-    const lt = _tokens(league.name || '')
-    const overlap = lt.filter(t => searchTokens.has(t)).length
-    if (overlap < 2) continue
-    candidates.push({ league, overlap })
-  }
-  if (candidates.length === 0) return null
-  candidates.sort((a, b) => {
-    if (b.overlap !== a.overlap) return b.overlap - a.overlap
-    const aQ = (a.league.name || '').toLowerCase().includes('qualifier')
-    const bQ = (b.league.name || '').toLowerCase().includes('qualifier')
-    if (aQ && !bQ) return 1
-    if (!aQ && bQ) return -1
-    return 0
-  })
-  const numericSearchSet = new Set([...searchTokens].filter(t => /^\d+$/.test(t)))
-  for (const { league } of candidates) {
-    if (numericSearchSet.size > 0) {
-      const leagueNumerics = _tokens(league.name || '').filter(t => /^\d+$/.test(t))
-      if (leagueNumerics.some(t => !numericSearchSet.has(t))) continue
-    }
-    return league
-  }
-  return null
-}
-
 async function checkOdTournamentConsistency() {
   console.log('\n[od-consistency] OD game count vs PS series count')
 
@@ -264,7 +237,7 @@ async function checkOdTournamentConsistency() {
   try {
     const odLeagues = await fetchJsonOptional('https://api.opendota.com/api/leagues', 'OD leagues list')
     if (Array.isArray(odLeagues)) {
-      const found = _findLeague(odLeagues, tournamentName)
+      const found = findLeague(odLeagues, tournamentName)
       if (found) {
         odLeagueName = found.name
         info(`OD league: "${found.name}" (id: ${found.leagueid})`)
