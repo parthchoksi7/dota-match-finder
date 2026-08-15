@@ -604,9 +604,16 @@ export function matchHighlightsToSeries(videos, radiantTeam, direTeam, seriesSta
       // Filters out celebration posts, Shorts, and general tournament content.
       // Optional trailing period tolerates channels (e.g. @EWC_Extra) that write "vs.".
       if (!/\bvs\.?\s/.test(t)) return false
-      const matchesRa = raTokens.length > 0 && raTokens.some(tok => t.includes(tok))
-      const matchesDi = diTokens.length > 0 && diTokens.some(tok => t.includes(tok))
-      return matchesRa || matchesDi
+      // Require both teams to appear when both names are known. A single-team match lets a
+      // highlight video for a completely different series (sharing one opponent) win, which is
+      // the exact bug this guards against. Fall back to a single-team match only when the other
+      // team's name is genuinely unknown (e.g. a not-yet-decided bracket slot).
+      const raKnown = raTokens.length > 0
+      const diKnown = diTokens.length > 0
+      if (!raKnown && !diKnown) return false
+      const matchesRa = raKnown && raTokens.some(tok => t.includes(tok))
+      const matchesDi = diKnown && diTokens.some(tok => t.includes(tok))
+      return raKnown && diKnown ? matchesRa && matchesDi : matchesRa || matchesDi
     })
     .filter(v => startMs === 0 || new Date(v.publishedAt).getTime() >= startMs)
     .sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt))[0] ?? null

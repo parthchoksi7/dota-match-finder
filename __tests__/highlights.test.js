@@ -55,10 +55,18 @@ describe('matchHighlightsToSeries', () => {
     expect(result?.videoId).toBe('xyz')
   })
 
-  it('matches when only one team name appears in title (other team name absent but " vs " present)', () => {
+  it('rejects a video that only names one of the two known teams (prevents cross-series contamination)', () => {
     const v = makeVideo('partial', 'Team Liquid vs TBD | Grand Final | DreamLeague S29', '2026-05-01T15:00:00Z')
     const result = matchHighlightsToSeries([v], 'OG', 'Team Liquid', t('2026-05-01T12:00:00Z'))
-    expect(result?.videoId).toBe('partial')
+    expect(result).toBeNull()
+  })
+
+  it('rejects a video for a different series that happens to share one opponent', () => {
+    // Real bug case: a "Team Falcons vs GamerLegion" highlight video was matched to a
+    // Vici Gaming vs GamerLegion series because GamerLegion alone satisfied an OR check.
+    const v = makeVideo('wrong', 'Team Falcons vs GamerLegion | Highlights | The International 2026', '2026-08-14T15:00:00Z')
+    const result = matchHighlightsToSeries([v], 'Vici Gaming', 'GamerLegion', t('2026-08-14T12:00:00Z'))
+    expect(result).toBeNull()
   })
 
   // ── Time anchoring ────────────────────────────────────────────────────────

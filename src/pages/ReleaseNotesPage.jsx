@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 15, 2026",
+    tag: "fix",
+    title: "Series highlights no longer mismatch one team in the pairing",
+    desc: "The match drawer's series highlight video could match on just one team name, so a series against a shared opponent (e.g. Vici Gaming vs GamerLegion) sometimes showed a highlight video from a completely different match (e.g. Team Falcons vs GamerLegion). It now requires both teams to appear in the video title before matching.",
+  },
+  {
     date: "August 14, 2026",
     tag: "fix",
     title: "Highlights tab now pulls from the correct PGL YouTube channel",
