@@ -7,7 +7,7 @@ const RELEASES = [
     date: "August 14, 2026",
     tag: "fix",
     title: "Match view no longer reveals a sweep through its game tabs",
-    desc: "In spoiler-free mode, a series that ended early (like a best-of-3 swept 2-0) only ever showed a G1/G2 tab row - which gave away the sweep just as clearly as a score would. Finished series now always show a tab for every game their format allows, so the tab count alone never spoils the result.",
+    desc: "In spoiler-free mode, a series that ended early (like a best-of-3 swept 2-0) only ever showed a G1/G2 tab row - which gave away the sweep just as clearly as a score would. Finished series now always show a tab for every game their format allows, so the tab count alone never spoils the result. Tapping one of these placeholder tabs shows a simple \"this game wasn't played\" message.",
   },
   {
     date: "August 14, 2026",

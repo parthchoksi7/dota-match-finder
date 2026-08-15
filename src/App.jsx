@@ -1354,8 +1354,12 @@ function App() {
 
   const twitchSearchHref = "https://www.twitch.tv/search?term=dota%202"
 
-  const selectedSeriesIds = selectedMatch?.id != null
-    ? (seriesMatchMap[selectedMatch.id]
+  // The id-keyed lookup covers every real match. The seriesId fallback also covers an
+  // id-less synthetic "unplayed" match (MatchCard's empty game slots, and this switcher's
+  // own phantom tabs below) — those carry a seriesId but no `id`, so without this branch
+  // selecting one would silently drop the game switcher instead of keeping it in place.
+  const selectedSeriesIds = selectedMatch
+    ? ((selectedMatch.id != null ? seriesMatchMap[selectedMatch.id] : null)
         || (selectedMatch.seriesId != null && selectedMatch.seriesId !== 0 ? seriesIdToIds[String(selectedMatch.seriesId)] : null))
     : null
   const seriesGames = selectedSeriesIds ? orderSeriesGames(selectedSeriesIds, allMatches) : []
@@ -1372,12 +1376,30 @@ function App() {
     : null
 
   // Spoiler-free-only: pad the switcher out to the format's full game count with inert phantom
-  // tabs (no onClick, styled identically to a real tab) so a series that ended early (e.g. a BO3
-  // swept 2-0) doesn't leak the sweep through its tab count alone. Only meaningful when not
-  // mid-live (returnToLiveGame implies the decider may still be coming).
+  // tabs (styled identically to a real tab, active-state included) so a series that ended early
+  // (e.g. a BO3 swept 2-0) doesn't leak the sweep through its tab count alone. Only meaningful
+  // when not mid-live (returnToLiveGame implies the decider may still be coming). Clicking one
+  // opens the same "this game wasn't played" zero state as MatchCard's unplayed slots, carrying
+  // seriesId (not id — no real match exists) so selectedSeriesIds above keeps resolving and the
+  // switcher itself stays visible/navigable from that zero state.
   const phantomGameTabs = returnToLiveGame ? [] : Array.from(
     { length: phantomGameCount(seriesGames, spoilerFree) },
-    (_, i) => ({ key: `phantom-${seriesGames.length + i + 1}`, label: `G${seriesGames.length + i + 1}` })
+    (_, i) => {
+      const position = seriesGames.length + i + 1
+      return {
+        key: `phantom-${position}`,
+        label: `G${position}`,
+        isActive: !!selectedMatch?.unplayed && selectedMatch.gameNumber === position,
+        onClick: () => handleSelectMatch({
+          unplayed: true,
+          gameNumber: position,
+          radiantTeam: seriesGames[0]?.radiantTeam,
+          direTeam: seriesGames[0]?.direTeam,
+          tournament: seriesGames[0]?.tournament,
+          seriesId: seriesGames[0]?.seriesId,
+        }, 'game_switcher'),
+      }
+    }
   )
 
   const gameSwitcher = (seriesGames.length > 1 || returnToLiveGame) ? (

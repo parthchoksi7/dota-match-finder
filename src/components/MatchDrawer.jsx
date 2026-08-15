@@ -207,6 +207,11 @@ function MatchDrawer({
             ✕
           </button>
         </div>
+        {gameSwitcher && (
+          <div className={`overflow-x-auto [&::-webkit-scrollbar]:hidden ${SHEET_PADDING} py-2.5 border-b border-gray-800 shrink-0`} style={{ scrollbarWidth: 'none' }}>
+            {gameSwitcher}
+          </div>
+        )}
         <div className={`flex-1 flex items-center justify-center ${SHEET_PADDING} py-8`}>
           <div className="text-center space-y-2">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
