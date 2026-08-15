@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { formatDuration, formatRelativeTime, getSeriesLabel, isGrandFinal, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery, isTITournament, getTIOrientationLabel, getSwissStakesLabel, getTournamentFormatKey, getStageFormatConfig, getAdvancementType } from '../utils'
+import { formatDuration, formatRelativeTime, getSeriesLabel, isGrandFinal, groupIntoSeries, buildSeriesGroups, formatDateRange, getSeriesWins, trackEvent, isSeriesComplete, winsRequiredForSeries, buildTournamentCards, normalizeTournamentKey, buildTournamentName, tournamentStageLabel, hasPriorFootprint, orderSeriesGames, STORAGE_KEYS, teamMatchesQuery, isTITournament, getTIOrientationLabel, getSwissStakesLabel, getTournamentFormatKey, getStageFormatConfig, getAdvancementType, phantomGameCount } from '../utils'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 
@@ -382,6 +382,69 @@ describe('isSeriesComplete', () => {
   it('is not complete for a BO2 after only 1 game', () => {
     const series = { seriesType: 3, games: [makeCompleteGame({ radiantWin: true })] }
     expect(isSeriesComplete(series)).toBe(false)
+  })
+})
+
+// ── phantomGameCount ──────────────────────────────────────────────────────────
+// A concluded series that ended early (e.g. a BO3 swept 2-0) has fewer real games than its
+// format allows. In spoiler-free mode, a game switcher showing only the real games leaks the
+// sweep through tab count alone — phantomGameCount says how many placeholder tabs to add to
+// mask it.
+
+describe('phantomGameCount', () => {
+  it('returns 0 when spoilers are not hidden', () => {
+    const games = [makeCompleteGame({ radiantWin: true }), makeCompleteGame({ radiantWin: true })]
+    games.forEach(g => { g.seriesType = 1 })
+    expect(phantomGameCount(games, false)).toBe(0)
+  })
+
+  it('returns 0 for empty or missing input', () => {
+    expect(phantomGameCount([], true)).toBe(0)
+    expect(phantomGameCount(null, true)).toBe(0)
+  })
+
+  it('pads a 2-0 BO3 sweep to 3 tabs (returns 1)', () => {
+    const games = [
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 1 },
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 1 },
+    ]
+    expect(phantomGameCount(games, true)).toBe(1)
+  })
+
+  it('returns 0 for a BO3 that went the distance (2-1, 3 real games)', () => {
+    const games = [
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 1 },
+      { ...makeCompleteGame({ radiantWin: false }), seriesType: 1 },
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 1 },
+    ]
+    expect(phantomGameCount(games, true)).toBe(0)
+  })
+
+  it('pads a 3-0 BO5 sweep to 5 tabs (returns 2)', () => {
+    const games = [
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 2 },
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 2 },
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 2 },
+    ]
+    expect(phantomGameCount(games, true)).toBe(2)
+  })
+
+  it('returns 0 for a BO1 (already at its max of 1 game)', () => {
+    const games = [{ ...makeCompleteGame({ radiantWin: true }), seriesType: 0 }]
+    expect(phantomGameCount(games, true)).toBe(0)
+  })
+
+  it('returns 0 for a series still in progress (BO3 at 1-0)', () => {
+    const games = [{ ...makeCompleteGame({ radiantWin: true }), seriesType: 1 }]
+    expect(phantomGameCount(games, true)).toBe(0)
+  })
+
+  it('returns 0 for a concluded BO2 draw (already at its max of 2 games)', () => {
+    const games = [
+      { ...makeCompleteGame({ radiantWin: true }), seriesType: 3 },
+      { ...makeCompleteGame({ radiantWin: false }), seriesType: 3 },
+    ]
+    expect(phantomGameCount(games, true)).toBe(0)
   })
 })
 

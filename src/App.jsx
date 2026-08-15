@@ -16,7 +16,7 @@ import { prefetchMatchStreams as prefetchMatchStreamsCache, clearVodPrefetchCach
 import SiteHeader from "./components/SiteHeader"
 import BottomTabBar from "./components/BottomTabBar"
 import SiteFooter from "./components/SiteFooter"
-import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, isLiveSeriesConcluded, hasPriorFootprint, orderSeriesGames } from "./utils"
+import { formatDuration, getFollowedTeams, setFollowedTeams, trackEvent, getSeriesWins, getSummaryFromCache, setSummaryInCache, STORAGE_KEYS, groupIntoSeries, buildSeriesGroups, isSeriesComplete, isLiveSeriesConcluded, hasPriorFootprint, orderSeriesGames, phantomGameCount } from "./utils"
 import { countFollowedLive } from "./utils/liveScore"
 import { getPushPermission, subscribeToPush } from "./utils/push"
 import { useVisiblePolling } from "./utils/useVisiblePolling"
@@ -1371,6 +1371,15 @@ function App() {
     ? (returnToLiveMatch.games || []).find(g => g.status === 'running')
     : null
 
+  // Spoiler-free-only: pad the switcher out to the format's full game count with inert phantom
+  // tabs (no onClick, styled identically to a real tab) so a series that ended early (e.g. a BO3
+  // swept 2-0) doesn't leak the sweep through its tab count alone. Only meaningful when not
+  // mid-live (returnToLiveGame implies the decider may still be coming).
+  const phantomGameTabs = returnToLiveGame ? [] : Array.from(
+    { length: phantomGameCount(seriesGames, spoilerFree) },
+    (_, i) => ({ key: `phantom-${seriesGames.length + i + 1}`, label: `G${seriesGames.length + i + 1}` })
+  )
+
   const gameSwitcher = (seriesGames.length > 1 || returnToLiveGame) ? (
     <GameSwitcher
       tabs={[
@@ -1389,6 +1398,7 @@ function App() {
           isLive: true,
           onClick: handleReturnToLiveSeries,
         }] : []),
+        ...phantomGameTabs,
       ]}
     />
   ) : null

@@ -391,11 +391,24 @@ export function orderSeriesGames(ids, matches) {
 }
 
 /** Maximum games possible in a series (BO1=1, BO2=2, BO3=3, BO5=5) */
-function maxGamesForSeries(seriesType) {
+export function maxGamesForSeries(seriesType) {
   if (seriesType === 0) return 1  // BO1
   if (seriesType === 2) return 5  // BO5
   if (seriesType === 3) return 2  // BO2
   return 3                        // BO3 (type 1) or unknown
+}
+
+/**
+ * How many placeholder game tabs a spoiler-free game switcher needs to pad a CONCLUDED series
+ * out to its format's full length. A series that ended early (e.g. a BO3 swept 2-0) otherwise
+ * shows one tab per real game only, and that tab count alone reveals the sweep to a spoiler-free
+ * fan just as loudly as a score would. Returns 0 whenever padding isn't needed: spoilers are on,
+ * the series is still in progress (a real decider may yet come), or it already went the distance.
+ */
+export function phantomGameCount(seriesGames, spoilerFree) {
+  if (!spoilerFree || !seriesGames || !seriesGames.length) return 0
+  if (!isSeriesComplete({ games: seriesGames, seriesType: seriesGames[0].seriesType })) return 0
+  return Math.max(0, maxGamesForSeries(seriesGames[0].seriesType) - seriesGames.length)
 }
 
 // ── Summary localStorage cache helpers ────────────────────────────────────

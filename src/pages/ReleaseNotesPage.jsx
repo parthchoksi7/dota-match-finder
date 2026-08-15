@@ -6,6 +6,12 @@ const RELEASES = [
   {
     date: "August 14, 2026",
     tag: "fix",
+    title: "Match view no longer reveals a sweep through its game tabs",
+    desc: "In spoiler-free mode, a series that ended early (like a best-of-3 swept 2-0) only ever showed a G1/G2 tab row - which gave away the sweep just as clearly as a score would. Finished series now always show a tab for every game their format allows, so the tab count alone never spoils the result.",
+  },
+  {
+    date: "August 14, 2026",
+    tag: "fix",
     title: "Spoiler-free mode now covers tournament standings and match results",
     desc: "The tournament page's standings table and match list were showing win/loss records and scores even with spoiler-free mode on. Both now hide results the same way the rest of the site does.",
   },
