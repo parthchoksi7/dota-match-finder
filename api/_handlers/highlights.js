@@ -6,9 +6,12 @@ const YT_HIGHLIGHTS_MAX_AGE_DAYS = 90
 
 // Maps tournament name keywords to the official YouTube channel for that org.
 // Channel IDs verified via youtube.com/channel/ URLs in May 2026.
+// PGL_DOTA2 channelId corrected 2026-08-15: the old ID (UC5jpxDZx4yoBo324pMQ91Ww)
+// actually resolves to the general @pgl channel (mixed-game, includes CS content),
+// not the Dota-specific @PGL_DOTA2 channel — verified live via youtube.com/@PGL_DOTA2.
 const YT_CHANNEL_MAP = [
   { keywords: ['dreamleague', 'esl one'], channelId: 'UCaYLBJfw6d8XqmNlL204lNg', handle: '@ESLDota2' },
-  { keywords: ['pgl', 'wallachia'],       channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
+  { keywords: ['pgl', 'wallachia'],       channelId: 'UC7VWLs_Ivccq22rM2_xo0Rg', handle: '@PGL_DOTA2' },
   { keywords: ['blast'],                  channelId: 'UCAvIC2XmBLLXFPdveirTrmw', handle: '@BLASTDota' },
   { keywords: ['weplay', 'omega league'], channelId: 'UCdIRwwGQY68S95bQuUVX0sA', handle: '@WePlayDota' },
   { keywords: ['esports world cup', 'ewc'], channelId: 'UCef7TE-TfKtAHukBHfXBhvA', handle: '@EWC_Extra' },
@@ -16,7 +19,7 @@ const YT_CHANNEL_MAP = [
   // @dota2 channel — owner-confirmed 2026-08-14, highlights/VODs live on @PGL_DOTA2.
   // Must appear before the generic 'the international' entry so it wins on first-match.
   { keywords: ['the international 2026', 'the international closed qualifier', 'ti closed qualifier'],
-                                          channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
+                                          channelId: 'UC7VWLs_Ivccq22rM2_xo0Rg', handle: '@PGL_DOTA2' },
   { keywords: ['the international', 'riyadh masters', 'beyond the summit'],
                                           channelId: 'UCTQKT5QqO3h7y32G8VzuySQ', handle: '@dota2' },
   { keywords: ['games of the future'],   channelId: 'UCSnzqrm0_rBtW8m-3VeFJWA', handle: '@GamesoftheFutureOfficial' },

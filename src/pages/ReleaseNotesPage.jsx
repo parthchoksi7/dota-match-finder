@@ -6,8 +6,8 @@ const RELEASES = [
   {
     date: "August 14, 2026",
     tag: "fix",
-    title: "The International 2026 highlights now pull from the right YouTube channel",
-    desc: "The Highlights tab on The International 2026's tournament page was pointing at Valve's official @dota2 channel, which isn't producing this event's broadcast. It now pulls from @PGL_DOTA2, the actual broadcaster for TI 2026.",
+    title: "Highlights tab now pulls from the correct PGL YouTube channel",
+    desc: "The Highlights tab for PGL-broadcast tournaments (The International 2026, Wallachia, TI closed qualifiers) was pointing at the wrong YouTube channel ID - one that resolves to PGL's general, mixed-game channel instead of the Dota-specific @PGL_DOTA2. It now pulls from the correct channel, so TI 2026 and Wallachia highlights actually show up.",
   },
   {
     date: "August 14, 2026",
