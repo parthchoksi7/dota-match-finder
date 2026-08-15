@@ -12,9 +12,10 @@ const YT_CHANNEL_MAP = [
   { keywords: ['blast'],                  channelId: 'UCAvIC2XmBLLXFPdveirTrmw', handle: '@BLASTDota' },
   { keywords: ['weplay', 'omega league'], channelId: 'UCdIRwwGQY68S95bQuUVX0sA', handle: '@WePlayDota' },
   { keywords: ['esports world cup', 'ewc'], channelId: 'UCef7TE-TfKtAHukBHfXBhvA', handle: '@EWC_Extra' },
-  // TI Closed Qualifiers are broadcast on PGL, not the official @dota2 channel.
+  // TI 2026 (main event and its qualifiers) is broadcast by PGL, not the official
+  // @dota2 channel — owner-confirmed 2026-08-14, highlights/VODs live on @PGL_DOTA2.
   // Must appear before the generic 'the international' entry so it wins on first-match.
-  { keywords: ['the international closed qualifier', 'ti closed qualifier'],
+  { keywords: ['the international 2026', 'the international closed qualifier', 'ti closed qualifier'],
                                           channelId: 'UC5jpxDZx4yoBo324pMQ91Ww', handle: '@PGL_DOTA2' },
   { keywords: ['the international', 'riyadh masters', 'beyond the summit'],
                                           channelId: 'UCTQKT5QqO3h7y32G8VzuySQ', handle: '@dota2' },
