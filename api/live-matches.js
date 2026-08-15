@@ -15,6 +15,19 @@ import { formatScoreHeadline, formatScoreDetail, scoreSignature, shouldSendScore
 import { nextSignalState, STALE_MAX_S } from '../src/utils/liveSignal.js'
 
 const KV_KEY = 'dota2:live_matches_v5' // v5: matches may now carry `.signal` (live worth-watching badge)
+// DELIBERATELY UNCHANGED at 120s. A 2026-08-15 draft halved this to 60s to pay for a higher edge
+// s-maxage and was rejected in review before shipping, for two reasons worth keeping written down:
+//   1. It doubles the REGEN rate (the expensive path: 100-match PandaScore parse +
+//      enrichMultiStreamMatches fan-out + resolveLiveSignals + cacheRunningStreams) while removing
+//      only cheap KV-hit invocations. Whether that is a net Active CPU win depends on the
+//      regen/KV-hit cost ratio, which is not measurable on the free plan — it could plausibly be
+//      net NEGATIVE.
+//   2. This constant is the observation cadence for `ONE_SIDED_DWELL` (src/utils/liveSignal.js),
+//      calibrated as "2 consecutive observations, ~4 min". Halving it silently halves R3's "be slow
+//      to tell a fan a game is finished" guarantee. Same class of bug as the LOCK_TTL_S 60->45
+//      revert documented in api/_handlers/liveOdCapture.js.
+// The staleness budget the higher s-maxage needed was taken from `stale-while-revalidate` instead,
+// which costs nothing (see the Cache-Control note below).
 const TTL = 60 * 2 // 2 minutes
 const REPLAY_DEDUP_TTL = 7 * 24 * 3600 // 7 days — a series binds once; guards partial-bind re-runs.
 
@@ -997,38 +1010,70 @@ export default async function handler(req, res) {
     }
   }
 
-  // Edge TTL deliberately LEFT AT 30s (2026-08-09, Fluid Active CPU budget pass). Raising it was
-  // tried and reverted, because the arithmetic doesn't work for this endpoint:
+  // 2026-08-15: `s-maxage` 30 -> 150, and `stale-while-revalidate` 60 -> DROPPED. `TTL` above is
+  // deliberately UNTOUCHED. Supersedes the 2026-08-09 and 2026-08-13 reverts, which were both
+  // correct at the time — each raised s-maxage alone and so paid pure freshness for little gain.
   //
-  // With stale-while-revalidate, ANY request past s-maxage still costs an origin invocation — it's
-  // served stale and revalidated in the background. So invocations are only saved by requests that
-  // land INSIDE s-maxage, which for a solo viewer means s-maxage must exceed the client's 120s poll
-  // interval. Anything below that (30s, 60s, even 110s) saves a solo viewer exactly nothing and
-  // only dedups genuinely concurrent viewers in the same POP. Meanwhile the cost is real and paid
-  // by everyone: edge age COMPOUNDS with this payload's KV age (`TTL` = 120s above) AND with the
-  // swr window. Going to 60/120 would have bought ~0 invocations while pushing worst-case served
-  // age from ~210s to ~300s — a straight freshness regression on the homepage's live scores, which
-  // is the product's core surface. Clearing 120s to get a real saving would be worse still.
+  // THE KEY ASYMMETRY, and why this version costs nothing the earlier attempts did:
+  // `stale-while-revalidate` does not reduce origin invocations IN STEADY STATE. A request past
+  // `s-maxage` costs one invocation whether it is served stale and revalidated in the background
+  // (swr) or blocks on revalidation (no swr). (Precisely: swr does still absorb the burst of
+  // requests arriving WHILE a revalidation is in flight, which foreground revalidation does not
+  // collapse — so it is not literally zero under concurrency. But the expensive regen rate is
+  // pinned by `TTL` and global KV at <=1 per 120s no matter what this header says, and edge misses
+  // fall 2-5x here, so total foreground revalidations drop rather than rise.) swr is otherwise a
+  // pure LATENCY feature — yet fully additive to worst-case served age. In a staleness-constrained
+  // trade it is therefore 60s of budget bought for ~zero CPU benefit. Dropping it funds the higher
+  // s-maxage outright:
+  //     before: s-maxage 30  + swr 60 + KV 120 = ~210s worst-case served age
+  //     after:  s-maxage 150 + swr  0 + KV 120 = ~270s   (+60s, +29%)
+  // A rejected draft instead funded it by halving `TTL`, which doubles the expensive regen path and
+  // silently rescales ONE_SIDED_DWELL — see the note on `TTL` above for why that was dropped.
   //
-  // If this ever needs to change, the only version that saves anything is s-maxage > the client
-  // poll interval, and that trade has to be made deliberately against live-score freshness.
+  // WHY 150 AND NOT 120 — the most important number here. Two mechanisms explain the measured data
+  // below and they DISAGREE at 120:
+  //   (a) concurrency-dominated: origin rate ~ 1/s-maxage        -> 30->120 gives ~4x
+  //   (b) per-PoP solo viewer:   origin rate quantised to polls  -> 30->120 gives ~NOTHING
+  // Under (b), an entry expiring at exactly the client's 120s poll interval goes stale just before
+  // the next poll lands, so every poll still misses. That miss is guaranteed rather than 50/50,
+  // because HTTP `Age` counts from ORIGIN GENERATION and every contributing factor — setInterval
+  // drift, network RTT, origin processing — pushes arrival later, never earlier (useVisiblePolling
+  // also honours the remainder on visibility resume, so it never fires early). 150 clears the poll
+  // interval by ~30s and so wins under BOTH models (>=2x under (b), ~5x under (a)). NEVER set this
+  // equal to the client poll interval; if App.jsx's interval changes, keep a real margin above it.
+  //
+  // MEASURED BASIS (2026-08-15, `source=serverless` log counts; note log retention is ~1h, so a
+  // `since=24h` query returns the same counts as `since=1h` and must NOT be read as a day):
+  //     /api/live-matches     s-maxage=30  -> ~666 invocations/hr
+  //     /api/upcoming-matches s-maxage=300 -> ~34  invocations/hr
+  // Both are fetched in the SAME `Promise.all` in src/App.jsx, so their client request counts are
+  // provably identical. But note the gap (19.6x) EXCEEDS the s-maxage ratio (300/30 = 10x), so a
+  // pure 1/s-maxage model does not fit either — both mechanisms contribute and two data points
+  // cannot separate them. Hence the projected saving on this endpoint's ~16k invocations/day (66%
+  // of the entire Fluid Active CPU budget) is a RANGE, 2x-5x, not a point estimate.
+  //
+  // VERIFY EMPIRICALLY AFTER DEPLOY. Cheap, and it settles the model question outright: re-run the
+  // same `source=serverless` / `group_by=requestPath` query ~1h after shipping and compare this
+  // endpoint against the 666/hr baseline. If it has not moved materially, model (b) governs and
+  // this change is not working — revert rather than tuning blind.
+  //
+  // Cost of dropping swr: requests landing past s-maxage now BLOCK on revalidation instead of
+  // getting an instant stale response. Invocation COUNT is unchanged; their LATENCY moves, and so
+  // does error resilience — under swr an origin failure left the stale entry in place and the user
+  // still saw scores. `stale-if-error=120` is added to buy exactly that back, and it is strictly
+  // better than swr on the axis this change is spending: it fires ONLY when the origin errors, so
+  // it costs nothing against the 270s normal-operation budget. Residual exposure is bounded anyway
+  // because App.jsx retains last-known-good on a failed or slow poll rather than clearing the lists.
   //
   // `?bust=1` is a distinct edge cache key, so it must opt out explicitly or the busted response
   // would itself be cached and defeat the next bust. NOTE this does NOT purge the normal key's
-  // cached response — a bust is visible to real users only after the 30s+60s edge window drains.
+  // cached response — with swr gone the drain window is `s-maxage` alone, ~150s (was 30+60=90s).
   if (req.query?.bust === '1') {
     res.setHeader('Cache-Control', 'no-store')
     await kv.del(KV_KEY)
     log.info('cache cleared')
   } else {
-    // Briefly raised to 60/30 on 2026-08-13 for TI traffic and reverted the same day, for the
-    // reasons the block above already gives. Measured saving was only ~4,800 invocations/day
-    // (~38s of CPU) because this endpoint's win is PoP-level dedup only — a solo viewer on a 120s
-    // poll misses at 30 and at 60 alike. That is not worth halving the fresh window on the
-    // homepage's live scores mid-tournament. The large, measured CPU win from that same pass was on
-    // `?mode=live-pulse` (~20k invocations/day), which is a different endpoint with a different
-    // access pattern; it kept its increase. Leaving this one alone.
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    res.setHeader('Cache-Control', 's-maxage=150, stale-if-error=120')
   }
 
   try {
