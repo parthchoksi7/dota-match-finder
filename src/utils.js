@@ -608,7 +608,8 @@ export function normalizeTournamentKey(name) {
  * an array of card objects ready for rendering.
  *
  * Sort order: live > upcoming > followed-team > most-recent.
- * Within each card, followed-team rows float to the top.
+ * Within a card, live rows float followed teams to the top; completed rows sort
+ * chronologically by game 1's start time (ascending), with no followed-team floating.
  *
  * @param {object[]} live        - active live matches from PandaScore
  * @param {object[]} upcoming    - upcoming matches from PandaScore
@@ -639,7 +640,8 @@ export function buildTournamentCards(live, upcoming, completed, followedTeams, n
     const completedCard = completed.filter(s => normalizeTournamentKey(s.tournament || 'Other') === key)
 
     const liveSorted = [...liveCard].sort((a, b) => (isFollowedLive(a) ? 0 : 1) - (isFollowedLive(b) ? 0 : 1))
-    const completedSorted = [...completedCard].sort((a, b) => (isFollowedSeries(a) ? 0 : 1) - (isFollowedSeries(b) ? 0 : 1))
+    const gameOneStart = s => s.games?.[0]?.startTime ?? s.startTime ?? 0
+    const completedSorted = [...completedCard].sort((a, b) => gameOneStart(a) - gameOneStart(b))
 
     const hasFollowed =
       liveSorted.some(isFollowedLive) ||

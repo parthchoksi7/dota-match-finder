@@ -5,6 +5,12 @@ import BottomTabBar from "../components/BottomTabBar"
 const RELEASES = [
   {
     date: "August 15, 2026",
+    tag: "improvement",
+    title: "Results list now reads top-to-bottom in the order games kicked off",
+    desc: "A tournament card's completed results were ordered by whichever game in a series finished most recently, with followed teams pinned to the top regardless of timing. The list now sorts by when each series' first game actually started, oldest to newest, with followed teams appearing in their natural chronological spot.",
+  },
+  {
+    date: "August 15, 2026",
     tag: "fix",
     title: "Series highlights no longer mismatch one team in the pairing",
     desc: "The match drawer's series highlight video could match on just one team name, so a series against a shared opponent (e.g. Vici Gaming vs GamerLegion) sometimes showed a highlight video from a completely different match (e.g. Team Falcons vs GamerLegion). It now requires both teams to appear in the video title before matching.",

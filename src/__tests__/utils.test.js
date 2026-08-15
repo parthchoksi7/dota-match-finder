@@ -724,8 +724,8 @@ function makeUpcoming(tournament, scheduledAt, teamA = 'Team A', teamB = 'Team B
   return { tournament, scheduledAt, teamA, teamB }
 }
 
-function makeCompleted(tournament, startTime, radiantTeam = 'Team A', direTeam = 'Team B') {
-  return { tournament, startTime, games: [{ radiantTeam, direTeam, radiantWin: true }] }
+function makeCompleted(tournament, startTime, radiantTeam = 'Team A', direTeam = 'Team B', gameOneStartTime = startTime) {
+  return { tournament, startTime, games: [{ radiantTeam, direTeam, radiantWin: true, startTime: gameOneStartTime }] }
 }
 
 describe('buildTournamentCards', () => {
@@ -820,7 +820,7 @@ describe('buildTournamentCards', () => {
     expect(cards[1].tournament).toBe('Older Event')
   })
 
-  it('floats followed-team rows to the top within a completed card', () => {
+  it('slots followed-team rows into chronological order within a completed card, not floated to top', () => {
     const cards = buildTournamentCards(
       [],
       [],
@@ -832,7 +832,27 @@ describe('buildTournamentCards', () => {
       NOW
     )
     expect(cards).toHaveLength(1)
-    expect(cards[0].completedSeries[0].games[0].radiantTeam).toBe('Team Liquid')
+    expect(cards[0].completedSeries[0].games[0].radiantTeam).toBe('Random Team')
+    expect(cards[0].completedSeries[1].games[0].radiantTeam).toBe('Team Liquid')
+  })
+
+  it('sorts completed rows within a card by game 1 start time, not the series-level (last-game) startTime', () => {
+    const cards = buildTournamentCards(
+      [],
+      [],
+      [
+        // Series-level startTime (last game) says this one is "newer", but its game 1
+        // actually kicked off after the other series' game 1 — a long BO5 that started
+        // late and ran even later. Row order must follow games[0].startTime, not startTime.
+        makeCompleted('DreamLeague S29', NOW - 1000, 'Started Second', 'Opponent A', NOW - 900),
+        makeCompleted('DreamLeague S29', NOW - 2000, 'Started First', 'Opponent B', NOW - 3000),
+      ],
+      [],
+      NOW
+    )
+    expect(cards).toHaveLength(1)
+    expect(cards[0].completedSeries[0].games[0].radiantTeam).toBe('Started First')
+    expect(cards[0].completedSeries[1].games[0].radiantTeam).toBe('Started Second')
   })
 
   it('returns empty array when all inputs are empty', () => {
