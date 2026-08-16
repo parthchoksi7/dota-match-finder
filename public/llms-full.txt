@@ -147,6 +147,20 @@ Source: Liquipedia (https://liquipedia.net/dota2/). TI records verified against 
 - **Iconic players**: Ame, Xm, XinQ, Xxs
 - **Notable**: Went 4-0 in the TI14 group stage, claiming the top playoff seed.
 
+### TEAM VISION (CIS) — also known as PARIVISION, PVISION
+- **Organization based in**: Serbia (entered Dota 2 October 2024)
+- **TI wins**: None
+- **Iconic players**: None established (org is new to Dota 2)
+- **Notable wins**: ESL One Bangkok 2024, ESL One Raleigh 2025, Esports World Cup 2026 (as PVISION)
+- **Notable**: Competes at The International 2026 under a third name, TEAM VISION, having previously competed as PARIVISION and PVISION.
+
+### Team Yandex (CIS)
+- **Organization based in**: Russia (entered Dota 2 June 2025)
+- **TI wins**: None
+- **Iconic players**: None established (org is new to Dota 2)
+- **Notable wins**: PGL Wallachia Season 7 (March 2026), BLAST Slam VII (June 2026)
+- **Notable**: Backed by Russian tech company Yandex, which acquired the Cyber Goose roster to launch the team in June 2025. Former Virtus.pro/Team Spirit core player RAMZES666 serves as team ambassador.
+
 ---
 
 ## Complete Dota 2 Hero Reference (by Primary Attribute)

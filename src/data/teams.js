@@ -144,6 +144,28 @@ export const TIER1_TEAMS = [
     about: 'Xtreme Gaming was founded in January 2021 and is based in China. The team went 4-0 in the group stage at The International 2025, claiming the top playoff seed, before falling to Team Falcons 2-3 in the Grand Final. They represent China\'s competitive Dota 2 scene alongside victories at the Elite League Season 1 (2024) and other international events.',
     liquipedia: 'https://liquipedia.net/dota2/Xtreme_Gaming',
   },
+  {
+    id: 'parivision-dota-2',
+    name: 'TEAM VISION',
+    region: 'CIS',
+    basedIn: 'Serbia',
+    tiWins: [],
+    iconicPlayers: [],
+    shortDesc: 'Serbian esports organization competing as TEAM VISION at The International 2026, having also competed under the names PARIVISION and PVISION.',
+    about: 'PARIVISION entered the Dota 2 competitive scene in October 2024. The org won ESL One Bangkok 2024 and ESL One Raleigh 2025, then took Esports World Cup 2026 under the sister branding PVISION. The team competes at The International 2026 under a third name, TEAM VISION.',
+    liquipedia: 'https://liquipedia.net/dota2/PARIVISION',
+  },
+  {
+    id: 'team-yandex',
+    name: 'Team Yandex',
+    region: 'CIS',
+    basedIn: 'Russia',
+    tiWins: [],
+    iconicPlayers: [],
+    shortDesc: 'Russian esports organization backed by the tech company Yandex, entered Dota 2 in June 2025 by acquiring the Cyber Goose roster.',
+    about: 'Team Yandex entered the Dota 2 competitive scene in June 2025, when Russian tech company Yandex acquired the Cyber Goose roster and launched the team under its own brand. Former Virtus.pro and Team Spirit core player RAMZES666 joined as team ambassador shortly after. The team went on to win PGL Wallachia Season 7 (March 2026) and BLAST Slam VII (June 2026).',
+    liquipedia: 'https://liquipedia.net/dota2/Team_Yandex',
+  },
 ]
 
 export const TIER1_TEAMS_MAP = Object.fromEntries(TIER1_TEAMS.map(t => [t.id, t]))

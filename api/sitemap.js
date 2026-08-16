@@ -14,7 +14,7 @@ const GLOSSARY_TERM_IDS = [
 const TEAM_SLUGS = [
   'og', 'team-liquid', 'team-spirit', 'tundra-esports', 'team-falcons',
   'evil-geniuses', 'nigma-galaxy', 'betboom-team', 'virtus-pro', 'xtreme-gaming',
-  '1win',
+  '1win', 'parivision-dota-2', 'team-yandex',
 ]
 
 // Keep in sync with TIER1_PLAYERS_SSR in middleware.js

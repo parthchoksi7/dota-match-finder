@@ -128,6 +128,8 @@ Dedicated pages for each Tier 1 Dota 2 organization at /teams/{slug}. Each page 
 - [BetBoom Team](https://spectateesports.live/teams/betboom-team): Russian EEU org est. 2022. Iconic players: save-, gpk, TORONTOTOKYO, Nightfall, SoNNeikO.
 - [Virtus.pro](https://spectateesports.live/teams/virtus-pro): Russian org in Dota 2 since 2012. Iconic players: No[o]ne, RAMZES666, Solo, 9pasha, RodjER.
 - [Xtreme Gaming](https://spectateesports.live/teams/xtreme-gaming): Chinese org, TI14 runners-up. Iconic players: Ame, Xm, XinQ, Xxs.
+- [TEAM VISION](https://spectateesports.live/teams/parivision-dota-2): Serbian CIS org competing at The International 2026, also known as PARIVISION and PVISION. Won ESL One Bangkok 2024, ESL One Raleigh 2025, and Esports World Cup 2026.
+- [Team Yandex](https://spectateesports.live/teams/team-yandex): Russian CIS org backed by tech company Yandex, entered Dota 2 June 2025. Won PGL Wallachia Season 7 and BLAST Slam VII (2026).
 
 Note: Team pages cover organizational history only. For current player rosters, see https://liquipedia.net/dota2/Portal:Teams
 

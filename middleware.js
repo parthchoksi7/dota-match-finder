@@ -42,6 +42,10 @@ const TIER1_TEAMS_SSR = [
   { id: 'betboom-team', name: 'BetBoom Team', region: 'EEU', basedIn: 'Russia', tiWins: [], shortDesc: 'Russian Dota 2 organization established in 2022, competing consistently in Tier 1 international events.', liquipedia: 'https://liquipedia.net/dota2/BetBoom_Team' },
   { id: 'virtus-pro', name: 'Virtus.pro', region: 'EEU', basedIn: 'Russia', tiWins: [], shortDesc: 'Russian esports institution in Dota 2 since 2012. Won five major championships in 2017–2018.', liquipedia: 'https://liquipedia.net/dota2/Virtus.pro' },
   { id: 'xtreme-gaming', name: 'Xtreme Gaming', region: 'CN', basedIn: 'China', tiWins: [], shortDesc: 'Chinese Dota 2 organization and The International 2025 runners-up.', liquipedia: 'https://liquipedia.net/dota2/Xtreme_Gaming' },
+  // Added 2026-08-16 -- both were missing a team page entirely despite qualifying for the TI 2026
+  // Main Event; see src/data/teams.js for the fuller `about` text (source of truth, kept in sync here).
+  { id: 'parivision-dota-2', name: 'TEAM VISION', region: 'CIS', basedIn: 'Serbia', tiWins: [], shortDesc: 'Serbian esports organization competing as TEAM VISION at The International 2026, having also competed under the names PARIVISION and PVISION.', liquipedia: 'https://liquipedia.net/dota2/PARIVISION' },
+  { id: 'team-yandex', name: 'Team Yandex', region: 'CIS', basedIn: 'Russia', tiWins: [], shortDesc: 'Russian esports organization backed by the tech company Yandex, entered Dota 2 in June 2025 by acquiring the Cyber Goose roster.', liquipedia: 'https://liquipedia.net/dota2/Team_Yandex' },
 ]
 const TIER1_TEAMS_MAP_SSR = Object.fromEntries(TIER1_TEAMS_SSR.map(t => [t.id, t]))
 
