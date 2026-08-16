@@ -4,8 +4,11 @@
  * This endpoint is ~66% of the entire Fluid Active CPU budget, and three of its constants are
  * coupled in ways that are NOT visible from any one of them:
  *   - `s-maxage` must EXCEED App.jsx's live poll interval, with margin.
- *   - `stale-while-revalidate` costs worst-case staleness while saving ZERO invocations.
- *   - `TTL` is the observation cadence that ONE_SIDED_DWELL's wall-clock meaning depends on.
+ *   - `stale-while-revalidate` must be PRESENT but SHORT. (2026-08-16: this line previously read
+ *     "costs worst-case staleness while saving ZERO invocations". That was measured false — swr is
+ *     what collapses the per-expiry request herd, worth ~44x on this endpoint. See the swr test.)
+ *   - `TTL` is the nominal observation cadence ONE_SIDED_DWELL's wall-clock meaning depends on —
+ *     nominal because while `s-maxage` > `TTL`, the REAL regen cadence is `s-maxage`. See below.
  *
  * Modelled on __tests__/live-pulse-edge-cache.test.js, and for the same reason its LOCK_TTL_S test
  * gives: a relationship-only assertion let a 60 -> 45 regression through with a green suite. Where
@@ -60,31 +63,53 @@ describe('/api/live-matches edge cache contract', () => {
     expect(sMaxAge * 1000 - pollMs).toBeGreaterThanOrEqual(20000)
   })
 
-  it('carries no stale-while-revalidate on the read path', () => {
-    // swr does not reduce origin invocations in steady state — a request past s-maxage costs one
-    // invocation whether served stale in the background or blocking. It is otherwise a latency
-    // feature, yet it is fully additive to worst-case served age. On a staleness-constrained
-    // endpoint that is budget spent for ~nothing, and re-adding it silently lengthens how stale a
-    // live score can be. Asserted on the parsed header value so it cannot be satisfied by a
-    // reordered or `public,`-prefixed variant.
-    expect(cacheControlValue).not.toMatch(/stale-while-revalidate/)
+  it('carries a SHORT stale-while-revalidate on the read path', () => {
+    // 2026-08-16: this assertion was inverted. It previously required NO swr, on the premise that
+    // "swr does not reduce origin invocations in steady state". Measurement falsified that premise:
+    //     /api/live-matches      s-maxage=150, no swr  -> 1,097 invocations/hr  (~44.5 per expiry)
+    //     /api/upcoming-matches  s-maxage=300, swr=300 ->    15 invocations/hr  (~1.25 per expiry)
+    // Both are fetched in the same Promise.all in App.jsx — verified 1:1, since the only other
+    // caller (src/components/UpcomingMatches.jsx) is dead code — so traffic cancels out. Foreground
+    // revalidation does not coalesce the herd that 120s polling releases at each expiry; swr does.
+    //
+    // The pin is now an UPPER BOUND rather than a ban, because swr's cost is proportional to its
+    // length while its benefit saturates as soon as it outlasts one revalidation (~1-5s here). A
+    // large swr is still the mistake the original assertion was reaching for; a small one is what
+    // makes the endpoint affordable. Keep it short, and keep the budget assertion below honest.
+    // Not routed through must(): its message is written for header-SHAPE drift and would read as an
+    // invitation to update the test, when the likely real failure here is someone deleting swr again
+    // on the retracted 08-15 reasoning. Fail with that stated outright instead.
+    const swrMatch = /stale-while-revalidate=(\d+)/.exec(cacheControlValue)
+    expect(swrMatch, `live-matches must carry stale-while-revalidate. Removing it was measured to cost ~44x in origin invocations (1,097/hr vs 15/hr on the upcoming-matches control). Header was: "${cacheControlValue}"`).not.toBeNull()
+    const swr = Number(swrMatch[1])
+    expect(swr).toBeGreaterThan(0)
+    expect(swr).toBeLessThanOrEqual(30)
   })
 
-  it('keeps stale-if-error, which is what actually replaced swr', () => {
-    // Dropping swr also dropped an incidental availability property: under swr an origin failure
-    // left the stale entry in place and the user still saw scores. stale-if-error buys that back
-    // and, unlike swr, fires ONLY on an origin error — so it costs nothing against the
-    // normal-operation staleness budget asserted below.
+  it('keeps stale-if-error alongside swr', () => {
+    // Added 2026-08-15 when swr was dropped, to buy back the availability property swr had provided
+    // incidentally: on an origin failure the stale entry stays in place and the user still sees
+    // scores. swr returned on 2026-08-16 and the two now coexist rather than substituting for each
+    // other — stale-if-error still earns its place because it fires ONLY on an origin error, so
+    // unlike swr it costs nothing against the normal-operation staleness budget asserted below.
     expect(cacheControlValue).toMatch(/stale-if-error=\d+/)
   })
 
-  it('holds worst-case served age within the agreed 270s budget', () => {
+  it('holds worst-case served age within the agreed 300s budget', () => {
     // Worst case = s-maxage + swr + the payload's own KV age (stale-if-error excluded: it applies
     // only when the origin is failing, which is a deliberate availability-over-freshness trade).
     // Derived from the parsed header rather than the pinned constants, so it still means something
     // if a future edit changes the shape instead of the numbers.
+    //
+    // 2026-08-16: budget widened 270 -> 300. That +30s is the ENTIRE price of restoring swr, which
+    // cut this endpoint from ~1,069 to a projected ~24 public invocations/hr. It was paid by adding
+    // swr=30 rather than by lowering s-maxage or halving TTL — both of which were considered and
+    // rejected: lowering s-maxage raises the revalidation rate (and so the regen count) once the
+    // herd is collapsed, and halving TTL silently halves ONE_SIDED_DWELL's wall-clock meaning, which
+    // the last test here exists to prevent. Do not widen this again to fund a longer swr; swr's
+    // benefit saturates at ~one revalidation and 30s already clears that by 6-30x.
     const swr = Number(/stale-while-revalidate=(\d+)/.exec(cacheControlValue)?.[1] ?? 0)
-    expect(sMaxAge + swr + ttlS).toBeLessThanOrEqual(270)
+    expect(sMaxAge + swr + ttlS).toBeLessThanOrEqual(300)
   })
 
   it('keeps ONE_SIDED_DWELL worth roughly 4 minutes of wall clock', () => {
