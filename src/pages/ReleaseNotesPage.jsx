@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 16, 2026",
+    tag: "improvement",
+    title: "Articles can now link team and hero pages directly from the story",
+    desc: "Editorial articles support inline links to Spectate team and hero pages within the body text - so a mention of a team or hero in a story can take you straight to their page instead of leaving you to search for it yourself.",
+  },
+  {
     date: "August 15, 2026",
     tag: "improvement",
     title: "Results list now reads top-to-bottom in the order games kicked off",

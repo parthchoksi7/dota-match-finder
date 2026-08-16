@@ -3,6 +3,7 @@ import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
 import { trackEvent } from '../utils'
+import { renderInlineText } from '../utils/articleInlineLinks'
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -16,20 +17,20 @@ function ArticleSection({ section }) {
   if (section.type === 'heading') {
     return (
       <h2 className="font-display font-bold text-xl sm:text-2xl text-gray-900 dark:text-white mt-10 mb-3 leading-tight">
-        {section.text}
+        {renderInlineText(section.text)}
       </h2>
     )
   }
   if (section.type === 'subheading') {
     return (
       <h3 className="font-display font-bold text-lg text-gray-900 dark:text-white mt-7 mb-2 leading-tight">
-        {section.text}
+        {renderInlineText(section.text)}
       </h3>
     )
   }
   return (
     <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed mb-5">
-      {section.text}
+      {renderInlineText(section.text)}
     </p>
   )
 }

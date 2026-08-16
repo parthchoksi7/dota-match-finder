@@ -1380,9 +1380,9 @@ async function handleArticleDetail(url) {
       ${article.subtitle ? `<p><em>${escapeHtml(article.subtitle)}</em></p>` : ''}
       <p>${escapeHtml(article.excerpt)}</p>
       ${Array.isArray(article.sections) ? article.sections.map(s => {
-        if (s.type === 'heading') return `<h2>${escapeHtml(s.text)}</h2>`
-        if (s.type === 'subheading') return `<h3>${escapeHtml(s.text)}</h3>`
-        return `<p>${escapeHtml(s.text)}</p>`
+        if (s.type === 'heading') return `<h2>${renderInlineTextHtml(s.text)}</h2>`
+        if (s.type === 'subheading') return `<h3>${renderInlineTextHtml(s.text)}</h3>`
+        return `<p>${renderInlineTextHtml(s.text)}</p>`
       }).join('\n      ') : ''}
     </main>`
 
@@ -1734,4 +1734,16 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+// Mirrors src/pages/ArticlePage.jsx's renderInlineText for the no-JS/bot SSR shell -- article
+// body text may contain the minimal `[label](/path)` inline-link syntax; keep both in sync if
+// that syntax ever changes. Escapes first, then converts on the escaped string so the extracted
+// href/label are already HTML-attribute-safe -- no double-escaping. Same-origin-only guard and
+// the `)`-in-href limitation both mirror renderInlineText's -- see its comment for why.
+export function renderInlineTextHtml(text) {
+  const escaped = escapeHtml(text)
+  return escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (full, label, href) =>
+    href.startsWith('/') ? `<a href="${href}">${label}</a>` : full
+  )
 }
