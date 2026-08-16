@@ -81,6 +81,10 @@ describe('lookupTeamHandle', () => {
     expect(lookupTeamHandle('BetBoom Team')).toBe('BetBoomTeam')
   })
 
+  it('matches OpenDota alt name BoomBoys to BetBoom Team, not Boom Esports', () => {
+    expect(lookupTeamHandle('BoomBoys')).toBe('BetBoomTeam')
+  })
+
   it('matches Team Secret', () => {
     expect(lookupTeamHandle('Team Secret')).toBe('teamsecret')
   })

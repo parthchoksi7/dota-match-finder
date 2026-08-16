@@ -37,7 +37,9 @@ const TEAM_HANDLES = [
   { patterns: ['team liquid', 'liquid'], handle: 'teamliquiddota' },
   { patterns: ['team spirit', 'spirit'], handle: 'TSpirit_Dota2' },
   { patterns: ['team secret', 'secret'], handle: 'teamsecret' },
-  { patterns: ['betboom'], handle: 'BetBoomTeam' },
+  // 'boomboys' is OpenDota's alt name for this team — must be matched here,
+  // before the generic 'boom' pattern below, or it wrongly resolves to Boom Esports.
+  { patterns: ['betboom', 'boomboys'], handle: 'BetBoomTeam' },
   { patterns: ['boom esports', 'boom'], handle: 'boomesportsid' },
   { patterns: ['nigma'], handle: 'NigmaGalaxy' },
   { patterns: ['natus vincere', 'navi'], handle: 'natusvincere' },
