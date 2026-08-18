@@ -23,17 +23,25 @@ const H_GAP  = 28
 const V_GAP  = 10
 const LABEL_H = 20
 
+// `match.predicted === true` switches the card into prediction mode: no live/score/TBD
+// state, just a `winner` index (0|1) and a `pct` confidence number rendered as an amber
+// badge on the picked side — used by the article renderer's `bracket` section type for
+// pre-tournament forecasts, never by a real (in-progress or completed) tournament bracket.
 function MatchCard({ match, spoilerFree = false }) {
-  const isLive = match.status === 'running'
-  const isDone = match.status === 'finished'
-  const isTbd  = match.teamA === 'TBD' && match.teamB === 'TBD'
-  const hasScore = match.scoreA !== null && match.scoreB !== null && !spoilerFree
-  const winA = isDone && hasScore && match.scoreA > match.scoreB
-  const winB = isDone && hasScore && match.scoreB > match.scoreA
+  const isPrediction = match.predicted === true
+  // Coerce to a number so a hand-authored `"0"`/`"1"` string in article JSON still matches —
+  // this data is author-typed, not API-derived like every other field MatchCard reads.
+  const winnerIdx = isPrediction ? Number(match.winner) : null
+  const isLive = !isPrediction && match.status === 'running'
+  const isDone = !isPrediction && match.status === 'finished'
+  const isTbd  = !isPrediction && match.teamA === 'TBD' && match.teamB === 'TBD'
+  const hasScore = !isPrediction && match.scoreA !== null && match.scoreB !== null && !spoilerFree
+  const winA = isPrediction ? winnerIdx === 0 : (isDone && hasScore && match.scoreA > match.scoreB)
+  const winB = isPrediction ? winnerIdx === 1 : (isDone && hasScore && match.scoreB > match.scoreA)
 
   const rows = [
-    { name: match.teamA, score: match.scoreA, win: winA, dim: isDone && hasScore && !winA && match.teamA !== 'TBD' },
-    { name: match.teamB, score: match.scoreB, win: winB, dim: isDone && hasScore && !winB && match.teamB !== 'TBD' },
+    { name: match.teamA, score: match.scoreA, win: winA, dim: isPrediction ? winnerIdx !== 0 : (isDone && hasScore && !winA && match.teamA !== 'TBD') },
+    { name: match.teamB, score: match.scoreB, win: winB, dim: isPrediction ? winnerIdx !== 1 : (isDone && hasScore && !winB && match.teamB !== 'TBD') },
   ]
 
   return (
@@ -55,6 +63,11 @@ function MatchCard({ match, spoilerFree = false }) {
           <span className="flex-1 truncate text-xs font-semibold leading-tight text-gray-900 dark:text-white">
             {row.name === 'TBD' ? '' : row.name}
           </span>
+          {isPrediction && row.win && match.pct != null && (
+            <span className="text-xs font-bold tabular-nums flex-shrink-0 ml-1 text-amber-600 dark:text-amber-400">
+              {match.pct}%
+            </span>
+          )}
           {hasScore && (
             <span className={`text-xs font-bold tabular-nums flex-shrink-0 ml-1 ${
               row.win ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'
@@ -74,7 +87,13 @@ function BracketSection({ label, rounds, spoilerFree = false }) {
   const maxMatches = Math.max(...rounds.map(r => r.matches.length))
   if (maxMatches === 0) return null
 
-  const baseSlot = CARD_H + V_GAP
+  // Reserve extra row height when any match carries a `note` (prediction-mode drop-in
+  // annotation, e.g. "+ loser of Falcons–Yandex") so it doesn't visually collide with the
+  // card in the next slot down — V_GAP alone (10px) isn't enough room for the note's own
+  // line height. Only grows spacing for bracket instances that actually use notes (real
+  // tournament brackets never set this field, so their layout is unaffected).
+  const hasNotes = rounds.some(r => r.matches.some(m => m.note))
+  const baseSlot = CARD_H + V_GAP + (hasNotes ? 14 : 0)
   const totalH   = maxMatches * baseSlot
   const totalW   = rounds.length * (CARD_W + H_GAP) - H_GAP
 
@@ -140,6 +159,10 @@ function BracketSection({ label, rounds, spoilerFree = false }) {
           const x     = rIdx * (CARD_W + H_GAP)
           return round.matches.map((match, mIdx) => {
             const y = mIdx * slotH + (slotH - CARD_H) / 2
+            // `match.id` must be unique across the WHOLE bracket array, not just within its
+            // round — hand-authored prediction JSON has no server-side uniqueness guarantee
+            // like real PandaScore-derived match ids do, so a copy-pasted duplicate id will
+            // cause a React key collision (wrong card/note reused on re-render).
             return (
               <div
                 key={match.id || `${rIdx}-${mIdx}`}
@@ -147,6 +170,11 @@ function BracketSection({ label, rounds, spoilerFree = false }) {
                 style={{ left: x, top: LABEL_H + 4 + y, width: CARD_W, height: CARD_H }}
               >
                 <MatchCard match={match} spoilerFree={spoilerFree} />
+                {match.note && (
+                  <p className="text-[9px] text-gray-400 dark:text-gray-600 leading-none mt-0.5 truncate" title={match.note}>
+                    {match.note}
+                  </p>
+                )}
               </div>
             )
           })

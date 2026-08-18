@@ -4,7 +4,11 @@
  */
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-import { publishToDb, updateMetadataFiles } from '../api/pipeline/_publisher.js'
+import { publishToDb } from '../api/pipeline/_publisher.js'
+// NOTE: updateMetadataFiles() is intentionally NOT called on re-runs of this script.
+// It already ran once for this slug (commit eb809a6) — patchLlms() has no dedupe-by-slug
+// check, so calling it again would insert a second llms.txt line for the same article.
+// publishToDb() is a Supabase upsert keyed on slug, so it's safe to re-run for content edits.
 
 const article = {
   slug: 'ti-2026-playoff-bracket-prediction',
@@ -31,23 +35,64 @@ const article = {
     { type: 'heading', text: 'The Odds' },
     {
       type: 'paragraph',
-      text: "Out of 300,000 simulated runs of the tournament, here is how often each team won it: [TEAM VISION](/teams/parivision-dota-2) 26.9%, [Team Falcons](/teams/team-falcons-dota-2) 16.9%, [Team Yandex](/teams/team-yandex) 14.4%, [Team Liquid](/teams/team-liquid) 11.7%, [Iron Wing](/teams/1win-dota-2) and [Team Spirit](/teams/team-spirit) 9.8% each, [BoomBoys](/teams/betboom-team) 9.0%, and [Nigma Galaxy](/teams/nigma-galaxy) just 1.6%. One clear favorite, then six teams bunched close together — below the top seed, this is close to an even field, and who a team happens to face in the bracket matters about as much as how good they are.",
+      text: "Out of 300,000 simulated runs of the tournament, here is how often each of [TEAM VISION](/teams/parivision-dota-2), [Team Falcons](/teams/team-falcons-dota-2), [Team Yandex](/teams/team-yandex), [Team Liquid](/teams/team-liquid), [Iron Wing](/teams/1win-dota-2), [Team Spirit](/teams/team-spirit), [BoomBoys](/teams/betboom-team) and [Nigma Galaxy](/teams/nigma-galaxy) won it — one clear favorite, then six teams bunched close together. Below the top seed, this is close to an even field, and who a team happens to face in the bracket matters about as much as how good they are.",
+    },
+    {
+      type: 'ranking',
+      items: [
+        { label: 'TEAM VISION', value: '26.9%' },
+        { label: 'Team Falcons', value: '16.9%' },
+        { label: 'Team Yandex', value: '14.4%' },
+        { label: 'Team Liquid', value: '11.7%' },
+        { label: 'Iron Wing', value: '9.8%' },
+        { label: 'Team Spirit', value: '9.8%' },
+        { label: 'BoomBoys', value: '9.0%' },
+        { label: 'Nigma Galaxy', value: '1.6%' },
+      ],
     },
     { type: 'heading', text: 'The Bracket' },
-    { type: 'subheading', text: 'Upper Bracket — August 20 to 22' },
     {
       type: 'paragraph',
-      text: "Quarterfinals: we give Team Spirit the edge over Iron Wing, but only barely — 50.1%, as close to a coin flip as our model produces. TEAM VISION should beat BoomBoys comfortably (64%). Team Yandex over Team Liquid is another close one at 52%. Team Falcons over Nigma Galaxy is the one quarterfinal we're genuinely confident in, at 73%. From there we have TEAM VISION beating Team Spirit in the semifinal (63%) and Team Falcons edging Team Yandex (51%), before TEAM VISION beats Team Falcons in the Upper Bracket Final (59%).",
+      text: "Every match is BO3 except the Grand Final, which is BO5. Two of the four opening matches are close to a coin flip — treat those as leans, not calls. The odds of every one of these fourteen matches landing exactly as picked below are only about 1 in 3,000.",
     },
-    { type: 'subheading', text: 'Lower Bracket — August 21 to 23' },
     {
-      type: 'paragraph',
-      text: "Iron Wing should beat BoomBoys in the first lower bracket round (52%), and Team Liquid should beat Nigma Galaxy comfortably (70%). From there, Team Yandex beats Iron Wing (53%) and Team Liquid beats Team Spirit (51%) in the lower bracket quarterfinals, Team Yandex beats Team Liquid in the semifinal (52%), and Team Falcons beats Team Yandex in the lower bracket final (51%) to reach the Grand Final a second time.",
+      type: 'bracket',
+      bracket: [
+        { section: 'upper', round: 0, label: 'Quarterfinals — Aug 20', matches: [
+          { id: 'u-qf-1', teamA: 'Iron Wing', teamB: 'Team Spirit', predicted: true, winner: 1, pct: 50 },
+          { id: 'u-qf-2', teamA: 'TEAM VISION', teamB: 'BoomBoys', predicted: true, winner: 0, pct: 64 },
+          { id: 'u-qf-3', teamA: 'Team Liquid', teamB: 'Team Yandex', predicted: true, winner: 1, pct: 52 },
+          { id: 'u-qf-4', teamA: 'Nigma Galaxy', teamB: 'Team Falcons', predicted: true, winner: 1, pct: 73 },
+        ]},
+        { section: 'upper', round: 1, label: 'Semifinals — Aug 21', matches: [
+          { id: 'u-sf-1', teamA: 'TEAM VISION', teamB: 'Team Spirit', predicted: true, winner: 0, pct: 63 },
+          { id: 'u-sf-2', teamA: 'Team Yandex', teamB: 'Team Falcons', predicted: true, winner: 1, pct: 51 },
+        ]},
+        { section: 'upper', round: 2, label: 'Upper Final — Aug 22', matches: [
+          { id: 'u-f', teamA: 'TEAM VISION', teamB: 'Team Falcons', predicted: true, winner: 0, pct: 59 },
+        ]},
+        { section: 'lower', round: 0, label: 'Round 1 — Aug 21', matches: [
+          { id: 'l-r1-1', teamA: 'Iron Wing', teamB: 'BoomBoys', predicted: true, winner: 0, pct: 52 },
+          { id: 'l-r1-2', teamA: 'Team Liquid', teamB: 'Nigma Galaxy', predicted: true, winner: 0, pct: 70 },
+        ]},
+        { section: 'lower', round: 1, label: 'Quarterfinals — Aug 22', matches: [
+          { id: 'l-qf-1', teamA: 'Iron Wing', teamB: 'Team Yandex', predicted: true, winner: 1, pct: 53, note: '+ loser of Falcons–Yandex' },
+          { id: 'l-qf-2', teamA: 'Team Liquid', teamB: 'Team Spirit', predicted: true, winner: 0, pct: 51, note: '+ loser of VISION–Spirit' },
+        ]},
+        { section: 'lower', round: 2, label: 'Semifinal — Aug 22', matches: [
+          { id: 'l-sf', teamA: 'Team Yandex', teamB: 'Team Liquid', predicted: true, winner: 0, pct: 52 },
+        ]},
+        { section: 'lower', round: 3, label: 'Final — Aug 23', matches: [
+          { id: 'l-f', teamA: 'Team Falcons', teamB: 'Team Yandex', predicted: true, winner: 0, pct: 51, note: '+ loser of Upper Bracket Final' },
+        ]},
+        { section: 'grand_final', round: 0, label: 'Grand Final · BO5', matches: [
+          { id: 'gf', teamA: 'TEAM VISION', teamB: 'Team Falcons', predicted: true, winner: 0, pct: 61 },
+        ]},
+      ],
     },
-    { type: 'subheading', text: 'Grand Final — August 23, best of five' },
     {
       type: 'paragraph',
-      text: "Our single most likely path ends with TEAM VISION beating Team Falcons, 3 games to 1 — a 61% series win once both teams get there. But the odds of every one of these fourteen matches landing exactly this way are only about 1 in 3,000. Two of the four opening matches are close to a coin flip; treat those as leans, not calls.",
+      text: "Our single most likely path ends with TEAM VISION beating Team Falcons 3 games to 1 in the Grand Final — a 61% series win once both teams get there.",
     },
     { type: 'heading', text: 'Why TEAM VISION' },
     {
@@ -65,11 +110,11 @@ const article = {
     },
     {
       type: 'paragraph',
-      text: "Their average win took 57 minutes to close out; their average loss took 41. They've also stuck to the smallest set of heroes of any playoff team, and across all of 2026 they are 0 wins and 10 losses against TEAM VISION, BoomBoys, Team Falcons and Iron Wing — every genuinely top-tier team they've faced. Their wins have come against Team Liquid and Team Spirit only. We're not calling Nigma a bad team, or comebacks a fluke — but a 60% comeback rate from five games is a small sample, and a best-of-three bracket gives them fewer chances to find the deficit they've relied on all tournament.",
+      text: "Their average win took 57 minutes to close out; their average loss took 41. They've also stuck to the smallest set of heroes of any playoff team, and across all of 2026 they are 0 wins and 10 losses against TEAM VISION, BoomBoys, Team Falcons and Iron Wing — every genuinely top-tier team they've faced. Their wins have come against Team Liquid and Team Spirit only. We're not calling Nigma a bad team, or comebacks a fluke — but a 60% comeback rate from five games is a small sample, and a BO3 bracket gives them fewer chances to find the deficit they've relied on all tournament.",
     },
     { type: 'heading', text: 'FAQ: TI 2026 Playoff Bracket Predictions' },
     { type: 'subheading', text: 'What is the TI 2026 playoff format?' },
-    { type: 'paragraph', text: 'Eight teams in a double-elimination bracket, played August 20 to 23 in Shanghai. Every match is best-of-three except the Grand Final, which is best-of-five.' },
+    { type: 'paragraph', text: 'Eight teams in a double-elimination bracket, played August 20 to 23 in Shanghai. Every match is BO3 except the Grand Final, which is BO5.' },
     { type: 'subheading', text: 'Who is favored to win The International 2026?' },
     { type: 'paragraph', text: 'TEAM VISION, at 26.9% in our simulation model — the clear favorite, but still more likely to lose the tournament than win it.' },
     { type: 'subheading', text: "What are Team Falcons' odds to win TI 2026?" },
@@ -85,12 +130,7 @@ async function main() {
   console.log('Publishing to Supabase...')
   const url = await publishToDb(article)
   console.log('Live at:', url)
-
-  console.log('Updating metadata files (llms.txt + sitemap)...')
-  const sha = await updateMetadataFiles(article)
-  console.log('Committed:', sha)
-
-  console.log('\nDone.')
+  console.log('\nDone. (Metadata files already updated on first publish — skipped.)')
 }
 
 main().catch((err) => {

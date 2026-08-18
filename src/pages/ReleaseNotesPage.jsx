@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 17, 2026",
+    tag: "new",
+    title: "Articles can now show ranked lists and bracket predictions, not just prose",
+    desc: "Data-driven articles were limited to plain paragraphs, so a piece like our TI 2026 playoff bracket prediction had no way to show odds or a bracket visually. Articles can now include a ranked list (e.g. championship odds) and a full double-elimination bracket with a predicted winner and confidence percentage for every match, reusing the same bracket component the live Tournament pages use.",
+  },
+  {
     date: "August 16, 2026",
     tag: "improvement",
     title: "Articles can now link team and hero pages directly from the story",

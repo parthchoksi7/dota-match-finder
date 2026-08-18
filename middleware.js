@@ -1386,6 +1386,34 @@ async function handleArticleDetail(url) {
       ${Array.isArray(article.sections) ? article.sections.map(s => {
         if (s.type === 'heading') return `<h2>${renderInlineTextHtml(s.text)}</h2>`
         if (s.type === 'subheading') return `<h3>${renderInlineTextHtml(s.text)}</h3>`
+        if (s.type === 'ranking') {
+          return `<ol>${(s.items || []).map(i => `<li>${escapeHtml(i.label)} — ${escapeHtml(i.value)}</li>`).join('')}</ol>`
+        }
+        if (s.type === 'bracket') {
+          const sectionLabel = { upper: 'Upper Bracket', lower: 'Lower Bracket', grand_final: 'Grand Final' }
+          const groups = {}
+          for (const round of (s.bracket || [])) {
+            const key = round.section || 'main'
+            groups[key] = groups[key] || []
+            groups[key].push(round)
+          }
+          return Object.entries(groups).map(([key, rounds]) => `
+            <h4>${escapeHtml(sectionLabel[key] || key)}</h4>
+            ${rounds.map(r => `
+              <p><strong>${escapeHtml(r.label || '')}</strong></p>
+              <ul>${(r.matches || []).map(m => {
+                // Only assert a pick when this is actually a resolved prediction (mirrors the
+                // client's isPrediction/winnerIdx guard in BracketView.jsx) — a missing/invalid
+                // `winner` must render as unresolved, not silently default to teamB.
+                const winnerIdx = m.predicted === true ? Number(m.winner) : NaN
+                const pickText = winnerIdx === 0 ? `predicted winner: ${escapeHtml(m.teamA)}${m.pct != null ? ` (${escapeHtml(String(m.pct))}%)` : ''}`
+                  : winnerIdx === 1 ? `predicted winner: ${escapeHtml(m.teamB)}${m.pct != null ? ` (${escapeHtml(String(m.pct))}%)` : ''}`
+                  : 'matchup not yet predicted'
+                return `<li>${escapeHtml(m.teamA)} vs ${escapeHtml(m.teamB)} — ${pickText}${m.note ? ` (${escapeHtml(m.note)})` : ''}</li>`
+              }).join('')}</ul>
+            `).join('')}
+          `).join('')
+        }
         return `<p>${renderInlineTextHtml(s.text)}</p>`
       }).join('\n      ') : ''}
     </main>`

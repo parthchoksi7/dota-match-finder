@@ -2,8 +2,39 @@ import { useEffect, useState } from 'react'
 import SiteHeader from '../components/SiteHeader'
 import SiteFooter from '../components/SiteFooter'
 import BottomTabBar from '../components/BottomTabBar'
+import { HorizontalBracket } from '../components/BracketView'
 import { trackEvent } from '../utils'
 import { renderInlineText } from '../utils/articleInlineLinks'
+
+// Ranked name/percentage list — used by the article renderer's `ranking` section type
+// (e.g. championship-odds boards). Top row gets the amber "highlighted" treatment shared
+// with Champion labels/Grand Final accents elsewhere in the app (see DESIGN_GUIDELINES.md).
+export function RankingList({ items }) {
+  if (!items || items.length === 0) return null
+  return (
+    <div className="my-6 rounded border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {items.map((item, i) => (
+        <div
+          key={`${i}-${item.label}`}
+          className={`flex items-center justify-between px-4 py-2.5 gap-3 ${
+            i === 0 ? 'border-l-2 border-amber-500 dark:border-amber-400 bg-amber-50/50 dark:bg-amber-900/10' : ''
+          } ${i !== items.length - 1 ? 'border-b border-gray-100 dark:border-gray-900' : ''}`}
+        >
+          <span className={`text-sm font-semibold truncate ${
+            i === 0 ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
+          }`}>
+            {item.label}
+          </span>
+          <span className={`text-sm font-bold tabular-nums flex-shrink-0 ${
+            i === 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'
+          }`}>
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -13,7 +44,7 @@ function formatDate(iso) {
   })
 }
 
-function ArticleSection({ section }) {
+export function ArticleSection({ section }) {
   if (section.type === 'heading') {
     return (
       <h2 className="font-display font-bold text-xl sm:text-2xl text-gray-900 dark:text-white mt-10 mb-3 leading-tight">
@@ -26,6 +57,16 @@ function ArticleSection({ section }) {
       <h3 className="font-display font-bold text-lg text-gray-900 dark:text-white mt-7 mb-2 leading-tight">
         {renderInlineText(section.text)}
       </h3>
+    )
+  }
+  if (section.type === 'ranking') {
+    return <RankingList items={section.items} />
+  }
+  if (section.type === 'bracket') {
+    return (
+      <div className="my-6 -mx-4 sm:mx-0 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-950">
+        <HorizontalBracket bracket={section.bracket} />
+      </div>
     )
   }
   return (
