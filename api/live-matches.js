@@ -43,7 +43,7 @@ const REPLAY_DEDUP_TTL = 7 * 24 * 3600 // 7 days — a series binds once; guards
 // up to 60s. See pending-refactors for batching the per-subscriber KV reads (mget).
 export const config = { maxDuration: 30 }
 
-import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp, resolveFollowedTeamName, sendGa4Event, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S, isFeatureEnabled } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, normalizeAllStreams, CHANNEL_LABELS, PANDASCORE_BASE, STREAM_TTL, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, TIER1_LEAGUE_KEYWORDS, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, setCorsHeaders, createLogger, rateLimitByIp, resolveFollowedTeamName, sendGa4Event, findOdMatchByTime, OD_MATCH_TIME_WINDOW_S, isFeatureEnabled, recordPsQuota } from './_shared.js'
 import { shapeLiveGameMapRows, beginAtToUnix } from './_handlers/liveSeriesGames.js'
 
 // web-push is dynamic-imported and configured lazily, only from ensureWebpush() below — not
@@ -809,7 +809,13 @@ export default async function handler(req, res) {
     try {
       const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
       const response = await fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=100`, { headers })
-      if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+      // Before the throw: a 429 still carries the quota header. Awaited only on the failure path
+      // so the KV write isn't lost to lambda freeze. See recordPsQuota in _shared.js.
+      const quota = recordPsQuota(response, 'live-matches:cron-capture')
+      if (!response.ok) {
+        await quota
+        throw new Error(`PandaScore error: ${response.status}`)
+      }
       const [data, tier1NamesCron] = await Promise.all([
         response.json(),
         kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
@@ -863,7 +869,11 @@ export default async function handler(req, res) {
         fetch(`${PANDASCORE_BASE}/matches/upcoming?sort=scheduled_at&page[size]=50&range[scheduled_at]=${from},${to}`, { headers }),
         kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
       ])
-      if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+      const quota = recordPsQuota(response, 'live-matches:cron-push-scan')
+      if (!response.ok) {
+        await quota
+        throw new Error(`PandaScore error: ${response.status}`)
+      }
       const names = [...new Set([
         ...(Array.isArray(tier1NamesRaw) ? tier1NamesRaw.map(n => n.toLowerCase()) : []),
         ...PERMANENT_TIER1_NAMES.map(n => n.toLowerCase()),
@@ -1134,7 +1144,11 @@ export default async function handler(req, res) {
       fetch(`${PANDASCORE_BASE}/matches/running?sort=begin_at&page[size]=100`, { headers }),
       kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
     ])
-    if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+    const quota = recordPsQuota(response, 'live-matches:public')
+    if (!response.ok) {
+      await quota
+      throw new Error(`PandaScore error: ${response.status}`)
+    }
 
     const names = [...new Set([
       ...(Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []),

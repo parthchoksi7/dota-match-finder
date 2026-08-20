@@ -805,6 +805,154 @@ export async function trackError(endpoint, statusCode, detail, err) {
   } catch (_) {}
 }
 
+// ── PandaScore quota telemetry ───────────────────────────────────────────────
+
+// PandaScore's REST limit is PER-HOUR and ACCOUNT-WIDE across every endpoint (free plan:
+// 1,000 req/hr — https://developers.pandascore.co/docs/rate-and-connections-limits), not
+// per-endpoint. So every caller in api/ competes for one shared bucket, and a background job
+// (warm-streams' per-series /api/match-streams fan-out is the largest) can starve the
+// user-facing feed. That is the mechanism behind the 429 storm first seen 2026-08-16 during
+// TI2026, where `/api/live-matches` and `/api/upcoming-matches` began throwing
+// `PandaScore error: 429` with no other signal about who had spent the quota.
+//
+// Every PandaScore response carries the remaining count in `X-Rate-Limit-Remaining`.
+// `Retry-After` is NOT documented by PandaScore — do not build backoff logic that depends on
+// it. Read the remaining count instead: it lets us see exhaustion coming instead of only
+// learning about it from a 429 after the fact.
+//
+// Two sinks, split deliberately by cost:
+//   - stdout on EVERY call: free. Vercel's ~1h log retention happens to match the quota window
+//     exactly, so `grep ps_quota` over the current hour gives full per-source attribution.
+//   - KV only below LOW_WATER: a KV write per call would be ~1,000/hr and would blow the
+//     Upstash free-tier command budget for pure telemetry. Writing only in the danger zone
+//     costs ~nothing in steady state while capturing exactly the window worth post-morteming,
+//     and makes it visible in-app via `?mode=monitor` — required because Vercel Log Drains are
+//     unavailable on the free plan, so stdout alone is not durably inspectable.
+//
+// NOTE on partial instrumentation: `remaining` is account-wide and decreases monotonically
+// within the hour, so the DROP between two consecutive observations at ANY instrumented call
+// site measures total account burn in that gap — including from call sites that are not
+// themselves instrumented. That is what makes this useful without having to touch the LOCKED
+// VOD files (`api/match-streams.js`, `enrichMultiStreamMatches`) to get a total.
+const PS_QUOTA_LOW_WATER = 200
+
+/**
+ * Records PandaScore's remaining hourly quota from a response. Best-effort and never throws —
+ * call it for its side effect and do not let it gate a request path.
+ *
+ * Call it BEFORE any `if (!response.ok) throw` so a 429 response (whose header reports the
+ * exhausted state) is captured too, rather than being the one case we have no data for.
+ *
+ * Also records `X-Rate-Limit-Used` when present. That header is NOT in PandaScore's docs but is
+ * returned in practice (verified live 2026-08-19: `x-rate-limit-remaining: 886` alongside
+ * `x-rate-limit-used: 114`, summing to exactly 1000 — which is also how the plan's real hourly
+ * ceiling is confirmed empirically rather than trusted from a pricing page). It is treated as
+ * strictly optional: if PandaScore ever drops it, `used`/`limit` simply go null and `remaining`
+ * still works on its own.
+ *
+ * @param {Response} response - the raw fetch Response from a PandaScore call
+ * @param {string} source - which caller spent it, e.g. 'live-matches:public'
+ * @returns {Promise<number|null>} the remaining count, or null when the header is absent
+ */
+export async function recordPsQuota(response, source) {
+  let raw
+  let rawUsed
+  let remaining
+  try {
+    raw = response?.headers?.get?.('x-rate-limit-remaining')
+    rawUsed = response?.headers?.get?.('x-rate-limit-used')
+    // `.trim()` before the empty check: `Number(' ')` is 0, so a whitespace-only value would
+    // otherwise read as a fully EXHAUSTED quota (same trap as the `Number(null)` one below).
+    // Unreachable through a spec-compliant Headers, which normalizes to '', but free to close.
+    if (typeof raw === 'string') raw = raw.trim()
+    // Number() lives inside the try so "never throws" holds by construction rather than by
+    // argument about what a real Headers.get can return.
+    remaining = Number(raw)
+  } catch {
+    return null
+  }
+  // Discard based on `raw`, NOT on `remaining`: `Number(null)` is 0, not NaN, so an absent
+  // header would otherwise pass the isFinite check below and be recorded as a fully EXHAUSTED
+  // quota — inverting the meaning of the most severe reading this function can produce, and
+  // tripping `critical` in ?mode=monitor on nothing at all. (Caught by
+  // __tests__/ps-quota-telemetry.test.js; do not collapse these two checks into one.)
+  if (raw == null || raw === '') return null
+  if (!Number.isFinite(remaining)) return null
+
+  const usedNum = Number(rawUsed)
+  const used = (rawUsed != null && rawUsed !== '' && Number.isFinite(usedNum)) ? usedNum : null
+  // used + remaining is the plan's real hourly ceiling, so a plan upgrade shows up here on its
+  // own instead of silently invalidating a hardcoded 1000.
+  const limit = used == null ? null : used + remaining
+
+  const low = remaining < PS_QUOTA_LOW_WATER
+  try {
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({
+      level: low ? 'warn' : 'info',
+      msg: 'ps_quota',
+      source,
+      remaining,
+      used,
+      limit,
+      ts: Date.now(),
+    }))
+  } catch (_) {}
+
+  if (!low) return remaining
+  try {
+    const client = _getMonitorKv()
+    if (!client) return remaining
+    // Hourly bucket (YYYY-MM-DDTHH) because that IS the quota window — a daily bucket would
+    // blur together an exhausted hour and 23 healthy ones.
+    const key = `monitor:ps_quota:${new Date().toISOString().slice(0, 13)}`
+    await client.lpush(key, JSON.stringify({ source, remaining, used, limit, ts: Date.now() }))
+    await client.ltrim(key, 0, 49)
+    await client.expire(key, 259200) // 3 days, same as monitor:errors
+  } catch (_) {}
+  return remaining
+}
+
+/**
+ * Aggregates `monitor:ps_quota:*` samples for `?mode=monitor`. Pure so the staleness rule below
+ * is actually testable.
+ *
+ * `exhausted` is computed ONLY from samples inside the last hour, while the counts/min span
+ * everything passed in. That asymmetry is the point: PandaScore's quota bucket resets hourly, so
+ * a `remaining: 0` sample from 14:58 says nothing about 15:05 — the budget is already back to
+ * full. Without the cutoff, `critical` would keep firing for up to an hour after the incident
+ * resolved and, on a 2h alert cron, open a GitHub issue for a problem that no longer exists.
+ * The wider window is still what you want for the human-readable summary.
+ *
+ * `by_source` counts WHICH INSTRUMENTED CALL SITE OBSERVED a low reading — it is NOT a measure of
+ * which consumer spent the quota. The quota is account-wide, so an uninstrumented caller
+ * (warm-streams -> api/match-streams.js) can drain it while these four sites merely witness the
+ * result. Do not read this field as "the culprit"; it names the victims. Real spend attribution
+ * needs either instrumenting that path or diffing `remaining` between consecutive observations.
+ *
+ * @param {Array<{source:string, remaining:number, ts:number}>} samples
+ * @param {number} nowMs
+ */
+export function summarizePsQuota(samples, nowMs = Date.now()) {
+  const valid = (samples || []).filter(s => s && Number.isFinite(s.remaining) && Number.isFinite(s.ts))
+  if (valid.length === 0) return null
+  const currentWindow = valid.filter(s => s.ts > nowMs - 3600000)
+  return {
+    low_water_hits: valid.length,
+    min_remaining: Math.min(...valid.map(s => s.remaining)),
+    // Named to make the hourly-reset scope explicit at the call site and in the JSON report.
+    min_remaining_this_hour: currentWindow.length > 0
+      ? Math.min(...currentWindow.map(s => s.remaining))
+      : null,
+    exhausted: currentWindow.some(s => s.remaining === 0),
+    observed_by_source: valid.reduce((acc, s) => {
+      acc[s.source] = (acc[s.source] || 0) + 1
+      return acc
+    }, {}),
+    recent: [...valid].sort((a, b) => b.ts - a.ts).slice(0, 10),
+  }
+}
+
 // Probes the three external dependencies used by most endpoints.
 // Returns { pandascore, opendota, kv } each with { status, latency_ms[, error] }.
 /**

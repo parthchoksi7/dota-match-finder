@@ -7,7 +7,7 @@ const TTL = 60 * 15 // 15 minutes
 
 const PANDASCORE_BASE = 'https://api.pandascore.co/dota2'
 
-import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, createLogger } from './_shared.js'
+import { isTier1, isTier1ByName, getTwitchStreams, KV_TIER1_NAMES_KEY, PERMANENT_TIER1_NAMES, buildTournamentName, trackError, parseBracketRound, getSeriesLabel, createLogger, recordPsQuota } from './_shared.js'
 
 function mapMatch(m) {
   const opponents = m.opponents || []
@@ -75,7 +75,16 @@ export default async function handler(req, res) {
       fetch(url, { headers }),
       kv.get(KV_TIER1_NAMES_KEY).catch(() => null),
     ])
-    if (!response.ok) throw new Error(`PandaScore error: ${response.status}`)
+    // Before the throw on purpose: a 429 response still carries the quota header, and that is
+    // the single most diagnostic reading there is. Un-awaited on the happy path (telemetry must
+    // add no latency there; it never throws), but AWAITED before throwing — below the low-water
+    // mark it does three Upstash round-trips, and Vercel freezes the lambda once the response is
+    // flushed, which would drop exactly the exhaustion sample this exists to capture.
+    const quota = recordPsQuota(response, 'upcoming-matches:public')
+    if (!response.ok) {
+      await quota
+      throw new Error(`PandaScore error: ${response.status}`)
+    }
 
     const names = [...new Set([
       ...(Array.isArray(tier1Names) ? tier1Names.map(n => n.toLowerCase()) : []),

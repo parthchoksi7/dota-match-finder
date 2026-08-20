@@ -54,7 +54,11 @@ Exempt from RICE: work that literally cannot start yet.
 
 | # | Item | Reach | Impact | Conf. | Effort | Score |
 |---|---|---|---|---|---|---|
+| 34 | Serve last-known-good payload instead of 500ing when PandaScore 429s | 5 | 4 | 90% | 0.5 | **36.0** |
+| 35 | `warm-streams` re-attempts unbindable series forever — no negative cache | 5 | 5 | 70% | 0.5 | **35.0** |
+| 36 | No PandaScore quota circuit breaker / priority budgeting | 5 | 4 | 80% | 1 | **16.0** |
 | 21 | Dead `patchSitemap`/`ARTICLE_SLUGS` logic in `api/pipeline/_publisher.js` | 2 | 2 | 90% | 0.25 | **14.4** |
+| 37 | `api/_handlers/monitor.js` has zero test coverage but can page a human | 2 | 3 | 90% | 0.5 | **10.8** |
 | 25 | `resolveValvePulse` awaits independent I/O sequentially instead of `Promise.all` | 3 | 2 | 90% | 0.5 | **10.8** |
 | 24 | Duplicated `formatClock`/`formatNetWorth` have drifted, not just duplicated | 2 | 3 | 85% | 0.5 | **10.2** |
 | 23 | `ITEM_MAP_KV_KEY` defined in two places, consumed in three | 1 | 2 | 95% | 0.25 | **7.6** |
@@ -70,6 +74,31 @@ Exempt from RICE: work that literally cannot start yet.
 | 20 | Full TypeScript migration | 5 | 4 | 60% | 20 | **0.6** |
 
 ---
+
+### 37. `api/_handlers/monitor.js` has zero test coverage but can page a human
+- **What:** There is no `__tests__/*monitor*` file. `handleMonitor` computes `critical`, which drives `.github/workflows/log-monitor.yml` opening a GitHub `[Alert]` issue every 2h — so an untested boolean can wake someone up. The `parse()` helper (handles both Upstash object and JSON-string forms), the 2h/24h error windowing, and the `critical` composition are all unexercised.
+- **Found:** 2026-08-19, independent review of the PandaScore quota telemetry change. The quota half was extracted into the pure, tested `summarizePsQuota()` in `_shared.js` specifically so its staleness rule could be covered; the rest of the handler still is not.
+- **Fix:** Extract the error-window aggregation the same way `summarizePsQuota()` was, then unit-test `parse()` on both Upstash shapes and the `critical` truth table.
+- **Risk:** Low, but do it as extraction + tests, not a rewrite — this handler is the alerting path.
+
+### 34. Serve last-known-good payload instead of 500ing when PandaScore 429s
+- **What:** When PandaScore returns 429, `api/live-matches.js` (~1141) and `api/upcoming-matches.js` (~82) throw and return a 500 straight to the browser — the homepage feed breaks. Sentry JAVASCRIPT-7 (745 events, `/api/live-matches`) and JAVASCRIPT-A (160 events in one unbroken 14-min window, `/api/upcoming-matches`) are both this.
+- **Found:** 2026-08-19, Sentry triage. Root cause is quota exhaustion (see #35/#36); this item is the blast-radius fix, not the root-cause fix, and is worth doing independently because it decouples the user-facing feed from quota state entirely.
+- **Fix:** On every SUCCESSFUL regen, additionally write a `dota2:live_matches_last_good` / `..._upcoming_last_good` key with a long TTL (~1h). On the failure path, serve it with a staleness marker instead of throwing. **Note the trap:** you cannot "read the expired KV entry" — the existing `kv.get(KV_KEY)` early-return means the fetch is only ever reached when that key is already GONE (Upstash evicts on TTL). A second key is required; there is nothing stale left to read.
+- **Risk:** Low. Additive key, read only on the error path, touches no stream-cache write. Decide deliberately whether a stale payload should still be edge-cached (probably `s-maxage=30` so it self-heals fast).
+
+### 35. `warm-streams` re-attempts unbindable series forever — no negative cache
+- **What:** The warm-streams cron (`api/live-matches.js:947-951`) skips a series only when every `stream:match:{id}` key already exists. A series that *cannot* bind — the documented YouTube-only broadcast case, where `channel` resolves null so `stream:match` is never written — is therefore re-attempted **every 15 min for the full 24h lookback: ~96 futile PandaScore calls per unbindable series per day**. Each attempt self-calls `/api/match-streams`, which spends one `page[size]=50` PandaScore request (`api/match-streams.js:235`). At `WARM_MAX_SERIES = 40` that is up to 160 req/hr against an account-wide 1,000 req/hr free-plan budget.
+- **Found:** 2026-08-19, tracing the 429 storm (#34) back to its largest suspected consumer.
+- **Fix:** Write a negative-cache key (`stream:miss:{od_match_id}`, TTL ~6h) when a bind attempt resolves no channel, and check it alongside the existing `stream:match` guard. While in there and under the same approval, add `recordPsQuota()` to the `match-streams.js` PandaScore fetch — it is currently the largest *uninstrumented* spender.
+- **Confidence note:** 70% deliberately. That warm-streams has no negative cache is **confirmed by code reading**; that it is the *dominant* quota consumer is **arithmetic inference, not measurement**. Confirm first via `kv.get('warm:stream-history:latest')` (already records `{ attempted, bound, skipped }`) and the new `ps_quota.by_source` in `?mode=monitor` before sizing the fix.
+- **Risk:** Medium — `api/match-streams.js` and the warm-streams binding path are **LOCKED VOD system**; requires explicit owner approval. A too-long negative TTL would delay a legitimate late bind (PandaScore can populate `external_identifier` after OpenDota indexes), so keep it well under the 24h lookback.
+
+### 36. No PandaScore quota circuit breaker / priority budgeting
+- **What:** Nothing in `api/` reads PandaScore's quota state before spending it (a `grep` for `429|rate.limit|quota` across `api/` + `src/` returned zero hits before 2026-08-19). Every one of the ~15 call sites competes blindly for one account-wide hourly bucket, so a background job can and did starve the user-facing feed.
+- **Fix:** Now that `recordPsQuota()` (`_shared.js`) surfaces `X-Rate-Limit-Remaining`, gate spending on it: below a threshold (~150 remaining), background jobs (`warm-streams`, `vod-enrich`) exit early and leave the rest of the budget to user-facing endpoints. Store the reading in KV so the decision is shared across lambdas — an in-process backoff is useless when every invocation is a fresh process.
+- **Do NOT** build this around `Retry-After`: PandaScore does not document that header. Use the remaining count, which arrives on every response and lets exhaustion be seen coming rather than discovered from a 429.
+- **Risk:** Medium — deliberately degrades background freshness under load; must never gate the user-facing read path. Pairs naturally with the existing `isFeatureEnabled()` kill-switch pattern.
 
 ### 25. `resolveValvePulse` awaits independent I/O sequentially instead of `Promise.all`
 - **What:** `resolveValvePulse` (`api/_handlers/liveValvePulse.js:88-217`) `await`s the events-ring KV read (~142), the item-map KV read (~155-166), and the `live_valve_gold` Supabase upsert (~176-194) one after another, but none of the three depends on another's result — they're independent I/O that could run concurrently via `Promise.all`.

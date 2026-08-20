@@ -1,5 +1,5 @@
 import { kv } from '../_kv.js'
-import { checkServices } from '../_shared.js'
+import { checkServices, summarizePsQuota } from '../_shared.js'
 
 async function analyzeWithClaude(recentErrors, services, byEndpoint) {
   if (!process.env.ANTHROPIC_API_KEY) return 'ANTHROPIC_API_KEY not configured.'
@@ -28,10 +28,17 @@ export default async function handleMonitor(req, res) {
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
   const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10)
-  const [todayRaw, yesterdayRaw, services] = await Promise.all([
+  // PandaScore's quota is hourly and account-wide, so the buckets are hourly too (see
+  // recordPsQuota in _shared.js). Only populated when remaining dropped below the low-water
+  // mark, so an empty result means "never got close", not "no data".
+  const thisHour = now.toISOString().slice(0, 13)
+  const lastHour = new Date(now.getTime() - 3600000).toISOString().slice(0, 13)
+  const [todayRaw, yesterdayRaw, services, psQuotaThisHour, psQuotaLastHour] = await Promise.all([
     kv.lrange(`monitor:errors:${today}`, 0, -1).catch(() => []),
     kv.lrange(`monitor:errors:${yesterday}`, 0, -1).catch(() => []),
     checkServices(),
+    kv.lrange(`monitor:ps_quota:${thisHour}`, 0, -1).catch(() => []),
+    kv.lrange(`monitor:ps_quota:${lastHour}`, 0, -1).catch(() => []),
   ])
   const parse = (raw) => {
     if (raw && typeof raw === 'object' && raw.ts) return raw
@@ -46,9 +53,18 @@ export default async function handleMonitor(req, res) {
   for (const e of recentErrors) {
     byEndpoint[e.endpoint] = (byEndpoint[e.endpoint] || 0) + 1
   }
+  // Lowest remaining quota seen, plus which callers were spending at the time — the
+  // attribution needed to decide WHICH PandaScore consumer to cut.
+  const psQuota = summarizePsQuota([...psQuotaThisHour, ...psQuotaLastHour].map(parse), now.getTime())
+
   const serviceDown = Object.values(services).some(s => s.status === 'error')
   const criticalEndpoint = Object.entries(byEndpoint).find(([, count]) => count >= 3)
-  const critical = !!(criticalEndpoint || serviceDown)
+  // Exhaustion is critical: every PandaScore-backed endpoint is returning 429 at that point.
+  // Merely dipping below the low-water mark is deliberately NOT critical — during a big
+  // tournament that would fire every 2h and train the alert away. `exhausted` is already scoped
+  // to the current hourly quota window by summarizePsQuota, so this can't fire on a reading the
+  // hourly reset has since made irrelevant.
+  const critical = !!(criticalEndpoint || serviceDown || psQuota?.exhausted)
   let summary = null
   if (reportMode) {
     summary = (recentErrors.length > 0 || serviceDown)
@@ -61,6 +77,7 @@ export default async function handleMonitor(req, res) {
     error_count_24h: dailyErrors.length,
     errors_by_endpoint: byEndpoint,
     recent_errors: recentErrors.slice(0, 10),
+    ps_quota: psQuota,
     services,
     critical,
     summary,
