@@ -424,6 +424,60 @@ The load-bearing insight is that **`stale-while-revalidate` does not reduce orig
 
 Side effects: requests past `s-maxage` now block on revalidation instead of getting an instant stale response (invocation count unchanged, latency only) — acceptable because this is overwhelmingly a background 2-min refresh and `App.jsx` retains last-known-good on a slow/failed poll. `?bust=1`'s drain window is now `s-maxage` alone (~150s, was 90s). The regen path still has no stampede lock, but far fewer requests reach origin, so that exposure falls.
 
+### Last-known-good fallback (live + upcoming feeds, 2026-08-20)
+
+`api/live-matches.js` and `api/upcoming-matches.js` no longer return a 500 to the browser when the
+PandaScore regen fails. (A missing `PANDASCORE_TOKEN` still returns 503 without consulting the
+fallback — that is a config error, not an outage, and serving stale data would hide it.) On every SUCCESSFUL regen each writes a second KV key alongside its primary
+cache entry — `dota2:live_matches_last_good` / `dota2:upcoming_matches_last_good`, 1h TTL, same
+payload — and on the failure path serves that payload with `stale: true` and a 200 instead of
+throwing. `fetchedAt` is preserved from the original generation, so the age stays honest rather
+than being refreshed to now.
+
+- **Why a SECOND key, not the expired one:** the `kv.get(KV_KEY)` early-return means the PandaScore
+  fetch is only ever reached once KV_KEY is already GONE (Upstash evicts on TTL). There is nothing
+  stale left to re-read — "just serve the expired entry" is not implementable here.
+- **Cache-Control on the stale response is `s-maxage=30`**, deliberately shorter than the normal
+  150, and a deliberate exception to the "s-maxage must exceed the client poll interval" rule: the
+  usual 150 would pin a stale feed at the edge well past the upstream blip that caused it. Recovery
+  speed beats edge savings on this path. `?bust=1` still wins and keeps `no-store`.
+- **`?bust=1` does NOT delete the last-good key.** Busting asks for a fresh regen, not for the
+  safety net to be dropped at the moment it is most likely to be needed.
+- **Absorbed failures are recorded at status 200**, not 500 (`trackError(endpoint, 200,
+  'absorbed, served last-known-good: ...')`). They remain visible in the monitor's
+  `errors_by_endpoint` for diagnosis but are excluded from `critical`, because paging a human for
+  an incident no visitor experienced is how an alert gets trained away. See `summarizeErrors` below.
+- **A hold-down is skipped under `?bust=1`** — that request just deleted `KV_KEY` deliberately, and writing stale straight back would re-poison a cache an operator explicitly asked to be emptied.
+- **The stale path holds the payload down in the PRIMARY key** (`STALE_HOLDDOWN_TTL_S`: 60s for
+  live, 300s for upcoming) — without it, serving stale re-runs the PandaScore fetch on every
+  origin request and AMPLIFIES the outage it absorbs: ~24 req/hr normally vs ~120/hr while stale,
+  against an account-wide bucket that is by hypothesis already exhausted. Upcoming is held far
+  longer because a 72h fixture list does not change minute to minute. A held-down entry comes back
+  through the normal early-return, which detects `cached.stale` and applies the short header rather
+  than the endpoint's usual long one.
+- **Absorbed failures skip Sentry** (`trackError(..., { sentry: false })`, the new opt-out on the
+  shared helper). They stay in the KV monitor ring and the structured logs, but a 745-event storm
+  should not consume 745 Sentry events for a condition no visitor experienced. The hard-500 path
+  deliberately still passes only 3 args, so Sentry's JAVASCRIPT-7 fingerprint is unchanged.
+- **`cacheRunningStreams()` has its own try/catch** so a failure in the LOCKED VOD capture path can
+  never cause a stale response to be served in place of the fresh payload already in hand, nor be
+  downgraded to a non-paging status 200. It is tracked at 500, exactly as before this change.
+- Root cause of the 429s themselves is NOT fixed by this — that is `pending-refactors` #35/#36.
+  This is the blast-radius fix, deliberately independent of both (#35 touches the LOCKED VOD path).
+
+### Monitor error aggregation (`summarizeErrors`, 2026-08-20)
+
+`api/_handlers/monitor.js` drives `.github/workflows/log-monitor.yml`, which opens a GitHub
+`[Alert]` issue every 2h — so its `critical` boolean can wake a human up, and it had zero test
+coverage. The parsing, the 2h/24h windowing and the critical rule are now in the pure, tested
+`summarizeErrors()` / `parseMonitorEntry()` in `api/_shared.js` (same extraction pattern as
+`summarizePsQuota`), covered by `__tests__/monitor-summarize.test.js`. `parseMonitorEntry` accepts
+both Upstash list shapes (already-deserialized object and raw JSON string) and normalizes only
+`ts` — it parses the ps_quota ring too, so coercing an error-only field there would stamp a NaN
+onto every quota sample. The monitor response gains `error_count_user_visible` / `error_count_24h_user_visible` alongside the existing `error_count` / `error_count_24h` (which still count absorbed failures too). `.github/workflows/log-monitor.yml` renders and titles alerts from the USER-VISIBLE counts and gates the daily digest on the 24h user-visible count — otherwise an absorbed-only day would open a `[Digest] N errors` issue for a day in which nothing reached a visitor. The absorbed total is still shown in the alert body for diagnosis, and the jq reads fall back to the old fields so the workflow keeps working against a deployment that predates them. The Claude summary is gated on the user-visible count so an absorbed-only window does not spend a Haiku call on a non-incident. `critical` counts only entries whose `statusCode` is 5xx; every
+pre-existing `trackError` call site passes 500 or 502, so this changed nothing about existing
+behavior and exists purely to keep absorbed failures from paging.
+
 ### Upcoming Matches (PandaScore)
 - `api/upcoming-matches.js` fetches next 72h of scheduled matches; tier-filters using same `isTier1(m) || isTier1ByName(m, names)` pattern as live-matches (same fallback for newly-created series with no tier assigned); deduplicates by `(sorted opponent IDs | scheduled_at)` fingerprint to suppress PandaScore duplicate entries. Maps each match to `{id, scheduledAt, teamA, teamB, tournament, seriesLabel, bracketRound, streams}`. `bracketRound` strips after `:` from `m.name` and applies title case; shown in `UpcomingMatchRow` below teams, above time. KV key: `dota2:upcoming_matches_v6`
 - Displayed with scheduled time in user's local timezone

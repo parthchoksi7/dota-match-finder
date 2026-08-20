@@ -1,5 +1,5 @@
 import { kv } from '../_kv.js'
-import { checkServices, summarizePsQuota } from '../_shared.js'
+import { checkServices, summarizePsQuota, summarizeErrors, parseMonitorEntry } from '../_shared.js'
 
 async function analyzeWithClaude(recentErrors, services, byEndpoint) {
   if (!process.env.ANTHROPIC_API_KEY) return 'ANTHROPIC_API_KEY not configured.'
@@ -40,25 +40,24 @@ export default async function handleMonitor(req, res) {
     kv.lrange(`monitor:ps_quota:${thisHour}`, 0, -1).catch(() => []),
     kv.lrange(`monitor:ps_quota:${lastHour}`, 0, -1).catch(() => []),
   ])
-  const parse = (raw) => {
-    if (raw && typeof raw === 'object' && raw.ts) return raw
-    try { return JSON.parse(raw) } catch { return null }
-  }
-  const allErrors = [...todayRaw, ...yesterdayRaw].map(parse).filter(Boolean)
-  const twoHoursAgo = Date.now() - 2 * 3600 * 1000
-  const twentyFourHoursAgo = Date.now() - 24 * 3600 * 1000
-  const recentErrors = allErrors.filter(e => e.ts > twoHoursAgo)
-  const dailyErrors = allErrors.filter(e => e.ts > twentyFourHoursAgo)
-  const byEndpoint = {}
-  for (const e of recentErrors) {
-    byEndpoint[e.endpoint] = (byEndpoint[e.endpoint] || 0) + 1
-  }
+  // Windowing, parsing and the critical-endpoint rule live in the pure, tested summarizeErrors
+  // (_shared.js) for the same reason summarizePsQuota was extracted: this handler drives
+  // .github/workflows/log-monitor.yml, which opens a GitHub [Alert] issue every 2h, so an
+  // untested boolean here can wake a human up.
+  const errors = summarizeErrors([...todayRaw, ...yesterdayRaw], now.getTime())
+  const twoHoursAgo = now.getTime() - 2 * 3600 * 1000
+  const byEndpoint = errors.byEndpoint
+  const recentErrors = errors.recent
   // Lowest remaining quota seen, plus which callers were spending at the time — the
   // attribution needed to decide WHICH PandaScore consumer to cut.
-  const psQuota = summarizePsQuota([...psQuotaThisHour, ...psQuotaLastHour].map(parse), now.getTime())
+  const psQuota = summarizePsQuota([...psQuotaThisHour, ...psQuotaLastHour].map(parseMonitorEntry), now.getTime())
 
   const serviceDown = Object.values(services).some(s => s.status === 'error')
-  const criticalEndpoint = Object.entries(byEndpoint).find(([, count]) => count >= 3)
+  // `error_count` is every recorded failure including ones absorbed by the last-known-good
+  // fallback; this one counts only what a visitor actually saw. Reported separately so an
+  // absorbed 429 storm can't inflate the number an alert body renders as "N errors detected".
+  const userVisibleCount = errors.recentUserVisibleCount
+  const criticalEndpoint = errors.criticalEndpoint
   // Exhaustion is critical: every PandaScore-backed endpoint is returning 429 at that point.
   // Merely dipping below the low-water mark is deliberately NOT critical — during a big
   // tournament that would fire every 2h and train the alert away. `exhausted` is already scoped
@@ -67,14 +66,18 @@ export default async function handleMonitor(req, res) {
   const critical = !!(criticalEndpoint || serviceDown || psQuota?.exhausted)
   let summary = null
   if (reportMode) {
-    summary = (recentErrors.length > 0 || serviceDown)
+    // Gated on USER-VISIBLE errors: an absorbed-only window is not an incident, and firing a
+    // Haiku call on every one of them spends money analyzing a non-event.
+    summary = (userVisibleCount > 0 || serviceDown)
       ? await analyzeWithClaude(recentErrors, services, byEndpoint)
       : 'No errors in the last 2 hours. All services healthy.'
   }
   return res.status(200).json({
     period_2h: `${new Date(twoHoursAgo).toISOString()} to ${now.toISOString()}`,
-    error_count: recentErrors.length,
-    error_count_24h: dailyErrors.length,
+    error_count: errors.recentCount,
+    error_count_24h: errors.dailyCount,
+    error_count_user_visible: userVisibleCount,
+    error_count_24h_user_visible: errors.dailyUserVisibleCount,
     errors_by_endpoint: byEndpoint,
     recent_errors: recentErrors.slice(0, 10),
     ps_quota: psQuota,

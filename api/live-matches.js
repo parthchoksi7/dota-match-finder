@@ -15,6 +15,42 @@ import { formatScoreHeadline, formatScoreDetail, scoreSignature, shouldSendScore
 import { nextSignalState, STALE_MAX_S } from '../src/utils/liveSignal.js'
 
 const KV_KEY = 'dota2:live_matches_v5' // v5: matches may now carry `.signal` (live worth-watching badge)
+// Last-known-good payload, served instead of a 500 when the regen fails (PandaScore 429 being the
+// observed cause -- Sentry JAVASCRIPT-7/JAVASCRIPT-A). Kept in a SECOND key deliberately: the
+// `kv.get(KV_KEY)` early-return below means the fetch is only ever reached once KV_KEY is
+// already GONE (Upstash evicts on TTL), so there is nothing stale left to re-read. Its TTL is far
+// longer than KV_KEY's so it survives a sustained outage, and `?bust=1` does NOT delete it --
+// busting forces a fresh regen, and dropping the safety net at the same moment is the opposite of
+// what bust is for.
+// NOTE: the hold-down below deliberately breaks that invariant for up to STALE_HOLDDOWN_TTL_S,
+// so KV_KEY CAN transiently hold a stale payload. It is tagged `stale: true` and every reader in
+// this file checks that tag. One reader outside it -- api/_handlers/liveStoryCapture.js's
+// selectTier1MatchIds -- reads this key directly and will see content up to LAST_GOOD_TTL_S old
+// during an outage; it uses the payload only as a tier-1 correlation whitelist, where a slightly
+// old team list is harmless and still strictly better than the empty read it got before.
+const LAST_GOOD_KEY = 'dota2:live_matches_last_good'
+const LAST_GOOD_TTL_S = 3600 // 1h
+
+// How long a served-stale payload is held in KV_KEY before PandaScore is retried. This exists to
+// stop the fallback from AMPLIFYING the very outage it absorbs, which the first draft of this
+// change did: serving stale without writing KV_KEY means every subsequent origin request re-runs
+// the PandaScore fetch, and because the stale response also carries a short `s-maxage=30`, origin
+// invocations rise from ~24/hr to ~120/hr — 120 futile requests/hr against an account-wide
+// 1,000/hr bucket that is, by hypothesis, already exhausted. Each failed attempt additionally
+// pays 3 awaited Upstash round-trips via recordPsQuota's low-water write.
+//
+//   normal:                  s-maxage 150            -> ~24 PandaScore req/hr
+//   stale, no hold-down:     s-maxage 30             -> ~120 req/hr   (5x, during an outage)
+//   stale, 60s hold-down:    s-maxage 30 + KV 60s    -> ~40-60 req/hr (~2x)
+//
+// The 40-60 range is real, not sloppiness: a 60s hold-down against a 30s revalidation cycle
+// retries somewhere between every 60s and every 90s depending on alignment, so ~40/hr best case
+// and ~60/hr worst. Either way roughly half the un-held-down rate. Worst-case recovery is
+// hold-down 60 + s-maxage 30 = 90s, acceptable for a live feed. Raise the hold-down to trade
+// recovery latency for less quota burn.
+const STALE_HOLDDOWN_TTL_S = 60
+const STALE_CACHE_CONTROL = 's-maxage=30, stale-while-revalidate=30'
+
 // DELIBERATELY UNCHANGED at 120s. A 2026-08-15 draft halved this to 60s to pay for a higher edge
 // s-maxage and was rejected in review before shipping, for two reasons worth keeping written down:
 //   1. It doubles the REGEN rate (the expensive path: 100-match PandaScore parse +
@@ -1130,7 +1166,13 @@ export default async function handler(req, res) {
   try {
     const cached = await kv.get(KV_KEY)
     if (cached) {
-      log.info('serving from KV cache')
+      // A held-down stale payload lives under this same key (see STALE_HOLDDOWN_TTL_S), and must
+      // NOT inherit the normal 150s edge header — that would pin stale data at the edge for far
+      // longer than the hold-down itself and defeat the fast-recovery intent.
+      if (cached.stale && req.query?.bust !== '1') {
+        res.setHeader('Cache-Control', STALE_CACHE_CONTROL)
+      }
+      log.info('serving from KV cache', cached.stale ? { stale: true } : undefined)
       return res.status(200).json(cached)
     }
   } catch (err) {
@@ -1216,18 +1258,75 @@ export default async function handler(req, res) {
     const payload = { matches, fetchedAt: new Date().toISOString() }
 
     try {
-      await kv.set(KV_KEY, payload, { ex: TTL })
+      // In parallel, not sequentially: a last-good write must not add latency to the hot path,
+      // and on a KV outage both fail together anyway.
+      await Promise.all([
+        kv.set(KV_KEY, payload, { ex: TTL }),
+        kv.set(LAST_GOOD_KEY, payload, { ex: LAST_GOOD_TTL_S }),
+      ])
     } catch (err) {
       log.warn('KV cache write failed', { error: err?.message })
     }
 
     // Store game start timestamp → channel for single-stream matches.
     // Keyed by begin_at rounded to 5 min so OpenDota's start_time (close but not identical) can look it up.
-    await cacheRunningStreams(tier1Raw)
+    //
+    // Its OWN try/catch, deliberately. This is a fire-and-forget side effect on the LOCKED VOD
+    // capture path, and `payload` above is already built and already written to KV — so letting a
+    // throw here fall into the outer catch would (a) serve the visitor an OLDER last-known-good
+    // payload than the correct one sitting in hand, and (b) record a genuine VOD-path failure at
+    // status 200, which the 5xx-only critical rule would then never page on. Tracked at 500 so it
+    // keeps paging exactly as it did before the last-known-good fallback existed.
+    //
+    // Note what this actually guards: a REJECTED kv.set inside cacheRunningStreams was already
+    // swallowed by its own `Promise.all(streamWrites).catch(...)` and never reached here. The real
+    // exposure is a SYNCHRONOUS throw -- Upstash argument validation, or getTwitchStreams /
+    // parseBracketRound / buildTournamentName on a malformed PandaScore record.
+    try {
+      await cacheRunningStreams(tier1Raw)
+    } catch (err) {
+      await trackError('/api/live-matches', 500, `stream cache write failed: ${err?.message}`)
+      log.error('stream cache write failed', { error: err?.message })
+    }
 
     return res.status(200).json(payload)
 
   } catch (err) {
+    // try/catch, not .catch(): a synchronous throw from the Upstash client (argument validation,
+    // for one) escapes a promise .catch() entirely and would surface as an unhandled rejection and
+    // a bare platform 500 with no trackError. The D1 regression test proves sync throws from this
+    // client are reachable in practice.
+    let lastGood = null
+    try { lastGood = await kv.get(LAST_GOOD_KEY) } catch { lastGood = null }
+    if (lastGood) {
+      // Recorded at 200, not 500: the visitor got a usable feed, and monitor.js's critical rule
+      // counts only 5xx so an absorbed failure never pages a human (see summarizeErrors).
+      // Sentry deliberately skipped: this is a HANDLED failure the visitor never saw, and an
+      // absorbed 429 storm would otherwise burn hundreds of Sentry events for a non-incident. It
+      // stays fully visible in ?mode=monitor's errors_by_endpoint and in the structured logs.
+      await trackError('/api/live-matches', 200, `absorbed, served last-known-good: ${err?.message}`, err, { sentry: false })
+      log.warn('serving last-known-good payload', { error: err?.message, fetchedAt: lastGood.fetchedAt })
+      // Short s-maxage on purpose, and a deliberate exception to the "s-maxage must exceed the
+      // client poll interval" rule: pinning a stale feed at the edge for the normal 150s would
+      // outlast the upstream blip that caused it. Recovery speed beats edge savings here.
+      // `stale-if-error` is intentionally absent: this IS a 200, so it could never trigger.
+      if (req.query?.bust !== '1') res.setHeader('Cache-Control', STALE_CACHE_CONTROL)
+      const stalePayload = { ...lastGood, stale: true }
+      // Hold-down write: bounds how often the origin retries PandaScore while it is failing.
+      // Skipped under ?bust=1 — that request just deleted KV_KEY deliberately, and writing stale
+      // straight back would re-poison the cache an operator explicitly asked to be emptied, making
+      // the NEXT normal request serve stale instead of retrying.
+      if (req.query?.bust !== '1') {
+        try {
+          await kv.set(KV_KEY, stalePayload, { ex: STALE_HOLDDOWN_TTL_S })
+        } catch { /* hold-down is an optimisation; never fail the response for it */ }
+      }
+      return res.status(200).json(stalePayload)
+    }
+    // Deliberately 3-arg: passing the real `err` changes Sentry's fingerprint, which would split
+    // JAVASCRIPT-7 (745 events, cited across CONTEXT.md and pending-refactors) into a new issue
+    // mid-investigation. Enriching this file's four trackError sites with the real exception is
+    // worth doing, but as its own change — not silently inside a reliability fix.
     await trackError('/api/live-matches', 500, err?.message)
     log.error('fetch failed', { error: err?.message })
     return res.status(500).json({ error: 'Failed to fetch live matches', message: err?.message })

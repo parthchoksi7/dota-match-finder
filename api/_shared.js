@@ -795,9 +795,14 @@ export async function sendGa4Event(name, params = {}, clientId = null) {
 // `err`, when passed, is the actual caught exception — gives Sentry a real stack trace instead
 // of just the message. Optional because a few call sites only ever have a string (e.g. an
 // upstream API's own error-response body), never a genuine Error instance.
-export async function trackError(endpoint, statusCode, detail, err) {
+// `opts.sentry: false` records the failure in the KV monitor ring and Sentry-free. For failures
+// the app has ALREADY handled — the last-known-good fallback in live-matches/upcoming-matches —
+// where the visitor saw nothing wrong. Without it a single 429 storm burns hundreds of Sentry
+// events (JAVASCRIPT-7 alone was 745) for a condition no user experienced, while `?mode=monitor`
+// and the structured logs still carry the full signal for diagnosis.
+export async function trackError(endpoint, statusCode, detail, err, opts = {}) {
   try {
-    const Sentry = await ensureSentry()
+    const Sentry = opts.sentry === false ? null : await ensureSentry()
     if (Sentry) {
       Sentry.captureException(err instanceof Error ? err : new Error(String(detail).slice(0, 500)), {
         tags: { endpoint, statusCode },
@@ -960,6 +965,65 @@ export function summarizePsQuota(samples, nowMs = Date.now()) {
       return acc
     }, {}),
     recent: [...valid].sort((a, b) => b.ts - a.ts).slice(0, 10),
+  }
+}
+
+// One entry from the `monitor:errors:{date}` ring. Upstash returns list members either already
+// deserialized (object) or as the raw JSON string depending on client/codec, so both shapes have
+// to be accepted — a silent mismatch here would make the alerting path see zero errors during an
+// actual incident. Returns null for anything unusable rather than a half-populated entry.
+export function parseMonitorEntry(raw) {
+  let obj = raw
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw) } catch { return null }
+  }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null
+  const ts = Number(obj.ts)
+  if (!Number.isFinite(ts)) return null
+  // Only `ts` is normalized here: this parses BOTH the error ring and the ps_quota ring, and
+  // coercing an error-only field would stamp a NaN statusCode onto every quota sample.
+  return { ...obj, ts }
+}
+
+// Windows the error ring into the 2h alerting window and the 24h trend count, and decides which
+// endpoint (if any) is failing badly enough to wake someone up.
+//
+// `criticalEndpoint` counts ONLY entries whose statusCode is 5xx -- i.e. failures the user
+// actually saw. This distinction exists because /api/live-matches and /api/upcoming-matches now
+// absorb an upstream failure by serving a last-known-good payload and recording it at status 200
+// (see the LAST_GOOD keys in those files). Those are worth seeing in `errors_by_endpoint` for
+// diagnosis, but paging a human for an incident no visitor experienced is exactly how an alert
+// gets trained away. Every pre-existing trackError call site passes 500 or 502, so this filter
+// changes nothing about today's behavior -- it only keeps the absorbed ones from paging.
+export function summarizeErrors(rawEntries, nowMs = Date.now()) {
+  const parsed = (rawEntries || []).map(parseMonitorEntry).filter(Boolean)
+  const recent = parsed.filter(e => e.ts > nowMs - 2 * 3600 * 1000)
+  const daily = parsed.filter(e => e.ts > nowMs - 24 * 3600 * 1000)
+
+  const isUserVisible = (e) => Number(e.statusCode) >= 500 && Number(e.statusCode) < 600
+  const byEndpoint = {}
+  const userVisibleByEndpoint = {}
+  for (const e of recent) {
+    byEndpoint[e.endpoint] = (byEndpoint[e.endpoint] || 0) + 1
+    if (isUserVisible(e)) {
+      userVisibleByEndpoint[e.endpoint] = (userVisibleByEndpoint[e.endpoint] || 0) + 1
+    }
+  }
+  const criticalEndpoint = Object.entries(userVisibleByEndpoint).find(([, count]) => count >= 3) || null
+
+  return {
+    recent: [...recent].sort((a, b) => b.ts - a.ts),
+    recentCount: recent.length,
+    dailyCount: daily.length,
+    // User-visible counts are what the GitHub alert renders and what the daily digest gates on.
+    // Without them an absorbed-only window opens a "[Digest] 87 errors" issue for a day in which
+    // no visitor saw anything wrong — a false-positive class created by recording absorbed
+    // failures into the same ring.
+    recentUserVisibleCount: recent.filter(isUserVisible).length,
+    dailyUserVisibleCount: daily.filter(isUserVisible).length,
+    byEndpoint,
+    userVisibleByEndpoint,
+    criticalEndpoint,
   }
 }
 

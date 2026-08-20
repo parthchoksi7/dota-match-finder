@@ -27,6 +27,12 @@ jobs:
           echo "critical=$(echo "$BODY" | jq -r '.critical // false')" >> "$GITHUB_OUTPUT"
           echo "error_count=$(echo "$BODY" | jq -r '.error_count // 0')" >> "$GITHUB_OUTPUT"
           echo "error_count_24h=$(echo "$BODY" | jq -r '.error_count_24h // 0')" >> "$GITHUB_OUTPUT"
+          # User-visible = 5xx only. `error_count*` still includes failures absorbed by the
+          # last-known-good fallback, which no visitor saw; gating and titling on the absorbed
+          # total would raise alerts for non-incidents. `// .error_count` keeps this working
+          # against an older deployed API that predates these fields.
+          echo "error_count_user_visible=$(echo "$BODY" | jq -r '.error_count_user_visible // .error_count // 0')" >> "$GITHUB_OUTPUT"
+          echo "error_count_24h_user_visible=$(echo "$BODY" | jq -r '.error_count_24h_user_visible // .error_count_24h // 0')" >> "$GITHUB_OUTPUT"
 
       # Creates a new issue or comments on an existing open [Alert] issue (deduplication).
       # Only fires when critical: true (≥3 errors from same endpoint in 2h, or service down).
@@ -46,7 +52,10 @@ jobs:
             const body = [
               `## 🚨 Error Monitor Alert — ${new Date().toUTCString()}`,
               '',
-              `**${report.error_count} errors** detected in the last 2 hours.`,
+              `**${report.error_count_user_visible ?? report.error_count} errors** reached visitors in the last 2 hours.`,
+              ...(report.error_count > (report.error_count_user_visible ?? report.error_count)
+                ? [`(${report.error_count} total recorded; the rest were absorbed by the last-known-good fallback and never reached a visitor.)`]
+                : []),
               '',
               '### Analysis',
               report.summary || '_No analysis available._',
@@ -91,7 +100,7 @@ jobs:
               const { data: issue } = await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `[Alert] ${report.error_count} errors — ${new Date().toISOString().slice(0, 10)}`,
+                title: `[Alert] ${report.error_count_user_visible ?? report.error_count} errors — ${new Date().toISOString().slice(0, 10)}`,
                 body,
                 labels: ['monitoring'],
               })
@@ -104,7 +113,7 @@ jobs:
         if: >
           steps.report.outcome == 'success' &&
           (github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch') &&
-          steps.report.outputs.error_count_24h != '0'
+          steps.report.outputs.error_count_24h_user_visible != '0'
         uses: actions/github-script@v7
         env:
           REPORT_JSON: ${{ steps.report.outputs.body }}
@@ -123,7 +132,7 @@ jobs:
             const body = [
               `## Daily Error Digest — ${new Date().toISOString().slice(0, 10)}`,
               '',
-              `**${report.error_count_24h} errors** tracked in the last 24 hours.`,
+              `**${report.error_count_24h_user_visible ?? report.error_count_24h} errors** reached visitors in the last 24 hours (${report.error_count_24h} recorded in total, including absorbed).`,
               '',
               '### Service Health',
               serviceLines,

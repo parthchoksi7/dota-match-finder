@@ -38,7 +38,12 @@ const must = (re, src, what) => {
   return m
 }
 
-const cacheControlValue = must(/res\.setHeader\('Cache-Control', '([^']*s-maxage[^']*)'\)/, LIVE_MATCHES_SRC, 'the read-path Cache-Control header')[1]
+// Anchored on `stale-if-error`, which ONLY the read-path header carries. live-matches.js now has
+// three Cache-Control headers (read path, the last-known-good stale path, and the held-down stale
+// entry served from KV — both of the latter being the deliberately short `s-maxage=30`). A bare
+// first-match regex would silently start pinning 30 against EXPECTED_S_MAXAGE if the file were
+// ever reordered, and the failure would point the reader at the wrong header.
+const cacheControlValue = must(/res\.setHeader\('Cache-Control', '([^']*s-maxage[^']*stale-if-error[^']*)'\)/, LIVE_MATCHES_SRC, 'the read-path Cache-Control header (identified by stale-if-error)')[1]
 const sMaxAge = Number(must(/s-maxage=(\d+)/, cacheControlValue, 's-maxage in the read-path header')[1])
 const ttlS = evalProduct(must(/^const TTL = ([0-9*\s]+?)\s*\/\//m, LIVE_MATCHES_SRC, 'the KV TTL constant')[1])
 const pollMs = evalProduct(must(/useVisiblePolling\(fetchLiveData,\s*([0-9*\s]+)\)/, APP_SRC, "App.jsx's live poll interval")[1])

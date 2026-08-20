@@ -4,6 +4,12 @@ import BottomTabBar from "../components/BottomTabBar"
 
 const RELEASES = [
   {
+    date: "August 20, 2026",
+    tag: "fix",
+    title: "The match feed no longer breaks when our data provider rate-limits us",
+    desc: "When PandaScore hit its hourly request limit, the live and upcoming match feeds returned an error and the homepage showed nothing at all. Both feeds now fall back to the most recent good copy of the schedule and keep rendering, so a provider hiccup is invisible rather than a blank page. The feed returns to live data on its own shortly after the provider recovers.",
+  },
+  {
     date: "August 17, 2026",
     tag: "new",
     title: "Articles can now show ranked lists and bracket predictions, not just prose",
