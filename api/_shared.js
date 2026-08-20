@@ -200,6 +200,16 @@ export function parseBracketRound(name) {
 /** KV key for the tier1 league names cache (written by api/tournaments.js ?mode=tier1-leagues) */
 export const KV_TIER1_NAMES_KEY = 'dota2:tier1_league_names_v1'
 
+// KV key + TTL for the OpenDota item id -> { key, dname } map. ONE definition, imported by every
+// handler that needs item names (matchStats.js, liveStoryCapture.js, liveValvePulse.js) so they
+// can never drift apart. They previously sat as two hand-synchronized literals carrying a comment
+// asking future editors to keep them byte-identical — a key-format bump applied to one and not the
+// other would have silently split the cache in two, each writer refilling a key the other never
+// reads, doubling OpenDota constants fetches with no error anywhere. Hoisted here for the same
+// reason as OD_MATCH_TIME_WINDOW_S below.
+export const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
+export const ITEM_MAP_TTL_S = 60 * 60 * 24 // 24h — item names rarely change
+
 /**
  * Builds a Set of OpenDota league IDs whose tier is "premium"
  * (Valve-sponsored events: TI, Majors — the OpenDota equivalent of PandaScore tier S).

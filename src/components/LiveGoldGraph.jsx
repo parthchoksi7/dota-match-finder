@@ -3,6 +3,7 @@ import { formatGold, formatHoverLabel } from './GoldGraph'
 import { formatClock } from './SeriesLivePulse'
 import { trackEvent } from '../utils'
 import { TOOLTIP_SURFACE, SCRUB_TOOLTIP_WIDTH, clampLeft, clampTop } from './FloatingTooltip'
+import { LEAD_COLOR_RADIANT, LEAD_COLOR_DIRE, LEAD_COLOR_EVEN } from '../utils/leadColors.js'
 
 // Compact viewBox for the companion sheet — shorter than GoldGraph's full 160px drawer graph, but
 // carrying the same visual language (green/red area fill, dashed zero line, RADIANT/DIRE header,
@@ -72,7 +73,7 @@ export function computeDisplayClocks(times) {
 }
 
 function advColor(val) {
-  return val > 0 ? 'rgb(34,197,94)' : val < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
+  return val > 0 ? LEAD_COLOR_RADIANT : val < 0 ? LEAD_COLOR_DIRE : LEAD_COLOR_EVEN
 }
 
 // Live Story R1 (now interactive): a compact net-worth trajectory for the CURRENTLY RUNNING game —
@@ -229,13 +230,13 @@ export default function LiveGoldGraph({ history, radiantName, direName }) {
       {/* Header row — RADIANT (green) · current net-worth diff (advantage color) · DIRE (red).
           Mirrors GoldGraph's header so both graphs read as one system. */}
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(34,197,94)' }}>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: LEAD_COLOR_RADIANT }}>
           Radiant
         </span>
         <span className="text-[10px] font-bold tabular-nums" style={{ color: finalColor }}>
           {formatGold(finalVal)}
         </span>
-        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(239,68,68)' }}>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: LEAD_COLOR_DIRE }}>
           Dire
         </span>
       </div>

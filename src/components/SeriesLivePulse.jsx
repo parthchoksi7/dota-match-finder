@@ -13,6 +13,7 @@ import { streamLabel } from './StreamPicker'
 import { TwitchIcon, YouTubeIcon } from './PlatformIcons'
 import { SHEET_PADDING } from './Sheet'
 import { InfoButton } from './FloatingTooltip'
+import { LEAD_COLOR_RADIANT, LEAD_COLOR_DIRE } from '../utils/leadColors.js'
 
 const POLL_MS = 40000
 // Backoff cadence once the series has left the live feed (2026-08-11, Fluid Active CPU). A sheet
@@ -444,7 +445,7 @@ export default function SeriesLivePulse({ psMatchId, spoilerFree, seriesLabel, s
   // red when Dire leads. The badge was previously hardcoded green regardless of side — wrong on
   // any Dire-leading game, and inconsistent with this exact rule used everywhere else (GoldGraph,
   // event markers, TeamIndicators).
-  const leadColor = radiantAhead ? 'rgb(34,197,94)' : 'rgb(239,68,68)'
+  const leadColor = radiantAhead ? LEAD_COLOR_RADIANT : LEAD_COLOR_DIRE
   const clock = formatClock(liveSource?.gameTime)
   const hasScore = liveSource?.radiantScore != null && liveSource?.direScore != null
   // Draft: Valve gives {heroId, name} player objects (heroId + live IGN, joined server-side from

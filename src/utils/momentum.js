@@ -2,6 +2,8 @@
 // currently running game of a live series. Both take data already resolved elsewhere (the live
 // pulse, the series match object) — neither fetches anything.
 
+import { LEAD_COLOR_RADIANT, LEAD_COLOR_DIRE } from './leadColors.js'
+
 // A lead's significance depends on WHEN it happens, not just its size: the same net-worth gap is
 // a likely stomp at 15:00 but a coin-flip at 45:00 (buyback/Aegis/Rapier/mega creeps make late
 // leads structurally reversible in Dota). So both boundaries widen with game time. Vocabulary is
@@ -48,7 +50,7 @@ export function computeMomentum({ radiantLead, gameTime, radiantName, direName }
   // render: `pulse.radiantName || 'Radiant'`), so a missing name reads as "Radiant Ahead" rather
   // than the literal string "null Ahead".
   const leaderName = isEven ? null : radiantAhead ? (radiantName || 'Radiant') : (direName || 'Dire')
-  const leadColor = isEven ? null : radiantAhead ? 'rgb(34,197,94)' : 'rgb(239,68,68)'
+  const leadColor = isEven ? null : radiantAhead ? LEAD_COLOR_RADIANT : LEAD_COLOR_DIRE
   const band = isEven ? 'EVEN' : abs > farAheadThreshold(gameTime) ? 'FAR_AHEAD' : 'AHEAD'
   return { band, leaderName, leadColor }
 }

@@ -1,4 +1,5 @@
 import { kv } from '../_kv.js'
+import { ITEM_MAP_KV_KEY, ITEM_MAP_TTL_S } from '../_shared.js'
 import { diffSnapshots, indexGamesById, resolveMarqueeItemIds } from '../_liveStoryDiff.js'
 import { teamPairMatch } from '../../src/teamMatching.js'
 
@@ -71,11 +72,9 @@ const TRACKED_TTL_S = SNAPSHOT_TTL_S
 const HEALTH_KEY = 'live-story:health:v1'
 const HEALTH_TTL_S = 86400
 
-// Item id -> { key, dname } map. SAME key as api/_handlers/matchStats.js's ITEM_MAP_KV_KEY —
-// deliberately, so this never pays for a second independent OpenDota constants fetch/cache when
-// matchStats.js has already warmed it. Must stay byte-identical to that key if it ever changes.
-export const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
-const ITEM_MAP_TTL_S = 60 * 60 * 24 // matches matchStats.js's 24h TTL — item names rarely change
+// Item id -> { key, dname } map: ITEM_MAP_KV_KEY / ITEM_MAP_TTL_S are imported from _shared.js.
+// The key is deliberately shared with api/_handlers/matchStats.js, so this never pays for a second
+// independent OpenDota constants fetch/cache when matchStats.js has already warmed it.
 
 // The tier-1-filtered live PandaScore payload api/live-matches.js already caches. Read-only —
 // this capture never writes it, and a miss simply means nothing is correlated this tick.
@@ -97,9 +96,10 @@ const PS_LIVE_KEY = 'dota2:live_matches_v5'
 //     or is planned; retaining 20 floats per game per tick to render nothing is pure cost.
 //   - `abilities[]` — the biggest remaining field by volume, AND the one with a live staleness
 //     risk: `attributeAbility()`'s `UNIVERSAL_ABILITY_IDS` is a hardcoded, empirically-derived Set
-//     that a Valve patch can silently invalidate with no test catching the drift (see
-//     `.claude/pending-refactors.md`). Wiring a talent/ability display is a product decision that
-//     should land WITH that guard, not ahead of it.
+//     that a Valve patch can silently invalidate. The guard now exists —
+//     `scripts/verify-universal-abilities.mjs` re-derives the Set from a live poll and diffs it —
+//     but it is an on-demand script, not a test, so wiring a talent/ability display means running
+//     it as part of that work rather than assuming the Set is still current.
 //   - `team_logo` — a Steam UGC file id that is 0 on ~8% of teams observed, and the site already
 //     renders PandaScore team identity everywhere else.
 //

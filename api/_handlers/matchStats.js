@@ -1,5 +1,5 @@
 import { kv } from '../_kv.js'
-import { createLogger, validateId } from '../_shared.js'
+import { createLogger, validateId, ITEM_MAP_KV_KEY, ITEM_MAP_TTL_S } from '../_shared.js'
 
 // STRATZ enrichment (position/role/imp/award) is intentionally NOT fetched here.
 // It's a separate, independently-rate-limited data source (`?mode=match-stratz`,
@@ -17,11 +17,9 @@ export default async function handleMatchStats(req, res) {
 
   const STATS_TTL = 60 * 60 * 24 * 7 // 7 days — only for parsed matches (immutable)
   const STATS_TTL_UNPARSED = 60 * 30  // 30 min — match not yet parsed by OD; retry soon
-  const ITEM_MAP_TTL = 60 * 60 * 24  // 24h — item names rarely change
   // v10: added radiantScore/direScore/radiantName/direName — v9 and earlier cached entries
   // predate these fields.
   const STATS_KV_KEY = `stats:match:v10:${matchId}`
-  const ITEM_MAP_KV_KEY = 'opendota:item_map_v2'
 
   const EMPTY = { radiantGoldAdv: [], players: [], events: [], itemNames: {}, firstBloodTime: null, roshanKills: 0, picksBans: [], radiantWin: null, radiantScore: null, direScore: null, radiantName: null, direName: null }
 
@@ -51,7 +49,7 @@ export default async function handleMatchStats(req, res) {
         for (const [name, meta] of Object.entries(itemData)) {
           if (meta?.id != null) itemNames[meta.id] = { key: name, dname: meta.dname || name.replace(/_/g, ' ') }
         }
-        kv.set(ITEM_MAP_KV_KEY, itemNames, { ex: ITEM_MAP_TTL })
+        kv.set(ITEM_MAP_KV_KEY, itemNames, { ex: ITEM_MAP_TTL_S })
           .catch(err => log.warn('item-map KV write failed', { error: err?.message }))
       }
     }

@@ -118,6 +118,30 @@ function UltimateLegend() {
   )
 }
 
+// PlayerRow's four stat columns, in render order. `value` returns the column body (a node, not
+// just a string) so LH/DN can keep its dimmed-denies sub-span, and `hideOnNarrow` carries the only
+// other real divergence between the four — everything else about them is identical chrome.
+//
+// Four stat columns do not fit beside a name at 375px. LH/DN is the one to drop: it is the most
+// specialist read of the four, and unlike KDA/GPM/Net it does not change how a viewer reads the
+// game state at a glance. `sm:` — this project defines no `xs:` breakpoint, so an `xs:` class
+// there would hide the column on every viewport.
+const STAT_COLUMNS = [
+  { label: 'KDA', value: ({ kda, hasKda }) => (hasKda ? kda.join('/') : '—') },
+  {
+    label: 'LH/DN',
+    hideOnNarrow: true,
+    value: ({ player }) => (
+      <>
+        {Number.isFinite(player.lastHits) ? player.lastHits : '—'}
+        <span className="text-gray-400 dark:text-gray-600">/{Number.isFinite(player.denies) ? player.denies : '—'}</span>
+      </>
+    ),
+  },
+  { label: 'GPM', value: ({ player }) => (Number.isFinite(player.gpm) ? player.gpm : '—') },
+  { label: 'Net', value: ({ player }) => formatNetWorth(player.netWorth) },
+]
+
 function PlayerRow({ player, heroes, itemNames, maxNetWorth, side }) {
   const hero = heroes?.[player.heroId] || null
   const barPct = maxNetWorth > 0 && Number.isFinite(player.netWorth)
@@ -179,35 +203,14 @@ function PlayerRow({ player, heroes, itemNames, maxNetWorth, side }) {
         </div>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-right">
-            <span className="block text-xs font-bold tabular-nums text-gray-900 dark:text-white">
-              {hasKda ? kda.join('/') : '—'}
+          {STAT_COLUMNS.map((col) => (
+            <span key={col.label} className={col.hideOnNarrow ? 'text-right hidden sm:block' : 'text-right'}>
+              <span className="block text-xs font-bold tabular-nums text-gray-900 dark:text-white">
+                {col.value({ player, kda, hasKda })}
+              </span>
+              <span className="block text-[8px] uppercase tracking-wide text-gray-500 dark:text-gray-500">{col.label}</span>
             </span>
-            <span className="block text-[8px] uppercase tracking-wide text-gray-500 dark:text-gray-500">KDA</span>
-          </span>
-          {/* Four stat columns do not fit beside a name at 375px. LH/DN is the one to drop: it is
-              the most specialist read of the four, and unlike KDA/GPM/Net it does not change how a
-              viewer reads the game state at a glance. `sm:` — this project defines no `xs:`
-              breakpoint, so an `xs:` class here would hide the column on every viewport. */}
-          <span className="text-right hidden sm:block">
-            <span className="block text-xs font-bold tabular-nums text-gray-900 dark:text-white">
-              {Number.isFinite(player.lastHits) ? player.lastHits : '—'}
-              <span className="text-gray-400 dark:text-gray-600">/{Number.isFinite(player.denies) ? player.denies : '—'}</span>
-            </span>
-            <span className="block text-[8px] uppercase tracking-wide text-gray-500 dark:text-gray-500">LH/DN</span>
-          </span>
-          <span className="text-right">
-            <span className="block text-xs font-bold tabular-nums text-gray-900 dark:text-white">
-              {Number.isFinite(player.gpm) ? player.gpm : '—'}
-            </span>
-            <span className="block text-[8px] uppercase tracking-wide text-gray-500 dark:text-gray-500">GPM</span>
-          </span>
-          <span className="text-right">
-            <span className="block text-xs font-bold tabular-nums text-gray-900 dark:text-white">
-              {formatNetWorth(player.netWorth)}
-            </span>
-            <span className="block text-[8px] uppercase tracking-wide text-gray-500 dark:text-gray-500">Net</span>
-          </span>
+          ))}
         </div>
       </div>
 
@@ -435,6 +438,10 @@ function KillHeroIcon({ heroKey, compact }) {
 // so both the standalone row and the in-fight nested row share one wording source — two copies of
 // this is exactly how "buys Aegis" style bugs get fixed in one place and survive in the other.
 function describeEvent(event, heroes, itemNames, compact = false) {
+  // Only one branch below runs per call (one event type per event), so this is a source-level
+  // dedup, not a saved lookup. RoshanKilled deliberately ignores it — Roshan is neutral by
+  // definition, not "a side we failed to resolve".
+  const sideTone = SIDE_MARKER[event.side] || NEUTRAL_MARKER
   if (event.type === 'HeroKilled') {
     const victim = event.victimName || heroDisplayName(event.victimHeroId, heroes) || 'A hero'
     if (event.ambiguous || !event.killerName) {
@@ -443,14 +450,14 @@ function describeEvent(event, heroes, itemNames, compact = false) {
       // the same subject the sentence does — the victim here, never a guessed killer.
       return {
         text: `${victim} dies`,
-        tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
+        tone: sideTone,
         icon: <KillHeroIcon heroKey={heroDisplayKey(event.victimHeroId, heroes)} compact={compact} />,
       }
     }
     const killer = event.killerName || heroDisplayName(event.killerHeroId, heroes) || 'Unknown'
     return {
       text: `${killer} kills ${victim}`,
-      tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
+      tone: sideTone,
       icon: <KillHeroIcon heroKey={heroDisplayKey(event.killerHeroId, heroes)} compact={compact} />,
     }
   }
@@ -463,7 +470,7 @@ function describeEvent(event, heroes, itemNames, compact = false) {
     const verb = PICKUP_ONLY_ITEM_KEYS.has(meta?.key) ? 'picks up' : 'buys'
     return {
       text: meta?.dname ? `${player} ${verb} ${meta.dname}` : `${player} gets a marquee item`,
-      tone: SIDE_MARKER[event.side] || NEUTRAL_MARKER,
+      tone: sideTone,
       icon: <ItemEventIcon itemKey={meta?.key} compact={compact} />,
     }
   }

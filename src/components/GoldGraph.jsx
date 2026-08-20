@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { RoshanSvg, RampageSvg, RapierSvg, TeamFightSvg } from './GameIndicators'
 import { trackEvent } from '../utils'
 import { TOOLTIP_SURFACE, SCRUB_TOOLTIP_WIDTH, clampLeft, clampTop } from './FloatingTooltip'
+import { LEAD_COLOR_RADIANT, LEAD_COLOR_DIRE, LEAD_COLOR_EVEN } from '../utils/leadColors.js'
 
 // SVG coordinate constants (viewBox: 480 × 160)
 const VW = 480
@@ -418,7 +419,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   }
 
   const finalVal = data[n - 1]
-  const finalColor = finalVal > 0 ? 'rgb(34,197,94)' : finalVal < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
+  const finalColor = finalVal > 0 ? LEAD_COLOR_RADIANT : finalVal < 0 ? LEAD_COLOR_DIRE : LEAD_COLOR_EVEN
 
   const aboveId = `gold-above-${uid}`
   const belowId = `gold-below-${uid}`
@@ -446,7 +447,7 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
   const hoverPt = hoverMinute !== null ? pts[hoverMinute] : null
   const hoverVal = hoverMinute !== null ? data[hoverMinute] : null
   const hoverColor = hoverVal != null
-    ? hoverVal > 0 ? 'rgb(34,197,94)' : hoverVal < 0 ? 'rgb(239,68,68)' : 'rgb(156,163,175)'
+    ? hoverVal > 0 ? LEAD_COLOR_RADIANT : hoverVal < 0 ? LEAD_COLOR_DIRE : LEAD_COLOR_EVEN
     : null
 
   function handleMouseMove(e) {
@@ -476,13 +477,13 @@ export default function GoldGraph({ radiantGoldAdv, radiantName, direName, loadi
           pr-0 lets DIRE sit at the wrapper's right edge (the content boundary when the
           wrapper is -ml-4 sm:-ml-5). */}
       <div className="flex items-center justify-between pl-4 sm:pl-5 pr-0 mb-1.5">
-        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(34,197,94)' }}>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: LEAD_COLOR_RADIANT }}>
           RADIANT
         </span>
         <span className="text-[10px] font-bold tabular-nums" style={{ color: finalColor }}>
           {formatGold(finalVal)}
         </span>
-        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgb(239,68,68)' }}>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: LEAD_COLOR_DIRE }}>
           DIRE
         </span>
       </div>
